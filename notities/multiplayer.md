@@ -661,11 +661,28 @@ zijn, of ze kunnen door die freeze niet verder tot de andere speler levend en bi
 - **Het gevecht.** De lijn blijft dicht tot alle spawns van de hinderlaag er zijn geweest en er geen levende vijand meer is
   binnen `MPC_HL.rond` van de lijn (`hinderVechtKlaar`), of na het vangnet (`MPC_HL.vangnet`, 150 s). Dan stuurt de host
   `hlvrij` en zegt het spel "The way is open".
+- **De lijn schuift mee in het gevecht** (`hinderGrens`, 20-11-2026). Zodra het gevecht begint ligt de lijn niet meer op `x`
+  maar `MPC_HL.ruimte` (450) voorbij de verste vijand van de hinderlaag (zijn spawn, de deur waar hij uitkomt, een shot).
+  Aanleiding: in Ambush 2 stond de makkelijke schildbandiet op -7600, voorbij de lijn op -6300; hij kwam niet vanzelf en het
+  team kon niet bij hem, dus de lijn bleef dicht tot het vangnet. `hinderKlem`, `hinderHint` en `hinderVechtKlaar` lezen allemaal
+  `hinderGrens`.
+- **De vijanden wachten in de regie** (`hinderHoud`, in `mpcUpdate`, alleen bij de host). Wie er al was voor de regie staat de
+  hele regie stil; een nieuwe vijand beweegt `MPC_HL.toon` (1,2 s: de deur uit, de poort door, van het dak) of tot hij binnen
+  `MPC_HL.afstand` (500) van een speler is, en wacht dan tot FIGHT!. Gevraagd: "je moet zien dat er iets aankomt, maar niet
+  gefreezed zijn tot ze op je staan". Daarvoor liep elke vijand de hele regie door (ruim 7 s bij drie shots) en stond hij bij
+  FIGHT! al op je.
+- **Een deur niet naast de lijn.** In Ambush 3 (eerste), 4 (tweede) en 6 (allebei) lag de lijn 230 tot 330 px van de deur
+  van het eerste shot; die lijnen liggen nu 300 verder terug (en de vijanden van "Behind you!" 100 tot 200 mee). Houd bij een
+  nieuwe hinderlaag een deur, poort of dak minstens zo'n 500 px van de lijn.
+- **Testen:** `node tools/mptest.js --hl` speelt nu elke hinderlaag van Ambush 2 tot en met 6 na: bij FIGHT! staat geen
+  vijand binnen 200 px van een speler, en na 6 s staat elke vijand binnen bereik van de lijn. `HL_LV=3,6` beperkt tot die
+  levels (`HL_LV=x` slaat ze over), `HL_DEUR=1` print waar de deuren echt staan.
 - **Het leiband** (`leibandKlem`, alleen in de Co-op episodes; in Co-op Survival, ook Ishmul en Co-op solo, loop je vrij, op verzoek van de opdrachtgever): een levende speler komt niet verder dan `MPC_LEIBAND.max`
   (1000) van een levende teamgenoot; wie al verder weg was (na een revive of een val) mag alleen dichterbij. Niet in een
   huis, de winkel of de regie. Een hint: "Stay close to your teammate".
 - **Anders dan gevraagd:** het spel bevriest niet echt (een `dt = 0` zou de vijanden ook stilzetten, en `mpcVriesWacht`
-  ontdooit een freeze die te lang duurt); de spelers staan vast en zijn onaantastbaar, de vijanden lopen binnen.
+  ontdooit een freeze die te lang duurt); de spelers staan vast en zijn onaantastbaar, de vijanden lopen binnen en wachten
+  dan (zie hierboven).
 
 ## Co-op solo (gebouwd, 18-11-2026)
 

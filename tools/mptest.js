@@ -256,8 +256,8 @@ async function hlProef(R){
   meld(await tot(G.page, () => bandieten.length >= 2, null, 4000), 'en de gast ziet ze');
   meld(await elk(() => hinder.stand[0] === 'vecht' && !hinder.regie && !amirVast(), null, 9000) === null, 'na de regie: het gevecht, Amir kan weer');
   meld(await tot(H.page, () => level.spawns.filter(s => s.hl === 0).every(s => s.used), null, 4000), 'alle vijanden van de hinderlaag zijn er');
-  await zetAllen(-3500); await wacht(300);
-  meld(await H.page.evaluate(() => world >= -3000), 'de lijn blijft dicht in het gevecht');
+  await zetAllen(-6000); await wacht(300);
+  meld(await H.page.evaluate(() => world >= hinderGrens(0) && hinderGrens(0) < -3000), 'in het gevecht schuift de lijn tot achter de verste vijand (' + await H.page.evaluate(() => Math.round(hinderGrens(0))) + ') en niet verder');
   await ruim();
   meld(await elk(() => hinder.stand[0] === 'vrij', null, 6000) === null, 'alle vijanden op: de lijn gaat open bij iedereen');
   await zetAllen(-3500); await wacht(300);
@@ -268,7 +268,7 @@ async function hlProef(R){
   await tot(G.page, () => dead, null, 3000);
   await zetAllen(-6450);   // ook de dode: zijn lijk ligt bij de lijn
   await wacht(1500);
-  meld(await H.page.evaluate(() => hinder.stand[1] === 'wacht' && !hinder.regie), 'een teamgenoot dood: de hinderlaag wacht op de revive');
+  meld(await H.page.evaluate(() => hinder.stand[1] === 'wacht' && !hinder.regie), 'een teamgenoot dood: de hinderlaag wacht op de revive' + (process.env.HL_DBG ? ' ' + await H.page.evaluate(() => JSON.stringify([hinder.stand, !!hinder.regie, world, pvpAnderNu(1)]).slice(0, 300)) + ' gast dood ' + await G.page.evaluate(() => dead) : ''));
   await G.page.evaluate(() => { mpcOpstaan(world, 0); godMode = true; });
   await tot(G.page, () => !dead, null, 3000);
   meld(await tot(H.page, () => hinder.regie && hinder.regie.i === 1, null, 5000), 'weer levend: de regie begint');
@@ -276,6 +276,8 @@ async function hlProef(R){
   await tot(H.page, () => level.spawns.filter(s => s.hl === 1).every(s => s.used), null, 4000);
   await ruim();
   meld(await elk(() => hinder.stand[1] === 'vrij', null, 6000) === null, 'de tweede lijn gaat open');
+  // elke hinderlaag van level 2 tot en met 6: geen vijand op je bij FIGHT!, en elke vijand te halen vanaf de lijn
+  for (let lv = 1; lv <= 5; lv++) if (!process.env.HL_LV || process.env.HL_LV.split(',').includes(String(lv + 1))) await hlLevel(lv);
   // door naar level 7: de kelder
   await H.page.evaluate(() => { pvp.coop.ep.door = true; pvpZend({ t: 'epnaar', i: 6 }); mpCoopStart(6); });
   meld(await klaar(6) === null, 'Ambush 7 loopt bij iedereen');
@@ -299,6 +301,33 @@ async function hlProef(R){
     meld(await elk(i => hinder.stand[i] === 'vrij', i, 6000) === null, 'hinderlaag ' + (i + 1) + ' open');
   }
   const kx = await H.page.evaluate(() => level.kelder.x + 120);
+  async function hlLevel(lv){
+    await H.page.evaluate(lv => { pvp.coop.ep.door = true; pvpZend({ t: 'epnaar', i: lv }); mpCoopStart(lv); }, lv);
+    if (await klaar(lv) !== null){ meld(false, 'Ambush ' + (lv + 1) + ' laadt niet'); return; }
+    await tot(H.page, () => pvp.coop.allenKlaar, null, 20000);
+    for (const p of allen) await p.evaluate(() => { godMode = true; });
+    if (process.env.HL_DEUR) console.log(await H.page.evaluate(() => JSON.stringify(level.spawns.filter(s => s.deur).map(s => [s.hl, s.deur.gevel, s.deur.verdieping, Math.round((stadDeurMaat(s.deur, nowScale()) || {}).cx)])) + ' lijnen ' + level.hinderlagen.map(h => h.x)));
+    const n = await H.page.evaluate(() => level.hinderlagen.length);
+    for (let i = 0; i < n; i++){
+      const x = await H.page.evaluate(i => level.hinderlagen[i].x, i);
+      await zetAllen(x + 50); await wacht(200); await zetAllen(x + 50);
+      await tot(H.page, i => hinder.regie && hinder.regie.i === i, i, 8000);
+      await tot(H.page, i => hinder.stand[i] === 'vecht', i, 16000);
+      // het moment van FIGHT!: hoe dicht staat de dichtstbijzijnde vijand bij een speler
+      const dichtT = await H.page.evaluate(() => { let m = 1e9, wie = ''; const xs = [world].concat(pvpAnderen().map(p => (pvpAnderNu(p) || {}).x).filter(v => v != null));
+        for (const q of MPC_LIJSTEN) if (!q.los) for (const o of q.l()) if (mpcLeeft(o)) for (const px of xs) if (Math.abs(o.x - px) < m){ m = Math.abs(o.x - px); wie = q.k + '@' + Math.round(o.x) + (hinder.voor && hinder.voor.has(o) ? ' (al voor de regie)' : ''); } return Math.round(m) + ' ' + wie; });
+      const dicht = parseFloat(dichtT);
+      meld(dicht > 200, 'Ambush ' + (lv + 1) + ', hinderlaag ' + (i + 1) + ': bij FIGHT! staat geen vijand op je (dichtstbij ' + dichtT + ')');
+      await tot(H.page, i => level.spawns.filter(s => s.hl === i).every(s => s.used), i, 8000);
+      await wacht(6000);                                 // even laten lopen: wie niet komt, blijft staan
+      const ver = await H.page.evaluate(i => { const g = hinderGrens(i), uit = [];
+        for (const q of MPC_LIJSTEN) if (!q.los) for (const o of q.l()) if (mpcLeeft(o) && o.x < g - 150) uit.push(q.k + '@' + Math.round(o.x));
+        return { g: Math.round(g), uit }; }, i);
+      meld(!ver.uit.length, 'Ambush ' + (lv + 1) + ', hinderlaag ' + (i + 1) + ': elke vijand te halen vanaf de lijn (' + ver.g + ')' + (ver.uit.length ? ' buiten: ' + ver.uit.join(' ') : ''));
+      await ruim();
+      meld(await elk(i => hinder.stand[i] === 'vrij', i, 6000) === null, 'Ambush ' + (lv + 1) + ', hinderlaag ' + (i + 1) + ' open');
+    }
+  }
   await zet(H.page, kx); await wacht(1500);
   meld(await H.page.evaluate(() => pvp.coop.fase === 'ep'), 'de host alleen bij de kelder: het level is niet uit');
   await zetAllen(kx);
