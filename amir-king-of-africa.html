@@ -67641,7 +67641,6 @@ function pvpWeg(t){
 // opruimen: bij toMenu (Escape, Terug) of als de ander weg is
 function pvpStop(){
   if (!pvp) return;
-  meekijkBewaar();                                   // TIJDELIJK: de meekijker
   pvpZend({ t: 'bye' });
   pvpNetStop();
   for (const k in pvp.peers){ try { pvp.peers[k].conn.close(); } catch (e){} }
@@ -67738,82 +67737,16 @@ function pvpLosTeken(groundY, scale, cx){
     }
   }
 }
-// ---- multiplayer: meekijken (tijdelijk) ----
-// TIJDELIJK, om de dubbele teamgenoot te vangen (de speler zag zijn partner soms heel kort twee keer). Elk beeld een paar
-// getallen in een ring (MEEKIJK.ring beelden); valt er iets op (een teamgenoot twee keer getekend, meer anderen dan er
-// spelers zijn, of een sprong van de getekende plek heen en weer), dan een klein schermafdruk en de ring erbij. Aan het eind
-// van het potje (eindscherm of weg) downloadt het spel vanzelf een JSON als er iets gevangen is. Weghalen als het gevonden is:
-// deze sectie, meekijkBeeld/meekijkTeken in pvpTeken, en meekijkBewaar in mpcEindToon en pvpStop.
-const MEEKIJK = { ring: 240, sprong: 90, maxGevangen: 6, foto: 640 };
-let meekijk = null;
-function meekijkNieuw(){ meekijk = { rij: [], gevangen: [], beeld: 0, getekend: {}, vorig: {}, bewaard: false, start: new Date().toISOString() }; }
-function meekijkVang(soort, info){
-  const M = meekijk; if (!M || M.gevangen.length >= MEEKIJK.maxGevangen) return;
-  if (M.gevangen.some(v => v.soort === soort && M.beeld - v.beeld < 30)) return;   // niet elk beeld van dezelfde keer
-  const v = { soort, info, beeld: M.beeld, t: Math.round(performance.now()), ring: M.rij.slice(), foto: null };
-  M.gevangen.push(v);
-  setTimeout(() => {                                // na dit beeld: dan staat het hele beeld op het doek
-    try {
-      const doek = ctx.canvas, k = Math.min(1, MEEKIJK.foto / doek.width), c = document.createElement('canvas');
-      c.width = Math.round(doek.width * k); c.height = Math.round(doek.height * k);
-      c.getContext('2d').drawImage(doek, 0, 0, c.width, c.height);
-      v.foto = c.toDataURL('image/jpeg', 0.6);
-    } catch (e){}
-  }, 0);
-}
-// aan het begin van pvpTeken: een nieuw beeld, en wat er in de lijsten staat
-function meekijkBeeld(){
-  if (!meekijk) meekijkNieuw();
-  const M = meekijk; M.beeld++; M.getekend = {};
-  const and = pvpAnderen(), echt = pvp.spelers.filter(p => p !== pvp.mij);
-  if (and.length > echt.length || new Set(and).size !== and.length)
-    meekijkVang('meer anderen dan spelers', { anderen: and, spelers: pvp.spelers.slice(), mij: pvp.mij, peers: Object.keys(pvp.peers || {}) });
-  const rij = { b: M.beeld, w: Math.round(world), mij: pvp.mij, sp: pvp.spelers.slice(), a: Object.keys(pvp.anders) };
-  for (const p of and){
-    const g = pvp.anders[p].g, N = pvp.nets && pvp.nets[p];
-    rij['p' + p] = { x: Math.round(g.x), h: Math.round(g.h), im: g.im, dx: +(g.dx || 0).toFixed(1), dy: +(g.dy || 0).toFixed(1),
-      dw: +(g.dw || 0).toFixed(1), fl: g.fl, a: g.a, d: g.d ? 1 : 0, q: g.q, buf: N ? +(N.buf || 0).toFixed(3) : null, rij: N && N.s ? N.s.rij.length : null };
-  }
-  M.rij.push(rij); if (M.rij.length > MEEKIJK.ring) M.rij.shift();
-}
-// in pvpTekenEen: waar hij op het scherm staat; twee keer in een beeld, of heen en terug gesprongen, is verdacht
-function meekijkTeken(p, g, sx){
-  const M = meekijk; if (!M) return;
-  M.getekend[p] = (M.getekend[p] || 0) + 1;
-  if (M.getekend[p] === 2) meekijkVang('twee keer getekend', { p });
-  const vx = g.x, v = M.vorig[p];
-  if (v && v.b === M.beeld - 1 && Math.abs(vx - v.x) > MEEKIJK.sprong){
-    if (v.sprong && M.beeld - v.sprong.b < 20 && Math.sign(vx - v.x) !== v.sprong.r) meekijkVang('sprong heen en terug', { p, van: v.sprong, nu: { x: Math.round(vx), b: M.beeld } });
-    M.vorig[p] = { b: M.beeld, x: vx, sprong: { b: M.beeld, x: Math.round(v.x), naar: Math.round(vx), r: Math.sign(vx - v.x) } };
-    return;
-  }
-  M.vorig[p] = { b: M.beeld, x: vx, sprong: v && v.sprong };
-}
-// aan het eind van het potje: is er iets gevangen, dan een JSON in de downloads
-function meekijkBewaar(){
-  const M = meekijk; meekijk = null; window.__meekijk = M;   // voor tools/mptest.js
-  if (!M || M.bewaard || !M.gevangen.length) return;
-  M.bewaard = true;
-  try {
-    const data = JSON.stringify({ start: M.start, eind: new Date().toISOString(), host: !!(pvp && pvp.host), modus: pvp && pvp.regels && pvp.regels.modus,
-      scherm: [innerWidth, innerHeight], gevangen: M.gevangen });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
-    a.download = 'amir-meekijk-' + M.start.replace(/[:.]/g, '-') + '.json';
-    document.body.appendChild(a); a.click(); a.remove();
-  } catch (e){}
-}
 // in het tekenblok, na Amir: de andere Amirs (in Co-op een of twee teamgenoten, in het Duel de tegenstander)
 function pvpTeken(groundY, scale, cx, pbox, hitBy){
   if (!pvp) return;
-  if (pvp.coop) meekijkBeeld();                      // TIJDELIJK: de meekijker (zie "meekijken")
   for (const p of pvpAnderen()) pvpTekenEen(p, pvp.anders[p].g, groundY, scale, cx, pbox, hitBy);
   if (pvp.coop) mpCoopTeken(groundY, scale, cx);    // Co-op: de revive-tonnen en hun symbolen
 }
+const pvpBroekCv = {};                              // per slot een eigen doek voor zijn broekkleur (zie pvpTekenEen)
 // een andere Amir, zijn speer, en (in het Duel) of zijn steek, zwaai of worp mijn Amir raakt
 function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
   const sx = cx + (g.x - world), voet = groundY - g.h * scale;
-  if (pvp.coop) meekijkTeken(p, g, sx);            // TIJDELIJK: de meekijker
   const im = g.im && pvpBeeld(g.im);
   if (im){
     const w = g.dw * scale, h = g.dh * scale;
@@ -67822,7 +67755,9 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
     ctx.translate(sx + g.dx * scale, voet + g.dy * scale);
     if (g.fl){ ctx.translate(w, 0); ctx.scale(-1, 1); }
     if (pvp.coop && g.d) mpcLig(w, h, -g.dy * scale);  // Co-op: mijn teamgenoot ligt dood
-    const kb = broekBeeld(im, im, broekKleurVan(pvp.broek[p]));   // zijn broekkleur uit de lobby
+    // zijn broekkleur uit de lobby, op een eigen doek per slot: het gedeelde doek van broekBeeld is ook het beeld van mijn
+    // Amir (amirHer), en lijkAchterAmir tekende dat later opnieuw, dus dan stond zijn beeld in zijn kleur op mijn plek
+    const kb = broekBeeld(im, im, broekKleurVan(pvp.broek[p]), pvpBroekCv[p] || (pvpBroekCv[p] = document.createElement('canvas')));
     ctx.drawImage(g.hu > 0 ? amirRood(kb, Math.min(0.75, g.hu * 2)) : kb, 0, 0, w, h);
     ctx.restore();
   }
@@ -68795,7 +68730,6 @@ function mpcEindSleutel(){
 }
 function mpcEindToon(e){
   const C = pvp.coop; C.fase = 'uit'; C.eind = e; godMode = true; pvp.rematch = [false, false];
-  meekijkBewaar();                                   // TIJDELIJK: de meekijker
   if (e.ep){ mpEpEindToon(e); return; }             // de Co-op episode heeft zijn eigen eindscherm
   let best = 0;
   try { best = +(localStorage.getItem(mpcEindSleutel()) || 0); if (e.score > best) localStorage.setItem(mpcEindSleutel(), String(e.score)); } catch (err){}
