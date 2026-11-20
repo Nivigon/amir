@@ -292,6 +292,10 @@
   #mplobby.gast #mpstart,#mplobby.host #mpready{display:none}
   #mpready.on{border-color:#45e07a;background:rgba(69,224,122,.2)}
   #mpstart:disabled{opacity:.45;cursor:default;transform:none}
+  #hlbalken{position:fixed;inset:0;pointer-events:none;z-index:39}
+  #hlbalken i{position:absolute;left:0;right:0;height:0;background:#000;transition:height .45s ease}
+  #hlbalken i:first-child{top:0} #hlbalken i:last-child{bottom:0}
+  #hlbalken.on i{height:11vh}
   #pvphud{position:fixed;left:0;right:0;top:96px;display:none;flex-direction:column;align-items:center;gap:6px;pointer-events:none;z-index:40;font-family:inherit;color:#fff;text-shadow:0 2px 4px #000}
   #pvphud.on{display:flex}
   #pvpscore{font-size:20px;background:rgba(0,0,0,.45);padding:4px 14px;border-radius:8px}
@@ -1265,13 +1269,13 @@
         <p id="mpping"></p>
         <div class="row mpmodi">
           <button class="mpmodus" data-modus="coop">Co-op Survival<small>Together against rounds of enemies</small></button>
-          <button class="mpmodus" data-modus="ep">Co-op Episode<small>Three levels, finish them together</small></button>
+          <button class="mpmodus" data-modus="ep">Co-op Episode<small>Two episodes, finish them together</small></button>
           <button class="mpmodus" data-modus="duel">Duel<small>One against one</small></button>
         </div>
         <label class="mprij">Map <select id="mpkaart"></select></label>
         <div id="mpduel" class="mpregels"></div>
         <div id="mpcoop" class="mpregels"></div>
-        <div id="mpep" class="mpregels"><p class="mpuitleg">Three savanna levels, from easy to hard. A level only ends when the whole team stands at the torches. Whoever falls gets a REVIVE barrel next to the nearest teammate. Map: the level you start at.</p></div>
+        <div id="mpep" class="mpregels"><p class="mpuitleg">Two episodes: The Long Grass (three savanna levels) and The Smugglers' Cellar (seven levels with ambushes, from the savanna into the city and down the cellar). A level only ends when the whole team is at the end. Whoever falls gets a REVIVE barrel next to the nearest teammate. Map: the episode and the level you start at.</p></div>
         <div class="row">
           <button id="mpready" class="bigbtn">Ready<small>The host starts when you are ready</small></button>
           <button id="mpstart" class="bigbtn prim">Start<small id="mpstartuitleg"></small></button>
@@ -10639,6 +10643,8 @@ function updateCamera(dt, scale){
   if (bavKijkNu){ camY = target; bavKijkNu = false; }
   const trapY = stadTrapCamY(target);                // de stadstrap: de camera glijdt mee naar de hoogte van de uitgang
   if (trapY !== null){ camY = trapY; return; }
+  const hlY = hinderCamY(scale, vz, klimLift);        // de hinderlaag: de camera kijkt mee omhoog naar een dak
+  if (hlY !== null){ camY += (hlY - camY) * Math.min(1, dt * 2.5); return; }
   camY += (target - camY) * Math.min(1, dt * 3.2);
   if (Math.abs(target - camY) < 0.3) camY = target;
 }
@@ -16089,6 +16095,7 @@ function kelderBij(px){
 function kelderUit(){
   if (!kelderBij(world)) return false;
   if (sandbox){ flashHint('Hier speel je in een level met E het level uit'); return true; }
+  if (pvp && pvp.coop && pvp.coop.ep){ mpEpBijFakkels(true); return true; }   // de Co-op episode: de host kijkt of het hele team er is
   winLevel();
   return true;
 }
@@ -17424,7 +17431,7 @@ function poortUpdate(dt){
   hekUpdate(dt);
   for (const o of level.poorten) if (o.uitT > 0) o.uitT = Math.max(0, o.uitT - dt);
   // de beurt telt pas af als Amir binnen de triggerafstand is: komt hij later bij de poort, dan komen ze alsnog na elkaar
-  for (const sp of level.spawns || []) if (sp.poort && sp.poortWacht > 0 && Math.abs(sp.x - world) <= triggerDist(sp.kind)) sp.poortWacht = Math.max(0, sp.poortWacht - dt);
+  for (const sp of level.spawns || []) if (sp.poort && sp.poortWacht > 0 && (sp.hlVrij || Math.abs(sp.x - world) <= triggerDist(sp.kind))) sp.poortWacht = Math.max(0, sp.poortWacht - dt);
 }
 function poortReset(){
   if (level && level.poorten) for (const o of level.poorten){ o.open = false; o.uitT = 0; o.hekP = 0; o.hekT = 0; o.hekAan = false; o.regieKlaar = false; o.openT = null; }
@@ -18704,7 +18711,7 @@ function bavFocusX(p){
 }
 // de entree van de bandiet-arena: Amir staat vast en kijkt toe terwijl de garde hem opmerken, tot het gevecht vrij is
 const arenaIntroVast = () => { const A = arenaAap; return !!(A && A.ban && A.fase === 'intro'); };
-const amirVast = () => !!rol || !!rolW || beetVast || bavDramaNu() || arenaIntroVast() || bruIntroVast() || !!exeVries || !!bruVries || !!poortRegie || !!sneakRegie || murFinaleVast() || murcPinBezet() || !!murcVries || straalVast();   // de speerbeet, het drama, de arena-entree of de executie: Amir staat vast
+const amirVast = () => !!rol || !!rolW || beetVast || bavDramaNu() || arenaIntroVast() || bruIntroVast() || !!exeVries || !!bruVries || !!poortRegie || !!sneakRegie || murFinaleVast() || murcPinBezet() || !!murcVries || straalVast() || hinderVast();   // de speerbeet, het drama, de arena-entree of de executie: Amir staat vast
 // het gevecht in de tekenlus, na de andere vijanden: raakt zijn bek Amir, en raakt Amir hem
 function bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, valRaakt, attacking, hitBy }){
   const b = level && level.baviaan, r = b && bavRust.get(b), g = b && bavGeo.get(b);
@@ -30400,11 +30407,12 @@ function stadDeurUpdate(dt){
     if (!stadDeurTelt(sp) || sp.used) continue;
     const key = stadDeurKey(sp.deur), st = stadDeurStaat[key] || (stadDeurStaat[key] = { open: false, uitT: 0, t: 0 });
     if (st.open){
-      if (sp.deurWacht > 0 && Math.abs(sp.x - world) <= triggerDist(sp.kind)) sp.deurWacht = Math.max(0, sp.deurWacht - dt);
+      if (sp.deurWacht > 0 && (sp.hlVrij || Math.abs(sp.x - world) <= triggerDist(sp.kind))) sp.deurWacht = Math.max(0, sp.deurWacht - dt);
       continue;
     }
+    if (sp.hl != null && !sp.hlVrij) continue;   // de hinderlaag: de deur wacht op zijn shot (zie "de hinderlaag")
     const dm = stadDeurMaat(sp.deur, scale); if (!dm) continue;
-    if (Math.abs(dm.cx - mid) > half || Math.abs(dm.cx - world) > triggerDist(sp.kind)) continue;
+    if (sp.hl == null && (Math.abs(dm.cx - mid) > half || Math.abs(dm.cx - world) > triggerDist(sp.kind))) continue;
     // in beeld: de deur gaat open, al zijn vijanden komen na elkaar, op de plek van het gat en op de vloer ervoor
     // (met een gordijn gaan de banen opzij in plaats van dat de deur openvliegt, zie "gordijnen")
     st.open = true; st.gordijn = !dm.v && !!stadGordijn(sp.deur.gevel | 0);
@@ -37608,7 +37616,7 @@ function grisGrisVang(){
   return true;
 }
 function hurtPlayer(fromLeft, schade = 1){           // schade: hoeveel levens de klap kost (standaard een heel, een halve bij de snelle kooislag)
-  if (!running || invuln > 0 || dead || godMode || woedeAan() || exeVries || bruVries || (sneakRegie && !sneakRegie.vrij) || comboPantser()) return;   // in de woede raakt niets hem, en in de executie en de sluipaanval (tot het loslaten) ook niet
+  if (!running || invuln > 0 || dead || godMode || hinderVast() || woedeAan() || exeVries || bruVries || (sneakRegie && !sneakRegie.vrij) || comboPantser()) return;   // in de woede raakt niets hem, en in de executie en de sluipaanval (tot het loslaten) ook niet
   if (schildVang(fromLeft, 'klap')) return;        // het schild van Amir vangt een klap van voren (AMIR_SCHILD)
   if (stokBlokVang(fromLeft)) return;              // de gekruiste stokken vangen een klap van voren (STOK)
   thrHurt();                                       // de hele worp is kwetsbaar (zie thrHurt)
@@ -39333,6 +39341,20 @@ function opstapBij(x, a, b){
     if (t.opstap && x >= t.l - 160 && x <= t.r + 160 && t.h >= lo - 1 && t.h <= hi + OPSTAP.max + 1) return true;
   return false;
 }
+// loopt de vloer van x0 naar x1 (vanaf hoogte base) alleen met opstapjes omlaag, elk niet hoger dan OPSTAP.max?
+function opstapTrap(x0, x1, base){
+  const d = x1 >= x0 ? 1 : -1, n = Math.ceil(Math.abs(x1 - x0) / 8);
+  let h = base;
+  for (let i = 1; i <= n; i++){
+    const x = i === n ? x1 : x0 + d * i * 8, vf = vloerBij(x, h);
+    if (vf > h + 1) return false;
+    if (vf < h - 1){
+      if (h - vf > OPSTAP.max + 1 || !opstapBij(x, h, vf)) return false;
+      h = vf;
+    }
+  }
+  return true;
+}
 // de hoogte van een vijand naar zijn vloer: over een opstapje glijdend, anders in een keer (zoals altijd)
 function opstapVolg(s, doel, dt){
   const b = s.base || 0, d = doel - b;
@@ -39357,10 +39379,14 @@ function blocksMonster(p, base, klim, geenOpstap){
 // Hier houdt zijn vloer op: de rand van zijn terras, of voor wie beneden in een gang staat de
 // eindwand van die gang (daarbuiten is het massief grondpakket, daar loopt niemand doorheen). Een
 // klimmer loopt een kleine trede naar beneden wel af; een ravijn (gatOp) blijft los hiervan een rand.
-function dropAhead(x, base, klim, geenOpstap){
+// x0: waar hij nu staat (optioneel). Kijkt hij verder vooruit dan een trede breed is (de kooiman, de meelman), dan
+// ziet hij op x al twee opstapjes lager; met x0 loopt opstapTrap de treden ertussen na, en is het een trap van
+// opstapjes, dan is dat geen rand (Ishmul: de meelman en de duel-kooiman bleven bovenaan het plein staan)
+function dropAhead(x, base, klim, geenOpstap, x0){
   if (base < -1 && !holteAt(x)) return true;                   // de eindwand van een gang: altijd
   const vf = vloerBij(x, base);
   if (vf < base - 1 && !geenOpstap && base - vf <= OPSTAP.max + 1 && opstapBij(x, base, vf)) return false;   // een opstapje af
+  if (vf < base - 1 && !geenOpstap && x0 != null && opstapTrap(x0, x, base)) return false;                   // een trap van opstapjes af
   if (vf < base - 1) return klim ? base - vf > KLIM_STAP : true;
   return false;
 }
@@ -39396,6 +39422,7 @@ function updateSnakes(dt, plats, halfWNow, cliff){
     // eigen level: slangen komen op de plek waar jij ze gezet hebt
     for (const sp of level.spawns){
       if (sp.used) continue;
+      if (sp.hl != null && !sp.hlVrij) continue;  // een vijand van een hinderlaag komt pas als de regie hem toont (zie "de hinderlaag")
       if (straatAan() && !straatIn(straatHier(), sp.x)) continue;   // alleen de vijanden van de straat waar je bent
       if (!poortKlaar(sp)) continue;             // een vijand achter een poort komt pas als die open is (zie "poort")
       if (!stadDeurKlaar(sp)) continue;          // en een vijand in een deur pas als die in beeld is (zie "deuren")
@@ -39424,13 +39451,14 @@ function updateSnakes(dt, plats, halfWNow, cliff){
       }
       // uit een poort: hij blijft achter de opening tot Amir binnen zijn triggerafstand is (het zegel of het regiepunt kan ver
       // van de poort liggen). Eerst werd hij dan als 'ver voorbij' afgeschreven en kwam hij nooit, terwijl de hint hem beloofde
-      if (sp.poort || stadDeurTelt(sp)){ if (d > triggerDist(sp.kind)) continue; }
+      if (sp.hl != null){}                       // de hinderlaag: de regie liet hem los, hij komt hoe ver het team ook staat
+      else if (sp.poort || stadDeurTelt(sp)){ if (d > triggerDist(sp.kind)) continue; }
       else if (!huisSp && d > W * 2.5){ sp.used = true; continue; }   // je bent al ver voorbij: laat maar zitten
       sp.used = true;
       if (sp.poort) poortUit(sp);
       if (stadDeurTelt(sp)) stadDeurUit(sp);
       // uit een poort of een deur: precies in de opening, niet net buiten beeld
-      const plek = x => (sp.poort || stadDeurTelt(sp)) ? sp.x : spawnPoint(x);
+      const plek = x => (sp.poort || stadDeurTelt(sp) || sp.hl != null) ? sp.x : spawnPoint(x);   // de hinderlaag: waar de camera hem liet zien
       // zijn plek ligt in een ravijn dat al openscheurde (een rune of een zegel): dan is hij erin
       // gevallen voor je hem zag, anders stond hij boven het gat in de lucht. Hyena's komen van de
       // rand van het beeld, niet van hun plek, dus voor hen geldt dit niet.
@@ -41156,7 +41184,7 @@ function hyMove(s, stap, plats, cliff, stormt){
   const halfL = HY.bodyW * hyScale() * 0.35;
   const klem = stormt ? (hardBlocked(s, nx, plats, cliff, 60)
                          || (!takelDraagt(nx + d * halfL, s.base) && !takelAfstap(s, nx + d * halfL)   // over het takel-dek en ervan af
-                             && (gatOp(nx + d * halfL, s.base || 0) || dropAhead(nx + d * halfL, s.base || 0))))
+                             && (gatOp(nx + d * halfL, s.base || 0) || dropAhead(nx + d * halfL, s.base || 0, undefined, undefined, nx))))
                       : knockBlocked(s, nx, plats, cliff, halfL, 80);
   if (klem) return false;
   s.x = nx;
@@ -50753,7 +50781,7 @@ function knockBlocked(s, nx, plats, cliff, halfL, wallGap){
   if (takelDraagt(nx + d * halfL, s.base)) return false;
   if (takelAfstap(s, nx + d * halfL)) return false;          // en van het dek af naar een vloer die er net naast ligt
   if (gatOp(nx + d * halfL, s.base || 0)) return true;      // en de rand van een ravijn
-  if (dropAhead(nx + d * halfL, s.base || 0)) return true;
+  if (dropAhead(nx + d * halfL, s.base || 0, undefined, undefined, nx)) return true;
   return false;
 }
 function knockStep(s, dt, plats, cliff, halfL, wallGap){
@@ -52860,6 +52888,7 @@ function loop(now){
   murKlem(halfWNow);                               // Murghtaan: in zijn arena zolang hij leeft
   pleinKlem();                                     // en daarna niet verder dan onder de poort
   aanvKlem();                                      // niet langs het dichte hek van een eindpoort (zie "de aanvoerder")
+  if (pvp && pvp.coop){ hinderKlem(); leibandKlem(); }   // Co-op: niet langs een hinderlaag voor het hele team er is, en niet te ver van elkaar
   updateArena();
   checkTips();
   updateTut(dt);
@@ -53042,8 +53071,12 @@ function loop(now){
   camUpdate(exeVries || (sneakRegie && !sneakRegie.vrij) ? 0 : dt, pWorld);          // de meekijkende camera (zie "camera"); in de freeze van de executie staat hij stil
   const bruFocus = bruIntroCam(pWorld) ?? murcIntroCam(pWorld);   // de opening van het plein: de camera schuift naar Nyundo (en in Murghtaan 3 naar Murghtaan)
   const mpCam = pvp ? mpCoopCam() : null;         // Co-op: wie dood is kijkt mee met de ander
-  if (arena || bavFocus !== null || bruFocus !== null || exeCamDoel() !== null || stadTrapCamX() !== null || mpCam !== null) camVast = false;   // een andere camera neemt het over: daarna zacht terug
-  if (mpCam !== null){                           // Co-op, dood: zacht naar de teamgenoot. Deze gaat voor de meekijkende camera, anders zette
+  const hlCam = pvp ? hinderCamX() : null;        // Co-op: de regie van een hinderlaag toont waar de vijanden binnenkomen
+  if (arena || bavFocus !== null || bruFocus !== null || exeCamDoel() !== null || stadTrapCamX() !== null || mpCam !== null || hlCam !== null) camVast = false;   // een andere camera neemt het over: daarna zacht terug
+  if (hlCam !== null){
+    if (camEase === null) camEase = pWorld;
+    camEase += (hlCam - camEase) * Math.min(1, realDt * MPC_HL.camV);
+  } else if (mpCam !== null){                           // Co-op, dood: zacht naar de teamgenoot. Deze gaat voor de meekijkende camera, anders zette
     if (camEase === null) camEase = pWorld;      // die hem elk beeld terug op het lijk en trok deze hem weer een stukje weg: het beeld schudde
     camEase += (mpCam - camEase) * Math.min(1, realDt * 3);
   } else if (stadTrapCamX() !== null){                  // de stadstrap: de camera glijdt naar de uitgang (zie "de stadstrap")
@@ -56344,6 +56377,9 @@ function readLevel(txt){
                                                 inBeeld: s.inBeeld === true ? true : undefined,
                                                 // poort: komt pas uit die poort als een zegel of rune hem opent (zie "poort")
                                                 poort: (s.poort === undefined || s.poort === null) ? undefined : String(s.poort),
+                                                // de hinderlaag van Co-op (zie "de hinderlaag"): welke hinderlaag en in welk shot hij binnenkomt
+                                                hl: Number.isInteger(s.hl) && s.hl >= 0 ? s.hl : undefined,
+                                                shot: Number.isInteger(s.shot) && s.shot >= 0 ? s.shot : undefined,
                                                  // deur: stapt uit het deurgat van een gevel van de stad zodra die in beeld is (zie "deuren")
                                                  deur: (s.deur && typeof s.deur === 'object') ? { gevel: Math.max(0, Math.round(Number(s.deur.gevel) || 0)), verdieping: Math.max(0, Math.round(Number(s.deur.verdieping) || 0)) } : undefined })),
            props: (o.props || []).filter(q => PROPS[q.k])
@@ -56607,6 +56643,11 @@ function readLevel(txt){
                                                 goud: Math.max(1, Math.round(Number(q.goud) || KIST.goud)), f: !!q.f })),   // schatkisten (zie "de schatkist")
            munt: o.munt ? { x: Number(o.munt.x), y: o.munt.y == null ? null : Number(o.munt.y), vast: !!o.munt.vast } : undefined,   // de munt van de koning (zie "goud")
            kelder: o.kelder ? { x: Number(o.kelder.x) } : undefined,   // het kelderluik (zie "het kelderluik")
+           // de hinderlagen van Co-op (zie "de hinderlaag"): de lijn en de shots van de regie
+           hinderlagen: Array.isArray(o.hinderlagen) ? o.hinderlagen.map(h => ({ x: Number(h.x), vecht: h.vecht ? String(h.vecht) : undefined,
+             shots: (h.shots || []).map(S => ({ x: S.x != null ? Number(S.x) : undefined, h: Number(S.h) || undefined, t: S.t ? String(S.t) : undefined,
+                                                poort: S.poort != null ? String(S.poort) : undefined, kelder: S.kelder === true ? true : undefined,
+                                                deur: S.deur ? { gevel: S.deur.gevel | 0, verdieping: S.deur.verdieping | 0 } : undefined })) })) : undefined,
            eindDeur: o.eindDeur ? { gevel: Math.round(Number(o.eindDeur.gevel)) || 0, verdieping: Math.round(Number(o.eindDeur.verdieping)) || 0 } : undefined,   // de einddeur (zie "de einddeur")
            doorval: !!o.doorval,                        // omlaag + springen zakt door een houten galerij of kraam (zie DOORVAL); Test 79
            stof: !!o.stof,                              // stof in de ogen: gebukt F vasthouden verblindt een bandiet die je aankijkt (zie STOF)
@@ -66077,6 +66118,227 @@ const COOPEP_3 = {
           { x: -10500, t: 'The elite guard takes five hits. Hit him from two sides' } ]
 };
 const COOPEP_LEVELS = [COOPEP_1, COOPEP_2, COOPEP_3];
+// ---- multiplayer: de tweede Co-op episode, The Smugglers' Cellar ----
+// Zeven levels voor Co-op (de lobby, modus 'ep', map 'b0' tot 'b6'), van makkelijk naar heel moeilijk: een smokkelbende
+// volgen van de karavaanroute door de poort de stad in, tot in hun kelder. Gebouwd op verzoek van de opdrachtgever (regel 3:
+// zelf ontworpen). Elk level heeft hinderlagen (zie "de hinderlaag"): het team komt samen bij een lijn, het beeld staat stil,
+// de camera laat zien waar de vijanden binnenkomen (een poort met een hek, een deur, een dak, van boven, uit de kelder of
+// van achteren), en dan is het gevecht. Pas als het op is gaat de weg verder. Het leiband houdt het team bij elkaar.
+// Level 4 en 7 eindigen in de kelder (zie "het kelderluik"): het hele team bij het open luik. Geen bazen (regel 12), geen
+// doornbossen (de stokken kunnen ze niet kappen), geen sneak (de sluipaanval is in Co-op uit).
+// Een spawn van een hinderlaag heeft hl (de hinderlaag) en shot (het shot waarin hij binnenkomt).
+const COOPEP2_1 = {
+  name: 'Ambush 1: The Caravan Trail',
+  lagen: 'vlakte',
+  view: 0.8, hpBalk: true, slangEenKlap: true, zicht: true, camera: true, rand: true, speerInHand: true, hyOmkeer: true,
+  hinderlagen: [ {x: -3000, shots: [ {x: -3950, t: 'Bandits on the trail!'}, {x: -2050, t: 'Behind you!'} ]},
+                 {x: -6400, shots: [ {x: -7300, t: 'More of them!'}, {x: -5450, t: 'And from behind!'} ]} ],
+  spawns: [ {x: -1400, k: 'groen'}, {x: -2200, k: 'scorp'},
+            {x: -3850, k: 'bandiet', hl: 0, shot: 0}, {x: -4050, k: 'bandiet', dolk: true, hl: 0, shot: 0},
+            {x: -2000, k: 'bandiet', hl: 0, shot: 1},
+            {x: -4800, k: 'groen'},
+            {x: -7200, k: 'bandiet', hl: 1, shot: 0}, {x: -7450, k: 'bandiet', hl: 1, shot: 0},
+            {x: -5400, k: 'scorp', hl: 1, shot: 1} ],
+  rocks: [ {x: -5000, s: 1.0} ],
+  gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
+  props: [ {x: -500, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2600, k: 'struik', s: 1.0, f: 1, v: 0},
+           {x: -4400, k: 'gras', s: 0.9, f: 1, v: 0}, {x: -6000, k: 'struik', s: 0.9, f: 0, v: 0},
+           {x: -8000, k: 'gras', s: 1.0, f: 0, v: 0} ],
+  hppotions: [ {x: -5700, y: null} ],
+  cliffs: [ {x: -9000} ],
+  ends: [ {x: -8400} ],
+  tips: [ { x: -60,   t: 'The smugglers took this trail. Stay together: you cannot get more than a few steps apart' },
+          { x: -2400, t: 'An ambush waits ahead. The fight starts when the whole team is here' } ]
+};
+const COOPEP2_2 = {
+  name: 'Ambush 2: The Dry Gate',
+  lagen: 'tafelbergen',
+  view: 0.8, hpBalk: true, slangEenKlap: true, zicht: true, camera: true, rand: true, speerInHand: true, hyOmkeer: true,
+  poorten: [ {id: 'g1', x: -3900, k: 'boog_steen', look: 'savanne', hek: true, wand: true} ],
+  hinderlagen: [ {x: -3000, shots: [ {poort: 'g1', t: 'From the gate!'}, {x: -2100, t: 'Behind you!'} ]},
+                 {x: -6300, shots: [ {x: -7100, t: 'From above!'}, {x: -7600, t: 'A shield bandit!'} ]} ],
+  spawns: [ {x: -1500, k: 'groen'},
+            {x: -3900, k: 'bandiet', poort: 'g1', hl: 0, shot: 0}, {x: -3900, k: 'bandiet', dolk: true, poort: 'g1', hl: 0, shot: 0},
+            {x: -2100, k: 'scorp', hl: 0, shot: 1},
+            {x: -5300, k: 'zwart'},
+            {x: -7000, k: 'bandiet', neer: true, hl: 1, shot: 0}, {x: -7200, k: 'bandiet', neer: true, hl: 1, shot: 0},
+            {x: -7600, k: 'schildman', niveau: 'makkelijk', hl: 1, shot: 1} ],
+  rocks: [], gaps: [ {x: -4700, w: 200} ], ledges: [], village: [], npcs: [], water: [], thickets: [],
+  props: [ {x: -600, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2500, k: 'struik', s: 1.0, f: 1, v: 0},
+           {x: -5600, k: 'gras', s: 0.9, f: 1, v: 0}, {x: -8300, k: 'struik', s: 1.0, f: 0, v: 0} ],
+  hppotions: [ {x: -5100, y: null} ],
+  cliffs: [ {x: -9300} ],
+  ends: [ {x: -8700} ],
+  tips: [ { x: -60, t: 'The trail runs through an old gate. They will be waiting behind it' } ]
+};
+const COOPEP2_3 = {
+  name: 'Ambush 3: The Outer Quarter',
+  lagen: 'stad_dag',
+  view: 0.8, hpBalk: true, slangEenKlap: true, zicht: true, camera: true, rand: true, speerInHand: true, hyOmkeer: true,
+  stad: {
+    paleis: -6900, seed: 141,
+    gevels: [ {x: -700, hoog: 2}, {x: -1400, hoog: 1, f: 1}, {x: -2100, hoog: 2, soort: 'koopman'}, {x: -2900, hoog: 2},
+              {x: -3700, hoog: 3, f: 1}, {x: -4500, hoog: 2}, {x: -5300, hoog: 1, soort: 'vervallen'}, {x: -6000, hoog: 2, soort: 'relief', f: 1} ],
+    galerijen: [ {van: 4, tot: 5, h: 401} ],
+    kramen: [ {x: -1800, soort: 'riet'}, {x: -4900, soort: 'doek', f: 1} ],
+    voet: [ {x: -1100, stuk: 'kruik'}, {x: -3300, stuk: 'zandhoop'}, {x: -5700, stuk: 'stro'} ],
+    volk: [ {x: -500, k: 'dorpelinge', kleur: 'rood', f: 1}, {x: -1250, k: 'dorpeling', kleur: 'blauw'} ]
+  },
+  hinderlagen: [ {x: -2300, shots: [ {deur: {gevel: 3, verdieping: 0}, t: 'From the doors!'}, {x: -1400, t: 'Behind you!'} ]},
+                 {x: -4200, shots: [ {x: -4900, h: 401, t: 'On the gallery!'}, {deur: {gevel: 6, verdieping: 0}, t: 'From the doors!'} ]} ],
+  spawns: [ {x: -1600, k: 'bandiet'},
+            {x: -2900, k: 'bandiet', deur: {gevel: 3, verdieping: 0}, hl: 0, shot: 0},
+            {x: -2900, k: 'bandiet', dolk: true, deur: {gevel: 3, verdieping: 0}, hl: 0, shot: 0},
+            {x: -1350, k: 'bandiet', hl: 0, shot: 1},
+            {x: -4900, k: 'kruisboogbandiet', dak: 401, wijk: false, hl: 1, shot: 0},
+            {x: -5300, k: 'schildman', niveau: 'makkelijk', deur: {gevel: 6, verdieping: 0}, hl: 1, shot: 1},
+            {x: -5300, k: 'bandiet', deur: {gevel: 6, verdieping: 0}, hl: 1, shot: 1} ],
+  rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
+  voorgrond: false,
+  hppotions: [ {x: -3500, y: null} ],
+  cliffs: [ {x: -7200} ],
+  ends: [ {x: -6600} ],
+  tips: [ { x: -60, t: 'The outer quarter of the city. Doors can open on you: watch the houses' } ]
+};
+const COOPEP2_4 = {
+  name: 'Ambush 4: Market at Dusk',
+  lagen: 'stad_avond',
+  view: 0.8, hpBalk: true, slangEenKlap: true, zicht: true, camera: true, rand: true, speerInHand: true, hyOmkeer: true,
+  stad: {
+    paleis: -6900, seed: 207,
+    gevels: [ {x: -800, hoog: 2}, {x: -1600, hoog: 3, soort: 'koopman'}, {x: -2500, hoog: 1, f: 1}, {x: -3300, hoog: 2},
+              {x: -4100, hoog: 2, soort: 'relief'}, {x: -4900, hoog: 3, f: 1} ],
+    galerijen: [ {van: 4, tot: 5, h: 401} ],
+    kramen: [ {x: -2100, soort: 'riet'}, {x: -2850, soort: 'doek'}, {x: -3750, soort: 'riet', f: 1}, {x: -5500, soort: 'doek'} ],
+    voet: [ {x: -1250, stuk: 'kruik'}, {x: -3000, stuk: 'stro'}, {x: -5300, stuk: 'zandhoop'} ],
+    volk: [ {x: -2150, k: 'dorpeling', kleur: 'groen'}, {x: -2880, k: 'dorpelinge', kleur: 'indigo', f: 1} ]
+  },
+  // de markt loopt dood op een hoge leemmuur, met de kelder ertegen: daar gaat het team naar beneden
+  terraces: [ {r: -6200, l: -7100, h: 1100, look: 'leem'} ],
+  kelder: {x: -6200},
+  hinderlagen: [ {x: -2400, shots: [ {x: -3250, t: 'From the rooftops!'}, {deur: {gevel: 1, verdieping: 0}, t: 'Behind you!'} ]},
+                 {x: -4400, shots: [ {x: -4950, h: 401, t: 'On the gallery!'}, {deur: {gevel: 5, verdieping: 0}, t: 'From the doors!'},
+                                     {x: -3500, t: 'Behind you!'} ]} ],
+  spawns: [ {x: -1400, k: 'scorp'},
+            {x: -3150, k: 'bandiet', neer: true, hl: 0, shot: 0}, {x: -3350, k: 'bandiet', dolk: true, neer: true, hl: 0, shot: 0},
+            {x: -1600, k: 'bandiet', deur: {gevel: 1, verdieping: 0}, hl: 0, shot: 1},
+            {x: -4950, k: 'kruisboogbandiet', dak: 401, wijk: false, hl: 1, shot: 0},
+            {x: -4900, k: 'schildman', niveau: 'makkelijk', deur: {gevel: 5, verdieping: 0}, hl: 1, shot: 1},
+            {x: -4900, k: 'bandiet', dolk: true, deur: {gevel: 5, verdieping: 0}, hl: 1, shot: 1},
+            {x: -3450, k: 'bandiet', hl: 1, shot: 2} ],
+  rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
+  voorgrond: false,
+  hppotions: [ {x: -3900, y: null}, {x: -5700, y: null} ],
+  cliffs: [ {x: -7200} ],
+  ends: [],
+  tips: [ { x: -60, t: 'The market closes at dusk. The smugglers use it as a way in: their cellar is at the end of the street' },
+          { x: -5600, t: 'The cellar: the whole team at the open hatch, then you go down' } ]
+};
+const COOPEP2_5 = {
+  name: 'Ambush 5: The Gatehouse',
+  lagen: 'schemer',
+  view: 0.8, hpBalk: true, slangEenKlap: true, zicht: true, camera: true, rand: true, speerInHand: true, hyOmkeer: true,
+  poorten: [ {id: 'g1', x: -3600, k: 'boog_laag_1', s: 1.25, look: 'steen', hek: true, wand: true},
+             {id: 'g2', x: -7000, k: 'boog_steen', look: 'steen', hek: true, wand: true} ],
+  hinderlagen: [ {x: -2700, shots: [ {poort: 'g1', t: 'The gate opens!'}, {x: -1800, t: 'Behind you!'} ]},
+                 {x: -6100, shots: [ {x: -6700, t: 'From above!'}, {poort: 'g2', t: 'From the gatehouse!'}, {x: -5200, t: 'And behind!'} ]} ],
+  spawns: [ {x: -1300, k: 'zwart'},
+            {x: -3600, k: 'schildman', poort: 'g1', hl: 0, shot: 0}, {x: -3600, k: 'bandiet', dolk: true, poort: 'g1', hl: 0, shot: 0},
+            {x: -1750, k: 'bandiet', hl: 0, shot: 1}, {x: -1550, k: 'kruisboogbandiet', wijk: false, hl: 0, shot: 1},
+            {x: -4300, k: 'knock'},
+            {x: -6650, k: 'bandiet', neer: true, hl: 1, shot: 0}, {x: -6850, k: 'bandiet', neer: true, hl: 1, shot: 0},
+            {x: -7000, k: 'schildman', poort: 'g2', hl: 1, shot: 1}, {x: -7000, k: 'bandiet', elite: true, hp: 5, poort: 'g2', hl: 1, shot: 1},
+            {x: -5200, k: 'bandiet', dolk: true, hl: 1, shot: 2}, {x: -5350, k: 'scorp', hl: 1, shot: 2} ],
+  rocks: [ {x: -5600, s: 1.0} ],
+  gaps: [ {x: -4700, w: 230} ], ledges: [], village: [], npcs: [], water: [], thickets: [],
+  props: [ {x: -700, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2300, k: 'struik', s: 1.0, f: 1, v: 0},
+           {x: -5000, k: 'gras', s: 0.9, f: 1, v: 0}, {x: -8200, k: 'struik', s: 0.9, f: 0, v: 0} ],
+  hppotions: [ {x: -4200, y: null}, {x: -7700, y: null} ],
+  cliffs: [ {x: -9100} ],
+  ends: [ {x: -8500} ],
+  tips: [ { x: -60, t: 'The gatehouse guards the road into the city. Two gates, and the guard inside' },
+          { x: -6600, t: 'The elite guard takes five hits. Hit him from two sides' } ]
+};
+const COOPEP2_6 = {
+  name: 'Ambush 6: Lantern Street',
+  lagen: 'stad_nacht',
+  view: 0.8, hpBalk: true, slangEenKlap: true, zicht: true, camera: true, rand: true, speerInHand: true, hyOmkeer: true,
+  stad: {
+    paleis: -7900, seed: 333,
+    gevels: [ {x: -800, hoog: 2}, {x: -1600, hoog: 2, f: 1}, {x: -2400, hoog: 3}, {x: -3200, hoog: 2, soort: 'koopman'},
+              {x: -4000, hoog: 2, f: 1}, {x: -4800, hoog: 3, soort: 'relief'}, {x: -5600, hoog: 2}, {x: -6400, hoog: 2, f: 1},
+              {x: -7200, hoog: 1} ],
+    galerijen: [ {van: 2, tot: 3, h: 401}, {van: 5, tot: 6, h: 401} ],
+    kramen: [ {x: -1250, soort: 'riet'}, {x: -3650, soort: 'doek', f: 1}, {x: -6850, soort: 'riet'} ],
+    voet: [ {x: -2000, stuk: 'kruik'}, {x: -4400, stuk: 'puin'}, {x: -6100, stuk: 'zandhoop'} ]
+  },
+  fakkels: [ {x: -1150, y: 0.9, s: 1}, {x: -2750, y: 0.9, s: 1}, {x: -4350, y: 0.9, s: 1, f: 1}, {x: -5950, y: 0.9, s: 1},
+             {x: -7500, y: 0.9, s: 1, f: 1} ],
+  hinderlagen: [ {x: -1900, shots: [ {deur: {gevel: 2, verdieping: 0}, t: 'From the doors!'}, {deur: {gevel: 3, verdieping: 1}, t: 'Up on the gallery!'},
+                                     {x: -1000, t: 'Behind you!'} ]},
+                 {x: -4300, shots: [ {x: -5250, t: 'From the rooftops!'}, {deur: {gevel: 5, verdieping: 0}, t: 'From the doors!'},
+                                     {deur: {gevel: 6, verdieping: 1}, t: 'On the gallery!'}, {x: -3400, t: 'Behind you!'} ]} ],
+  spawns: [ {x: -1300, k: 'zwart'},
+            {x: -2400, k: 'bandiet', deur: {gevel: 2, verdieping: 0}, hl: 0, shot: 0}, {x: -2400, k: 'bandiet', dolk: true, deur: {gevel: 2, verdieping: 0}, hl: 0, shot: 0},
+            {x: -3200, k: 'kruisboogbandiet', wijk: false, deur: {gevel: 3, verdieping: 1}, hl: 0, shot: 1},
+            {x: -1000, k: 'bandiet', hl: 0, shot: 2}, {x: -1150, k: 'scorp', hl: 0, shot: 2},
+            {x: -3000, k: 'knock'},
+            {x: -5150, k: 'bandiet', neer: true, hl: 1, shot: 0}, {x: -5350, k: 'bandiet', dolk: true, neer: true, hl: 1, shot: 0},
+            {x: -4800, k: 'schildman', deur: {gevel: 5, verdieping: 0}, hl: 1, shot: 1}, {x: -4800, k: 'meelman', deur: {gevel: 5, verdieping: 0}, hl: 1, shot: 1},
+            {x: -5600, k: 'kruisboogbandiet', wijk: false, deur: {gevel: 6, verdieping: 1}, hl: 1, shot: 2},
+            {x: -3400, k: 'zweepman', hl: 1, shot: 3} ],
+  rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
+  voorgrond: false,
+  hppotions: [ {x: -3700, y: null}, {x: -6300, y: null} ],
+  cliffs: [ {x: -8300} ],
+  ends: [ {x: -7700} ],
+  tips: [ { x: -60, t: 'Lantern Street at night. Every door and every gallery can hide one of them' } ]
+};
+const COOPEP2_7 = {
+  name: "Ambush 7: The Smugglers' Cellar",
+  lagen: 'stad_nacht',
+  view: 0.8, hpBalk: true, slangEenKlap: true, zicht: true, camera: true, rand: true, speerInHand: true, hyOmkeer: true,
+  stad: {
+    paleis: -8000, seed: 419,
+    gevels: [ {x: -800, hoog: 2}, {x: -1600, hoog: 3, soort: 'koopman'}, {x: -2400, hoog: 2, f: 1}, {x: -3200, hoog: 2},
+              {x: -4000, hoog: 3, f: 1}, {x: -4800, hoog: 2, soort: 'relief'}, {x: -5600, hoog: 2}, {x: -6400, hoog: 3, f: 1} ],
+    galerijen: [ {van: 1, tot: 2, h: 401}, {van: 4, tot: 5, h: 401}, {van: 6, tot: 7, h: 401} ],
+    kramen: [ {x: -3600, soort: 'doek'}, {x: -6950, soort: 'riet', f: 1} ],
+    voet: [ {x: -1200, stuk: 'kruik'}, {x: -3550, stuk: 'puin'}, {x: -5300, stuk: 'zandhoop'} ]
+  },
+  // de straat loopt dood op de muur van de smokkelaars, met hun kelder ertegen
+  terraces: [ {r: -7400, l: -8300, h: 1100, look: 'leem'} ],
+  kelder: {x: -7400},
+  fakkels: [ {x: -1200, y: 0.9, s: 1}, {x: -2800, y: 0.9, s: 1, f: 1}, {x: -4400, y: 0.9, s: 1}, {x: -6000, y: 0.9, s: 1, f: 1},
+             {x: -7250, y: 0.9, s: 1} ],
+  hinderlagen: [ {x: -1500, shots: [ {deur: {gevel: 2, verdieping: 0}, t: 'From the doors!'}, {deur: {gevel: 2, verdieping: 1}, t: 'On the gallery!'},
+                                     {x: -650, t: 'Behind you!'} ]},
+                 {x: -3700, shots: [ {x: -4650, t: 'From the rooftops!'}, {deur: {gevel: 5, verdieping: 0}, t: 'From the doors!'},
+                                     {deur: {gevel: 4, verdieping: 1}, t: 'On the gallery!'}, {x: -2800, t: 'Behind you!'} ]},
+                 {x: -6300, vecht: 'Last fight!', shots: [ {kelder: true, t: 'From the cellar!'}, {deur: {gevel: 7, verdieping: 1}, t: 'On the gallery!'},
+                                     {deur: {gevel: 6, verdieping: 0}, t: 'Behind you!'} ]} ],
+  spawns: [ {x: -2400, k: 'bandiet', deur: {gevel: 2, verdieping: 0}, hl: 0, shot: 0}, {x: -2400, k: 'bandiet', dolk: true, deur: {gevel: 2, verdieping: 0}, hl: 0, shot: 0},
+            {x: -2400, k: 'schildman', niveau: 'makkelijk', deur: {gevel: 2, verdieping: 0}, hl: 0, shot: 0},
+            {x: -2400, k: 'kruisboogbandiet', wijk: false, deur: {gevel: 2, verdieping: 1}, hl: 0, shot: 1},
+            {x: -650, k: 'bandiet', hl: 0, shot: 2}, {x: -500, k: 'bandiet', dolk: true, hl: 0, shot: 2},
+            {x: -2900, k: 'zwart'},
+            {x: -4550, k: 'bandiet', neer: true, hl: 1, shot: 0}, {x: -4750, k: 'bandiet', dolk: true, neer: true, hl: 1, shot: 0},
+            {x: -4800, k: 'schildman', deur: {gevel: 5, verdieping: 0}, hl: 1, shot: 1}, {x: -4800, k: 'zweepman', deur: {gevel: 5, verdieping: 0}, hl: 1, shot: 1},
+            {x: -4000, k: 'kruisboogbandiet', wijk: false, deur: {gevel: 4, verdieping: 1}, hl: 1, shot: 2},
+            {x: -2800, k: 'bandiet', elite: true, hp: 5, hl: 1, shot: 3},
+            {x: -5400, k: 'fosfor'},
+            {x: -7150, k: 'schildman', hl: 2, shot: 0}, {x: -7000, k: 'bandiet', elite: true, hp: 5, hl: 2, shot: 0},
+            {x: -7250, k: 'bandiet', dolk: true, hl: 2, shot: 0},
+            {x: -6400, k: 'kruisboogbandiet', wijk: false, deur: {gevel: 7, verdieping: 1}, hl: 2, shot: 1},
+            {x: -5600, k: 'bandiet', deur: {gevel: 6, verdieping: 0}, hl: 2, shot: 2}, {x: -5600, k: 'meelman', deur: {gevel: 6, verdieping: 0}, hl: 2, shot: 2} ],
+  rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
+  voorgrond: false,
+  hppotions: [ {x: -3300, y: null}, {x: -5900, y: null} ],
+  cliffs: [ {x: -8400} ],
+  ends: [],
+  tips: [ { x: -60, t: 'The smugglers live at the end of this street. Three ambushes, then their cellar' } ]
+};
+const COOPEP2_LEVELS = [COOPEP2_1, COOPEP2_2, COOPEP2_3, COOPEP2_4, COOPEP2_5, COOPEP2_6, COOPEP2_7];
 let pvp = null, pvpTerug = false, pvpPeer = null, pvpHostCode = null;
 const pvpEl = id => document.getElementById(id);
 function pvpStatus(t){ pvpEl('pvpstatus').textContent = t; }
@@ -66526,7 +66788,15 @@ function pvpRaakLokaal(o){
 // Escape in een potje brengt iedereen terug naar de lobby, zonder de verbinding te verbreken; Leave the lobby verbreekt hem.
 // Zie notities/multiplayer.md.
 const MP_KAARTEN = { duel: [{ id: 'dye', naam: 'The Dye Yard' }], coop: [{ id: 'dye', naam: 'The Dye Yard (co-op)' }, { id: 'ishmul', naam: 'Ishmul, the outskirts' }, { id: 'random', naam: 'Random map' }],
-                     ep: [{ id: '0', naam: '1. The Long Grass (easy)' }, { id: '1', naam: '2. Broken Ground (medium)' }, { id: '2', naam: '3. The Last Ridge (hard)' }] };
+                     ep: [{ id: '0', naam: '1. The Long Grass (easy)', groep: 'The Long Grass (3 levels)' }, { id: '1', naam: '2. Broken Ground (medium)', groep: 'The Long Grass (3 levels)' },
+                          { id: '2', naam: '3. The Last Ridge (hard)', groep: 'The Long Grass (3 levels)' },
+                          { id: 'b0', naam: '1. The Caravan Trail (easy)', groep: "The Smugglers' Cellar (7 levels)" },
+                          { id: 'b1', naam: '2. The Dry Gate (easy)', groep: "The Smugglers' Cellar (7 levels)" },
+                          { id: 'b2', naam: '3. The Outer Quarter (medium)', groep: "The Smugglers' Cellar (7 levels)" },
+                          { id: 'b3', naam: '4. Market at Dusk (medium)', groep: "The Smugglers' Cellar (7 levels)" },
+                          { id: 'b4', naam: '5. The Gatehouse (hard)', groep: "The Smugglers' Cellar (7 levels)" },
+                          { id: 'b5', naam: '6. Lantern Street (hard)', groep: "The Smugglers' Cellar (7 levels)" },
+                          { id: 'b6', naam: "7. The Smugglers' Cellar (very hard)", groep: "The Smugglers' Cellar (7 levels)" }] };
 // de vijanden die de host in Co-op Survival kan kiezen; met twee namen in var is er een makkelijke en een moeilijke versie
 const MP_SOORTEN = [
   { k: 'slang',     naam: 'Snakes',          var: ['sand snake', 'black, knock and phosphor'] },
@@ -66619,7 +66889,11 @@ function mpLobbyToon(){
   pvpEl('mpspelers').textContent = mpSpelersTekst();
   lob.querySelectorAll('.mpmodus').forEach(b => b.classList.toggle('on', b.dataset.modus === I.modus));
   const ks = pvpEl('mpkaart'); ks.innerHTML = '';
-  for (const k of MP_KAARTEN[I.modus]){ const o = document.createElement('option'); o.value = k.id; o.textContent = k.naam; ks.append(o); }
+  let grp = null;                                    // de Co-op episode: per episode een groep in de lijst
+  for (const k of MP_KAARTEN[I.modus]){
+    if (k.groep && (!grp || grp.label !== k.groep)){ grp = document.createElement('optgroup'); grp.label = k.groep; ks.append(grp); }
+    const o = document.createElement('option'); o.value = k.id; o.textContent = k.naam; (k.groep ? grp : ks).append(o);
+  }
   ks.value = I.kaart;
   pvpEl('mpduel').classList.toggle('on', I.modus === 'duel');
   pvpEl('mpcoop').classList.toggle('on', I.modus === 'coop');
@@ -67024,7 +67298,7 @@ function mpSpelStart(regels){
   pvp.regels = regels;
   mpLobbyDicht();
   if (regels.modus === 'duel') pvpDuelStart();
-  else { pvp.fase = 'coop'; mpCoopStart(regels.modus === 'ep' ? +regels.kaart || 0 : undefined); }   // de Co-op episode: vanaf het gekozen level
+  else { pvp.fase = 'coop'; mpCoopStart(regels.modus === 'ep' ? mpEpKaartLevel(regels.kaart) : undefined); }   // de Co-op episode: vanaf het gekozen level
 }
 function pvpDuelStart(){
   const D = pvp.regels.duel;
@@ -68408,9 +68682,10 @@ function mpCoopStap(rdt, dt){
     if (C.hartT <= 0){ C.hartT = 1; pvpZend({ t: 'hb' }); }
     return;
   }
-  if (pvp.host && !C.allenKlaar){ C.allenKlaar = true; if (C.ep) mpcBanner(COOPEP_LEVELS[C.ep.i].name.replace(/^Co-op \d+: /, 'Level ' + (C.ep.i + 1) + ': '), 2.5); else pvpBanner(''); }
+  if (pvp.host && !C.allenKlaar){ C.allenKlaar = true; if (C.ep) mpcBanner(mpEpLijst()[C.ep.i].name.replace(MPC_EP.naamKop, 'Level ' + (C.ep.i + 1) + ': '), 2.5); else pvpBanner(''); }
   C.t += dt;
   mpcDeurStap(dt);
+  hinderStap(rdt);                                  // de regie van een hinderlaag (zie "de hinderlaag")
   if (C.fase !== 'uit') mpcSymboolStap();
   if (pvp.host){
     mpcHostStap(dt);
@@ -68427,7 +68702,7 @@ function mpCoopStap(rdt, dt){
 function mpCoopHud(){
   if (!mpCoopAan()) return;
   const C = pvp.coop;
-  const sc = (C.ep ? 'Level ' + (C.ep.i + 1) + ' of ' + COOPEP_LEVELS.length + '   Score ' + C.score
+  const sc = (C.ep ? 'Level ' + (C.ep.i + 1) + ' of ' + mpEpLijst().length + '   Score ' + C.score
                    : (C.ronde ? 'Round ' + C.ronde + '   ' : '') + 'Score ' + C.score + '   Gold ' + C.goud) + pvpPingHud();
   if (pvpEl('pvpscore').textContent !== sc) pvpEl('pvpscore').textContent = sc;
   mpcKijkStap();
@@ -68475,6 +68750,8 @@ function mpCoopOntvang(m){
   // de terugstoot die de host voor mij uitrekende (de landingsklap van de schildbandiet): nooit zwakker dan een al lopende
   if (m.t === 'duw2'){ if (!laadWacht && !dead && !godMode && !woedeAan() && Math.abs(m.k) > Math.abs(knock)) knock = m.k; return true; }
   if (m.t === 'deur'){ mpcDeurOpen({ gevel: m.g, verdieping: m.v }, true); return true; }
+  if (m.t === 'hl'){ if (!pvp.host) hinderStart(m.i); return true; }
+  if (m.t === 'hlvrij'){ if (!pvp.host) hinderVrijLokaal(m.i); return true; }
   if (m.t === 'ton'){ if (!tonnen.some(t => t.mpId === m.d.id)) mpcTonZet(m.d, true); return true; }
   if (m.t === 'tonH'){ const t = tonnen.find(o => o.mpId === m.id); if (pvp.host && t) mpcTonRaak(t, m.from, m.p); return true; }
   if (m.t === 'tonR'){ const t = tonnen.find(o => o.mpId === m.id); if (!pvp.host && t) mpcTonRaakOrig(t, m.from, true); return true; }
@@ -68535,7 +68812,7 @@ function mpCoopStart(epI){
   pvpEl('mpeind').classList.remove('on');
   runReset();
   levelList = PVP_LEVELS;                         // niet TEST_LEVELS: die geeft alle talents (een vierde leven)
-  const lv = JSON.parse(JSON.stringify(ep ? COOPEP_LEVELS[pvp.coop.ep.i] : mpcKaart().level()));
+  const lv = JSON.parse(JSON.stringify(ep ? mpEpLijst()[pvp.coop.ep.i] : mpcKaart().level()));
   lv.hyOmkeer = true;                               // hyena's draaien na hun uitval om, ze verdwijnen niet uit het level
   if (ep){ lv.stof = true; lv.rugMax = 1; lv.multikill = false; lv.rapport = false; }   // zoals de map van Survival: stof, 1 speer op de rug, de reeks van het team
   else lv.wapenrekken[0].n = pvp.regels.coop.rek;
@@ -68550,6 +68827,7 @@ function mpCoopStart(epI){
   if (ep){ mpcVersieNu = 'ep'; mpcFakSc = 0; }      // het uitzicht van het level zelf, geen versies en geen fakkels
   else if (pvp.host) mpcVersieWissel(mpcVersieKies(null));   // een willekeurige versie van de map; de gast krijgt hem met 'cv'
   else mpcVersieZet((mpcKaart().versies || ['avond'])[0]);
+  hinderReset();                                    // de hinderlagen van dit level (alleen in de episode), en het leiband vanaf hier
   pvpPlaats();
   pvpEl('pvphud').classList.add('on');
   mpCoopHud();
@@ -68572,6 +68850,7 @@ function mpCoopRematchKijk(){
 function mpCoopStop(){
   if (!pvp) return;
   winkelUIDicht();
+  hinderUit();
   pvp.coop = null; mpcWissel = null;
   pvpEl('mpeind').classList.remove('on');
 }
@@ -68607,8 +68886,17 @@ const MPC_EP = {
   eind: 120,                // zo dicht bij de fakkels (voorbij of ervoor) telt als "erbij"
   na: 3,                    // seconden tussen "Level complete" en het volgende level
   naast: 90,                // de startplekken naast elkaar, per slot zoveel verder naar links
-  revive: [-200, 200, -320, 320, -130, 130]   // waar de revive-ton mag komen, vanaf de levende (de eerste die past)
+  revive: [-200, 200, -320, 320, -130, 130],  // waar de revive-ton mag komen, vanaf de levende (de eerste die past)
+  naamKop: /^[^:]*\d+: /   // het begin van een levelnaam ("Co-op 2: ", "Ambush 5: ") dat de banner vervangt
 };
+// De episodes van modus 'ep'. De map in de lobby zegt welke en vanaf welk level: id '0' tot '2' is de eerste (Co-op 1 tot 3),
+// 'b0' tot 'b6' de tweede, The Smugglers' Cellar (COOPEP2_LEVELS, met de hinderlagen, zie "de hinderlaag").
+const MPC_EPS = { a: { levels: () => COOPEP_LEVELS, best: 'amir.coopEpBest' },
+                  b: { levels: () => COOPEP2_LEVELS, best: 'amir.coopEp2Best' } };
+function mpEpReeks(kaart){ return String(kaart || '').charAt(0) === 'b' ? 'b' : 'a'; }
+function mpEpKaartLevel(kaart){ return parseInt(String(kaart || '0').replace(/^b/, ''), 10) || 0; }
+function mpEpLijst(){ return MPC_EPS[mpEpReeks(pvp && pvp.regels && pvp.regels.kaart)].levels(); }
+function mpEpBestSleutel(){ return MPC_EPS[mpEpReeks(pvp && pvp.regels && pvp.regels.kaart)].best; }
 // de soort van een vijand uit een spawn, voor de punten (MPC.punten): de lijst zegt het
 const MPC_EP_SOORT = { snakes: 'slang', scorps: 'scorp', hyenas: 'hyena', kooimannen: 'kooiman', meelmannen: 'meelman',
                        kruisbogen: 'kruisboog', bandieten: 'bandiet', schildmannen: 'schildman', zweepmannen: 'zweepman',
@@ -68616,7 +68904,7 @@ const MPC_EP_SOORT = { snakes: 'slang', scorps: 'scorp', hyenas: 'hyena', kooima
 // het nieuwe potje van een level: verder na een gehaald level (door) met de stand van het team, opnieuw na game over
 // met de stand van het begin van dat level, en na het slot vanaf nul
 function mpEpNieuw(C, oud, epI){
-  const i = Math.max(0, Math.min(COOPEP_LEVELS.length - 1, epI | 0));
+  const i = Math.max(0, Math.min(mpEpLijst().length - 1, epI | 0));
   C.ep = { i, wachtT: 0, door: false, alles: false };
   C.fase = 'ep';
   const o = oud && oud.ep;
@@ -68638,9 +68926,15 @@ function mpEpHostStap(dt){
   if (C.fase === 'klaar'){ C.ep.wachtT -= dt; if (C.ep.wachtT <= 0) mpEpVolgende(); return; }
   mpcDodenStap();
   if (C.fase === 'uit') return;                     // iedereen dood: game over
+  hinderHostStap(dt);                               // de hinderlagen: beginnen als het hele team er is, open als het gevecht klaar is
   if (mpEpAllenBijEind()) mpEpLevelKlaar();
 }
-function mpEpBijEind(x){ return x != null && Math.abs(x - levelEndX()) <= MPC_EP.eind; }
+function mpEpBijEind(x){
+  if (x == null) return false;
+  const K = level && level.kelder;                  // een level dat in de kelder eindigt: iedereen bij het open luik, op de plek van de E
+  if (K) return x > K.x - 40 && x < K.x + kelderMaat(nowScale()).w + KELDER.vang;
+  return Math.abs(x - levelEndX()) <= MPC_EP.eind;
+}
 function mpEpAllenBijEind(){
   return pvp.spelers.every(p => {
     if (p === 0) return !dead && mpEpBijEind(world);
@@ -68649,7 +68943,7 @@ function mpEpAllenBijEind(){
   });
 }
 function mpEpLevelKlaar(){
-  const C = pvp.coop, laatste = C.ep.i >= COOPEP_LEVELS.length - 1;
+  const C = pvp.coop, laatste = C.ep.i >= mpEpLijst().length - 1;
   C.fase = 'klaar'; C.ep.wachtT = MPC_EP.na;
   mpcBanner(laatste ? 'Episode complete!' : 'Level complete', MPC_EP.na);
   pvpZend({ t: 'epklaar' });
@@ -68659,7 +68953,7 @@ function mpEpLevelKlaar(){
 function mpEpKlaarLokaal(){ const C = pvp.coop; if (C) C.fase = 'klaar'; godMode = true; }
 function mpEpVolgende(){
   const C = pvp.coop;
-  if (C.ep.i >= COOPEP_LEVELS.length - 1){ C.ep.alles = true; mpcEinde(); return; }
+  if (C.ep.i >= mpEpLijst().length - 1){ C.ep.alles = true; mpcEinde(); return; }
   C.ep.door = true;
   const i = C.ep.i + 1;
   pvpZend({ t: 'epnaar', i });
@@ -68667,14 +68961,15 @@ function mpEpVolgende(){
 }
 // staat Amir zelf bij de fakkels: de host beslist, dus hier alleen een hint (een keer per paar seconden)
 let mpEpHintT = 0;
-function mpEpBijFakkels(){
+function mpEpBijFakkels(kelder){
   const C = pvp.coop;
   if (C.fase !== 'ep') return;
   const nu = performance.now();
-  if (nu - mpEpHintT < 4000) return;
+  if (nu - mpEpHintT < (kelder ? 600 : 4000)) return;
   mpEpHintT = nu;
   const n = pvpAnderen().filter(p => !mpEpBijEind((pvp.anders[p].g || {}).x) || pvp.anders[p].g.d).length;
-  if (n) flashHint(n > 1 ? 'Wait at the torches for your teammates' : 'Wait at the torches for your teammate');
+  const waar = level && level.kelder ? 'at the cellar' : 'at the torches';
+  if (n) flashHint('Wait ' + waar + ' for your teammate' + (n > 1 ? 's' : ''));
 }
 // de plek van een revive-ton bij de levende op (lx, lh): op zijn hoogte, niet in een ravijn, niet op een andere ton en
 // binnen het level. Lukt dat nergens op zijn hoogte (hij staat op een kei), dan de eerste plek op de grond
@@ -68695,15 +68990,15 @@ function mpEpEindToon(e){
   const el = pvpEl('mpeind'), m = Math.floor(e.tijd / 60), s = String(e.tijd % 60).padStart(2, '0');
   if (pvp.coop && pvp.coop.ep) pvp.coop.ep.alles = !!e.ep.alles;
   let best = 0;
-  if (e.ep.alles) try { best = +(localStorage.getItem('amir.coopEpBest') || 0); if (e.score > best) localStorage.setItem('amir.coopEpBest', String(e.score)); } catch (err){}
+  if (e.ep.alles) try { best = +(localStorage.getItem(mpEpBestSleutel()) || 0); if (e.score > best) localStorage.setItem(mpEpBestSleutel(), String(e.score)); } catch (err){}
   el.innerHTML = '';
   const regel = (t, k) => { const p = document.createElement('p'); p.textContent = t; if (k) p.className = k; el.append(p); };
-  const naam = COOPEP_LEVELS[e.ep.i].name.replace(/^Co-op \d+: /, '');
+  const naam = mpEpLijst()[e.ep.i].name.replace(MPC_EP.naamKop, '');
   const iedereen = pvp.spelers.length > 2 ? 'everyone presses' : 'both press';
   if (e.ep.alles){
     regel('Episode complete!', 'kop');
     regel('Team score: ' + e.score);
-    regel('All ' + COOPEP_LEVELS.length + ' levels in ' + m + ':' + s + ' (' + e.kills + ' kills)');
+    regel('All ' + mpEpLijst().length + ' levels in ' + m + ':' + s + ' (' + e.kills + ' kills)');
     regel(e.score > best ? 'New best score!' : 'Best score: ' + best, 'best');
     regel('R: play the episode again (' + iedereen + ' R)   Esc: back to the lobby', 'klein');
   } else {
@@ -68714,6 +69009,185 @@ function mpEpEindToon(e){
   }
   el.classList.add('on');
   pvpBanner('');
+}
+// ---- multiplayer: de hinderlaag en het leiband van Co-op ----
+// De hinderlaag (de tweede Co-op episode, The Smugglers' Cellar): een plek in het level waar het gevecht begint. Een
+// onzichtbare lijn op x die niemand voorbij kan (hinderKlem); wie er als eerste is wacht ("Wait for your teammate", of
+// "Revive your teammate first" als er een dood is). Staat het hele team levend binnen MPC_HL.verzamel van de lijn, dan
+// stuurt de host 'hl' en begint bij iedereen de regie: zwarte balken, Amir staat vast en is onaantastbaar (hinderVast), en
+// de camera gaat langs de shots, de plekken waar de vijanden binnenkomen: uit een deur, uit een poort met een hek, van een
+// dak, van boven (neer), uit de kelder of van achteren, elk met een kop ("From the gate!"). Op zijn shot komen de spawns
+// van dat shot los (sp.hl en sp.shot, sp.hlVrij), op hun eigen plek. Daarna terug naar Amir, FIGHT!, en het gevecht. De
+// lijn blijft dicht tot alle vijanden van de hinderlaag op zijn en er geen meer leeft rond de lijn (de host, 'hlvrij'),
+// met een vangnet van MPC_HL.vangnet seconden.
+//
+//   hinderlagen: [{x, vecht, shots: [{x, h, t, poort, kelder}]}]
+//   x       de lijn; het team wacht rechts ervan
+//   shots   per shot: x waar de camera kijkt, h de hoogte (een dak), t de kop, poort het id van een poort die opengaat,
+//           kelder: true laat het kelderluik openvliegen, deur {gevel, verdieping} een deur; zonder x kijkt hij naar die
+//   spawns  {x, k, hl: index van de hinderlaag, shot: index van het shot}, met de gewone vlaggen (deur, poort, dak, neer)
+//
+// Het leiband (heel Co-op): een levende speler komt niet verder dan MPC_LEIBAND.max van een levende teamgenoot. Was hij al
+// verder weg (een revive, een val), dan mag hij alleen dichterbij. Binnen een huis of in de winkel geldt het niet.
+// Zie notities/multiplayer.md, "De hinderlaag en het leiband".
+const MPC_HL = {
+  verzamel: 650,   // zo dicht bij de lijn (rechts ervan) moet iedereen levend staan voor de hinderlaag begint
+  aanloop: 0.55,   // seconden balken voor het eerste shot
+  shot: 1.9,       // seconden per shot
+  terug: 0.9,      // de camera terug naar Amir, dan FIGHT!
+  camV: 2.4,       // hoe snel de camera naar een shot glijdt (per seconde, echte tijd)
+  rond: 1800,      // een vijand binnen zoveel van de lijn hoort nog bij het gevecht
+  vangnet: 150,    // na zoveel seconden vechten gaat de lijn toch open
+  hint: 2600       // ms tussen twee hints aan de lijn
+};
+const MPC_LEIBAND = { max: 1000, hint: 3000 };
+let hinder = null, leibandOud = null, leibandHintT = 0;
+function hinderLijst(){ return (level && level.hinderlagen) || []; }
+function hinderReset(){
+  hinderUit();
+  leibandOud = null;
+  hinder = hinderLijst().length ? { stand: hinderLijst().map(() => 'wacht'), regie: null, vechtT: 0, hintT: 0, godOud: false } : null;
+}
+function hinderUit(){ if (hinder && hinder.regie) godMode = hinder.godOud; hinder = null; hinderBalken(false); }
+function hinderVast(){ return !!(hinder && hinder.regie); }
+// de eerste hinderlaag die nog niet open is (de lijn), of -1
+function hinderNu(){ return hinder ? hinder.stand.findIndex(st => st !== 'vrij') : -1; }
+// bij iedereen: de regie begint (de host zelf, de gast op 'hl')
+function hinderStart(i){
+  if (!hinder || hinder.stand[i] !== 'wacht') return;
+  hinder.stand[i] = 'regie'; hinder.regie = { i, t: 0, k: -1 }; hinder.vechtT = 0;
+  for (const k in keys) keys[k] = false;
+  hinder.godOud = godMode; godMode = true;
+  hinderBalken(true);
+}
+function hinderStap(rdt){
+  if (!hinder) return;
+  const R = hinder.regie;
+  if (R){
+    const H = hinderLijst()[R.i], S = H.shots || [];
+    R.t += rdt;
+    const k = Math.floor((R.t - MPC_HL.aanloop) / MPC_HL.shot);
+    if (R.t >= MPC_HL.aanloop && k > R.k && k < S.length){ R.k = k; hinderShot(R.i, k, S[k]); }
+    if (R.t >= MPC_HL.aanloop + S.length * MPC_HL.shot + MPC_HL.terug){
+      hinder.regie = null; godMode = hinder.godOud; hinderBalken(false);
+      if (hinder.stand[R.i] === 'regie') hinder.stand[R.i] = 'vecht';
+      pvpBanner(H.vecht || 'FIGHT!', 1.4);
+    }
+    return;
+  }
+  hinderHint();
+}
+// een shot: de kop, en wat daar binnenkomt gaat open of komt los (de spawns alleen bij de host, de rest bij iedereen)
+function hinderShot(i, k, S){
+  if (S.t) pvpBanner(S.t, MPC_HL.shot);
+  for (const sp of level.spawns || []) if (sp.hl === i && (sp.shot | 0) === k){ sp.hlVrij = true; sp.armed = true; }
+  if (S.poort) poortOpen(S.poort);
+  if (S.kelder && kelderState.fase === 'dicht'){ kelderState.fase = 'open'; kelderState.t = 0; }
+}
+function hinderVrijLokaal(i){
+  if (!hinder || hinder.stand[i] === 'vrij') return;
+  if (hinder.regie && hinder.regie.i === i){ godMode = hinder.godOud; hinder.regie = null; hinderBalken(false); }
+  hinder.stand[i] = 'vrij';
+  if (hinderNu() >= 0 || !(level.ends || []).length) pvpBanner('The way is open', 1.6);
+  else pvpBanner('The way is open: on to the torches', 1.8);
+}
+// de host: beginnen als iedereen er levend is, open als het gevecht klaar is
+function hinderHostStap(dt){
+  const i = hinderNu();
+  if (i < 0 || hinder.regie) return;
+  const H = hinderLijst()[i];
+  if (hinder.stand[i] === 'wacht'){
+    if (hinderAllenBij(H.x)){ pvpZend({ t: 'hl', i }); hinderStart(i); }
+    return;
+  }
+  if (hinder.stand[i] !== 'vecht') return;
+  hinder.vechtT += dt;
+  if (hinderVechtKlaar(i, H.x) || hinder.vechtT > MPC_HL.vangnet){ pvpZend({ t: 'hlvrij', i }); hinderVrijLokaal(i); }
+}
+function hinderAllenBij(x){
+  const bij = px => px != null && px - x <= MPC_HL.verzamel;
+  return pvp.spelers.every(p => {
+    if (p === 0) return !dead && bij(world);
+    const g = pvpAnderNu(p);
+    return !!g && !g.d && bij(g.x);
+  });
+}
+function hinderVechtKlaar(i, x){
+  if ((level.spawns || []).some(sp => sp.hl === i && !sp.used)) return false;
+  for (const q of MPC_LIJSTEN){
+    if (q.los) continue;
+    for (const o of q.l()) if (mpcLeeft(o) && Math.abs(o.x - x) < MPC_HL.rond) return false;
+  }
+  return true;
+}
+// de lijn: niemand voorbij de eerste hinderlaag die nog niet open is
+function hinderKlem(){
+  const i = hinderNu(); if (i < 0) return;
+  const x = hinderLijst()[i].x;
+  if (world < x) world = x;
+}
+// een hint voor wie aan de lijn staat en wacht
+function hinderHint(){
+  const i = hinderNu(); if (i < 0 || dead) return;
+  const x = hinderLijst()[i].x, nu = performance.now();
+  if (world - x > 60 || nu - hinder.hintT < MPC_HL.hint) return;
+  hinder.hintT = nu;
+  if (hinder.stand[i] === 'vecht'){ flashHint('Clear the ambush before you go on'); return; }
+  const anderen = pvpAnderen(), dood = anderen.filter(p => pvp.anders[p].g && pvp.anders[p].g.d).length;
+  const een = anderen.length < 2;
+  if (dood) flashHint(een ? 'Your teammate is down. Revive them before you go on' : 'Revive your teammates before you go on');
+  else if (anderen.length) flashHint(een ? 'Wait for your teammate: the fight starts when the whole team is here' : 'Wait for your teammates: the fight starts when the whole team is here');
+}
+// de camera van de regie: het shot dat nu loopt (null: de gewone camera, ook in de aanloop en op de weg terug)
+function hinderCamShot(){
+  const R = hinder && hinder.regie; if (!R || R.k < 0) return null;
+  const S = hinderLijst()[R.i].shots || [];
+  if (R.t >= MPC_HL.aanloop + S.length * MPC_HL.shot) return null;
+  return S[R.k] || null;
+}
+// zonder x kijkt een shot naar wat erin staat: de deur, de poort of de kelder; een deur op een verdieping geeft ook de hoogte
+function hinderCamX(){
+  const S = hinderCamShot(); if (!S) return null;
+  if (S.x != null) return S.x;
+  if (S.deur){ const dm = stadDeurMaat(S.deur, nowScale()); if (dm) return dm.cx; }
+  if (S.poort){ const o = poortVan(S.poort); if (o) return o.x; }
+  if (S.kelder && level.kelder) return level.kelder.x + 180;
+  return null;
+}
+function hinderCamY(scale, vz, klimLift){
+  const S = hinderCamShot(); if (!S) return null;
+  const h = S.h || (S.deur && S.deur.verdieping > 0 ? stadDeurVloer(S.deur, scale) : 0);
+  return h ? Math.max(0, h * scale * vz - klimLift) : null;
+}
+// zwarte balken boven en onder: dit is de regie, niet het spel
+function hinderBalken(aan){
+  let el = document.getElementById('hlbalken');
+  if (!el){
+    if (!aan) return;
+    el = document.createElement('div'); el.id = 'hlbalken'; el.innerHTML = '<i></i><i></i>';
+    document.body.append(el);
+  }
+  el.classList.toggle('on', !!aan);
+}
+// het leiband: niet verder dan MPC_LEIBAND.max van een levende teamgenoot; wie al verder weg was mag alleen dichterbij
+function leibandKlem(){
+  const C = pvp.coop;
+  if (dead || laadWacht || C.inWinkel || binnenBij(world) || hinderVast()){ leibandOud = null; return; }
+  const oud = leibandOud == null ? world : leibandOud;
+  let vast = false;
+  for (const p of pvpAnderen()){
+    const g = pvpAnderNu(p);
+    if (!g || g.d || g.x == null || binnenBij(g.x)) continue;
+    const ruim = Math.max(MPC_LEIBAND.max, Math.abs(oud - g.x));
+    if (world < g.x - ruim){ world = g.x - ruim; vast = true; }
+    else if (world > g.x + ruim){ world = g.x + ruim; vast = true; }
+  }
+  leibandOud = world;
+  const nu = performance.now();
+  if (vast && nu - leibandHintT > MPC_LEIBAND.hint){
+    leibandHintT = nu;
+    flashHint(pvpAnderen().length > 1 ? 'Stay close to your teammates' : 'Stay close to your teammate');
+  }
 }
 // ---- multiplayer: de winkel en de economie van Co-op (stuk 3) ----
 // Goud: het goud van een kill is gedeeld (ieder MPC.killGoud, naar de soort), en per overleefde ronde krijgt ieder

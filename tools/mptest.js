@@ -30,6 +30,9 @@
 //                                        dat iedereen het weet, dat hun potje met stokken start zonder speer, en hun winkel
 //   node tools/mptest.js --geensnel      zonder het nagebootste snelle kanaal (zoals via het relais)
 //   node tools/mptest.js --kaart ishmul  Co-op Survival op een andere map (een id uit MP_KAARTEN.coop; standaard dye)
+//   node tools/mptest.js --hl            de tweede Co-op episode (The Smugglers' Cellar): de lijn van een hinderlaag, het
+//                                        leiband, wachten op het team, de regie (balken, camera, vijanden per shot), het
+//                                        gevecht en de lijn weer open, en in level 7 de kelder als shot en als eind
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
@@ -82,6 +85,7 @@ async function epProef(R){
   const elk = async (f, arg, max) => { for (const r of R) if (!await tot(r.page, f, arg, max)) return r.wie; return null; };
   const klaar = i => elk(i => running && !laadWacht && pvp.coop && pvp.coop.ep && pvp.coop.ep.i === i && pvp.coop.fase === 'ep' && level.name.startsWith('Co-op ' + (i + 1)), i, 60000);
   meld(await klaar(0) === null, 'level 1 loopt bij iedereen');
+  for (const p of allen) await p.evaluate(() => { MPC_LEIBAND.max = 1e9; });   // deze proef zet spelers ver uit elkaar neer: het leiband uit (--hl test het)
   meld(await tot(H.page, () => pvp.coop.allenKlaar, null, 20000), 'de host ziet dat iedereen geladen is');
   for (const p of allen) await p.evaluate(() => { godMode = true; });
   const xs = await Promise.all(allen.map(p => p.evaluate(() => Math.round(world))));
@@ -131,6 +135,90 @@ async function epProef(R){
   meld(await klaar(0) === null && await H.page.evaluate(() => pvp.coop.score === 0), 'R bij iedereen: weer level 1, score 0');
   for (const r of R){ if (r.fouten.size){ console.log(r.wie + ' fouten:'); for (const f of r.fouten) console.log('  ' + f); } }
 }
+// de hinderlaag (--hl): The Smugglers' Cellar, level 1 en level 7
+async function hlProef(R){
+  const [H, G] = R, allen = R.map(r => r.page);
+  const elk = async (f, arg, max) => { for (const r of R) if (!await tot(r.page, f, arg, max)) return r.wie; return null; };
+  const klaar = i => elk(i => running && !laadWacht && pvp.coop && pvp.coop.ep && pvp.coop.ep.i === i && pvp.coop.fase === 'ep' && level.name.startsWith('Ambush ' + (i + 1)) && pvp.coop.allenKlaar !== false, i, 60000);
+  const zet = (p, x) => p.evaluate(x => { world = x; ph = 0; leibandOud = null; }, x);
+  const zetAllen = async x => { for (const p of allen) await zet(p, x); };
+  const ruim = () => H.page.evaluate(() => { for (const q of MPC_LIJSTEN) if (!q.los) q.l().forEach(o => { o.hp = 0; o.fase = 'dood'; o.doodT0 = 1; }); });
+  meld(await klaar(0) === null, 'Ambush 1 loopt bij iedereen');
+  await tot(H.page, () => pvp.coop.allenKlaar, null, 20000);
+  for (const p of allen) await p.evaluate(() => { godMode = true; });
+  // het leiband: de host springt ver vooruit, de gasten staan bij de start
+  await zetAllen(-400); await wacht(400);
+  await H.page.evaluate(() => { world = -1700; });
+  await wacht(300);
+  const lx = await H.page.evaluate(() => Math.round(world));
+  meld(lx >= -1400 - 5 && lx <= -1300, 'het leiband: de host komt niet verder dan ' + MPCLEI + ' van de anderen (' + lx + ')');
+  // de lijn: de host loopt alleen naar de hinderlaag
+  await zet(H.page, -2600); await wacht(200);
+  await H.page.evaluate(() => { leibandOud = null; world = -3500; });
+  await wacht(400);
+  const hx = await H.page.evaluate(() => Math.round(world));
+  meld(hx >= -3000, 'de lijn houdt de host tegen (' + hx + ')');
+  await wacht(1200);
+  meld(await H.page.evaluate(() => hinder.stand[0] === 'wacht' && !hinder.regie), 'alleen aan de lijn: de hinderlaag wacht op het team');
+  // het hele team erbij: de regie begint bij iedereen
+  await zetAllen(-3050);
+  meld(await elk(() => hinder && hinder.regie && hinder.regie.i === 0, null, 4000) === null, 'iedereen aan de lijn: de regie begint bij iedereen');
+  meld(await elk(() => amirVast() && document.getElementById('hlbalken').classList.contains('on'), null, 2000) === null, 'balken in beeld en Amir staat vast');
+  meld(await tot(G.page, () => hinderCamX() !== null && Math.abs(camEase - hinderCamX()) < 300, null, 4000), 'de camera van de gast gaat naar het shot (' + await G.page.evaluate(() => hinderCamX()) + ')');
+  meld(await tot(H.page, () => bandieten.filter(b => mpcLeeft(b)).length >= 2, null, 4000), 'de bandieten van shot 1 komen binnen');
+  meld(await tot(G.page, () => bandieten.length >= 2, null, 4000), 'en de gast ziet ze');
+  meld(await elk(() => hinder.stand[0] === 'vecht' && !hinder.regie && !amirVast(), null, 9000) === null, 'na de regie: het gevecht, Amir kan weer');
+  meld(await tot(H.page, () => level.spawns.filter(s => s.hl === 0).every(s => s.used), null, 4000), 'alle vijanden van de hinderlaag zijn er');
+  await zetAllen(-3500); await wacht(300);
+  meld(await H.page.evaluate(() => world >= -3000), 'de lijn blijft dicht in het gevecht');
+  await ruim();
+  meld(await elk(() => hinder.stand[0] === 'vrij', null, 6000) === null, 'alle vijanden op: de lijn gaat open bij iedereen');
+  await zetAllen(-3500); await wacht(300);
+  meld(await H.page.evaluate(() => world < -3400), 'en het team kan verder');
+  // de tweede hinderlaag: een dode teamgenoot houdt hem tegen
+  await zetAllen(-5900);
+  await G.page.evaluate(() => { godMode = false; invuln = 0; lives = 1; hurtPlayer(true); });
+  await tot(G.page, () => dead, null, 3000);
+  await zetAllen(-6450);   // ook de dode: zijn lijk ligt bij de lijn
+  await wacht(1500);
+  meld(await H.page.evaluate(() => hinder.stand[1] === 'wacht' && !hinder.regie), 'een teamgenoot dood: de hinderlaag wacht op de revive');
+  await G.page.evaluate(() => { mpcOpstaan(world, 0); godMode = true; });
+  await tot(G.page, () => !dead, null, 3000);
+  meld(await tot(H.page, () => hinder.regie && hinder.regie.i === 1, null, 5000), 'weer levend: de regie begint');
+  await tot(H.page, () => hinder.stand[1] === 'vecht', null, 10000);
+  await tot(H.page, () => level.spawns.filter(s => s.hl === 1).every(s => s.used), null, 4000);
+  await ruim();
+  meld(await elk(() => hinder.stand[1] === 'vrij', null, 6000) === null, 'de tweede lijn gaat open');
+  // door naar level 7: de kelder
+  await H.page.evaluate(() => { pvp.coop.ep.door = true; pvpZend({ t: 'epnaar', i: 6 }); mpCoopStart(6); });
+  meld(await klaar(6) === null, 'Ambush 7 loopt bij iedereen');
+  await tot(H.page, () => pvp.coop.allenKlaar, null, 20000);
+  for (const p of allen) await p.evaluate(() => { godMode = true; });
+  for (let i = 0; i < 3; i++){
+    const x = await H.page.evaluate(i => level.hinderlagen[i].x - 50 + 0, i);
+    await zetAllen(x + 50);
+    await wacht(200); await zetAllen(x + 50);
+    if (shots){                                       // --shots map: de regie in beeld, per shot
+      fs.mkdirSync(shots, { recursive: true });
+      await tot(H.page, i => hinder.regie && hinder.regie.i === i, i, 8000);
+      for (let k = 0; k < 4; k++){ await wacht(k ? 1900 : 1700); await G.page.screenshot({ path: path.join(shots, 'hl7_' + (i + 1) + '_' + (k + 1) + '.png') }); }
+    }
+    const ok = await tot(H.page, i => hinder.stand[i] === 'vecht', i, 16000);
+    if (i === 2) meld(await G.page.evaluate(() => kelderState.fase !== 'dicht'), 'het shot From the cellar laat het luik openvliegen, ook bij de gast');
+    await tot(H.page, i => level.spawns.filter(s => s.hl === i).every(s => s.used), i, 6000);
+    const hoeveel = await H.page.evaluate(i => level.spawns.filter(s => s.hl === i && s.used).length + ' van ' + level.spawns.filter(s => s.hl === i).length, i);
+    meld(ok, 'hinderlaag ' + (i + 1) + ' van level 7: regie en gevecht (' + hoeveel + ' vijanden binnen)');
+    await ruim();
+    meld(await elk(i => hinder.stand[i] === 'vrij', i, 6000) === null, 'hinderlaag ' + (i + 1) + ' open');
+  }
+  const kx = await H.page.evaluate(() => level.kelder.x + 120);
+  await zet(H.page, kx); await wacht(1500);
+  meld(await H.page.evaluate(() => pvp.coop.fase === 'ep'), 'de host alleen bij de kelder: het level is niet uit');
+  await zetAllen(kx);
+  meld(await elk(() => pvp.coop.fase === 'uit' && /Episode complete/.test(pvpEl('mpeind').textContent), null, 10000) === null, 'het hele team bij de kelder: Episode complete');
+  for (const r of R){ if (r.fouten.size){ console.log(r.wie + ' fouten:'); for (const f of r.fouten) console.log('  ' + f); } }
+}
+const MPCLEI = 1000;
 // de vaste proef: wat de spelers niet vanzelf doen, stap voor stap, met OK of FOUT per stap. R de ramen (host, gast,
 // en met drie spelers gast2), L wat er in de lobby gebeurde
 const meld = (ok, t) => { console.log((ok ? 'OK   ' : 'FOUT ') + t); if (!ok) process.exitCode = 1; };
@@ -139,6 +227,7 @@ async function proef(R, L){
   const elk = async (f, arg, max) => { for (const r of R) if (!await tot(r.page, f, arg, max)) return r.wie; return null; };
   if (L) for (const [ok, t] of L) meld(ok, t);
   const zet = p => p.evaluate(() => { godMode = true; });
+  for (const p of allen) await p.evaluate(() => { MPC_LEIBAND.max = 1e9; });   // deze proef zet spelers ver uit elkaar neer: het leiband uit (--hl test het)
   meld(await tot(H.page, () => pvp.coop && pvp.coop.ronde >= 1 && tonnen.some(t => !t.weg), null, 60000), 'ronde 1 loopt en er staat een ton (host)');
   for (const p of allen) await zet(p);
   if (drie){
@@ -450,12 +539,12 @@ async function elk(H, G){
     meld(wapens.every(w => w.startsWith(zou)), 'het wapen uit de lobby, bij iedereen hetzelfde (' + wapens[0] + ')');
   }
   if (args.includes('--duel')) await H.page.evaluate(() => { window.__duel = true; });
-  if (args.includes('--ep')) await H.page.evaluate(() => { window.__ep = true; });
+  if (args.includes('--ep') || args.includes('--hl')) await H.page.evaluate(hl => { window.__ep = true; window.__epKaart = hl ? 'b0' : '0'; }, args.includes('--hl'));
   if (opt('--kaart', null)) await H.page.evaluate(k => { window.__kaart = k; }, opt('--kaart', null));
   await H.page.evaluate(soorten => {
     mpWijzig(() => {
       pvp.inst.modus = window.__duel ? 'duel' : window.__ep ? 'ep' : 'coop';
-      if (window.__ep) pvp.inst.kaart = '0';
+      if (window.__ep) pvp.inst.kaart = window.__epKaart;
       else if (window.__kaart && pvp.inst.modus === 'coop') pvp.inst.kaart = window.__kaart;
       Object.assign(pvp.inst.coop, { start: 2, erbij: 1, pauze: 5 });
       for (const q of MP_SOORTEN) pvp.inst.coop.vij[q.k] = soorten ? (soorten.includes(q.k) ? (q.var ? 'beide' : 'aan') : 'uit') : (q.var ? 'beide' : 'aan');
@@ -482,7 +571,7 @@ async function elk(H, G){
     await H.page.evaluate(() => mpWijzig(() => { pvp.inst.modus = 'duel'; }));
     await H.page.waitForTimeout(200);
     lobby.push([await H.page.evaluate(() => pvpEl('mpstart').disabled && /two players/.test(pvpEl('mpstartuitleg').textContent)), 'Duel met drie spelers mag niet']);
-    await H.page.evaluate(() => mpWijzig(() => { pvp.inst.modus = window.__ep ? 'ep' : 'coop'; if (window.__ep) pvp.inst.kaart = '0'; else if (window.__kaart) pvp.inst.kaart = window.__kaart; }));
+    await H.page.evaluate(() => mpWijzig(() => { pvp.inst.modus = window.__ep ? 'ep' : 'coop'; if (window.__ep) pvp.inst.kaart = window.__epKaart; else if (window.__kaart) pvp.inst.kaart = window.__kaart; }));
     await H.page.waitForTimeout(200);
     for (const r of [G, G2]) await r.page.evaluate(() => pvpEl('mpready').click());
   } else await G.page.evaluate(() => pvpEl('mpready').click());
@@ -622,6 +711,7 @@ async function elk(H, G){
     for (const r of ramen){ if (r.fouten.size){ console.log(r.wie + ' fouten:'); for (const f of r.fouten) console.log('  ' + f); } }
     loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return;
   }
+  if (args.includes('--hl')){ await hlProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--ep')){ await epProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--elk')){ await elk(H, G); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--proef')){ await proef(ramen, lobby); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
