@@ -721,6 +721,8 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
 - **Achter de toonbank**, tegen de muur: het schap (`schap.png`, drie planken, de onderste zit achter de toonbank en blijft
   leeg), daarnaast 2 tot 4 speren die tegen de muur leunen (rechtop: liggend op het blad leken ze te zweven), en de
   marktman. Voorlopig is dat de dorpeling, gespiegeld zodat hij naar Amir kijkt; `koopman: false` laat hem weg.
+- Het achterbeeld loopt `WINKEL.speerMarge` (0,45 Amir) voorbij het eind van de toonbank door: een speer die naar buiten
+  leunt viel anders half buiten het beeld en was dan maar een sliertje.
 - **Op het blad** een tot drie kalebassen, en soms nog een spul. Dat is wat je straks kunt krijgen.
 - **Elke winkel is anders.** Wat er waar staat volgt uit `seed`: welke spullen op welke plank, de speren en hun hoek, of de
   toonbank en het schap gespiegeld zijn, de kalebassen, waar de marktman staat. Een vast level heeft een vaste seed en ziet
