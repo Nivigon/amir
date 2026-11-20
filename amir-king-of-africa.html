@@ -3386,6 +3386,7 @@ function laadStap(echt){
     }
     // alles klaar, maar een nieuw level blijft LAAD.min in beeld (de balk loopt dan op de tijd door)
     if (inSpel && laadMin && laadT < LAAD.min){ laadToon(100, 'klaar'); return true; }
+    if (inSpel && mpLaadVast()){ laadToon(100, mpLaadTekst()); return true; }   // multiplayer: het laadscherm blijft tot iedereen geladen is
     if (inSpel) laadVorig = level && level.name ? level.name : '';
     if (laadOpen.size) console.warn('laadpoort: verder zonder ' + laadOpen.size + ' plaatjes: ' +
       [...laadOpen].slice(0, 5).map(i => i.src).join(', '));
@@ -66567,6 +66568,7 @@ function pvpDuelStart(){
   levelList = PVP_LEVELS;                         // niet TEST_LEVELS: die geeft alle talents (een vierde leven)
   level = readLevel(JSON.stringify(mpWapenLevel(JSON.parse(JSON.stringify(PVP_LEVEL)))));   // met de stokken: een level met stokken
   laadNieuw(); laadLevel(level);
+  mpLaadReset();                                    // pas los als iedereen geladen is (mpLaadVast)
   sandbox = false; godMode = false;
   if (ROL.koelOud == null) ROL.koelOud = ROL.koel;
   ROL.koel = D.rolKoel ? PVP.rolKoel : ROL.koelOud;
@@ -66620,6 +66622,27 @@ function pvpZendAan(p, o){
   else pvpStuur(pvp.peers[0], p === 0 ? o : Object.assign(o, { naar: p }));
 }
 function pvpBanner(t, dur){ pvp.banner = t; pvp.bannerT = dur || 0; pvpHud(); }
+// ---- multiplayer: samen beginnen ----
+// Een potje (Co-op, de Co-op episode, het Duel) begint pas als elke laptop geladen is: tot dan blijft bij iedereen
+// het laadscherm staan, met "Waiting for ..." (laadStap vraagt mpLaadVast). Een gast die klaar is stuurt 'geladen',
+// de host telt (pvp.geladen) en stuurt 'los' als hij zelf en elke gast klaar zijn; dan gaat bij iedereen het laadscherm
+// tegelijk weg. Elke start zet het terug (mpLaadReset). Een gast die wegvalt telt niet meer mee (pvpGasten).
+function mpLaadReset(){ if (pvp){ pvp.geladen = new Set(); pvp.zelfGeladen = false; pvp.los = false; } }
+function mpLaadVast(){
+  if (!pvp || pvp.fase === 'lobby' || !pvp.geladen) return false;
+  if (!pvp.zelfGeladen){ pvp.zelfGeladen = true; if (!pvp.host) pvpZend({ t: 'geladen' }); }
+  if (pvp.host && !pvp.los && pvpGasten().every(p => pvp.geladen.has(p))) mpLaadLos();
+  return !pvp.los;
+}
+function mpLaadLos(){
+  pvp.los = true;
+  if (pvp.host) pvpZend({ t: 'los' });
+  if (!pvp.coop && pvp.fase === 'vecht') pvpBanner('Round ' + pvp.ronde, 1.4);   // het Duel: "Round 1" pas als je kunt vechten
+}
+function mpLaadTekst(){
+  if (!pvp.coop) return 'Waiting for the other player...';
+  return pvp.spelers.length > 2 ? 'Waiting for your teammates...' : 'Waiting for your teammate...';
+}
 function pvpHud(){
   if (!pvp) return;
   if (pvp.coop){ mpCoopHud(); return; }
@@ -66639,6 +66662,8 @@ function pvpOntvang(m){
   }
   if (m.t === 'vol'){ pvpStop(); pvpTerug = false; pvpStatus(m.r || 'Could not join this game.'); return; }
   if (pvp.mij == null) return;                      // nog geen slot: de rest wacht niet op mij
+  if (m.t === 'geladen'){ if (pvp.host && pvp.geladen) pvp.geladen.add(m.p); return; }   // samen beginnen (mpLaadVast)
+  if (m.t === 'los'){ if (!pvp.host && pvp.geladen && !pvp.los) mpLaadLos(); return; }
   if (pvp.coop && mpCoopOntvang(m)) return;         // Co-op: de vijanden, tonnen, deuren en de revive
   if (m.t === 's'){
     // zijn stand: de nieuwste meteen voor beslissingen (pvpAnderNu), en in de speelbuffer voor het beeld (pvpAnderStap)
@@ -67561,7 +67586,7 @@ function mpCoopNieuw(){
   return { ronde: 0, fase: 'wacht', klok: MPC.eerst, rij: [], spawnKlok: 0, score: 0, kills: 0, t: 0, id: 0, tonId: 0,
            zak: [], goud: 0, reeks: { n: 0, t: -99 }, eind: null,
            doodT: {}, reviveTon: {}, symbolen: [], reviveRust: {}, symId: 0,   // per slot: sinds wanneer dood, zijn revive-ton, zijn symbool
-           leegQ: {}, losWeg: new Set(), losVorig: {}, gezien: new Map(), sleutelT: 0, zendT: 0, klaarVan: new Set(),
+           leegQ: {}, losWeg: new Set(), losVorig: {}, gezien: new Map(), sleutelT: 0, zendT: 0,
            koop: { fc: false, kracht: false, rond: false, slot: false, hout: false, slam: false, leven: 0, amulet: 0 },   // wat ik in de winkel kocht (ieder het zijne)
            wkKlaar: {}, mijnKlaar: false };   // Ready in de winkel per slot: de host telt iedereen, ieder weet wie al klaar is
 }
@@ -67917,12 +67942,6 @@ function mpCoopStap(rdt, dt){
     if (C.hartT <= 0){ C.hartT = 1; pvpZend({ t: 'hb' }); }
     return;
   }
-  if (!C.klaarGemeld){ C.klaarGemeld = true; pvpZend({ t: 'cklaar' }); }
-  if (pvp.host && !pvpGasten().every(p => C.klaarVan.has(p))){   // een gast laadt nog: ronde 1 wacht op iedereen
-    const t = pvpGasten().length > 1 ? 'Waiting for your teammates...' : 'Waiting for your teammate...';
-    if (pvpEl('pvpbanner').textContent !== t) pvpBanner(t);
-    return;
-  }
   if (pvp.host && !C.allenKlaar){ C.allenKlaar = true; if (C.ep) mpcBanner(COOPEP_LEVELS[C.ep.i].name.replace(/^Co-op \d+: /, 'Level ' + (C.ep.i + 1) + ': '), 2.5); else pvpBanner(''); }
   C.t += dt;
   mpcDeurStap(dt);
@@ -67984,7 +68003,6 @@ function mpCoopOntvang(m){
   const C = pvp.coop; if (!C) return false;
   if (m.t === 'v'){ if (!pvp.host) pvpNetIn(pvpNetVan(0), 'v', m, mpcStandLees); return true; }   // in de speelbuffer (zie "de netcode")
   if (m.t === 'hb') return true;
-  if (m.t === 'cklaar'){ if (pvp.host) C.klaarVan.add(m.p); return true; }
   if (m.t === 'mh'){ if (pvp.host) mpcTrefferVanGast(m); return true; }
   if (m.t === 'gk'){ if (!laadWacht) gkKlapBeeld(m.x, m.x2, m.d, nowScale(), m.b * nowScale(), m.v); return true; }   // de grondklap van een ander: alleen beeld en geluid
   if (m.t === 'au2'){ if (!laadWacht) mpcHurtOrig(!!m.l, m.s || 1); return true; }
@@ -68059,6 +68077,7 @@ function mpCoopStart(epI){
   level = readLevel(JSON.stringify(lv));
   laadNieuw(); laadLevel(level);
   if (ep) tonLaad(); else mpCoopLaad();             // de episode: de vijanden laden via laadLevel, de ton is voor de revive
+  mpLaadReset();                                    // pas los als iedereen geladen is (mpLaadVast)
   sandbox = false; godMode = false;
   if (ROL.koelOud != null){ ROL.koel = ROL.koelOud; ROL.koelOud = null; }
   beginPlay('normal');

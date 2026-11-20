@@ -487,9 +487,20 @@ async function elk(H, G){
     for (const r of [G, G2]) await r.page.evaluate(() => pvpEl('mpready').click());
   } else await G.page.evaluate(() => pvpEl('mpready').click());
   await H.page.waitForTimeout(300);
+  // samen beginnen: de laatste gast laadt kunstmatig lang (mpLaadVast blijft waar), dan moet de host op het laadscherm wachten
+  const traag = ramen[ramen.length - 1];
+  await traag.page.evaluate(() => { window.__houd = true; const o = mpLaadVast; mpLaadVast = () => window.__houd || o(); });
   const start = await H.page.evaluate(() => { const ok = !pvpEl('mpstart').disabled; mpStart(); return ok; });
   lobby.push([start, 'iedereen Ready: Start mag']);
   console.log('Start mocht: ' + start);
+  await tot(H.page, () => /Waiting/.test(document.getElementById('laadtel').textContent), null, 90000);
+  await wacht(3000);
+  const hw = await H.page.evaluate(() => ({ w: laadWacht, t: document.getElementById('laadtel').textContent }));
+  meld(hw.w && /Waiting/.test(hw.t), 'een gast laadt nog: de host blijft op het laadscherm (' + hw.t + ')');
+  await traag.page.evaluate(() => { window.__houd = false; });
+  let los = true;
+  for (const r of ramen) los = await tot(r.page, () => running && !laadWacht, null, 90000) && los;
+  meld(los, 'de gast is geladen: iedereen los');
   if (stokken.length){
     await wacht(1500);
     for (const r of ramen){
