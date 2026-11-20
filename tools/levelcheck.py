@@ -832,11 +832,13 @@ class Level:
         return voor[-1][1]
 
     def einde(self):
-        """Waar het level ophoudt: de fakkels, anders de muur, anders de klif."""
+        """Waar het level ophoudt: de fakkels, anders de muur, anders het kelderluik, anders de klif."""
         if self.ends:
             return self.ends[0]['x']
         if self.muur:
             return self.muur['x']
+        if self.d.get('kelder'):
+            return self.d['kelder']['x']
         if self.cliffs:
             return self.cliffs[0]['x']
         return None
@@ -945,6 +947,8 @@ def einde(lv, sp):
     _plein = ((lv.d.get('stad') or {}).get('pleinpoorten') or [])
     if lv.d.get('brutus') and any(p.get('uit') for p in _plein):
         return                        # het plein van Brutus: als hij ligt takelen de hekken op en speel je met E onder een open poort uit (pleinUitgang), geen fakkels
+    if lv.d.get('kelder'):
+        return                        # het kelderluik: het luik vliegt open en E bij de kelder speelt het level uit (kelderUit, winLevel), geen fakkels
     if lv.d.get('eindDeur') and lv.d.get('stad'):
         return                        # de einddeur: E voor die deur op een verdieping speelt het level uit (eindDeurUit, winLevel), geen fakkels; de regel 'deuren' kijkt of je er kunt staan
     if any(x.get('aanvoerder') and x.get('k') == 'bandiet' for x in (lv.d.get('spawns') or [])):
@@ -1880,6 +1884,11 @@ def terrassen(lv, sp):
             continue
         if eind is not None and t['r'] < eind - sp.EIND_BEREIK:
             yield info(t['r'], 'terras van %s hoog staat achter het einde: een eindmuur, beklimmen hoeft niet' % n0(t['h']))
+            continue
+        # het kelderluik staat tegen deze muur: de straat loopt hier dood en de kelder is het einde
+        kel = lv.d.get('kelder')
+        if kel and abs(t['r'] - kel.get('x', 1e9)) < 1:
+            yield info(t['r'], 'terras van %s hoog achter het kelderluik: een eindmuur, beklimmen hoeft niet' % n0(t['h']))
             continue
         # een stadje van straten: een muur tegen het uiteinde van een straat maakt hem doodlopend (Sandville)
         st = lv.d.get('straten') or {}

@@ -1092,6 +1092,24 @@ Op een verdieping hoort er een galerij op die hoogte voor te lopen (`stadDeurVlo
 hoog in een huis liggen in plaats van bij de fakkels; het level heeft dan `ends: []`. `levelcheck.py` kent hem (regels `einde`
 en `einddeur`). Alleen Stad 9.
 
+## Het kelderluik
+
+`KELDER`, `kelderUpdate`, `kelderBij`, `kelderUit`, `kelderTeken`, `kelderVoorTeken`
+
+`kelder: {x}` in een level: een schuine kelderingang in zijaanzicht, een wig van leem met de hoge achterkant op `x` tegen een
+muur (zet er een hoge leemmuur achter, `terraces: [{r: x, l, h: 1100, look: 'leem'}]`) en de schuinte naar rechts, met een
+houten luik erop. Komt Amir binnen `KELDER.trigger` van de wig, dan vliegt het luik open: het draait om het scharnier bovenaan
+tot bijna rechtop, stuit na (`KELDER.hoeken`), en op de klap klinkt de deurslag van de deur in de rotswand (`deurSlamSpeel`,
+`sounds/deurslam.mp3`), met een shake en een korte hitstop (`deurFreeze`). Daarna staan er gouden pijltjes boven de kelder
+(`stadTrapUitTeken`) en, staat Amir bij de wig op de straat, een grote E: E speelt het level uit (`kelderUit` in `eDruk`, dan
+`winLevel`). Het level heeft dan `ends: []`. Het luik vliegt open, ook midden in een gevecht; E werkt zodra het open is.
+
+De plaatjes `design/stad/kelder/wig.png` en `luik.png` staan op hetzelfde canvas, zodat het luik zonder verschuiving op de wig
+past; ze komen uit `tools/kelder_knip.py`, uit de Grok-platen in `bron/`. Grok tekende de wig te glad, dus de muur krijgt de
+leem, regenstrepen en bakstenen van `gevel.png`, op de maat van de stenen in het spel. `levelcheck.py` kent hem (regel `einde`,
+en de muur achter de kelder telt als eindmuur bij `terrassen`). Stad 14 is het proefstuk; in de sandbox onder De stad
+**Kelderluik**.
+
 ## Geen outline op de stadsplaatjes
 
 Een donkere outline om de stadsplaatjes is geprobeerd (2 november 2026) en weer teruggedraaid: Tom vond het lelijk.
