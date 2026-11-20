@@ -175,6 +175,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | niet verder tekenen dan er in beeld komt | `zichtVak(marge)`, `view`, `null` | notities/tekenlagen.md |
 | de verte als platen: de lucht met de zon en per bergrij een strook met land en nevel erin, in plaats van ruim tien vullingen per beeld | `VERTE`, `VERTE_PLAAT`, `vertePlaten`, `verteBak`, `verteTeken` | notities/tekenlagen.md |
 | de zon: schijf, krans en ademende ring | `ZON`, `drawZon`, `ringAdem` | notities/zon.md |
+| wolken in de lucht: Grok-wolken in drie lagen diepte, per uitzicht ingekleurd, standaard in de savanne (`wolken: false` zet ze uit), in de stad alleen met `stad.lucht` (Ishmul) | `STAD_LUCHT`, `luchtWolken`, `luchtWolkenAan`, `luchtWolkKleur` | notities/wegwijzers.md |
 | globale lichtlaag | `licht`, `SCENES` | notities/wegwijzers.md |
 | de schaduw van Amir | `AMIR_SCHADUW`, `amirSilhouet`, `amirSilLeg` | notities/schaduw-amir.md |
 | licht op personages: zon, fakkel en raam leggen een rand van licht op Amir en de vijanden | `PLICHT`, `persLicht`, `plichtBronnen` | notities/licht-personages.md |

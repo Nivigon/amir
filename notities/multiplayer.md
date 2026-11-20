@@ -488,6 +488,13 @@ De tweede map van Co-op Survival, uitgewerkt in een mockup met de opdrachtgever 
   trage parallax (0.12), de horizon net boven de straat, een beetje nevel erover, rechts afgeknipt op de grens van de
   verste rij huizen en naar links herhaald. Hij doet niet mee met de witte tint (`tintNiet`). Met x schuif je de rotsen:
   -2050 zet de hoge rots tussen de acacia en het hoge huis als je bij de savanne staat.
+  Alle rijen huizen in de verte houden op dezelfde plek op, op de muur van de voorste rij (`grensRand` in `stadAchter`):
+  eerst had elke rij zijn eigen rand, liep de verste rij verder door en zag je onder die huizen de nevel als een plat blauw
+  vak tussen de huizen. Ook het paleis vaagt weg voor het die rand bereikt, anders zweefde het boven de savanne.
+- **De lucht** (`lucht: {wolken, vogels, gloed}` in `stad`, `STAD_LUCHT`, `stadLucht`, `luchtWolken`, `stadReigers`): wolken
+  uit Grok in de stijl van de rotsen (`design/stad/verte/wolk_1..8.png`, gefacetteerd, middaglicht), witte reigers in een
+  losse V in plaats van de gieren (met een dun grijs randje, zodat ze ook voor een wolk te zien zijn), en een warme gloed
+  boven de horizon.
 
 **De kleur**: Ishmul is van wit zand (`tint: 'wit'`, zie "de tint van een level" in `notities/stad.md`) en speelt altijd
 overdag, met de blauwe lucht (`lagen: 'stad_dag'`, `versies: ['dag']` in `MPC_KAARTEN`: wit zand bij nacht werd grauw). De
