@@ -307,7 +307,8 @@ Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
 - **Punten en einde:** de host ziet een kill aan een vijand die leefde en nu niet meer (`mpcKillKijk`), telt `MPC.punten`
   plus de reeks (`mpcKill`, met "Double Kill" in beeld) en stuurt de stand mee (`cs`). Het eindscherm (`#mpeind`,
   `mpcEindToon`) met de beste score per keuze van vijanden in localStorage (`mpcEindSleutel`). R bij allebei: opnieuw
-  (`mpCoopOpnieuw`, `cnieuw`); Escape: de lobby.
+  (`mpCoopOpnieuw`, `cnieuw`); Escape: de lobby. Midden in Survival start R van de host (solo of samen) het potje meteen
+  opnieuw voor iedereen; een gast krijgt "Only the host can restart". De Co-op episode houdt R alleen na het einde.
 
 ### De host klikt weg (gebouwd, 19-11-2026)
 
