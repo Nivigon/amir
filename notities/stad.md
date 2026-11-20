@@ -736,6 +736,8 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
   een kom, een trommel en een mand dadels; alleen in een winkel het gifflesje (het gif uit het winkelscherm) en de kalebas (`items/potions/hppotion.png`). Hun hoogte staat in Amir, `spulMaat` maakt ze allemaal iets
   groter. Ze komen uit een vel van Grok in strikt zij-aanzicht op ooghoogte, zonder schaduw: een vel met de camera erboven
   (je ziet in de manden, de stof ligt plat) werkte niet.
+- **Op het schap**: de balken van `schap.png` hebben geen bovenvlak, dus eerst het schap en dan de spullen erop, met hun
+  onderkant `WINKEL.schapIn` (0,004 Amir) in de bovenrand. Andersom zakten ze achter de balk weg.
 - **Tekenen**: het schap met de speren en de planken worden een keer opgebouwd tot een beeld met een zachte schaduw op de
   muur eronder (`winkelMetSchaduw`), en getekend in `binnenAchter`, zodat het schemer van `binnenNa` erover valt. De
   toonbank komt na de personages van het level en voor Amir (`winkelVoor`), met de marktman ervoor; het schemer zit daarom
