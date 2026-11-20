@@ -77,7 +77,7 @@ voor Amir langs (getekend in `drawWeer`, na de lichtlaag), met een eigen paralla
 per strook (`weerOppervlakY`, stroken op dezelfde hoogte samen, anders streepjes), en boven een ravijn ligt er niets. `sterkte`
 maakt hem hoger en dichter: `mist` op 1 rond de enkels, `mistdik` (1,7) tot over de knieen. Hij komt trager op en trekt
 trager weg dan het andere weer (`WEER.mist.tempo`), dus een punt in `weer` laat de mist echt opkomen. In de sandbox **Mist** en
-**Dikke mist** onder Weer. Open: de kleur is vast (warm wit), 's nachts zou hij mee moeten donkeren met het licht.
+**Dikke mist** onder Weer. Waar de grond een stap maakt (terras, ravijn) loopt de mist over `WEER.mist.veer` px zacht uit. Open: de kleur is vast (warm wit), 's nachts zou hij mee moeten donkeren met het licht.
 
 ## vegetatie, water, doornbos
 
@@ -90,7 +90,7 @@ trager weg dan het andere weer (`WEER.mist.tempo`), dus een punt in `weer` laat 
 Een andere biome (`BIOMES`, `biomeImgs`, `layerImgs`): eigen panelen voor de verre laag, de tweede rij en de middenlaag,
 met dezelfde tekenweg (`drawLayer`, `vertePlaten`). Een uitzicht kiest er een met `biome`; de panelen laden pas als zo'n uitzicht
 voor het eerst getekend wordt. Nu alleen `regenwoud` (uitzicht `regenwoud`, de warme ochtend, panelen uit `design/regenwoud/`,
-een per laag), in de sandbox onder Tijd van de dag, **Regenwoud**. De grond blijft nog de savanne.
+een per laag), in de sandbox onder Tijd van de dag, **Regenwoud**. In een biome tekent `drawProps` het automatische savannedecor niet (keien, acacia's, hutjes). Proefstuk: Test 81.
 
 ## wolken in de lucht
 
