@@ -68,9 +68,16 @@ het `tutorial`-systeem (staat klaar, geen level gebruikt het nu)
 
 `gaps`, de overkant, de nevel en de diepte; de laag die eronder doorloopt is `grondDoorlopen`, in de bodemsectie
 
-## het weer: regen, onweer, zandstorm, sneeuw en sneeuwstorm
+## het weer: regen, onweer, zandstorm, sneeuw, sneeuwstorm en mist
 
 `WEER`, `weerDoel`, `updateWeer`, `drawWeer`, `weerWind`, `weerGeluid`: het veld `weer` van een level (zie "het weer" hieronder)
+
+De grondmist (`mist` en `mistdik`, `WEER.mist`, `mistTegel`, `mistTeken`): twee lagen zachte vlekken laag over de grond,
+voor Amir langs (getekend in `drawWeer`, na de lichtlaag), met een eigen parallax en een trage drift. Hij volgt de echte grond
+per strook (`weerOppervlakY`, stroken op dezelfde hoogte samen, anders streepjes), en boven een ravijn ligt er niets. `sterkte`
+maakt hem hoger en dichter: `mist` op 1 rond de enkels, `mistdik` (1,7) tot over de knieen. Hij komt trager op en trekt
+trager weg dan het andere weer (`WEER.mist.tempo`), dus een punt in `weer` laat de mist echt opkomen. In de sandbox **Mist** en
+**Dikke mist** onder Weer. Waar de grond een stap maakt (terras, ravijn) loopt de mist over `WEER.mist.veer` px zacht uit. Open: de kleur is vast (warm wit), 's nachts zou hij mee moeten donkeren met het licht.
 
 ## vegetatie, water, doornbos
 
@@ -79,6 +86,11 @@ het `tutorial`-systeem (staat klaar, geen level gebruikt het nu)
 ## achtergrondlagen, uitzicht per level
 
 `SCENE0` en `SCENES`
+
+Een andere biome (`BIOMES`, `biomeImgs`, `layerImgs`): eigen panelen voor de verre laag, de tweede rij en de middenlaag,
+met dezelfde tekenweg (`drawLayer`, `vertePlaten`). Een uitzicht kiest er een met `biome`; de panelen laden pas als zo'n uitzicht
+voor het eerst getekend wordt. Nu alleen `regenwoud` (uitzicht `regenwoud`, de warme ochtend, panelen uit `design/regenwoud/`,
+een per laag), in de sandbox onder Tijd van de dag, **Regenwoud**. In een biome tekent `drawProps` het automatische savannedecor niet (keien, acacia's, hutjes). Proefstuk: Test 81.
 
 ## wolken in de lucht
 
