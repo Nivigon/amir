@@ -275,7 +275,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | het hek van de poort: een ijzeren valhek dat omhoog getakeld wordt | `HEK`, `hekTeken`, `hekUpdate`, `poortRegie` | notities/poort.md |
 | rotsen als decor: een runerots zonder rune, achter de plateaus | `rotsen`, `rotsenTeken`, `rotsenLaadLevel` | notities/decor.md |
 | arena gates: de sandbox-modus met drie poorten en rondes | `SB_GATES`, `sbGates`, `sbGatesUpdate`, `gatesRand`, `gatesWeg` | notities/arena-gates.md |
-| Co-op solo: Co-op Survival (of de Co-op episode) voor een speler onder Sandbox, de lobby en de Co-op zonder verbinding | `MP_SOLO`, `mpSoloOpen`, `pvp.solo`, `btnsbcoop` | notities/multiplayer.md |
+| Co-op solo: Co-op Survival (of de Co-op episode) voor een speler onder Single Player, Survival (knop City Survival), de lobby en de Co-op zonder verbinding | `MP_SOLO`, `mpSoloOpen`, `pvp.solo`, `btnsbcoop` | notities/multiplayer.md |
 | masker: geverfde stukken die een deel van het level verbergen | `MASKER`, `maskerLijst`, `maskerVan` | notities/masker.md |
 | de draaiende speer: rollen om de lengteas in de vlucht | `DRAAI`, `draaiImgs`, `draaiBeeld(soort, t)` | notities/speer.md |
 | skelet met speer | `SKELET`, `skeletTrek`, `skeletUpdate` | notities/skelet.md |
@@ -331,7 +331,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `VG_LAGEN` | notities/voorgrond.md |
 | de stadsvoorgrond: kruiken, manden en een leemmuurtje voor de camera, per stuk straat naar wat er staat (De Gouden Poort) | `VG_STAD`, `vgStad`, `vgStadThema`, `voorgrond: 'stad'` | notities/voorgrond.md |
 | achtergrondlagen, uitzicht per level | `SCENE0`, `SCENES` | notities/wegwijzers.md |
-| startscherm, menu: kaartjes per level | menu |  |
+| startscherm, menu: hoofdmenu (Single Player, Multiplayer, Level Editor, Test Lab, klein Updates en Settings), Single Player met Campaign en Survival, het Test Lab met de Sandbox en de testreeksen; kaartjes per level | `menuMain`, `menuChoose`, `menuSurvival`, `menuLab`, `showMenu` |  |
 | kaarslicht: de startfoto van onderen belicht | `KAARS`, `kaarsStart`, `kaarsLus` | notities/kaarslicht.md |
 | Level Maker nieuwstijl: het grid, de Test, de controle | `MK`, `mkNaarLevel`, `mkControle`, `MK_VIJ_KNOP` | notities/maker.md |
 | elk level nakijken op decor boven een ravijn | `schoonLevel`, `schoonKomend`, `komendeRavijnen` | notities/ravijn.md |
@@ -490,9 +490,9 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 
 ### Een episode toevoegen
 
-Die vijf stappen, plus: een knop in `menuEpisodes` (het scherm met alle episodes, dat onder de knop
-Episodes in `menuChoose` hangt; een nieuwe losse reeks die geen episode is, zoals Baboon tests, krijgt
-juist een knop in `menuChoose` zelf), een eigen `menuXxx`-blok in de
+Die vijf stappen, plus: een knop in `menuEpisodes` (het scherm Campaign, onder Single Player in `menuChoose`;
+een nieuwe testreeks die geen echte episode is, zoals Baboon tests, krijgt juist een knop in het Test Lab, `menuLab`,
+met een Back-knop met de klasse `menulab`), een eigen `menuXxx`-blok in de
 HTML naar het voorbeeld van `menuTest`, en die aanmelden in `buildCards`,
 `markCards` en `showMenu` (die kiezen nu tussen `cardsKum`/`menuKum`, `cardsBab`/`menuBab`,
 `cardsStad`/`menuStad`, `cardsOak`/`menuOak` en `cardsTest`/`menuTest`, en `toMenu` ook), en de reeks in `tools/speelrobot.js`,
