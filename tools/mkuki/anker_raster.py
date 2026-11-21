@@ -8,7 +8,8 @@ draai = '--draai' in args; geen = '--geen-speer' in args
 args = [a for a in args if not a.startswith('--')]
 W, naam, anker = args[0], args[1], args[2]
 fr = args[3:]
-a = np.load('/home/claude/werk/klaar/' + anker.replace('/', '__') + '.npz')['lijf']
+a = [np.load('/home/claude/werk/klaar/' + x.replace('/', '__') + '.npz')['lijf'] for x in anker.split(',')]
+a = a[0] if len(a) == 1 else a
 items = [{'pad': f, 'speer': not geen and '_ns' not in os.path.basename(f), 'draai': draai} for f in fr]
 m = raster.bouw(items, f'{W}/{naam}.png', f'{W}/{naam}.json', anker=a)
 print(m['crop'], round(m['schaal'], 3))

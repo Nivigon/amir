@@ -10,7 +10,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage as nd
 sys.path.insert(0, os.path.dirname(__file__))
-from speer_meet import meet
+from speer_meet import meet, override
 
 W, H, TW, TH = 1800, 1100, 600, 550
 MAG = (255, 0, 255)
@@ -26,6 +26,14 @@ def zonder_speer(a, info=None):
         return a, None
     b = a.copy()
     b[r['masker'], 3] = 0
+    # waar de speer over het lijf liep (een been, de buik): het gat dichten met de dichtstbijzijnde lijfkleur,
+    # zodat Grok geen been hoeft te verzinnen
+    lijf = b[..., 3] > 100
+    dicht = nd.binary_closing(lijf, structure=np.ones((3, 3)), iterations=6) & r['masker'] & ~lijf
+    if dicht.any():
+        _, (iy, ix) = nd.distance_transform_edt(~lijf, return_indices=True)
+        b[dicht] = a[iy[dicht], ix[dicht]]
+        b[dicht, 3] = 255
     # losse snippers die niet aan het lijf vastzitten weg
     al = b[..., 3] > 60
     lab, n = nd.label(al)
@@ -53,10 +61,11 @@ def bouw(items, uit_png, meta_json, anker=None, overrides=None, schaal=None):
         a = laad(it['pad'])
         r = None
         if it.get('speer'):
-            a, r = zonder_speer(a, overrides.get(os.path.basename(it['pad'])))
+            a, r = zonder_speer(a, override(it['pad']))
         frames.append((it, a, r))
     ch, cw = frames[0][1].shape[:2]
-    alle = [f[1] for f in frames] + ([anker] if anker is not None else [])
+    ankers = [] if anker is None else (anker if isinstance(anker, list) else [anker])
+    alle = [f[1] for f in frames] + ankers
     m = np.zeros((ch, cw), bool)
     for a in alle:
         m |= a[..., 3] > 30
@@ -65,8 +74,8 @@ def bouw(items, uit_png, meta_json, anker=None, overrides=None, schaal=None):
     bw, bh = x1 - x0, y1 - y0
     s = schaal or min((TW - 50) / bw, (TH - 50) / bh)
     tegels = []
-    if anker is not None:
-        tegels.append(('anker', anker))
+    for a_ in ankers:
+        tegels.append(('anker', a_))
     for it, a, r in frames:
         tegels.append((it['pad'], a))
     assert len(tegels) <= 6

@@ -12,7 +12,7 @@ en werkt karakters/amir/mkuki/plaatsing.json bij. Rapport: rapport/<set>_plaat.p
 import sys, os, json
 sys.path.insert(0, os.path.dirname(__file__))
 import numpy as np, kleur, raster
-from speer_meet import meet
+from speer_meet import meet, meet_pad
 from PIL import Image
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -55,7 +55,7 @@ def main():
         Image.fromarray(mk).save(uit)
         Image.fromarray(kleur.kaart_png(z, lijf[..., 3] > 40)).save(b + '_zones.png')
         heeft_speer = '_ns' not in os.path.basename(p) and setnaam.find('_ns') < 0
-        info = meet(o, ov.get(os.path.basename(p))) if heeft_speer else None
+        info = meet_pad(os.path.join(REPO, p), o) if heeft_speer else None
         comp = Image.fromarray(mk)
         if info is not None:
             vk = kleur.kleur(vuist, vz, kleur.MKUKI) if vz is not None else vuist

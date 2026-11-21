@@ -45,3 +45,18 @@ Beslissingen uit de proef:
 - Geflikker gemeten (gemiddeld pixelverschil tussen opeenvolgende frames): Mkuki 2,5-9,1 tegen origineel 1,7-7,6. Goed.
 - Ophalen: zes zoom-tegels van 484x444 CSS-px (605x555 px) per beeld, geplakt met `tools/mkuki/plak.py`. De prompt zet ik
   met `document.execCommand('insertText')` in het tiptap-vak; typen van 2000 tekens liep tegen de time-out van 30 s.
+
+### 03:00 Tom: het schort moet een omgeslagen doek met split zijn (zoals de referentie). Idle opnieuw.
+De eerste versie (los geel schortpaneel) was fout: ik had het doek in woorden beschreven en Grok vulde zelf in.
+Nu zo, en dit is de werkwijze voor de rest van de run:
+1. De referentie zelf omgekleurd naar de hulpkleuren met Grok, vormen ongewijzigd: post `d0bb0d1c-5942-47dd-830d-0d74fe2467da`
+   (`/home/claude/werk/een/ref_hulp.png`; zit niet in de repo, wel de beschrijving hier).
+2. Eerste anker: idle_ns groot met die omgekleurde referentie klein linksboven als voorbeeld (`tools/mkuki/paar.py`),
+   post `6e1f7054-a307-42a6-8caa-65992b0e09db`, IoU 0,85. Zelfde voor idle_sp_00 (post `37a9d7eb-c882-4c51-9499-12da3b3bb895`).
+   Let op: met de referentie op ware grootte ernaast tekende Grok de referentiehouding na (post `8508dc25-...`, afgekeurd).
+3. Daarna rasters met een aangekleed anker linksboven (prompt in `tools/mkuki/prompts.md`): `28fb983e-...` (sp, 01-04),
+   `8e554fdf-...` (05-09), `9673410e-...` (10-14), `fa233733-...` (15-19).
+4. Afgekeurd: in `9673410e` zette Grok bij 10 en 12 de verre hand op de heup. Opnieuw met drie ankers bovenaan:
+   `1734dfd8-...` (nu ook de vuist weg, afgekeurd), `b24b194e-17d3-4b7b-b196-d13184762e7b` (goed).
+Andere fixes: de groene band tekent Grok nu donker (V 0,35), zone 4 accepteert dat. Vref per zone opnieuw gemeten.
+Kralen (138,36,32) en koper (200,132,92) iets dichter bij de referentie.

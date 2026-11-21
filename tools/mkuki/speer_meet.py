@@ -126,7 +126,7 @@ def meet(rgba, override=None):
                 j += 1
             w += j
         breedte[i] = w
-    basis = np.median(breedte[int(0.3 * n):int(0.9 * n)])
+    basis = np.percentile(breedte[int(0.3 * n):int(0.9 * n)], 25)
     wijd = breedte > max(11, basis * 1.7)
     wijd[:int(0.3 * n)] = False; wijd[int(0.93 * n):] = False
     wijd = nd.binary_closing(wijd, structure=np.ones(5))
@@ -136,7 +136,21 @@ def meet(rgba, override=None):
         idx = np.where(lab == j)[0]
         if len(idx) < 8 or len(idx) > 0.22 * n:
             continue
-        m = (idx[0] + idx[-1]) / 2
+        # een vuist is huid naast de schacht; een been (broek) of de vacht is het niet
+        huid = 0; tel = 0
+        a3 = rgba[..., :3].astype(int)
+        for i in idx:
+            for sg in (1, -1):
+                for j in (6, 8, 10):
+                    x, y = np.round(tip + d * i + sg * nrm * j).astype(int)
+                    if 0 <= x < W and 0 <= y < H and al[y, x]:
+                        r_, g_, b_ = a3[y, x]
+                        tel += 1
+                        if r_ >= g_ >= b_ - 3 and r_ - b_ > 8 and r_ + g_ + b_ < 330:
+                            huid += 1
+        if tel == 0 or huid / tel < 0.5:
+            continue
+        m = idx[0] + min(11, (idx[-1] - idx[0]) / 2)  # de vuist zit aan de kant van de punt, daarna de onderarm
         handen.append([round(float(tip[0] + d[0] * m), 1), round(float(tip[1] + d[1] * m), 1)])
         handstuk.append([int(idx[0]), int(idx[-1])])
     if override and 'handen' in override:
@@ -163,6 +177,14 @@ def meet(rgba, override=None):
     idg = np.unique(labg[raakg & (labg > 0)])
     kopblob = np.isin(labg, idg[idg > 0])
     masker = (band | kopblob) & al
+    # in de vuist: wat er van de schacht tussen de vingers door te zien is (lichter bruin dan de huid) ook weg
+    a3 = rgba[..., :3].astype(int)
+    licht = (a3.sum(-1) > 225) & (a3[..., 0] - a3[..., 2] > 26) & (a3[..., 0] >= a3[..., 1])
+    extra = bandvol & ~band & licht & (s < breed - 1.5) & al
+    labx, nx = nd.label(extra)
+    for i in range(1, nx + 1):
+        if (labx == i).sum() >= 10:
+            masker |= labx == i
     # lint: alle roodachtige stukken die het masker raken, met hun donkere omlijning
     a = rgba[..., :3].astype(float)
     roodw = al & (a[..., 0] > 55) & (a[..., 0] > 1.7 * a[..., 1]) & (a[..., 0] > 1.5 * a[..., 2]) & dicht
@@ -184,3 +206,49 @@ if __name__ == '__main__':
     im = np.asarray(Image.open(sys.argv[1]).convert('RGBA'))
     r = meet(im)
     print({k: v for k, v in r.items() if k != 'masker'})
+
+
+OVF = __import__('os').path.join(__import__('os').path.dirname(__file__), 'overrides.json')
+
+
+def rel(pad):
+    pad = __import__('os').path.abspath(pad)
+    return pad.split('karakters/amir/', 1)[1] if 'karakters/amir/' in pad else pad
+
+
+def override(pad):
+    import os
+    if not os.path.exists(OVF):
+        return None
+    return json.load(open(OVF)).get(rel(pad))
+
+
+def meet_pad(pad, rgba=None):
+    from PIL import Image
+    if rgba is None:
+        rgba = np.asarray(Image.open(pad).convert('RGBA'))
+    return meet(rgba, override(pad))
+
+
+def set_lengte(paden, drempel=0.93):
+    """Zelfde speer in een set: frames waar de meting te kort uitvalt krijgen de mediane lengte (kont verlengd)."""
+    import os
+    from PIL import Image
+    ov = json.load(open(OVF)) if os.path.exists(OVF) else {}
+    rs = {}
+    for p in paden:
+        o = ov.get(rel(p), {})
+        if 'tip' in o:
+            continue
+        rs[p] = meet(np.asarray(Image.open(p).convert('RGBA')), o or None)
+    if not rs:
+        return
+    med = float(np.median([r['lengte'] for r in rs.values()]))
+    for p, r in rs.items():
+        if r['lengte'] < drempel * med:
+            t = np.array(r['tip']); k = np.array(r['kont']); d = (k - t) / np.linalg.norm(k - t)
+            k2 = t + d * med
+            o = ov.setdefault(rel(p), {})
+            o['tip'] = r['tip']; o['kont'] = [round(float(k2[0]), 1), round(float(k2[1]), 1)]
+            print('lengte', rel(p), r['lengte'], '->', round(med, 1))
+    json.dump(ov, open(OVF, 'w'), indent=1)
