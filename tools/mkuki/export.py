@@ -29,7 +29,10 @@ def laad_klaar(pad):
 
 
 def speerlaag(o, info):
-    sp = o.copy(); sp[~info['masker'], 3] = 0
+    import afwerk
+    sp = o.copy()
+    weg = ~info['masker'] | afwerk._broek_oud(o) | afwerk._vacht(o)
+    sp[weg, 3] = 0
     return sp
 
 

@@ -75,3 +75,12 @@ Grok-pagina hangt (laden 60-90 s, time-outs op klikken en scripts). Gestopt volg
 de ren afmaken (5, 6, 8-12), dan de rest van het plan. Werkmap (niet in de repo): `/home/claude/werk/`.
 Handig voor de volgende keer: Enter verstuurt niet altijd, de verzendknop wel; na een generatie de pagina opnieuw laden
 duurt lang, dus liever een nieuw tabblad per generatie.
+
+### 09:30 verder (Tom: "ga verder"; recolours hoeven nog niet)
+Ren met speer af (12 frames), elk frame los met de omgekleurde referentie klein linksboven:
+5 `c7297677-526c-4a5d-a4f0-80788375eacb` (0,73), 6 `4c6eda77-d5a8-4cc6-8b74-167b0c85f575` (0,72),
+8 `ca804ee0-9eba-4c12-90d5-165a2027f8c2` (0,79), 9 `6c7abee6-d6c8-48e9-9557-43de82a58020` (0,76),
+11 `a010247c-1688-4712-87a7-2ef05aaf3417` (0,75), 12 `57bcae44-0d1c-4c52-b4c1-070e9c1d3e09` (0,78).
+10 `a233bda1-124b-4372-9484-417be281f621` (0,58, wandelpas): noodgreep, zie TWIJFEL.md, net als 4.
+Keuzes: voeten in de ren van Grok (niet terug uit het origineel). Speerlaag in het rapport zonder oude broek en vacht.
+Grok laadt weer normaal (zo'n 18 s per pagina).
