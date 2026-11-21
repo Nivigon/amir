@@ -52,3 +52,6 @@ Af, 12 frames (`ren_ns_plaat.png`, `ren_ns.gif`).
 Af, 7 frames (`jump_ns_plaat.png`, `jump_ns.gif`).
 - **jump 2 (afzet)**: hoofd van Grok in plaats van het origineel (dubbel gezicht anders); even naast de rest leggen.
 - **jump 3 en 4**: IoU 0,66 en 0,64, pose wel goed.
+
+## Bukken zonder speer
+Af, 12 frames (`buk_ns_plaat.png`, `buk_ns.gif`). Geen twijfel.

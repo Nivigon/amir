@@ -1,12 +1,12 @@
 # Overdracht Mkuki-productie (stand 21-11-2026, 16:30)
 
 Klaar en gepusht op `claude/mkuki`: idle (22), ren met speer (12), springen met speer (7), bukken met speer (12),
-sluipen met speer (22), rol met speer (28), trap (2), ren zonder speer (12), springen zonder speer (7). Zie `LOG.md` voor alle keuzes per set.
+sluipen met speer (22), rol met speer (28), trap (2), ren zonder speer (12), springen zonder speer (7), bukken zonder speer (12). Zie `LOG.md` voor alle keuzes per set.
 
 ## Nog te doen, in deze volgorde
 
 1. (af)
-2. Basis zonder speer: `bukken/bukken/` 12, `sluipen/sluipen_NN` 28, `rol/zonder/` 28.
+2. Basis zonder speer: `sluipen/sluipen_NN` 28, `rol/zonder/` 28.
 3. Aanvallen: speerstrike 10, speerworp 20, lowsweep 18, combo 15, stofsweep 14, rol/worp 33. De sluipaanval niet.
 4. Eindrapport in `rapport/`: overzichtsplaten en GIFs (export.py maakt die per set), TWIJFEL.md bijwerken
    (draaiende speerframes, rol 17 tot 22, en alles wat handwerk vraagt). GEEN recolours (Tom: "van mij hoef je
@@ -37,6 +37,9 @@ De werkmap `/home/claude/werk/` verdwijnt met de chat. Nodig: `werk/een/ref_hulp
 `raster.key` en bijsnijden; zie LOG.md 11:00). `werk/klaar/` wordt per set opnieuw gevuld door klaar1.py.
 
 ## Ophalen (sneller dan de vier tegels)
+Snelst: een tegel van het hele beeld op 0,6 (img-breedte W*0.6/1.25, zoom [0,0,829,553] scale 1), dan
+`tools/mkuki/verwerk1.sh werk/<set> sN <postid> <id>`. De muis eerst buiten beeld (`hover` 1400,640).
+Oude manier:
 Twee tegels van 967x461 CSS-px (1209x576) vanaf beeld-x 519 (left -415.2px), boven en onder (`R(519,576)`), dan
 `tools/mkuki/verwerk.sh werk/<set> sN <postid> <id boven> <id onder>`. Staat de figuur verder links: `tegelxy.sh`.
 Werk met twee tabbladen: een voor grok.com, een voor assets.grok.com (een batch mag niet van domein wisselen).

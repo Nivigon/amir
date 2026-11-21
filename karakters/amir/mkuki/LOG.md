@@ -177,3 +177,14 @@ OVERDRACHT.md en rapport/TWIJFEL.md bijgewerkt. Verder in een nieuwe chat met re
 - 4 (top): 5d3529a8, 0,64. Pose klopt (gehurkt in de lucht, arm vooruit); het verschil zit in de vachtzone. Gebruikt.
 - Les: bij een verschuiving van meer dan ~10 px in `terug` het afgewerkte hoofd nakijken op een dubbel gezicht.
 - Export jump_ns, 12 fps.
+
+## Bukken zonder speer (12 frames, af)
+- in_1 t/m in_3 met `mk_paar`, in_4 t/m hold_4 met `mk_buk`. Posts: in_1 e9222d76 (0,75), in_2 6c001b70 (0,77),
+  in_3 1ef8a8b8 (0,78), in_4 5c03b247 (0,82), in_5 38740fd9 (0,80), in_6 dd1055e6 (0,73), in_7 bda6c6b4 (0,70),
+  in_8 9975dfcc (0,77), hold_1 b2462bb1 (0,76), hold_2 e534d283 (0,76), hold_3 c86428c1 (0,82), hold_4 722f0372 (0,80).
+- hold_3: eerste poging 69b51dff had geen schortdoek (alleen een gele band), IoU 0,81 maar afgekeurd op het kostuum.
+- Ophalen sinds in_2 met een tegel van het hele beeld (op 0,6, 1036x691) en `tools/mkuki/verwerk1.sh`; scherpte gelijk
+  aan twee tegels (vergeleken op in_1 en in_2), een ronde minder per frame.
+- Grok laadde rond 17:30 weer traag (tot 60 s voor de pagina); een keer gaf het assets-tabblad een venster van 0x0 en
+  hing de renderer: tabblad gesloten en een nieuw gemaakt.
+- Export buk_ns, 12 fps (volgorde in_1..8, hold_1..4).
