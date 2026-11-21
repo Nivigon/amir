@@ -92,3 +92,10 @@ Elk frame los (paar.py). Posts: 0 `93d6b601-495d-45ef-a204-51fe25d162e5`, 1 `9d2
 Speermeting werkt nu op elke figuurgrootte (eerst verkleinen naar ~290 px, masker meeschalen en verbreden);
 bij 4 (top) zijn de handen met de hand gezet in `tools/mkuki/overrides.json`. Bij 6 tekende Grok ook de referentie
 groot na; terug kiest nu de figuur die het best op het origineel past.
+
+## Bukken met speer (12 frames)
+
+- Posts: hold_1 caeb28d4, hold_2 046aa398, hold_3 7db7a5ce (de eerste poging d450304a gaf een foutpagina), hold_4 4dbcb4bf, in_1 bf4e64ec, in_2 b0873b3c, in_3 1155e4a2, in_4 0cde5d69, in_5 9e60d66e, in_6 4fb2f6e1, in_7 716b6d97, in_8 bc2ff5f8.
+- IoU met het origineel 0,70 tot 0,83. in_1 leek eerst de referentiepose na te tekenen, maar het origineel staat daar ook nog bijna rechtop: goedgekeurd.
+- Voeten van Grok, hoofd en vuist uit het origineel. Volgorde in de export: in_1..8, dan hold_1..4.
+- Export: bukken_sp, 12 fps, plaat en GIF in rapport/.
