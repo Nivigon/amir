@@ -7282,7 +7282,46 @@ const STAD_14 = {
   ends: [],
   tips: [ { x: -60, t: 'Test level: the street ends in a cellar. Walk up to it and the hatch flies open, then press E to go down' } ]
 };
-const STAD_LEVELS = [STAD_1, STAD_2, STAD_3, STAD_4, STAD_5, STAD_6, STAD_7, STAD_8, STAD_9, STAD_10, STAD_11, STAD_12, STAD_14];
+// Stad 15: het geheim van de winkel (zie "de winkel", WINKEL.geheim). Een korte straat met twee bandieten (goud per kill),
+// dan het huis met de winkel. De marktman loopt rond achter de toonbank en loopt hier vaker naar achteren (achterKans 0,35)
+// dan in Ishmul, zodat je het kunt proberen: spring dan over de toonbank, sluip gebukt naar het doek, en in de achterkamer
+// staat een kist met 40 goud. Een boog brengt je terug voor de toonbank. Daarna de straat uit naar de fakkels.
+const STAD_15 = {
+  name: 'Stad 15: The back room',
+  lagen: 'stad_dag', goud: true,
+  view: 0.8, hpBalk: true, zicht: true, sneak: true, camera: true, rand: true, slangEenKlap: true, hyOmkeer: true,
+  speerInHand: true,
+  stad: {
+    paleis: -5600, seed: 151, gordijnen: true,
+    gevels: [ {x: -1000, hoog: 2}, {x: -1900, hoog: 2, soort: 'koopman'}, {x: -2900, hoog: 1, f: 1}, {x: -3700, hoog: 2, soort: 'relief'} ],
+    galerijen: [],
+    kramen: [ {x: -650, soort: 'riet'}, {x: -3350, soort: 'doek', f: 1} ],
+    voet: [ {x: -1850, stuk: 'kruik'}, {x: -4200, stuk: 'zandhoop'} ]
+  },
+  binnen: [
+    // de winkel, met het geheim: achter het doek de achterkamer
+    { gevel: 1, r: -20000, l: -22200, deur: -20250,
+      ramen: [ {x: -20750, h: 420} ],
+      winkel: { x: -21550, seed: 1515, koopman: true, geheim: { naar: -22470, achterKans: 0.35 } },
+      planken: [ {x: -20700, h: 380, soort: 'touw', seed: 57} ] },
+    // de achterkamer: geen deur naar buiten, een boog terug naar voor de toonbank, en de kist
+    { gevel: null, r: -22350, l: -23150,
+      ramen: [ {x: -22900, h: 420} ],
+      bogen: [ {x: -22490, naar: -21400} ],
+      planken: [ {x: -22700, h: 360, soort: 'kaal', seed: 913} ] }
+  ],
+  zwevers: [ {r: -20000, l: -22200, h: 900, onder: 750, look: 'hout'}, {r: -22350, l: -23150, h: 900, onder: 750, look: 'hout'} ],
+  kisten: [ {x: -23000, goud: 40} ],
+  spawns: [ {x: -1500, k: 'bandiet'}, {x: -2600, k: 'bandiet', dolk: true} ],
+  rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
+  voorgrond: false,
+  hppotions: [],
+  cliffs: [ {x: -4950} ],
+  ends: [ {x: -4500} ],
+  tips: [ { x: -60, t: 'Test level: the shop in the merchant house has a secret. Watch the merchant behind the counter' },
+          { x: -20330, t: 'When he walks to the back and turns away: jump over the counter and sneak (crouch) to the curtain' } ]
+};
+const STAD_LEVELS = [STAD_1, STAD_2, STAD_3, STAD_4, STAD_5, STAD_6, STAD_7, STAD_8, STAD_9, STAD_10, STAD_11, STAD_12, STAD_14, STAD_15];
 // Episode Oaktown: een stadje van zeven korte straten op een kaart als een dobbelsteen met zes ogen (zie "straten" en
 // notities/oaktown.md). De zes ogen zijn de kruispunten, de straten lopen ertussen als een rechthoek met een balk door
 // het midden. Het is een raster zoals Sandville (zie "knooppunten" in notities/stad.md): drie rijen (Dala, Kasuwa, Zango)
@@ -32713,6 +32752,12 @@ function winkelGeheimZet(aan, kans){
   winkelMan.w = null;                              // de marktman begint opnieuw op zijn plek
 }
 const winkelRnd = (a, b) => a + Math.random() * (b - a);
+// bij het begin van een level (en na een dood): heeft een winkel een geheim, dan staat het aan, met zijn eigen achterKans
+// als het level die geeft. Co-op zet het daarna per winkelbezoek (mpcWinkelIn)
+function winkelGeheimLevel(){
+  const w = binnenLijst().map(b => b.winkel).find(w => w && w.geheim);
+  winkelGeheimZet(!!w, w && w.geheim.achterKans);
+}
 // kijkt de marktman niet (op weg naar achteren, of daar met zijn rug naar je toe)?
 function winkelGeheimOm(){ return winkelGeheim.aan && (winkelMan.fase === 'naarAchter' || winkelMan.fase === 'achterin'); }
 // de linkergrens voor Amir in een huis: de toonbank, tenzij hij er net overheen springt terwijl de marktman niet kijkt, of er al achter staat
@@ -33885,6 +33930,7 @@ function goudReset(){
     munt = { x: p ? p.x : Number(m.x), h, t: 0, gepakt: false, pakT: 0 };
   }
   kistReset();                                     // de kisten weer dicht (zie "de schatkist")
+  if (!sandbox) winkelGeheimLevel();               // een winkel met een geheim staat in een gewoon level meteen aan (zie "de winkel")
   goudHud();
 }
 // ---- multikill: kills kort na elkaar zijn een reeks, en een reeks geeft een goudstuk extra ----
@@ -57061,7 +57107,10 @@ function readLevel(txt){
              palen: (b.palen || []).map(q => ({ x: Number(q.x), h: Number(q.h) || 0 })),
              ladders: (b.ladders || []).map(q => ({ x: Number(q.x), van: Number(q.van) || 0, naar: Number(q.naar) || 0, f: !!q.f })),
              // de winkel en de planken (zie "de winkel"); zonder deze regels vielen ze bij setLevel weg
-             winkel: b.winkel ? { x: Number(b.winkel.x), seed: b.winkel.seed != null ? Number(b.winkel.seed) : undefined, koopman: b.winkel.koopman !== false } : undefined,
+             winkel: b.winkel ? { x: Number(b.winkel.x), seed: b.winkel.seed != null ? Number(b.winkel.seed) : undefined, koopman: b.winkel.koopman !== false,
+               // het geheim (zie WINKEL.geheim): de achterkamer en hoe vaak de marktman naar achteren loopt
+               ...(b.winkel.geheim && Number.isFinite(Number(b.winkel.geheim.naar)) ? { geheim: { naar: Number(b.winkel.geheim.naar),
+                 ...(Number.isFinite(Number(b.winkel.geheim.achterKans)) && b.winkel.geheim.achterKans != null ? { achterKans: Number(b.winkel.geheim.achterKans) } : {}) } } : {}) } : undefined,
              planken: Array.isArray(b.planken) ? b.planken.map(q => ({ x: Number(q.x), h: Number(q.h) || 0, soort: q.soort === 'kaal' ? 'kaal' : 'touw', seed: q.seed != null ? Number(q.seed) : undefined })) : undefined })) : undefined,
            // een stadje van losse straten met poorten ertussen, zie "straten"
            straten: (o.straten && Array.isArray(o.straten.lijst)) ? {
@@ -58682,6 +58731,7 @@ const SUBS = {
   'Stad 11: Awning tuning': 'No enemies: set the size of the awnings and the shutter under them with sliders',
   'Stad 12: The far quarter': 'A low street by day: the quarter in the distance with its mosque, smoke and circling vultures',
   'Stad 14: The cellar': 'The street ends against a wall. The way out is down',
+  'Stad 15: The back room': 'The merchant has a secret behind his counter',
   'Sandville': 'Een stadje op een raster: poorten, paden, kruispunten en een kaart',
   'Oaktown (makkelijk)': 'Zeven straten met poorten, alleen zandslangen: haal 50 kills',
   'Beleg 1: De Poortwijk': 'De rovers hebben de stad. Deuren gaan open, een schutter op het dak, drie man op de galerij',

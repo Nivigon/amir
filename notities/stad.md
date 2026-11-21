@@ -769,6 +769,10 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
   fade terug voor de toonbank. Achter de toonbank opent E niet de winkel maar het doek: een fade naar de kamer op
   `geheim.naar`, met een kist met goud en een boog terug naar voor de toonbank.
   Sandbox: **Geheime winkel** onder De stad (met een achterkamer en een kist).
+  Proefstuk: **Stad 15: The back room** (een korte straat met twee bandieten en goud, de winkel met het geheim met
+  `achterKans: 0.35`, de achterkamer met een kist van 40 goud). Een gewoon level zet het geheim aan bij het begin
+  (`winkelGeheimLevel`, in `goudReset`). Let op: `readLevel` bouwt de winkel opnieuw op, en zonder de regel voor `geheim`
+  viel het daar weg (ook in Ishmul, dat via `readLevel` laadt).
 
 In de sandbox onder De stad: **Winkel**, **Geheime winkel** en **Kamer ingericht**. (De knop Winkel had dezelfde id als de
 knop Winkel bij Gif en deed daardoor niets; hij heet nu `sbwinkelkamer`.) De Gouden Poort heeft drie winkels (Goud 3, 6 en 9).
