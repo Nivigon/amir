@@ -736,19 +736,26 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
   de toonbank is de grens van wat je kunt belopen (`binnenLinks`, in `binnenKlem` en `binnenVijandKlem`). Hij staat niet
   op de achtergrond maar op de vloer, op dezelfde lijn als Amir: zo loopt Amir er nooit overheen, wat met de paar pixels
   diepte van de vloer binnen altijd las als "op de bar".
-- **Achter de toonbank**, tegen de muur: het schap (`schap.png`, drie planken, de onderste zit achter de toonbank en blijft
-  leeg), daarnaast 2 tot 4 speren die tegen de muur leunen (rechtop: liggend op het blad leken ze te zweven), en de
-  marktman. Voorlopig is dat de dorpeling, gespiegeld zodat hij naar Amir kijkt; `koopman: false` laat hem weg.
+- **De inrichting (voorstel B, 21-11-2026)**. Let op bij het schuiven: de planken mogen de leemrand om de doorgang niet
+  raken (dan lijkt de plank erachter te zitten), en het achterbeeld groeit mee met wat erin staat (anders knipt het af): een toonbank van leem met een houten blad (`toonbank_leem.png`), daarachter
+  links een doorgang naar achter (de binnendeur met het waaiende adire-doek, `winkelDeur`, `WINKEL.deur`), de marktman,
+  twee wandplanken op pinnen met spullen (`plank_pin.png`, `WINKEL.wandPlank`; eerst beide planken, dan alle spullen, anders
+  hangen de pinnen van de bovenste over wat op de onderste staat), een bos kruiden aan het eind van de bovenste plank (de
+  geweven mat staat uit, `WINKEL.mat.aan`: er was geen vrije plek, rechts zat hij achter de speren), naast het eind van de toonbank een grote kruik met 2 of 3 speren erin, iets naar voren (`WINKEL.kruik.voor`) en getekend na Amir
+  (`winkelKruikVoor`), zodat Amir er achterlangs loopt: dat geeft diepte, en voor de toonbank zakken, een stapel manden en daarvoor twee open zakken specerijen
+  (`WINKEL.zakken`). De onderdelen komen uit een Grok-vel (`bron/winkel_b.jpg`, geknipt met `tools/winkel_b_knip.py`). Het oude
+  schap (`schap.png`) en de houten toonbank (`toonbank.png`) worden niet meer gebruikt. `koopman: false` laat de marktman weg.
 - **Op het blad** een tot drie kalebassen, en soms nog een spul. Dat is wat je straks kunt krijgen.
-- **Elke winkel is anders.** Wat er waar staat volgt uit `seed`: welke spullen op welke plank, de speren en hun hoek, of de
-  toonbank en het schap gespiegeld zijn, de kalebassen, waar de marktman staat. Een vast level heeft een vaste seed en ziet
+- **Elke winkel is anders.** Wat er waar staat volgt uit `seed`: welke spullen op welke plank, de hoogte van de planken, het
+  aantal speren, de volgorde van de zakken, of de toonbank gespiegeld is, de kalebassen, waar de marktman staat. Een vast level heeft een vaste seed en ziet
   er elke keer hetzelfde uit; een nieuw level krijgt een nieuwe seed (zonder seed volgt hij uit `x`). Elke klik op de
   sandbox-knop geeft een nieuwe.
 - **Planken** hangen aan de muur: `x` het midden, `h` de bovenkant van de plank boven de vloer (wereld-eenheden, net als
   een raam), `soort` `touw` (met touw om de steunen) of `kaal`. Ook daarop volgen de spullen uit de seed, iets minder vol
   dan in een winkel, en zonder kalebassen: thuis lijkt een kalebas iets om te pakken.
-- **De spullen** (`WINKEL.spullen`, `spul_*.png`): mand met deksel, mand, schalen, stof, rollen, kist, schaal, kruik en, alleen
-  in een winkel, de kalebas (`items/potions/hppotion.png`). Hun hoogte staat in Amir, `spulMaat` maakt ze allemaal iets
+- **De spullen** (`WINKEL.spullen`, `spul_*.png`): mand met deksel, mand, schalen, stof, rollen, kist, schaal, kruik, en van het
+  derde vel in de spelstijl (`bron/spullen_vel3.png`, met de speer en de kalebas als stijlvoorbeeld, geknipt met `tools/spul_knip.py`) een zak kruiden, een dichte zak, een koperen kan, touw,
+  een olielampje, een trommel en een mand dadels; alleen in een winkel het gifflesje (het gif uit het winkelscherm) en de kalebas (`items/potions/hppotion.png`). Hun hoogte staat in Amir, `spulMaat` maakt ze allemaal iets
   groter. Ze komen uit een vel van Grok in strikt zij-aanzicht op ooghoogte, zonder schaduw: een vel met de camera erboven
   (je ziet in de manden, de stof ligt plat) werkte niet.
 - **Tekenen**: het schap met de speren en de planken worden een keer opgebouwd tot een beeld met een zachte schaduw op de
@@ -768,7 +775,25 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
   ding een verkoopknop (`.wkverkoop`, goudkleurig, de opbrengst erop); zonder goud zijn ze weg (`#winkelui.gratis`). Zie
   "verkopen" in `notities/episodes.md`.
 
-In de sandbox onder De stad: **Winkel** en **Kamer ingericht**. De Gouden Poort heeft drie winkels (Goud 3, 6 en 9).
+- **De marktman loopt rond** (`winkelMan`, `winkelManStap`, `WINKEL.man`): in elke winkel loopt hij heen en weer achter de
+  toonbank (zonder eigen loopanimatie, de dorpeling schuift), en staat dan even stil met zijn gezicht naar de klant.
+- **Het geheim (easter egg, 21-11-2026)** (`WINKEL.geheim`, `winkelGeheim`, `winkelGeheimZet`, `winkelGeheimStap`,
+  `winkelGeheimLinks`, `winkelGeheimDeurX`): in een winkel met `geheim: { naar }` (nu alleen Ishmul) loopt hij soms
+  (`achterKans`, 1 op 10 keer dat hij verder loopt; in de sandbox `achterKansSandbox`) naar achteren, net links van het
+  doek, en staat daar 4 tot 5,5 s met zijn rug naar de winkel. Spring je dan over de toonbank (hoger dan `sprong` Amir),
+  dan sta je erachter; de toonbank is dan half doorzichtig (`doorzicht`), anders zie je jezelf niet als je gebukt sluipt.
+  Achter de toonbank moet je **sluipen**: rechtop lopen op de grond (langer dan `hoor` s) hoort hij ("Who is there?"),
+  dan draait hij zich om. Kijkt hij en sta je erachter, dan na `betrap` s: "Hey! Get out from behind my counter!" en een
+  fade terug voor de toonbank. Achter de toonbank opent E niet de winkel maar het doek: een fade naar de kamer op
+  `geheim.naar`, met een kist met goud en een boog terug naar voor de toonbank.
+  Sandbox: **Geheime winkel** onder De stad (met een achterkamer en een kist).
+  Proefstuk: **Stad 15: The back room** (een korte straat met twee bandieten en goud, de winkel met het geheim met
+  `achterKans: 0.35`, de achterkamer met een kist van 40 goud). Een gewoon level zet het geheim aan bij het begin
+  (`winkelGeheimLevel`, in `goudReset`). Let op: `readLevel` bouwt de winkel opnieuw op, en zonder de regel voor `geheim`
+  viel het daar weg (ook in Ishmul, dat via `readLevel` laadt).
+
+In de sandbox onder De stad: **Winkel**, **Geheime winkel** en **Kamer ingericht**. (De knop Winkel had dezelfde id als de
+knop Winkel bij Gif en deed daardoor niets; hij heet nu `sbwinkelkamer`.) De Gouden Poort heeft drie winkels (Goud 3, 6 en 9).
 
 ## Straten en knooppunten (Sandville)
 

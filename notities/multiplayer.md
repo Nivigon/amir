@@ -421,6 +421,13 @@ Het blok `// ---- multiplayer: de winkel en de economie van Co-op (stuk 3) ----`
   rondom.
 - Wie dood de winkel in gaat, staat op met 1 leven (de kalebas in de winkel vult de rest).
 
+### Het geheim van de winkel in Ishmul (easter egg, 21-11-2026)
+
+Gevraagd: "een winkel waar je met een geheim trucje achter de toonbank komt en in de achterkamer een kist met goud vindt,
+af en toe in Ishmul". Het geheim staat in Ishmul bij elk winkelbezoek aan (`WINKEL.geheim.kans` 1, de host stuurt het mee in het bericht `winkel` als `g`); het zeldzame zit in de marktman, die maar 1 op 10 keer naar achteren loopt (`achterKans`). `mpcWinkelIn(g)` zet `winkelGeheimZet` en maakt de kist dicht en vol (`kistReset`). De marktman loopt op elke laptop zijn eigen rondje. Het trucje (zie "het geheim" in `notities/stad.md`) loopt per speler op zijn eigen laptop. De
+achterkamer is `MPC_ACHTERKAMER` (een `binnen` zonder deur naar buiten, met een boog terug), met een kist van 30 goud: de
+kist van Co-op (`mpcKistE`), dus maar een speler krijgt het goud. `mpcWinkelUit` zet het geheim weer uit.
+
 ## Drie spelers: de ster (stap 2 van de netcode)
 
 Co-op is voor twee of drie spelers (`PVP.max`), het Duel voor twee. De host blijft denken voor de vijanden en is het
