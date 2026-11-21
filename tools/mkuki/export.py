@@ -45,6 +45,14 @@ def main():
     origs, mks = [], []
     for p in paden:
         k = laad_klaar(p)
+        rel0 = p.split('karakters/amir/', 1)[1]
+        al = os.path.join(MK, rel0)
+        if k is None and os.path.exists(al) and ('_ns' in os.path.basename(p) or setnaam.find('_ns') >= 0):
+            # Werkdata uit een eerdere chat is weg, het frame zelf staat al in de repo: dat beeld gebruiken
+            # (alleen voor het rapport; zonder speer is er geen vuist of plaatsing om bij te werken).
+            print('BESTAAND', p)
+            origs.append(Image.fromarray(raster.laad(os.path.join(REPO, p)))); mks.append(Image.open(al).convert('RGBA'))
+            continue
         if k is None:
             print('ONTBREEKT', p); continue
         lijf, vuist = k

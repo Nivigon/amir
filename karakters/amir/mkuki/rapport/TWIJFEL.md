@@ -44,6 +44,6 @@ Nog niet aan toegekomen (rol met speer, draaislag, rol-worp).
 ## Trap met speer
 Geen twijfel; twee losse poses.
 
-## Ren zonder speer (onaf)
-Alleen ren_ns_1 en 2 zijn af (rapport `ren_ns_onaf_plaat.png`). Grok laadde de hele middag traag (60-90 s per pagina),
-dus per frame ruim twee minuten.
+## Ren zonder speer
+Af, 12 frames (`ren_ns_plaat.png`, `ren_ns.gif`).
+- **ren_ns_10**: IoU 0,64, derde poging met de pose uitgeschreven in de prompt. Volgt de omtrek, maar even kijken in de GIF.

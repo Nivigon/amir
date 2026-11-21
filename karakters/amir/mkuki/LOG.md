@@ -152,3 +152,16 @@ groot na; terug kiest nu de figuur die het best op het origineel past.
 De chat liep tegen zijn eigen lengte aan (elke Grok-generatie kost hier ruim twee minuten en veel stappen, omdat Grok
 sinds ~12:15 weer 60-90 s per pagina laadt). Netjes gestopt na rol, trap en twee frames van de ren zonder speer.
 OVERDRACHT.md en rapport/TWIJFEL.md bijgewerkt. Verder in een nieuwe chat met ren_ns_3.
+
+## 21-11-2026, 16:00 verder (nieuwe chat): ren zonder speer (12 frames, af)
+- Werkmap opnieuw opgebouwd: `ref_hulp.png` uit post d0bb0d1c met vier tegels van 824x600 (let op: elke opgeslagen tegel
+  op `scale: 1`, een kleinere schaal bewaart ook een kleiner bestand). Muis buiten de zoomregio zetten (`hover`), anders
+  staat de cursor in de tegel.
+- Prompt `mk_paar_ren` voor 3-9, 11, 12. Posts: 3 bcfc041d (0,81), 4 1d37b17a (0,74), 5 c3cfb0bd (0,74), 6 57d26476 (0,80),
+  7 fe8f738f (0,78), 8 6937d641 (0,82), 9 e1524d20 (0,80), 11 8482acb4 (0,75), 12 83dda860 (0,83).
+- Frame 10 is een compacte afzetpose (voorknie naar voren, beide voeten laag, benen dicht bij elkaar). Grok maakte er twee
+  keer iets anders van: a2a02fe6 (wandelpas met beide voeten neer, 0,52) en 97985cfe (met `mk_ren_pass`, zwevende
+  doorzwaaifase, 0,51). Met `mk_ren_af` (de pose uitgeschreven: "pushing off ... compact stance, NOT a wide stride")
+  311ea178, 0,64: volgt de omtrek, gebruikt. Net onder de 0,65, staat in TWIJFEL.md.
+- export.py: als de werkdata van een frame uit een eerdere chat weg is (hier ren_ns_1 en 2) en het frame zonder speer al
+  in de repo staat, gebruikt het rapport dat beeld. Export ren_ns, 12 fps; `ren_ns_onaf` weggehaald.
