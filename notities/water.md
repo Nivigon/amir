@@ -1,5 +1,7 @@
 # Water
 
+Het plan voor water en regen per uitzicht (regenwoud eerst, in stappen) staat in `notities/water-plan.md`.
+
 Een materiaal voor al het water: `WATER` in de kop `// ---- water: één materiaal voor plas, poel, rivier, waterval en bron ----`.
 Proefstuk: **Test 67: Water** (geen vijanden, `vredig: true`). De oude poel (`POOL`, het veld `water`, een plaat met het
 water erin geschilderd) staat er nog los naast en is nog niet overgezet.
