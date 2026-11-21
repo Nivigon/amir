@@ -44,6 +44,9 @@ def terug(naam):
     lab, n = nd.label(al)
     sz = nd.sum(al, lab, range(1, n + 1))
     kandidaten = [i + 1 for i in np.argsort(-sz)[:3] if sz[i] > 0.15 * sz.max()]
+    # het voorbeeld linksboven nooit als figuur nemen (won soms op IoU als Grok de houding anders gaf)
+    _cm = nd.center_of_mass(al, lab, kandidaten)
+    kandidaten = [kid for kid, (cy, cx) in zip(kandidaten, _cm) if not (cx < 0.17 * al.shape[1] and cy < 0.55 * al.shape[0])] or kandidaten
     k0 = k.copy()
     o = raster.laad(m['pad'])
     from speer_meet import override
@@ -61,14 +64,14 @@ def terug(naam):
       kk = k0.copy(); kk[~nd.binary_dilation(lab == kid, iterations=3)] = 0
       ys, xs = np.where(kk[..., 3] > 60)
       fig = kk[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
-      for f in np.linspace(0.9, 1.1, 9):
+      for f in np.linspace(*[float(t) if i < 2 else int(t) for i, t in enumerate(os.environ.get('PAAR_SCHAAL', '0.9,1.1,9').split(','))]):
           nh = int(round(oh * f)); nw = int(round(fig.shape[1] * nh / fig.shape[0]))
           im = np.asarray(Image.fromarray(fig).resize((nw, nh), Image.LANCZOS))
           doek = np.zeros_like(o)
           cy = int(oy.min() + oh / 2 - nh / 2); cx = int(ox.min() + ow / 2 - nw / 2)
           y0, x0 = max(0, cy), max(0, cx); y1, x1 = min(H, cy + nh), min(W, cx + nw)
           doek[y0:y1, x0:x1] = im[y0 - cy:y1 - cy, x0 - cx:x1 - cx]
-          b, dx, dy, v = uitlijn.lijn_uit(doek, o2, 40)
+          b, dx, dy, v = uitlijn.lijn_uit(doek, o2, int(os.environ.get('PAAR_BEREIK', 40)))
           if res is None or v > res[3]:
               res = (b, dx, dy, v, f)
     b, dx, dy, v, f = res

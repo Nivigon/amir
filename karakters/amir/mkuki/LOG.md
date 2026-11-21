@@ -306,7 +306,7 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
 - Export worp_sp, 12 fps; `worp_onaf` weg.
 - Op grok.com stonden tussendoor posts van een andere sessie ("Masked Bandit ... Landing"); de tabbladen van deze run verdwenen af en toe. Geen invloed op de frames.
 
-## Lage zwaai (begonnen, 4 van 18)
+## Lage zwaai (af, 18 van 18)
 - Speer draait mee en staat vaak verkort of achter het lijf; overrides (tip/kont) voor 3-7, 9, 10, 12 (breed 12) en 13.
 - Prompts: `mk_sw_voorL` (borst half naar ons, kijkt links), `mk_sw_rugL`/`mk_sw_rugR` (rug naar ons), `mk_sw_front`,
   `mk_sw_voorR`, `mk_sw_profR` (profiel naar rechts, voorover), `mk_sw_rugveeg`, `mk_sw_rugvoor` (rug, armen naar voren op
@@ -319,3 +319,27 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
   2 efca18f5 0,76 mk_sw_voorL
   3 5a9bee07 0,52 mk_sw_profR; afgekeurd 70dd9937 (te ver achterom gedraaid, 0,48)
   4 264fb60f 0,65 mk_sw_rugvoor; afgekeurd 5287e0f7 (armen naar de grond i.p.v. naar voren)
+  5 5bd85721 0,53 mk_sw_rug5 (rug, kijkt links)
+  6 a2c4600d 0,54 mk_sw_front6 (front, lichte ogen zoals origineel); linkerarm reikt minder ver; eerste poging 0f9c80a1 gaf geen beeld
+  7 cc00f299 0,46 mk_sw_rug7; houding klopt, figuur iets korter dan origineel
+  8 4de6fae7 0,60 mk_sw_half8; voorste arm hoort horizontaal naar links (speerarm), Grok zette beide handen op de grond
+  9 3e936b90 0,57 mk_sw_prof9; profiel rechts klopt, romp iets rechter dan origineel
+  10 f08749f2 0,39 mk_sw_rug10b; rug en hurkzit kloppen, armen iets korter; eerste poging 848ce9b4 0,31 (te rechtop)
+  11 9914a979 0,56 mk_sw_rug11; rug, hoofd links, klopt; eerste poging 5868aa8d (mk_sw_half8) gaf borst en gezicht, afgekeurd
+  12 d1a70380 0,53 mk_sw_drie12; driekwart rechts, gebogen, handen op de grond, klopt
+  13 d7b5d375 0,23 mk_sw_v13c (zijtrap op een been, met de hand geplaatst: /home/claude/handplaats.py, het IoU-zoeken zette hem te laag); afgekeurd 35a9a10f (hurkzit), df554c7e (geen trap)
+  14 2221ab35 0,76 mk_sw_v14
+  15 b8326895 0,67 mk_sw_v15
+  16 1ccbcbb3 0,75 mk_sw_v16
+  17 938265f2 0,81 mk_sw_v16
+  18 b0909d8a 0,77 mk_sw_v16
+- Nieuwe prompts: `mk_sw_rug5`, `mk_sw_front6`, `mk_sw_rug7`, `mk_sw_half8`, `mk_sw_prof9`, `mk_sw_rug10b`, `mk_sw_rug11`
+  ("seen FROM BEHIND ... his face is hidden"; zonder die zin gaf Grok borst en gezicht), `mk_sw_drie12`, `mk_sw_v13c`
+  ("SIDE KICK ... only ONE foot touches the ground"), `mk_sw_v14`, `mk_sw_v15`, `mk_sw_v16` (ook voor 17 en 18).
+- paar.py terug: kandidaat linksboven (het voorbeeld) telt niet meer mee; hij won bij frame 13 op IoU. Nieuwe
+  omgevingsvariabelen `PAAR_SCHAAL` ("0.7,1.05,15") en `PAAR_BEREIK` (zoekbereik in px) voor een lastig frame.
+- Frame 13 is met de hand geplaatst (onderkant figuur op onderkant origineel, midden op de mediaan-x): het origineel heeft
+  een veeg onder de voeten en een speerstreep, waardoor het IoU-zoeken hem te laag zette. Lage IoU (0,23) komt door het
+  andere silhouet (Grok trapt hoger en staat rechter), de houding zelf klopt.
+- Zoomtegel nu op 822 px breed (venster 1360x549); verwerk1 schaalt toch op naar 1728, dus geen verschil.
+- Export sweep_sp, 12 fps.

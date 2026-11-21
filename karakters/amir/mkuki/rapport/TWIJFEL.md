@@ -97,3 +97,11 @@ de andere sets van voor 17:51.
   eigen vuist.
 - 12: voorste hand is een vuist in plaats van open; 15: achterarm te gestrekt; 16 en 17: voorste arm reikt minder ver.
 - 00-02: het hoofd uit het origineel had resten van de speer; daarom overal het hoofd van Grok (--geenhoofd).
+
+## Lage zwaai
+- Grok laat de armen vaak korter of hoger dan het origineel: 8 (voorste arm hoort horizontaal naar links, Grok zette beide
+  handen op de grond), 10 (armen reiken minder ver naar rechts), 6 (linkerarm korter).
+- 13 (zijtrap): het been trapt hoger en het standbeen staat rechter dan het origineel; met de hand geplaatst. Even kijken of
+  de overgang 12 naar 13 niet springt.
+- 9: romp iets rechter dan het origineel (die ligt bijna plat voorover).
+- 3, 5, 9: de speer draait mee en is op de plaat soms een korte schuine streep; de draaiende speerframes blijven handwerk.
