@@ -219,6 +219,13 @@ tot aan zijn knie.
   en schuift niet mee.
 - Het dak is 45 lager, dus soms makkelijker te halen: vanaf het rieten dak van een kraam (263) haal je nu het dak van
   een huis van 1 hoog (442), dat lag eerst net buiten een sprong (208).
+- **De dakrand** (`level.dakRand`, `stadDakRand`, `STAD.dakRand`): achter de kartels is geen dak te zien, dus aan de
+  buitenrand van een huis stond Amir half naast de muur op dakhoogte in de lucht (boven een trapbalkon leek hij te
+  zweven, uit een Co-op potje). Met `dakRand: true` houdt het dak als vloer 0,12 Amir binnen de muur op en stap je
+  ervan af. Niet aan een kant waar een buurhuis tot `STAD.muurKier` tegenaan staat. Een trapbalkon tegen die muur loopt
+  evenver de muur in (`stadTrapPlats`), zodat je erop landt en niet ertussendoor naar de straat valt. Alleen voor Amir:
+  de daken van een vijand (`stadVloeren`) blijven zoals ze waren. Aan in Co-op (The Dye Yard, Ishmul, dus ook City
+  Survival), in beide Co-op episodes en in de Maker; een nieuw level krijgt het ook. De bestaande episodes en het Duel niet.
 - In de sandbox onder Terrein, De stad: **Achter de kartels** (aan of uit, uit is de oude manier met iedereen voor de
   kartels) en **Bandiet op het dak** (op het huis van 2 hoog).
 

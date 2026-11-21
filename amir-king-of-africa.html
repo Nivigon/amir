@@ -30279,6 +30279,7 @@ const STAD = {
   kanteelLijk: 1.6,                 // idem voor een dode: hij ligt languit, dus de strook is breder, anders steken zijn voeten erbuiten
   vijandMarge: 30,                  // een dak is de vloer van een vijand vanaf zoveel onder de looplijn (stadVloerBij)
   vijandNaad: 0.4,                  // een kier tot zoveel Amir tussen twee vloeren op dezelfde hoogte is voor een vijand dicht (stadVloeren)
+  dakRand: 0.12,                    // met level.dakRand: zoveel Amir houdt het dak als vloer binnen de muur op (stadDakRand)
   muurKier: 0.3,                    // twee huizen tot zoveel Amir uit elkaar staan tegen elkaar: de muur van het hogere is een wand voor wie op het lagere dak staat (stadMuurBlok)
   // het plein (zie "het plein" in notities/stad.md): de pleinwand achteraan, de put en de poorten met hek
   plein: {
@@ -30975,6 +30976,27 @@ function stadGalerijMaten(scale){
 }
 
 // ---- wat draagt: daken, galerijen, de tafels, het rieten dak en de verende doek (allemaal dun) ----
+// ---- de dakrand: Amir staat niet half naast het huis in de lucht ----
+// Met de kartels ligt het dak achter de tanden en is er geen vloer te zien. Aan de buitenrand van een huis staat dan
+// niets voor Amir: liep het dak tot de muur, dan stond hij daar half naast het huis op dakhoogte, zichtbaar in de lucht
+// (boven een trapbalkon leek hij te zweven). Met level.dakRand houdt het dak als vloer STAD.dakRand Amir binnen de muur
+// op, zodat hij van de rand stapt en op het balkon of de straat valt. Niet aan een kant waar een buurhuis tegenaan staat
+// (tot STAD.muurKier): daar loop je over naar het andere dak, of houdt de muur van het hogere je tegen (stadMuurBlok).
+// Alleen voor Amir; de daken van een vijand (stadVloeren) blijven zoals ze waren. Co-op, City Survival en nieuwe levels.
+function stadDakRand(g, m, scale){
+  if (!level || !level.dakRand || !STAD_KANTEEL) return [m.left, m.right];
+  const inset = STAD.dakRand * CHAR_H * scale, kier = STAD.muurKier * CHAR_H * scale;
+  let l = m.left, r = m.right, buurL = false, buurR = false;
+  for (const h of (level.stad.gevels || [])){
+    if (h === g || stadGeenDak(h)) continue;
+    const n = stadGevelMaat(h, scale);
+    if (n.left < m.left && n.right >= m.left - kier) buurL = true;     // ook als ze op een groot scherm overlappen
+    if (n.right > m.right && n.left <= m.right + kier) buurR = true;
+  }
+  if (!buurL) l += inset;
+  if (!buurR) r -= inset;
+  return r > l ? [l, r] : [m.left, m.right];
+}
 function stadPlats(scale){
   const out = [];
   if (!stadAan()) return out;
@@ -30982,7 +31004,8 @@ function stadPlats(scale){
   for (const g of (S.gevels || [])){
     if (!bij(stadGevelX(g, scale)) || stadGeenDak(g)) continue;     // een ruine heeft geen dak om op te staan
     const m = stadGevelMaat(g, scale), top = terrainH(m.x) + stadGevelH(m.hoog);   // op een hoger stuk straat staat het huis hoger
-    out.push({ x: (m.left + m.right) / 2, left: m.left, right: m.right, topH: top, base: top, wPx: m.right - m.left, hPx: 0, thin: true, stad: 'dak' });
+    const [l, r] = stadDakRand(g, m, scale);
+    out.push({ x: (l + r) / 2, left: l, right: r, topH: top, base: top, wPx: r - l, hPx: 0, thin: true, stad: 'dak' });
   }
   (S.gevels || []).forEach((g, gi) => {                  // de stam van een takel: een smalle balk om op te lopen
     if (!bij(stadGevelX(g, scale))) return;
@@ -32320,7 +32343,16 @@ function stadTrapPlats(scale){
   for (const t of stadTrappen()){
     if (!t.balkon) continue;
     const q = stadTrapMaat(t, scale); if (!q) continue;
-    out.push({ x: (q.balkL + q.balkR) / 2, left: q.balkL, right: q.balkR, topH: q.ht, base: q.ht, wPx: q.bw, hPx: 0, thin: true, stad: 'balkon' });
+    let l = q.balkL, r = q.balkR;
+    // met de dakrand (stadDakRand) houdt het dak een stuk binnen de muur op: het balkon loopt dan evenver de muur in,
+    // zodat wie van de dakrand stapt op het balkon landt en niet ertussendoor naar de straat valt
+    const g = level && level.dakRand && STAD_KANTEEL && level.stad.gevels[t.gevel];
+    if (g){
+      const m = stadGevelMaat(g, scale), inset = STAD.dakRand * CHAR_H * scale;
+      if (Math.abs(r - m.left) < 6) r += inset;
+      else if (Math.abs(l - m.right) < 6) l -= inset;
+    }
+    out.push({ x: (l + r) / 2, left: l, right: r, topH: q.ht, base: q.ht, wPx: r - l, hPx: 0, thin: true, stad: 'balkon' });
   }
   return out;
 }
@@ -58002,6 +58034,7 @@ function readLevel(txt){
            hpBalk: Array.isArray(o.hpBalk) ? o.hpBalk.filter(k => typeof k === 'string') : !!o.hpBalk,   // true = elke vijand de balk, of een lijst soorten (['bandiet','kooiman']) = alleen die (zie HP_BALK)
            slangEenKlap: !!o.slangEenKlap,              // slangen in een klap dood, ook met de health-balk (zie SLANG_EEN_KLAP)
            ...(TINT && TINT[o.tint] ? { tint: o.tint } : {}),   // de stad in een andere kleur (zie "de tint van een level")
+           dakRand: !!o.dakRand,                        // het dak houdt binnen de muur op, niemand staat half naast het huis (stadDakRand)
            hyOmkeer: !!o.hyOmkeer,                      // hyena's draaien na hun uitval om in plaats van het level uit te rennen (zie HY_OMKEER)
            zicht: !!o.zicht,                            // vijanden zien je alleen als er niets tussen zit (zie "zicht")
            goud: !!o.goud,                              // een goudstuk per kill en een prijs in de winkel (zie "goud")
@@ -63019,7 +63052,7 @@ function mkNaarLevel(opt){
   // hpBalk: Amir en elke vijand een health-balk met 3 levens, behalve de slangen (zand, zwart, knock en fosfor): die
   // staan niet in de lijst en zijn dus in een klap dood (zie hpBalkAan en "health-balk").
   // camera: de meekijkende camera, de standaard voor een nieuw level (zie "camera")
-  const lvl = { name:'Level Maker test', view:0.8, zicht:true, camera:true, hyOmkeer:true, hpBalk:MK_HP_SOORTEN.slice(), rocks, props, spawns, kaleKlif:true, voorgrond:false,
+  const lvl = { name:'Level Maker test', view:0.8, zicht:true, camera:true, hyOmkeer:true, dakRand:true, hpBalk:MK_HP_SOORTEN.slice(), rocks, props, spawns, kaleKlif:true, voorgrond:false,
                 overloop: true,             // savanne steekt met zijn bovenste laag over elke hogere wand ernaast (zie "overloopje")
                 speerInHand: true,          // nieuwe (Maker-)levels: Amir begint met de speer in de hand
                 rugMax: 1,                  // en met 1 reserve-speer op de rug (zie restart en "reserve-speren op de rug")
@@ -67774,6 +67807,7 @@ const COOPEP2_7 = {
   tips: [ { x: -60, t: 'The smugglers live at the end of this street. Three ambushes, then their cellar' } ]
 };
 const COOPEP2_LEVELS = [COOPEP2_1, COOPEP2_2, COOPEP2_3, COOPEP2_4, COOPEP2_5, COOPEP2_6, COOPEP2_7];
+[...COOPEP_LEVELS, ...COOPEP2_LEVELS].forEach(l => { l.dakRand = true; });   // het dak houdt binnen de muur op (stadDakRand)
 let pvp = null, pvpTerug = false, pvpPeer = null, pvpHostCode = null;
 const pvpEl = id => document.getElementById(id);
 function pvpStatus(t){ pvpEl('pvpstatus').textContent = t; }
@@ -69185,6 +69219,7 @@ const MPC_WINKEL = [
 const MP_COOP_LEVEL = (() => {
   const lv = JSON.parse(JSON.stringify(PVP_LEVEL));
   lv.name = 'Co-op: The Dye Yard';
+  lv.dakRand = true;                                  // het dak houdt binnen de muur op (stadDakRand)
   lv.stof = true; lv.rugMax = 1;                      // stof in de ogen, en 1 speer in de hand plus 1 op de rug
   lv.multikill = false; lv.rapport = false;           // de reeks en het eindscherm zijn hier van het team (MPC.reeks)
   lv.tonnen = [];
@@ -69294,7 +69329,7 @@ const MP_ISHMUL_LEVEL = (() => {
     lagen: 'stad_dag',
     view: 0.8, hpBalk: true, zicht: true, camera: true, rand: true, speerInHand: true, slangEenKlap: true,
     vredig: true, combo: true, multikill: false, rapport: false, geenEinde: true,
-    stof: true, rugMax: 1,
+    stof: true, rugMax: 1, dakRand: true,
     stad: {
       paleis: -600, seed: 1907, onder: true,         // de straat krijgt de onderlaag van het plein (zie "de verhoogde straat")
       achterTot: -3300,                              // links daarvan geen huizen in de verte: lucht boven de savanne
