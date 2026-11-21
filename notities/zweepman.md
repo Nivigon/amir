@@ -284,6 +284,11 @@ vervaagt hij. Sterft hij niet in de rust (de nieuwere versie is ook in de mep of
 van dat moment in `doodMix` s over in het eerste frame van de val (`s.dood.van`, in `zwmF2Teken`). Een stijf omkiepen in code
 is geprobeerd en afgekeurd.
 
+In de valframes raken alleen de zweep en de uitgestoken hand de grond; zijn romp ligt zo'n 35 bron-px hoger, en op de brug
+of een galerij leek hij daardoor boven de planken te zweven. Daarom zakt het lijf tijdens de val geleidelijk `ZWM2.ligZak`
+(30) bron-px, van 0 op het eerste frame tot alles op `land` (in `zwmF2Teken`): de romp ligt dan op de vloer en de zweep net
+ervoor. De losse arm ligt al op de grondlijn (`zwmArmStap`).
+
 ## Nog te doen
 
 - In fase 2 laten de touwframes van de mep en het eind van de sprong nog kleine reepjes broek los waar de zweep over zijn
