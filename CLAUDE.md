@@ -400,6 +400,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `slangEenKlap` | `true`: elke slang (zand, zwart, knock en fosfor) is in een klap dood, ook met `hpBalk` aan. Een nieuw level krijgt `slangEenKlap: true`; Oaktown (makkelijk) heeft het (`SLANG_EEN_KLAP`, in `hpBalkAan`) |
 | `hyOmkeer` | `true`: een hyena rent na zijn uitval niet het level uit maar draait net buiten beeld om (`HY_OMKEER`) en komt opnieuw dreigen, of eerder als hij ergens tegenaan loopt; met het zicht wacht een hyena die je kwijt is net buiten beeld. De norm: een nieuw level krijgt `hyOmkeer: true`, Co-op, Co-op solo, de Maker en de sandbox (knop **Draaien om** onder Vijanden) hebben het. De bestaande episodes niet: daar rennen ze nog weg (`hyOmkeerAan`, `hyBuitenRand`) |
 | `golf` | `true` of `{ruw}`: de golvende rand. De kruin van de grond, een rotsterras, het dak en de vloer van een gang en het zwarte terrein krijgen een golvende omtrek met textuur, druipstenen, keien en hangblokken (zie `notities/golf.md`); `ruw` schaalt de golven, 1 is de maat uit `GOLF`. Zonder veld uit; alleen Test 49 heeft het |
+| `dakRand` | `true`: het dak van een huis houdt als vloer 0,12 Amir binnen de muur op, zodat Amir niet half naast het huis in de lucht staat (achter de kartels zie je geen dak); een trapbalkon loopt evenver de muur in. Aan in Co-op, City Survival, de Co-op episodes en de Maker; een nieuw level krijgt `dakRand: true` (zie "Achter de kartels" in `notities/stad.md`) |
 | `hoogUitzicht` | `true`: gestapelde dikke grondlagen zien er op hoogte hetzelfde uit als de basis (zie `notities/velden.md`) |
 | `view` | een getal van 0,5 tot 1: uitgezoomd spelen; een nieuw level krijgt standaard `view: 0.8` (zie `notities/velden.md`) |
 | `zichtBreed` | een doel-wereldbreedte in beeld in plaats van een vaste `view`; geen level gebruikt het nog (zie `notities/velden.md`) |
@@ -493,7 +494,8 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
    een vijand ziet je dan alleen als er niets tussen zit (zie "zicht"). En `sneak: true`: de
    sluipaanval, een mens-vijand hoort je achter zijn rug in plaats van je te zien (zie "sneak"). En `camera: true`: de
    meekijkende camera (zie het veld `camera`); een arena-level mag het ook hebben, daar neemt de
-   arena-camera het over. De Maker nieuwstijl doet dit al zelf. En `rand: true`: geen rotswand
+   arena-camera het over. En `dakRand: true`: wie op een dak staat, staat niet half naast het huis in de
+   lucht (zie het veld `dakRand`). De Maker nieuwstijl doet dit al zelf. En `rand: true`: geen rotswand
    en hut aan de start, Amir begint aan de rand van het level en de camera kijkt er niet voorbij
    (zie het veld `rand`). Dat geldt voor elk nieuw level vanaf nu; de bestaande levels houden hun
    rotswand (rule 1, en een speerval zit in die wand). De Maker had al een kale start (`kaleKlif`).
