@@ -1081,6 +1081,9 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   hooguit een kwart zo ver boven zijn rustplek als hij omlaag zakt. Daarvoor schoot de doek na een stuit (vooral op de
   trampoline in Ishmul) boven zijn rustplek uit terwijl stam en franje bleven staan: een gat tussen doek en hout, en
   de paal scheurde doormidden. Waar Amir kan staan is de overgang al voorbij, dus de kuil onder zijn voeten is even diep.
+  Naveert de doek omhoog, dan blijft zijn onderrand op het hout liggen en rekt alleen de bovenkant mee (in
+  `stadLuifelStrakKolommen`, ook voor de voorrand). Schoof de onderrand mee omhoog, dan ging er bij elke stuit een
+  spleet tussen doek en hout open en dicht: de luifel knipperde tijdens het springen.
 - **Twee lagen**: de doek met de kuil voor Amir, en na Amir alleen de voorrand rond zijn voeten (`stadLuifelVoor`, in de
   render-lus voor `critFxTeken`), minder diep ingezakt (`kuil.voor`), vanaf `kuil.rand` boven de stallijn. Zo vallen zijn
   zolen en tenen achter de voorrand en loopt de doek achter hem omhoog.
