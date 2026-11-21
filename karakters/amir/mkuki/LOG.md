@@ -99,3 +99,12 @@ groot na; terug kiest nu de figuur die het best op het origineel past.
 - IoU met het origineel 0,70 tot 0,83. in_1 leek eerst de referentiepose na te tekenen, maar het origineel staat daar ook nog bijna rechtop: goedgekeurd.
 - Voeten van Grok, hoofd en vuist uit het origineel. Volgorde in de export: in_1..8, dan hold_1..4.
 - Export: bukken_sp, 12 fps, plaat en GIF in rapport/.
+
+## Sluipen met speer (22 frames)
+
+- Prompt mk_sluip: de bukprompt met "sneaking forward in a low crouch, one foot in front of the other; keep his exact step and crouch as drawn".
+- De speermeting was eerst te kort (lintresten en steelresten); met de mediane lengte (set_lengte, zoals speercheck) ging hij er schoon uit. paar.py bouw leest overrides.json, waar die lengtes nu staan.
+- Grok gaf bij s12 tot s21 eerst geen beeld (foutpagina op assets, de post-url bleef staan). Opnieuw verstuurd met een controle in de lus: het beeld moet laden voor de id telt. Les: na elke post het beeld controleren.
+- s6 kwam terug op 1248x832; geplakt met tools/mkuki/plakmaat.sh.
+- IoU 0,67 tot 0,82. Posts staan in werk/sluip/ids.json (niet in de repo); s0 62bb1310, s12 2c621ddc, s21 d97a911d.
+- Export sluipen_sp, 12 fps.
