@@ -83,3 +83,9 @@ de andere sets van voor 17:51.
   maar de handen en vuisten liggen niet overal precies waar ze in het origineel liggen (bv. 17 en 18 de vuisten hoger).
 - Verre been en verre arm staan in alle frames achter, maar beide benen zijn even donker door de broek (zelfde als bij de
   andere sets).
+
+## Speerstoot
+- Frame 2-8 staan met de rug naar de camera (zoals het origineel), gemaakt met een FACING-zin. De IoU is lager
+  (0,56-0,65) omdat de vacht in het origineel de omtrek groter maakt en bij 5 de voorste onderarm met de speer is
+  weggehaald; de houding (draaiing, armen, benen) is per frame nagekeken.
+- Frame 4 leunt iets minder voorover dan het origineel; frame 9 staat iets rechter.

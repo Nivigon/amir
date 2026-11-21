@@ -1,4 +1,4 @@
-"""python3 klaar1.py frame.npy pad [--benen] [--draai] [--geenhoofd] [--voeten] [--schoon]: een los uitgelijnd frame afwerken
+"""python3 klaar1.py frame.npy pad [--benen] [--draai] [--geenhoofd] [--voeten] [--schoon] [--eiland]: een los uitgelijnd frame afwerken
 en bewaren in werk/klaar.
 
 --draai: ondersteboven-frame (rol). Afwerken gebeurt op het 180 graden gedraaide frame, zodat "boven de kralen" weer het
@@ -32,6 +32,15 @@ if '--schoon' in sys.argv:
     kern = nd.binary_opening(al, iterations=2)
     ver = al & ~nd.binary_dilation(kern, iterations=4)
     lijf = lijf.copy(); lijf[ver] = 0
+if '--eiland' in sys.argv:
+    # losse eilanden (vachtresten naast het lijf) weg: alleen stukken houden die minstens 3% van het grootste zijn
+    from scipy import ndimage as nd
+    al = lijf[..., 3] > 40
+    lab, n = nd.label(al)
+    if n > 1:
+        sz = nd.sum(al, lab, range(1, n + 1))
+        weg = np.isin(lab, [i + 1 for i in range(n) if sz[i] < 0.03 * sz.max()])
+        lijf = lijf.copy(); lijf[weg] = 0
 if draai:
     lijf = lijf[::-1, ::-1].copy(); vuist = vuist[::-1, ::-1].copy()
 os.makedirs('/home/claude/werk/klaar', exist_ok=True)

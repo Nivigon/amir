@@ -249,3 +249,25 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
 - Afgewerkt vanaf 11 met `--geenhoofd --schoon`. Export rol_ns, 12 fps; `rol_ns_onaf` weg.
 - Chrome: twee keer gaf het assets-tabblad een venster van 0x0 (ook na een stille id-wissel); sluiten en een nieuw tabblad
   maken loste het op. Het Grok-tabblad bleef een keer leeg na herladen: ook sluiten en vernieuwen.
+
+## Speerstoot (10 frames, af)
+- Tom (20:08): Grok draaide hem in frame 2 en 3 met de borst naar de camera, terwijl hij in het origineel met zijn rug
+  naar de camera staat. Vanaf nu bij elk frame de 3D-houding controleren (zie OVERDRACHT.md, "Houding in 3D").
+- Prompts (localStorage): `mk_strike` (mk_buk met een gevechtshouding-zin en de DEPTH-zin), `mk_strike_rug` (plus
+  FACING: rug naar de camera, band over de rug, geen stok), daarop `_hef` (verre vuist hoog), `_sch` (beide vuisten bij de
+  schouders), `_borst` (vooroverleunend, vuisten op borsthoogte), `mk_strike_rug_steek2` (lunge, voorste arm gestrekt,
+  verre elleboog naar achter, rug krom) en `mk_strike_half` (half afgewend, rechtop).
+- Speermeting: overrides voor 3, 5, 6, 7, 8 en 9 (de automatische meting pakte een te korte of verkeerde lijn).
+- klaar1.py heeft nu `--eiland`: losse stukjes (vachtresten) naast het lijf weg. Standaard meegegeven voor deze set.
+- Posts en keuzes:
+  1 fd9ae486 0,71 mk_strike (borst naar camera, als origineel)
+  2 744e7977 0,64 mk_strike_rug_hef; afgekeurd 08267e71 (verre arm laag), e3074c79 (borst naar camera)
+  3 d9e6e4e5 0,65 mk_strike_rug_sch; afgekeurd 67bb0265 (borst naar camera, stok achter nek)
+  4 b2376889 0,60 mk_strike_rug_borst; afgekeurd 2fea8d3d (verre arm bij heup, 0,57), 21eb0e10 (vuisten te laag, 0,61). Leunt iets minder voorover dan origineel.
+  5 13d297b3 0,56 mk_strike_rug_steek2; afgekeurd c2666673 (te rechtop, 0,53). Lage IoU: in het bronframe is de voorste onderarm met de speer weggehaald, Grok tekent hem erbij.
+  6 9c83c4fb 0,65 mk_strike_rug_steek2
+  7 2f3fcc61 0,64 mk_strike_rug_steek2 (--eiland: losse vachtrest weg)
+  8 d0664a54 0,60 mk_strike_rug_steek2
+  9 e6403f04 0,65 mk_strike_half; iets rechtop vergeleken met origineel
+  10 3094bf84 0,78 mk_strike
+- Export strike_sp, 12 fps.
