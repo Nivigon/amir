@@ -105,3 +105,10 @@ de andere sets van voor 17:51.
   de overgang 12 naar 13 niet springt.
 - 9: romp iets rechter dan het origineel (die ligt bijna plat voorover).
 - 3, 5, 9: de speer draait mee en is op de plaat soms een korte schuine streep; de draaiende speerframes blijven handwerk.
+
+## Combo
+- 02 (armen recht omhoog): Grok zette de voeten smaller dan het origineel.
+- 03: Grok tekende een stompje stok tussen de vuisten; dat valt achter de speer, maar even kijken.
+- 07 en 08: de bovenste vuist zit wat lager en dichter bij het hoofd dan in het origineel.
+- 12-14: de achterste vuist hangt bij de heup, in het origineel houdt die hand de speer schuin omlaag; met de speer erop
+  klopt het, zonder speer ziet de arm er wat los uit.

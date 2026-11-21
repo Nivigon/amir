@@ -343,3 +343,28 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
   andere silhouet (Grok trapt hoger en staat rechter), de houding zelf klopt.
 - Zoomtegel nu op 822 px breed (venster 1360x549); verwerk1 schaalt toch op naar 1728, dus geen verschil.
 - Export sweep_sp, 12 fps.
+
+## Combo (af, 15 van 15)
+- Origineel: `aanval/combo/combo_00..14`, speer in elk frame; overrides (tip/kont) voor 01, 06, 11 (de speer kruist het hoofd
+  of de romp en werd slecht gemeten).
+- Draaiing per frame (uit het origineel): 00 driekwart rug, kijkt links; 01-04 rug (01 arm hoog, 02 armen recht omhoog,
+  03 armen boven het hoofd, 04 smal); 05 front, armen gekruist boven het hoofd; 06-09 driekwart voor, kijkt links, vuisten
+  op een diagonaal; 10-11 driekwart voor, vuisten voor de borst; 12-14 driekwart voor, voorste arm gestrekt naar links.
+- Prompts: basis `mk_cb_basis` (= mk_strike zonder FACING), dan `mk_cb1`..`mk_cb6`, `mk_cb7b`, `mk_cb8b`, `mk_cb11`, `mk_cb13`.
+- Posts:
+  1 163457cf 0,65 mk_cb1 (driekwart rug, kijkt links)
+  2 0404bf49 0,65 mk_cb2 (rug, arm hoog)
+  3 57939581 0,43 mk_cb3 (rug, armen recht omhoog; stand smaller dan origineel)
+  4 1465cd26 0,51 mk_cb4 (rug, armen boven het hoofd; geplaatst met PAAR_SCHAAL=0.8,1.1,7 PAAR_BEREIK=120; Grok tekende een stompje stok tussen de vuisten, valt onder de speer)
+  5 5645bb5b 0,79 mk_cb5 (rug, smal, armen omhoog; vuist niet geplakt)
+  6 f5924b7b 0,76 mk_cb6 (front, armen gekruist boven het hoofd)
+  7 ad154b82 0,78 mk_cb7b (driekwart voor, vuisten op een diagonaal); afgekeurd d30061ed (beide vuisten rechtsboven, 0,46)
+  8 fe05f5c8 0,76 mk_cb8b (driekwart voor, voorste vuist ver links); afgekeurd 11e8e31a (onderste vuist bij de borst i.p.v. naar voren)
+  9 828e1d27 0,75 mk_cb8b
+  10 aa56ec17 0,72 mk_cb8b
+  11 374bd6be 0,77 mk_cb11
+  12 4eab34b6 0,78 mk_cb11
+  13 cc5ec0d1 0,61 mk_cb13
+  14 888a5557 0,69 mk_cb13
+  15 845cfbd2 0,73 mk_cb13
+- Export combo_sp, 12 fps.
