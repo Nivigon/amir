@@ -368,3 +368,27 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
   14 888a5557 0,69 mk_cb13
   15 845cfbd2 0,73 mk_cb13
 - Export combo_sp, 12 fps.
+
+## Stofsweep (af, 14 van 14)
+- Origineel: `aanval/stofsweep/stof_00..13`, speer in elk frame. Overrides tip/kont voor 01, 02, 08, 10-13 (breed 16 voor
+  01, 02; 30 voor 11-13, waar de speer achter het hoofd staat); handen [] voor alle frames (valse handen op het lint).
+  In s14 (stof_13) het lint linksboven met de hand weggehaald voor Grok.
+- Draaiing: 00-02 front, kijkt links; 03-07 driekwart voor, kijkt links; 08 gebogen, driekwart voor; 09 profiel links,
+  hurk; 10-13 rug naar ons, armen voor de borst.
+- Prompts: `mk_st1`, `mk_st3`, `mk_st4`, `mk_st5`, `mk_st8b`, `mk_st9`, `mk_st10`, `mk_st11`, `mk_st12` (basis mk_cb_basis).
+- Posts:
+  1 4aa84df0 0,79 mk_st1
+  2 d7cde5ff 0,77 mk_st1
+  3 71412c45 0,79 mk_st3
+  4 26b2dece 0,83 mk_st4
+  5 c90e68ba 0,82 mk_st5
+  6 630938d8 0,81 mk_st5
+  7 12379372 0,75 mk_st5
+  8 75d3916f 0,67 mk_st8b; afgekeurd 3820cebd (te rechtop, voeten naast elkaar, 0,59)
+  9 bd9f7e65 0,71 mk_st9
+  10 f5bb3bda 0,71 mk_st10
+  11 9b66ae8d 0,62 mk_st11 (rug, stap)
+  12 8eddc9ec 0,69 mk_st12
+  13 e447bac4 0,61 mk_st12
+  14 7ca7714b 0,64 mk_st12
+- Export stof_sp, 12 fps (metadata.json van het origineel noemt 24 fps met ticks; de plaatsing volgt de frames).

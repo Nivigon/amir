@@ -112,3 +112,8 @@ de andere sets van voor 17:51.
 - 07 en 08: de bovenste vuist zit wat lager en dichter bij het hoofd dan in het origineel.
 - 12-14: de achterste vuist hangt bij de heup, in het origineel houdt die hand de speer schuin omlaag; met de speer erop
   klopt het, zonder speer ziet de arm er wat los uit.
+
+## Stofsweep
+- 07 en 08: Grok houdt hem hoger dan het origineel (dat zit diep op de hurken); IoU 0,67 en 0,71.
+- 10-13: in het origineel ligt de speer schuin achter zijn rug en zie je de vuisten niet; Grok zet de vuisten zichtbaar
+  voor het gezicht. Met de speer erop even kijken of dat klopt.
