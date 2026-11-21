@@ -1,0 +1,53 @@
+# Overdracht Mkuki-productie (stand 21-11-2026, 11:00)
+
+Klaar en gepusht op `claude/mkuki`: idle (22), ren met speer (12), springen met speer (7), bukken met speer (12),
+sluipen met speer (22). Zie `LOG.md` voor alle keuzes per set.
+
+## Nog te doen, in deze volgorde
+
+1. Basis met speer: rol (`beweging/rol/met/rol_1..28.png`, 28 frames), trap 2 (`beweging/trap/`).
+2. Basis zonder speer: ren_ns_ 12, `jump/jump/` 7, `bukken/bukken/` 12, `sluipen/sluipen_NN` 28, `rol/zonder/` 28.
+3. Aanvallen: speerstrike 10, speerworp 20, lowsweep 18, combo 15, stofsweep 14, rol/worp 33. De sluipaanval niet.
+4. Eindrapport in `rapport/`: overzichtsplaten en GIFs (export.py maakt die per set), TWIJFEL.md bijwerken
+   (draaiende speerframes, rol 17 tot 22, en alles wat handwerk vraagt). GEEN recolours (Tom: "van mij hoef je
+   overigens nog niet te recoloren").
+
+Paden staan in `notities/mkuki.md` (het plan). Zoek een pad op met `ls` als het niet klopt.
+
+## Werkwijze per set
+
+Werkmap per set: `/home/claude/werk/<set>/` met `lijst.txt` ("sN pad" per regel).
+
+1. Speer eruit controleren: `python3 tools/mkuki/speercheck.py /tmp/x.png <paden>` en de plaat bekijken
+   (groen = weg). Klopt iets niet, een override in `tools/mkuki/overrides.json` (sleutel = pad onder `karakters/amir/`).
+2. Per frame een `sN.spec` met `{"speer":true,"draai":false}` (zonder speer: `"speer":false`; ondersteboven
+   in de rol: `"draai":true`, dan wordt het frame omgedraaid aangeboden en teruggedraaid).
+3. `python3 tools/mkuki/paar.py bouw /home/claude/werk/<set>/sN <pad>` (vanuit `/home/claude/amir`).
+4. Grok (zie hieronder), beeld ophalen, plakken: `tools/mkuki/plak4id.sh werk/<set>/sN_grok.png id00 id10 id01 id11`
+   (1728x1152). Komt een beeld terug op een andere maat (bv. 1248x832): `tools/mkuki/plakmaat.sh uit.png 1248 832 ids`.
+5. `python3 tools/mkuki/paar.py terug werk/<set>/sN` print de IoU. Onder ~0,65, of een vergelijkplaat die de pose
+   niet volgt: opnieuw genereren, eventueel met de pose in de prompt benoemd.
+6. `python3 tools/mkuki/klaar1.py werk/<set>/sN.npy <pad>` (voeten van Grok; `--benen` alleen als noodgreep, dan in TWIJFEL.md).
+7. `python3 tools/mkuki/export.py <setnaam> 12 <paden in speelvolgorde>`, plaat bekijken, LOG.md bijwerken,
+   committen (Nederlands, met de attributieregels) en pushen naar `claude/mkuki`. Geen pull request.
+
+## Grok via Claude in Chrome
+
+- Tab: roep `tabs_context_mcp` aan, gebruik de Grok-tab (was 391493666) of maak er een.
+- `https://grok.com/imagine` openen, ~18 s wachten, `find` "file input" (meestal ref_115), `file_upload` met origin `https://grok.com`.
+- Prompt staat in localStorage op grok.com: `mk_buk` (bukken), `mk_sluip` (sluipen), `mk_paar`, `mk_paar_ren`.
+  Voor een nieuwe set: kopieer `mk_buk` en vervang de zin "He is crouching low, knees bent wide; keep the crouch
+  exactly as drawn." door een zin over de pose van die set. Sla op als `mk_<set>`.
+- Zetten: `document.execCommand('insertText',false,localStorage.getItem('mk_<set>'))` in `.tiptap.ProseMirror`, dan Return.
+- Na ~20 s: id = laatste deel van `location.pathname`. CONTROLEER dat het beeld laadt
+  (`new Image()` op `https://assets.grok.com/users/cd0c0caa-675a-4fe6-b7fe-024cc6e0663f/generated/<id>/image.jpg`).
+  Laadt het niet: opnieuw versturen. Ids bewaren in localStorage (`mk_<set>_ids`) en in `werk/<set>/ids.json`.
+- Ophalen: navigate naar die assets-url (eigen batch, nooit samen met een grok.com-navigate), dan
+  `img` op ware grootte zetten (breedte w/1.25) en `Q(c,r)` verschuift met -w/2.5*c, -h/2.5*r; vier keer
+  `zoom` region [0,0,691,461] scale 1 save_to_disk. De ids voor plak4id zijn de random stukjes in de bestandsnamen
+  in `/tmp/claude-tool-results/<sessie>/`.
+
+## Stoppen
+
+Alleen bij een Grok-limiet, moderatie of een browser die na 2 à 3 pogingen niet reageert: LOG.md bijwerken,
+committen, pushen, korte samenvatting. Verder niets vragen, zelf beslissen en keuzes in LOG.md zetten.
