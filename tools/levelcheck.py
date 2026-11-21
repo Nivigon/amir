@@ -375,6 +375,8 @@ class Spel:
         self.PROPS = b.const('PROPS')
         self.VILLAGE = b.const('VILLAGE')
         self.SCENES = b.const('SCENES')
+        if isinstance(self.SCENES, dict):           # en de uitzichten die er later bij komen (SCENES.kelder = ...)
+            for n in re.findall(r'^SCENES\.(\w+)\s*=', b.src, re.M): self.SCENES.setdefault(n, {})
         self.MUZIEK = b.const('MUZIEK')
         self.TEKEN = b.const('TEKEN')                   # het speerteken: voet en hoogte per variant
         self.SKELET = b.const('SKELET')
