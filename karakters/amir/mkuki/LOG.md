@@ -84,3 +84,11 @@ Ren met speer af (12 frames), elk frame los met de omgekleurde referentie klein 
 10 `a233bda1-124b-4372-9484-417be281f621` (0,58, wandelpas): noodgreep, zie TWIJFEL.md, net als 4.
 Keuzes: voeten in de ren van Grok (niet terug uit het origineel). Speerlaag in het rapport zonder oude broek en vacht.
 Grok laadt weer normaal (zo'n 18 s per pagina).
+
+### Springen met speer (7 frames, af)
+Elk frame los (paar.py). Posts: 0 `93d6b601-495d-45ef-a204-51fe25d162e5`, 1 `9d2bf22d-71a6-4b20-9496-fa4dc24ffbe1`,
+2 `d99213b3-2101-4592-aa87-5516410833ac`, 3 `9dd3f31f-70b0-4dff-ad55-92d1e31e596e`, 4 `15f68bc0-42b6-47fb-a257-d83cb54a6884`,
+5 `c5fa4936-5065-4ed2-a1e2-71b8990e2bd3`, 6 `2dd1eaa9-d36c-4fc7-942a-4decd99b6284`. IoU 0,63-0,88.
+Speermeting werkt nu op elke figuurgrootte (eerst verkleinen naar ~290 px, masker meeschalen en verbreden);
+bij 4 (top) zijn de handen met de hand gezet in `tools/mkuki/overrides.json`. Bij 6 tekende Grok ook de referentie
+groot na; terug kiest nu de figuur die het best op het origineel past.

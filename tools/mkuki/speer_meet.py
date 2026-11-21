@@ -50,6 +50,37 @@ def _schacht_score(bruin, donker, p, d, n, stap=1.0):
 
 
 def meet(rgba, override=None):
+    al0 = rgba[..., 3] > 100
+    ys0 = np.where(al0.any(1))[0]
+    xs0 = np.where(al0.any(0))[0]
+    hfig = max((ys0.max() - ys0.min()), 0.75 * (xs0.max() - xs0.min())) if len(ys0) else 0
+    if hfig > 380 and not (override or {}).get('geenschaal'):
+        from PIL import Image
+        f = 290.0 / hfig
+        H0, W0 = rgba.shape[:2]
+        klein = np.asarray(Image.fromarray(rgba).resize((max(1, int(W0 * f)), max(1, int(H0 * f))), Image.LANCZOS))
+        ov = None
+        if override:
+            ov = dict(override)
+            for k in ('tip', 'kont'):
+                if k in ov: ov[k] = [ov[k][0] * f, ov[k][1] * f]
+            if 'handen' in ov: ov['handen'] = [[x * f, y * f] for x, y in ov['handen']]
+        r = _meet(klein, ov)
+        if r is None:
+            return None
+        up = lambda m: np.asarray(Image.fromarray(m.astype(np.uint8) * 255).resize((W0, H0), Image.NEAREST)) > 127
+        r['masker'] = nd.binary_dilation(up(r['masker']), iterations=max(1, int(round(0.8 / f)))) & al0
+        r['band'] = up(r['band'])
+        for k in ('tip', 'kont'):
+            r[k] = [round(r[k][0] / f, 1), round(r[k][1] / f, 1)]
+        r['lengte'] = round(r['lengte'] / f, 1)
+        r['handen'] = [[round(x / f, 1), round(y / f, 1)] for x, y in r['handen']]
+        r['handstuk'] = [[int(a / f), int(b / f)] for a, b in r['handstuk']]
+        return r
+    return _meet(rgba, override)
+
+
+def _meet(rgba, override=None):
     al, grijs, rood, bruin, donker = _kleuren(rgba)
     H, W = al.shape
     if override and 'tip' in override and 'kont' in override:

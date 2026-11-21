@@ -29,7 +29,9 @@ def zonder_speer(a, info=None):
     # waar de speer over het lijf liep (een been, de buik): het gat dichten met de dichtstbijzijnde lijfkleur,
     # zodat Grok geen been hoeft te verzinnen
     lijf = b[..., 3] > 100
-    dicht = nd.binary_closing(lijf, structure=np.ones((3, 3)), iterations=6) & r['masker'] & ~lijf
+    ys_ = np.where(lijf.any(1))[0]; xs_ = np.where(lijf.any(0))[0]
+    schaal_ = max(1.0, max(np.ptp(ys_), 0.75 * np.ptp(xs_)) / 290.0) if len(ys_) else 1.0
+    dicht = nd.binary_closing(lijf, structure=np.ones((3, 3)), iterations=int(round(11 * schaal_))) & r['masker'] & ~lijf
     if dicht.any():
         _, (iy, ix) = nd.distance_transform_edt(~lijf, return_indices=True)
         b[dicht] = a[iy[dicht], ix[dicht]]
