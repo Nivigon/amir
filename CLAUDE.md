@@ -316,6 +316,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de fontein: een plaat van leem met het water erin, decor met de rand als trede; een steek in het water geeft een plons (sandbox, Fontein) | `WATER.soort.fontein`, `waterFonteinTeken`, `waterFonteinSlag` | notities/water.md |
 | schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil` | notities/decor.md |
 | tonnen: houten tonnen die breken (drie treffers, Nyundo in een keer, een kalebas erin), ook op een dak of zwevende laag | `TON`, `tonRaak`, `tonBruut`, `tonPlekX`, `tonOp` | notities/tonnen.md |
+| dierenkooien: houten kooien met een hyena of slang, half of slordig onder een zanddoek, op te springen en eroverheen te lopen; een lijk valt eraf; het kistje als opstap en sfeer; decor op de stoep in muurkleur en een stuk kooi voor de camera (Stad 16) | `DKOOI`, `dkBouw`, `dkPlats`, `dkLijkVal`, `dkPlaat` | notities/kooien.md |
 | wapenrek: een houten rek in de stad met speren; E pakt er een, in de hand of op de rug | `WAPENREK`, `wapenrekken`, `rekTrek` | notities/wapenrek.md |
 | rotsdecor: losse rotsstukken als props, lui geladen, in de Maker onder Decor | `ROTS_FAM`, `rotsSoorten`, `propLaad`, `mkVulRots` | notities/decor.md |
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille` | notities/slangen.md |
@@ -424,6 +425,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `vredig` | `true`: geen vijanden, en ook geen vrije slangen of kalebassen die het spel anders bij lege `spawns` stuurt (Test 67) |
 | `rocks` | keien om op te springen: `{x, s}` |
 | `tonnen` | houten tonnen die breken: `{x, y, f, kalebas}`, of `put`/`luifel`/`kraam` met `a` (Amir van die put, losse luifel of kraam) in plaats van `x`; hoger op met `dak` (een dak of galerij van de stad, met `a` vanaf het midden van dat dak) of `zwever: true` (zie `notities/tonnen.md`) |
+| `dierkooien` | dierenkooien: `{x, maat, doek, dier, f, achter, vg, s, dekking, kleur}`, `maat` hoog/laag/slang, `doek` half/over, `dier` hyena/slang, `achter` decor op de stoep, `vg` voor de camera; `kistjes: [{x, f, achter, vg, s}]` het kistje onder het doek, opstap en sfeer; een spawn met `dak: 'kooi'` staat op een kooi (Stad 16, zie `notities/kooien.md`) |
 | `wapenrekken` | houten rekken met speren: `{x, f, n}`, `n` speren (standaard en hooguit 4, een per touwlus), of `put`/`luifel`/`kraam` met `a` zoals bij `tonnen`; E pakt er een (zie `notities/wapenrek.md`) |
 | `spawns` | vijanden: `{x, k}`, `k` is groen/zwart/knock/scorp/hyenas/panter/fosfor/bandiet/kooiman/meelman/schildman/kruisboogbandiet, met vlaggen per soort (zie `notities/velden.md`) |
 | `goud` | `true`: een goudstuk per kill, een kalebas kost 5 goud in de winkel, goud en kalebassen gaan mee naar het volgende level (De Gouden Poort, zie "goud" in `notities/episodes.md`) |
@@ -585,6 +587,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Winkelinrichting** (`design/stad/binnen/toonbank_leem.png`, `plank_pin.png`, `wand_*.png`, `kruik_groot.png`, `zak_*.png`, `manden.png`, uit `bron/winkel_b.jpg`) → `tools/winkel_b_knip.py`, daarna `gen-offline-manifest.py`
 - **Wapenrek** (`design/stad/wapenrek/`, uit de Grok-plaat in `bron/`) → `tools/wapenrek_knip.py`, daarna `gen-offline-manifest.py`
 - **Deurgordijnen** (`design/stad/gordijn/`, uit de Grok-platen in `bron/`) → `tools/gordijn_knip.py`, daarna `gen-klein.py` en `gen-offline-manifest.py` (de gordijnmap staat niet in de lijst van `gen-klein.py`, dus het spel laadt de grote versie, net als bij de tonnen)
+- **Dierenkooien** (`design/stad/kooi/`, uit de Grok-segmenten in `bron/` en het blad van `galerij.png`) → `tools/kooi_bak.py`, daarna `gen-offline-manifest.py`
 - **Tonnen** (`design/stad/ton/`, uit de Grok-platen in `bron/`) → `tools/ton_kleur.py`, daarna `gen-offline-manifest.py`
 - **Savanne-opstapjes** (`design/opstap/savanne_onder.png` uit de grondrand, `savanne_eind.png` uit de Grok-plaat in `bron/`) → `tools/savanne_opstap.py`, daarna `gen-offline-manifest.py`
 - **Rotsdecor** (`design/rotsdecor/`, losse rotsstukken uit de platen in `bron/`) → `tools/rotsdecor_knip.py`, daarna `gen-offline-manifest.py`
