@@ -7,7 +7,7 @@ sluipen met speer (22), rol met speer (28), trap (2), ren zonder speer (12), spr
 
 1. (af)
 2. (af)
-3. Aanvallen: speerstrike 10 (af), speerworp 20 (af), lowsweep 18 (volgende) 18, combo 15, stofsweep 14, rol/worp 33. De sluipaanval niet.
+3. Aanvallen: speerstrike 10 (af), speerworp 20 (af), lowsweep 18 (1-4 af, verder met 5; draaiing per frame in LOG.md) 18, combo 15, stofsweep 14, rol/worp 33. De sluipaanval niet.
 4. Eindrapport in `rapport/`: overzichtsplaten en GIFs (export.py maakt die per set), TWIJFEL.md bijwerken
    (draaiende speerframes, rol 17 tot 22, en alles wat handwerk vraagt). GEEN recolours (Tom: "van mij hoef je
    overigens nog niet te recoloren").

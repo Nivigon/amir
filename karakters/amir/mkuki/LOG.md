@@ -305,3 +305,17 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
 - Prompts erbij: `mk_worp_hand_neer`, `mk_worp_loop`, `mk_worp_staan2` (de gevechtszin van mk_strike vervangen door 'standing calmly').
 - Export worp_sp, 12 fps; `worp_onaf` weg.
 - Op grok.com stonden tussendoor posts van een andere sessie ("Masked Bandit ... Landing"); de tabbladen van deze run verdwenen af en toe. Geen invloed op de frames.
+
+## Lage zwaai (begonnen, 4 van 18)
+- Speer draait mee en staat vaak verkort of achter het lijf; overrides (tip/kont) voor 3-7, 9, 10, 12 (breed 12) en 13.
+- Prompts: `mk_sw_voorL` (borst half naar ons, kijkt links), `mk_sw_rugL`/`mk_sw_rugR` (rug naar ons), `mk_sw_front`,
+  `mk_sw_voorR`, `mk_sw_profR` (profiel naar rechts, voorover), `mk_sw_rugveeg`, `mk_sw_rugvoor` (rug, armen naar voren op
+  borsthoogte). Basis: mk_strike met "deep low crouch sweeping low" in plaats van de gevechtszin.
+- Draaiing per frame (uit het origineel): 1-2 borst half naar ons, kijkt links; 3 profiel rechts, voorover; 4 rug naar ons;
+  5 rug, kijkt links; 6 front; 7 rug; 8 half rug; 9 profiel rechts; 10 rug; 11 rug, kijkt links; 12 driekwart rechts;
+  13-18 borst half naar ons, kijkt links.
+- Posts:
+  1 9e7ea321 0,78 mk_sw_rugL (Grok gaf toch borst half naar ons, zoals origineel)
+  2 efca18f5 0,76 mk_sw_voorL
+  3 5a9bee07 0,52 mk_sw_profR; afgekeurd 70dd9937 (te ver achterom gedraaid, 0,48)
+  4 264fb60f 0,65 mk_sw_rugvoor; afgekeurd 5287e0f7 (armen naar de grond i.p.v. naar voren)
