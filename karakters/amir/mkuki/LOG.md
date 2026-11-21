@@ -218,7 +218,7 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
   `button[type=submit]`. Grok stond bij het begin op Video: eerst Afbeelding aanzetten.
 - Export sluip_ns, 12 fps; `sluip_ns_onaf` weg.
 
-## Rol zonder speer (begonnen, 4 van 28)
+## Rol zonder speer (28 frames, af)
 - Zelfde poses als de rol met speer, dus dezelfde prompts (`mk_rol3` ... `mk_rol_kniel`, nu met de DEPTH-zin); frame 1
   met `mk_paar`. Posts: 1 0bc5f742 (0,68), 2 6392f4d8 (0,78), 3 2f4fa651 (0,81), 4 7c5b0a1d (0,81).
 - Indeling voor de rest (als bij rol_sp): mk_rol4 voor 5, mk_rol3 voor 6, 7, 10-12, 19-21, mk_rol5 voor 8, 9, mk_rol6 voor
@@ -226,3 +226,26 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
   --schoon` (zie rol_sp).
 - Gestopt rond 18:45: de Chrome-tabbladen verdwenen steeds (tab-groep weg, ids ongeldig), waarschijnlijk omdat een
   andere chat tegelijk Chrome bestuurt. Voorlopig geexporteerd als `rol_ns_onaf`.
+
+### 21-11, 19:00 verder (nieuwe chat): rol 5 t/m 28 af
+- Werkmap opnieuw opgebouwd. Let op bij het ophalen van een beeld op assets.grok.com: de viewer zet een `height`-attribuut
+  op de img; zonder `height:auto` in de stijl wordt het beeld platgedrukt (eerste ref_hulp was daardoor fout). Alle
+  ophaalscripts zetten nu `height:auto`.
+- Posts (gebruikt): 5 a2296b80 (0,74), 6 66298931 (0,73), 7 b164f7ec (mk_rol5, 0,79), 8 3c7fbcd2 (0,69),
+  9 ce14b7d3 (0,69), 10 94d3f13b (0,68), 11 39561d73 (0,67), 12 762a217e (0,74), 13 aee19733 (mk_rol3, 0,73),
+  14 4986055a (0,68), 15 23b1c4a1 (0,65), 16 83e04c1c (0,71), 17 367a958a (0,72), 18 75d3d3c8 (0,72),
+  19 575394d6 (0,70), 20 22b261eb (0,75), 21 90a84956 (0,74), 22 adbc6f8c (0,68), 23 da31f398 (0,65),
+  24 159528e9 (0,70), 25 1a6ece5e (0,62), 26 c72f1fb2 (0,75), 27 1645593a (0,76), 28 f38527ad (0,72).
+- Afgekeurd: 7 30fbbff8 (mk_rol3, hoofd te hoog, 0,59), 12 7ae50bea (broek bleef paars), 13 ce978ed9 (mk_rol6, vuisten
+  waar de voeten horen, 0,61), 14 0ec1a06b en f926a5ab (mk_rol3 en mk_rol6: rechtop gezet), 17 56e96b69 (rechtop) en
+  0a38f91d (plat op de rug, 0,51), 18 f5837471 (gespiegeld, 0,46) en 830f6cd8 (mk_rol7: rechtop), 25 f48b710c (0,58).
+- Nieuwe prompts in localStorage, elk de oude plus een ORIENTATION-zin: `mk_rol6_om` (ondersteboven houden; 14-16),
+  `mk_rol7_om` (half ondersteboven, schouders op de grond; 17, 18), `mk_rol7_rug` (niet gebruikt), `mk_rol3_rug`
+  (over de rug rollen, hoofd rechts laag; 19-21), `mk_rol_kniel_hand` (25, slechter, niet gebruikt).
+  Zonder die zin zet Grok de ondersteboven-frames rechtop; met de zin lukt het in een keer.
+- Indeling anders dan gepland: 13 met mk_rol3 (mk_rol6 faalde), 19-21 met mk_rol3_rug.
+- Voor/achter gecontroleerd per frame: verre arm en verre been staan overal achter. In Mkuki zijn beide benen even donker
+  (zwarte broek), zie TWIJFEL.md.
+- Afgewerkt vanaf 11 met `--geenhoofd --schoon`. Export rol_ns, 12 fps; `rol_ns_onaf` weg.
+- Chrome: twee keer gaf het assets-tabblad een venster van 0x0 (ook na een stille id-wissel); sluiten en een nieuw tabblad
+  maken loste het op. Het Grok-tabblad bleef een keer leeg na herladen: ook sluiten en vernieuwen.

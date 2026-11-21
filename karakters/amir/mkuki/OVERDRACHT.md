@@ -1,13 +1,12 @@
-# Overdracht Mkuki-productie (stand 21-11-2026, 18:45)
+# Overdracht Mkuki-productie (stand 21-11-2026, avond)
 
 Klaar en gepusht op `claude/mkuki`: idle (22), ren met speer (12), springen met speer (7), bukken met speer (12),
-sluipen met speer (22), rol met speer (28), trap (2), ren zonder speer (12), springen zonder speer (7), bukken zonder speer (12), sluipen zonder speer (28). Zie `LOG.md` voor alle keuzes per set.
+sluipen met speer (22), rol met speer (28), trap (2), ren zonder speer (12), springen zonder speer (7), bukken zonder speer (12), sluipen zonder speer (28), rol zonder speer (28). Zie `LOG.md` voor alle keuzes per set.
 
 ## Nog te doen, in deze volgorde
 
 1. (af)
-2. Basis zonder speer: `rol/zonder/` 28 (1-4 af, verder met 5; indeling in LOG.md; daarna exporteren als `rol_ns`
-   en `rol_ns_onaf` weghalen).
+2. (af)
 3. Aanvallen: speerstrike 10, speerworp 20, lowsweep 18, combo 15, stofsweep 14, rol/worp 33. De sluipaanval niet.
 4. Eindrapport in `rapport/`: overzichtsplaten en GIFs (export.py maakt die per set), TWIJFEL.md bijwerken
    (draaiende speerframes, rol 17 tot 22, en alles wat handwerk vraagt). GEEN recolours (Tom: "van mij hoef je
@@ -38,7 +37,7 @@ De werkmap `/home/claude/werk/` verdwijnt met de chat. Nodig: `werk/een/ref_hulp
 `raster.key` en bijsnijden; zie LOG.md 11:00). `werk/klaar/` wordt per set opnieuw gevuld door klaar1.py.
 
 ## Ophalen (sneller dan de vier tegels)
-Snelst: een tegel van het hele beeld op 0,6 (img-breedte W*0.6/1.25, zoom [0,0,829,553] scale 1), dan
+Snelst: een tegel van het hele beeld op 0,6 (img-breedte W*0.6/1.25, `height:auto`, zoom [0,0,829,553] scale 1), dan
 `tools/mkuki/verwerk1.sh werk/<set> sN <postid> <id>`. De muis eerst buiten beeld (`hover` 1400,640).
 Oude manier:
 Twee tegels van 967x461 CSS-px (1209x576) vanaf beeld-x 519 (left -415.2px), boven en onder (`R(519,576)`), dan
@@ -59,7 +58,7 @@ Versturen: na `insertText` op de verzendknop klikken (1236,462); de submit-knop 
   (`new Image()` op `https://assets.grok.com/users/cd0c0caa-675a-4fe6-b7fe-024cc6e0663f/generated/<id>/image.jpg`).
   Laadt het niet: opnieuw versturen. Ids bewaren in localStorage (`mk_<set>_ids`) en in `werk/<set>/ids.json`.
 - Ophalen: navigate naar die assets-url (eigen batch, nooit samen met een grok.com-navigate), dan
-  `img` op ware grootte zetten (breedte w/1.25) en `Q(c,r)` verschuift met -w/2.5*c, -h/2.5*r; vier keer
+  `img` op ware grootte zetten (breedte w/1.25, en ALTIJD `height:auto`, anders is het beeld platgedrukt) en `Q(c,r)` verschuift met -w/2.5*c, -h/2.5*r; vier keer
   `zoom` region [0,0,691,461] scale 1 save_to_disk. De ids voor plak4id zijn de random stukjes in de bestandsnamen
   in `/tmp/claude-tool-results/<sessie>/`.
 

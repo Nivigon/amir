@@ -73,3 +73,13 @@ de andere sets van voor 17:51.
   darker in shadow, do NOT swap left and right"); sluipen_07 heeft het verre been daarna wel donker.
 - De rencyclus wordt in een andere chat gecorrigeerd (Tom, 17:57). Deze run let alleen op de nieuwe frames: bij elke
   vergelijking kijken of het verre been en de verre arm achter en donker staan, zoals in het origineel.
+
+## Rol zonder speer
+- **Rol 25 (IoU 0,62)**: geknield met een hand naar de grond. In het origineel steekt de vacht ver achter de rug uit, wat
+  de IoU drukt; de pose klopt grof, maar de hand reikt minder ver naar voren dan in het origineel. Een tweede poging met
+  de hand uitgeschreven (f48b710c) was slechter (0,58).
+- **Rol 15 en 23 (0,65)**: op de grens, pose volgt het origineel; 23 mist vooral de vacht achter de rug.
+- **Rol 14-21**: de ondersteboven en rug-frames zijn gemaakt met een ORIENTATION-zin in de prompt. Ze volgen de omtrek,
+  maar de handen en vuisten liggen niet overal precies waar ze in het origineel liggen (bv. 17 en 18 de vuisten hoger).
+- Verre been en verre arm staan in alle frames achter, maar beide benen zijn even donker door de broek (zelfde als bij de
+  andere sets).
