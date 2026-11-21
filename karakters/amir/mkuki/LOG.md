@@ -271,3 +271,30 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
   9 e6403f04 0,65 mk_strike_half; iets rechtop vergeleken met origineel
   10 3094bf84 0,78 mk_strike
 - Export strike_sp, 12 fps.
+
+## Speerworp (begonnen, 16 van 20)
+- Bronframes staan in `amir runc/amir_sprites/design/amir/speerworp/` (map in `THR_DIRS`). Lokaal een symlink
+  `karakters/amir/speerworp` naar die map (in .git/info/exclude, niet gecommit), zodat de tools een pad onder
+  `karakters/amir/` krijgen; de uitvoer staat in `karakters/amir/mkuki/speerworp/`.
+- Speer zit in 00-10; 11-19 zijn zonder speer (override `geen: true`, klaar1.py en export.py slaan de speer dan over).
+- Speermeting: overrides voor 00, 03-07, 09, 10 (tip/kont), 00 en 01 `kopmax`/`lintzijde` (het hoofd naast het blad werd als
+  lint gezien), handen vastgezet voor 01-06 en 08 (de speer over het hoofd werd als hand gezien: witte vlek op het hoofd),
+  10 met `breed: 16` (bewegingsstreep). speer_meet.py kent nu `kopmax` en `lintzijde`.
+- Alles met `--eiland --geenhoofd` (het hoofd uit het origineel had resten van de speer).
+- Nieuw: `tools/mkuki/schedel.py` (hap in de schedel dichten; uiteindelijk niet gebruikt, de oplossing was de hand-override).
+- Prompts: `mk_worp_voor`(`_hoofd`), `mk_worp_hand`, `mk_worp_mik`, `mk_worp_spreid`, `mk_worp_lunge`, `mk_worp_los`,
+  `mk_worp_profiel`, `mk_worp_na`(`_open`), `mk_worp_rugzwaai`, `mk_worp_rughoog`, `mk_worp_rugzak`.
+- Posts en keuzes:
+  00 90f11e31 0,76 mk_worp_voor; --geenhoofd (kruin had resten)
+  01 32c86a21 0,77 mk_worp_voor; handen-override (de speer door het hoofd werd als hand gezien), --geenhoofd
+  02 0ef3a970 0,76 mk_worp_voor_hoofd, aangeboden met dichtgemaakte schedel; afgekeurd f82d705f (hap in de schedel)
+  03 cf9a0b88 0,73 mk_worp_hand(-zin); 04 afe01ed6 0,72 mk_worp_hand; 05 40f2e1c1 0,68 mk_worp_hand (vuist achter het oor); 06 29041614 0,62 mk_worp_mik; 07 7f3d955b 0,75 mk_worp_spreid; 08 aa3d4cb7 0,78 mk_worp_lunge. Handen vastgezet voor 03-06 en 08 (valse hand op het hoofd gaf een witte vlek).
+  09 1159ad4d 0,74 mk_worp_lunge
+  10 f2ee8cbc 0,82 mk_worp_profiel (strikt profiel, rug half naar ons); afgekeurd d3ca02da (te veel borst naar de camera, 0,75). Speer-override met breed 16 om de bewegingsstreep weg te halen.
+  11 62c01726 0,83 mk_worp_profiel
+  12 2c76d011 0,69 mk_worp_na (voorste hand vuist i.p.v. open; verre arm zichtbaar achter de rug)
+  13 fc1b3765 0,68 mk_worp_na_open
+  14 ce7692f7 0,67 mk_worp_rugzwaai; afgekeurd 56992d06 (borst naar de camera)
+  15 9ee0d934 0,54 mk_worp_rughoog; afgekeurd 7534d266 (achterarm bij de heup i.p.v. achter op borsthoogte). Achterarm nu te gestrekt.
+  16 afgekeurd 2b10ab7c (voorste arm te hoog, 0,50); volgende poging met mk_worp_rugzak (arm omlaag)
+- Voorlopig geexporteerd als `worp_onaf` (00-15).

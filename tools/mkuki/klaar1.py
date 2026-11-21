@@ -1,4 +1,4 @@
-"""python3 klaar1.py frame.npy pad [--benen] [--draai] [--geenhoofd] [--voeten] [--schoon] [--eiland]: een los uitgelijnd frame afwerken
+"""python3 klaar1.py frame.npy pad [--benen] [--draai] [--geenhoofd] [--voeten] [--schoon] [--eiland] [--geenspeer]: een los uitgelijnd frame afwerken
 en bewaren in werk/klaar.
 
 --draai: ondersteboven-frame (rol). Afwerken gebeurt op het 180 graden gedraaide frame, zodat "boven de kralen" weer het
@@ -13,6 +13,7 @@ npy, pad = sys.argv[1], sys.argv[2]
 a = np.load(npy); o = raster.laad(pad)
 b = os.path.basename(pad)
 spr = not ('_ns' in b or '/zonder/' in pad or '/jump/jump/' in pad or '/bukken/bukken/' in pad or (b.startswith('sluipen_') and 'speer' not in b))
+spr = spr and '--geenspeer' not in sys.argv and not (__import__('speer_meet').override(pad) or {}).get('geen')  # frames zonder speer in een speerset (na de worp)
 info = meet_pad(pad, o) if spr else None
 draai = '--draai' in sys.argv
 if draai:

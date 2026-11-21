@@ -207,6 +207,9 @@ def _meet(rgba, override=None):
     raakg = nd.binary_dilation(band, iterations=2)
     idg = np.unique(labg[raakg & (labg > 0)])
     kopblob = np.isin(labg, idg[idg > 0])
+    if override and 'kopmax' in override:
+        # alleen het bladdeel (een donker hoofd naast het blad is geen metaal)
+        kopblob &= t < lengte * override['kopmax']
     masker = (band | kopblob) & al
     # in de vuist: wat er van de schacht tussen de vingers door te zien is (lichter bruin dan de huid) ook weg
     a3 = rgba[..., :3].astype(int)
@@ -224,6 +227,10 @@ def _meet(rgba, override=None):
     ids = np.unique(lab[raak & (lab > 0)])
     lint = np.isin(lab, ids[ids > 0])
     lint = nd.binary_dilation(lint, iterations=2) & (lint | (a.sum(-1) < 150)) & al
+    if override and 'lintzijde' in override:
+        # het lint hangt aan een kant van de schacht; aan de andere kant (het hoofd) niets weghalen
+        sz = (xx - tip[0]) * (-d[1]) + (yy - tip[1]) * d[0]
+        lint &= (sz * override['lintzijde'] > -4)
     masker = masker | lint
     masker = nd.binary_dilation(masker, iterations=1) & al
     return {'tip': [round(float(tip[0]), 1), round(float(tip[1]), 1)], 'handen': handen, 'handstuk': handstuk,
