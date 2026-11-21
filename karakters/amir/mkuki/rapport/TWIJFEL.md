@@ -27,3 +27,23 @@ In de idle komen de voeten nog uit het origineel.
 
 ## Draaiende speerframes
 Nog niet aan toegekomen (rol met speer, draaislag, rol-worp).
+
+## Rol met speer (21-11, middag)
+- **Draaiende speerframes: rol 16 tot 22.** De speer draait hier mee met de rol (16 en 18 bijna rechtop, 19-22 schuin
+  over het lijf). Plaatsing staat in `plaatsing.json` met de lengte van het origineel; in 16 en 18 is de lengte uit de
+  setmediaan aangevuld (de punt of kont viel achter het lijf), dus graag nakijken of de speer daar niet te lang is.
+  Een korter wordende speer (naar je toe gedraaid) zie ik in deze set niet; de originele speer blijft even lang.
+- **Rol 11 tot 28: het hoofd is van Grok**, niet uit het origineel (in deze poses pakte het terugzetten vachtresten en
+  speerstukken mee). Gezicht kan iets afwijken van de rest van de sets.
+- **Rol 3 en 19: geen vuistlaag** op een (3) of alle (19) handpunten: Grok tekende de hand op een andere plek, dus de
+  speer loopt daar niet door een vuist heen. Handwerk: vuist met de hand zetten of de speer daar achter de hand leggen.
+- **Rol 17 en 18**: armen naar links gezet met een eigen prompt (`mk_rol7`); de vuisten liggen niet precies op de
+  originele handpunten. Even kijken in de GIF.
+- **Rol 22**: IoU 0,64, de benen iets anders dan het origineel.
+
+## Trap met speer
+Geen twijfel; twee losse poses.
+
+## Ren zonder speer (onaf)
+Alleen ren_ns_1 en 2 zijn af (rapport `ren_ns_onaf_plaat.png`). Grok laadde de hele middag traag (60-90 s per pagina),
+dus per frame ruim twee minuten.

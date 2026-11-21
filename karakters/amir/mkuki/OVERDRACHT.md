@@ -1,12 +1,12 @@
-# Overdracht Mkuki-productie (stand 21-11-2026, 11:00)
+# Overdracht Mkuki-productie (stand 21-11-2026, middag)
 
 Klaar en gepusht op `claude/mkuki`: idle (22), ren met speer (12), springen met speer (7), bukken met speer (12),
-sluipen met speer (22). Zie `LOG.md` voor alle keuzes per set.
+sluipen met speer (22), rol met speer (28), trap (2), en ren zonder speer 1-2. Zie `LOG.md` voor alle keuzes per set.
 
 ## Nog te doen, in deze volgorde
 
-1. Basis met speer: rol (`beweging/rol/met/rol_1..28.png`, 28 frames), trap 2 (`beweging/trap/`).
-2. Basis zonder speer: ren_ns_ 12, `jump/jump/` 7, `bukken/bukken/` 12, `sluipen/sluipen_NN` 28, `rol/zonder/` 28.
+1. (af)
+2. Basis zonder speer: ren_ns_ 3-12 (1 en 2 af; daarna de hele set opnieuw exporteren als `ren_ns`, 12 fps), `jump/jump/` 7, `bukken/bukken/` 12, `sluipen/sluipen_NN` 28, `rol/zonder/` 28.
 3. Aanvallen: speerstrike 10, speerworp 20, lowsweep 18, combo 15, stofsweep 14, rol/worp 33. De sluipaanval niet.
 4. Eindrapport in `rapport/`: overzichtsplaten en GIFs (export.py maakt die per set), TWIJFEL.md bijwerken
    (draaiende speerframes, rol 17 tot 22, en alles wat handwerk vraagt). GEEN recolours (Tom: "van mij hoef je
@@ -30,6 +30,18 @@ Werkmap per set: `/home/claude/werk/<set>/` met `lijst.txt` ("sN pad" per regel)
 6. `python3 tools/mkuki/klaar1.py werk/<set>/sN.npy <pad>` (voeten van Grok; `--benen` alleen als noodgreep, dan in TWIJFEL.md).
 7. `python3 tools/mkuki/export.py <setnaam> 12 <paden in speelvolgorde>`, plaat bekijken, LOG.md bijwerken,
    committen (Nederlands, met de attributieregels) en pushen naar `claude/mkuki`. Geen pull request.
+
+## Werkmap opnieuw opbouwen (na een nieuwe chat)
+De werkmap `/home/claude/werk/` verdwijnt met de chat. Nodig: `werk/een/ref_hulp.png` (omgekleurde referentie, Grok post
+`d0bb0d1c-5942-47dd-830d-0d74fe2467da`, 1648x1200: ophalen met vier tegels van 824x600 via `tegel.sh`, dan keyen met
+`raster.key` en bijsnijden; zie LOG.md 11:00). `werk/klaar/` wordt per set opnieuw gevuld door klaar1.py.
+
+## Ophalen (sneller dan de vier tegels)
+Twee tegels van 967x461 CSS-px (1209x576) vanaf beeld-x 519 (left -415.2px), boven en onder (`R(519,576)`), dan
+`tools/mkuki/verwerk.sh werk/<set> sN <postid> <id boven> <id onder>`. Staat de figuur verder links: `tegelxy.sh`.
+Werk met twee tabbladen: een voor grok.com, een voor assets.grok.com (een batch mag niet van domein wisselen).
+De post-id staat in de tab-url na het versturen; `location.pathname` uitlezen loopt vaak tegen een time-out als Grok traag is.
+Versturen: na `insertText` op de verzendknop klikken (1236,462); de submit-knop via script werkt niet altijd.
 
 ## Grok via Claude in Chrome
 

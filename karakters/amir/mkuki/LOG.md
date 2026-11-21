@@ -143,3 +143,12 @@ groot na; terug kiest nu de figuur die het best op het origineel past.
   exact stance". Posts: trap_af 1c0245bd (IoU 0,74), trap_op 3da6e5f4 (0,77). Hoofd en vuist uit het origineel.
 - Export trap_sp, 4 fps (twee losse poses, geen loop).
 - Grok laadt sinds ~12:15 weer traag (60-90 s per pagina, soms time-outs van scripts). Werkt wel; ik wacht langer per stap.
+
+## Ren zonder speer (begonnen)
+- Prompt `mk_paar_ren`, frame los met de referentie. ren_ns_1 8db3317a (0,78), ren_ns_2 596e951b (0,80). Voorlopig
+  geexporteerd als `ren_ns_onaf`.
+
+### Gestopt (middag)
+De chat liep tegen zijn eigen lengte aan (elke Grok-generatie kost hier ruim twee minuten en veel stappen, omdat Grok
+sinds ~12:15 weer 60-90 s per pagina laadt). Netjes gestopt na rol, trap en twee frames van de ren zonder speer.
+OVERDRACHT.md en rapport/TWIJFEL.md bijgewerkt. Verder in een nieuwe chat met ren_ns_3.
