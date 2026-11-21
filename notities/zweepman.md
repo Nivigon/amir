@@ -219,7 +219,8 @@ De nieuwe versie (de tweede opzet: dezelfde vaste cyclus als oud, maar zonder ve
   waarschuwingsgloed loopt mee en begint vlak bij hem.
 - **Fase 1, afstand houden**: hij slaat binnen `aanval` (600, oud 440) en sluipt achteruit (de loopclip achterstevoren,
   `terugV`) als Amir dichterbij komt dan `houd` (360, oud 260). Staat hij klem, dan slaat hij meteen. Op je af loopt hij
-  `loopV` 150 (oud 100).
+  `loopV` 150 (oud 100). Tussen `houd` en `houd` plus `houdBand` (60) staat hij stil: zonder die band wisselden terugwijken en
+  naderen elk beeld af als hij Amir niet kon slaan (Amir op een kraamdak onder zijn galerij), en bibberde hij op de grens.
 - **Fase 1, geen gat dichtbij**: oud sloeg hij niet binnen `ZWM.min` en raakte het touw pas vanaf zo'n 160 (laag) en 350
   (hoog) idle-px; tegen hem aan was je veilig. Nieuw slaat hij ook dan, en binnen `dichtbij` (340) raakt de slag zonder
   touw (in `zwmRaakt`), met dezelfde regel: laag springen, hoog bukken.
