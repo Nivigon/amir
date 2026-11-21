@@ -68,6 +68,7 @@ DOELEN = [
                                         # hoog en wordt op iets boven Amir zijn hoogte getekend
     ('enemies/bandiet_elite', 400),     # de elite-garde (omgekleurd uit bandiet), zelfde maat en canvas
     ('enemies/bandiet_duin', 400),      # de Duinwacht (omgekleurd uit bandiet), zelfde maat en canvas
+    ('enemies/bandiet_as', 400),        # de chaser (Asloper, omgekleurd uit bandiet plus de galerijsprong), zelfde maat
     ('enemies/brutus/frames', 60),     # Brutus (brutus.json): bijgesneden frames, de figuur ~340 hoog; halveren voor de telefoon
     ('enemies/brutus/frames_donker', 60),  # Nyundo donker (tools/brutus_donker.py), dezelfde frames
     ('enemies/zweepman/lagen', 60),  # de zweepman (zweepman.json): bijgesneden lagen, de figuur ~313 hoog; halveren voor de telefoon
