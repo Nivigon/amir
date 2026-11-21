@@ -164,6 +164,14 @@ de lobby staat dan in het staande stokframe.
   80 goud na Hardwood). Slaat als Hardwood (0,75), en een stokslag op het schild van de schildbandiet haalt met kans
   `STOK.goudSchild` (0,5) een stand extra af (`hitSchildman`, met de crit-ster). `stokHoutNu` geeft 3. De stokken uit
   `STOK.skins.goud` (zwart met het gouden leeuwenkopje), en de kwast van gouden manen hangt als slip aan de knoop.
+- **De Pathfinder Spear (22-11-2026):** een speerartikel (`speer: true`, 40 goud, `koop.pathfinder`), zie "de Pathfinder
+  Spear" in `notities/speer.md`. De host markeert: een treffer van een gast draagt `pf` in `mh` (zijn worp met een
+  Pathfinder-speer), `mpcTrefferVanGast` zet dan `prooiGast`, en `prooiRaak` stuurt `{t: 'prooi', a, id}` naar de anderen.
+  Alleen de host vertraagt (`prooiTraag` doet niets bij een gast: daar komen de plekken van de host).
+- **Het zijpaneel van de winkel (22-11-2026):** een klik op een artikel kiest het (`mpcKeus`, een gouden rand) en het paneel
+  `#wkinfo` laat de naam, de sfeertekst (`sfeer`, met de bron `bron` schuin eronder), de uitleg en **Buy** zien
+  (`mpcInfoToon`); een dubbelklik koopt meteen. Sfeertekst staat nu bij de Pathfinder Spear en het gif; de inventory
+  laat die van het gif ook zien (`INV_DING.gif.sfeer`, `#invsfeer`). De winkel buiten Co-op koopt nog met een klik.
 - **De grondklap (16-11-2026):** een stokspeler heeft in Co-op de grondklap van `notities/stokken.md` (`mpWapenLevel` zet
   `grondklap`, niet in het Duel), met 5 s afkoeling (`GK.koelCoop`). Een treffer van de golf van een gast gaat in `mh` met
   `gk` (begin, eind van "recht eronder", richting, schade, knock) naar de host, die er tijdens de treffer `gkRaak` van maakt,
