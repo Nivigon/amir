@@ -58,3 +58,15 @@ Af, 12 frames (`buk_ns_plaat.png`, `buk_ns.gif`). Geen twijfel.
 
 ## Sluipen zonder speer (onaf)
 00 tot en met 02 af (`sluip_ns_onaf_plaat.png`). Gestopt op een Grok-limiet.
+
+## Voor- en achterkant van de ledematen (Tom, 21-11 17:51)
+Tom zag in de rencyclus dat Amir steeds met dezelfde kant naar voren rent: niet allebei de kanten komen vooraan.
+In de originelen zit de afwisseling vooral in de schaduw: het VERRE been en de verre arm zijn donkerder (roodbruine voet,
+donkerder paars). Grok tekende die in de eerste sets niet, dus in Mkuki zijn beide benen even licht en lijken de twee
+helften van een cyclus op elkaar. Gezien in ren_ns 4 en 10 en in sluipen 01; geldt waarschijnlijk ook voor ren_sp en
+de andere sets van voor 17:51.
+- Vanaf sluipen_07 staat in de prompts een DEPTH-zin ("keep exactly which leg and arm are NEAR and FAR ... far limbs
+  darker in shadow, do NOT swap left and right"); sluipen_07 heeft het verre been daarna wel donker.
+- Nog te doen: een schaduwstap voor de bestaande frames (het verre been en de verre arm uit het origineel als masker
+  donkerder maken). Een eerste proef met een drempel op lichtheid pakte ook de huid mee, dus per zone (broek, huid)
+  apart meten. Of de betreffende frames opnieuw door Grok met de DEPTH-zin.
