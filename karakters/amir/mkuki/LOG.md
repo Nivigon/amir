@@ -165,3 +165,15 @@ OVERDRACHT.md en rapport/TWIJFEL.md bijgewerkt. Verder in een nieuwe chat met re
   311ea178, 0,64: volgt de omtrek, gebruikt. Net onder de 0,65, staat in TWIJFEL.md.
 - export.py: als de werkdata van een frame uit een eerdere chat weg is (hier ren_ns_1 en 2) en het frame zonder speer al
   in de repo staat, gebruikt het rapport dat beeld. Export ren_ns, 12 fps; `ren_ns_onaf` weggehaald.
+
+## Springen zonder speer (7 frames, af)
+- Prompt `mk_paar`. Posts: 0 3ed9ec30 (0,77), 1 e1692e62 (0,82), 5 6ec1405e (0,85), 6 f1df817a (0,87; de eerste poging
+  7ee08306 gaf geen beeld, opnieuw verstuurd).
+- 2 (afzet): eerste poging 80c32724 rechtop (0,61). Met `mk_jump_af` (sterk voorover leunen uitgeschreven) 79a15027, 0,69.
+  Het hoofd uit het origineel viel naast dat van Grok (dubbel gezicht, figuur 11 px verschoven): afgewerkt met
+  `--geenhoofd --schoon`, het hoofd van Grok is schoon.
+- 3 (stijgen): eerste poging 3a92631d plat op de voeten (0,67). Met `mk_jump_lucht` (hangende benen, tenen gestrekt)
+  a8500f77, 0,66 maar de pose klopt nu: gebruikt.
+- 4 (top): 5d3529a8, 0,64. Pose klopt (gehurkt in de lucht, arm vooruit); het verschil zit in de vachtzone. Gebruikt.
+- Les: bij een verschuiving van meer dan ~10 px in `terug` het afgewerkte hoofd nakijken op een dubbel gezicht.
+- Export jump_ns, 12 fps.
