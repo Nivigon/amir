@@ -278,6 +278,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de springdoek: de luifel aan de muur van een huis, indigo, doorgezakt, met een eigen hoogte en worp (Stad 9) | `STAD_SPRINGDOEK`, `stadLuifelBeeld`, `sbSpringdoek` | notities/stad.md |
 | de einddeur: E voor een open deur hoog in een huis speelt het level uit (Stad 9) | `eindDeur`, `eindDeurUit`, `eindDeurTeken` | notities/stad.md |
 | het kelderluik: een schuine kelderingang tegen een muur, het luik vliegt open met de deurslag en E speelt het level uit (Stad 14) | `KELDER`, `kelderUpdate`, `kelderUit`, `kelderTeken` | notities/stad.md |
+| de kelderzaal: een kelder als level, met een houten trap (je loopt achter de wang), een plafond met balkkoppen, traliedeuren waar een bandiet doorbreekt en een kooi met een deurtje in perspectief (Test 86) | `KZAAL`, `kzaalReset`, `kzaalKooiDeur`, `kzaalLichtNa`, `kgat`, `kkooi` | notities/kelder.md |
 | de luifel bij de put: een schuine doek die je meteen terugwerpt, vanaf de balk te halen | `STAD.plein.luifel`, `stadLuifelWorp`, `stadLuifelTeken` | notities/stad.md |
 | de strakke luifel: een indigo doek in een houten raam aan de muur, je staat in de stof en de doek zakt in onder je voeten; met `ritme` een trampoline waar je hoogte opbouwt door op tijd te springen (Stad 10) | `luifelStrak`, `stadKuil`, `stadLuifelVoor`, `stadRitme`, `stijl: 'strak'` | notities/stad.md |
 | poort: een stenen boog, decor of de plek waar een vijand uitkomt | `POORT`, `poortOpen`, `poortKlaar` | notities/poort.md |
@@ -426,6 +427,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `multikill` | kills binnen 3 s na elkaar zijn een reeks, met het snoer kralen, het woord, de stinger en vanaf de tweede kill 1 goud extra (in een level met goud). Standaard aan in elk level, `multikill: false` zet hem uit (zie `notities/multikill.md`) |
 | `rapport` | na het level het levelrapport in het winscherm: kills, multikills, langste reeks, tijd en goud (in een level met goud). Standaard aan in elk level, `rapport: false` zet het uit (zie `notities/multikill.md`) |
 | `kelder` | het kelderluik: `{x}`, de achterkant van de wig tegen een hoge leemmuur; het luik vliegt open als Amir eraan komt en E speelt het level uit, in plaats van `ends` (alleen Stad 14, zie "het kelderluik" in `notities/stad.md`) |
+| `kelderZaal` | de kelderzaal: `{trap: {x}, plafond: {r}, palen, deuren: [{x}], kooien: [{x}], bundel}`, met `lagen: 'kelder'`; een spawn met `kgat: i` breekt door deur i, met `kkooi: i` zit hij in kooi i (alleen Test 86, zie `notities/kelder.md`) |
 | `eindDeur` | de einddeur: `{gevel, verdieping}`, die deur staat open en E ervoor (op een galerij) speelt het level uit, in plaats van `ends` (alleen Stad 9, zie "de einddeur" in `notities/stad.md`) |
 | `munt` | de munt van de koning: `{x, y, vast}`; E pakt hem, en na het level is er een talentpunt extra (een keer per run) |
 | `kisten` | schatkisten: `{x, y, vast, goud, f}`, `y` en `vast` zoals bij de munt; E maakt hem open en `goud` (standaard 20) gaat bij je goud. Sterf je, dan is hij weer dicht (zie "de schatkist" in `notities/episodes.md`) |
