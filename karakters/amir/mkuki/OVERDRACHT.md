@@ -6,7 +6,8 @@ sluipen met speer (22), rol met speer (28), trap (2), ren zonder speer (12), spr
 ## Nog te doen, in deze volgorde
 
 1. (af)
-2. Basis zonder speer: `rol/zonder/` 28.
+2. Basis zonder speer: `rol/zonder/` 28 (1-4 af, verder met 5; indeling in LOG.md; daarna exporteren als `rol_ns`
+   en `rol_ns_onaf` weghalen).
 3. Aanvallen: speerstrike 10, speerworp 20, lowsweep 18, combo 15, stofsweep 14, rol/worp 33. De sluipaanval niet.
 4. Eindrapport in `rapport/`: overzichtsplaten en GIFs (export.py maakt die per set), TWIJFEL.md bijwerken
    (draaiende speerframes, rol 17 tot 22, en alles wat handwerk vraagt). GEEN recolours (Tom: "van mij hoef je

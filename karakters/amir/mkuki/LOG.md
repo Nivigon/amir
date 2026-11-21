@@ -217,3 +217,12 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
 - Klikken op de verzendknop: de knop verschuift met de modus-rij (Afbeelding/Video); positie per keer meten met
   `button[type=submit]`. Grok stond bij het begin op Video: eerst Afbeelding aanzetten.
 - Export sluip_ns, 12 fps; `sluip_ns_onaf` weg.
+
+## Rol zonder speer (begonnen, 4 van 28)
+- Zelfde poses als de rol met speer, dus dezelfde prompts (`mk_rol3` ... `mk_rol_kniel`, nu met de DEPTH-zin); frame 1
+  met `mk_paar`. Posts: 1 0bc5f742 (0,68), 2 6392f4d8 (0,78), 3 2f4fa651 (0,81), 4 7c5b0a1d (0,81).
+- Indeling voor de rest (als bij rol_sp): mk_rol4 voor 5, mk_rol3 voor 6, 7, 10-12, 19-21, mk_rol5 voor 8, 9, mk_rol6 voor
+  13-16, mk_rol7 voor 17, 18, mk_rol_lig 22, mk_rol_zit 23, 24, mk_rol_kniel 25-28. Afwerken vanaf 11 met `--geenhoofd
+  --schoon` (zie rol_sp).
+- Gestopt rond 18:45: de Chrome-tabbladen verdwenen steeds (tab-groep weg, ids ongeldig), waarschijnlijk omdat een
+  andere chat tegelijk Chrome bestuurt. Voorlopig geexporteerd als `rol_ns_onaf`.
