@@ -1,13 +1,12 @@
-# Overdracht Mkuki-productie (stand 21-11-2026, 19:00, gestopt op een Grok-limiet)
+# Overdracht Mkuki-productie (stand 21-11-2026, 18:45)
 
 Klaar en gepusht op `claude/mkuki`: idle (22), ren met speer (12), springen met speer (7), bukken met speer (12),
-sluipen met speer (22), rol met speer (28), trap (2), ren zonder speer (12), springen zonder speer (7), bukken zonder speer (12). Zie `LOG.md` voor alle keuzes per set.
+sluipen met speer (22), rol met speer (28), trap (2), ren zonder speer (12), springen zonder speer (7), bukken zonder speer (12), sluipen zonder speer (28). Zie `LOG.md` voor alle keuzes per set.
 
 ## Nog te doen, in deze volgorde
 
 1. (af)
-2. Basis zonder speer: `sluipen/sluipen_NN` 28 (00-02 af, verder met 03; zie LOG.md voor de drie posevarianten
-   en welke per frame; daarna de hele set exporteren als `sluip_ns` en `sluip_ns_onaf` weghalen), `rol/zonder/` 28.
+2. Basis zonder speer: `rol/zonder/` 28.
 3. Aanvallen: speerstrike 10, speerworp 20, lowsweep 18, combo 15, stofsweep 14, rol/worp 33. De sluipaanval niet.
 4. Eindrapport in `rapport/`: overzichtsplaten en GIFs (export.py maakt die per set), TWIJFEL.md bijwerken
    (draaiende speerframes, rol 17 tot 22, en alles wat handwerk vraagt). GEEN recolours (Tom: "van mij hoef je
@@ -70,3 +69,7 @@ committen, pushen, korte samenvatting. Verder niets vragen, zelf beslissen en ke
 Een lange chat, een trage Grok of veel stappen zijn GEEN reden om te stoppen (Tom, 21-11: "ik heb liever dat de
 nieuwe chat gewoon doorgaat"). Werk door, push na elke set, en houd de context zuinig: bekijk tegels op lage
 schaal (0,3) en alleen de vergelijkplaten die twijfel geven.
+
+## Voor- en achterkant (Tom, 21-11)
+Een frame met de goede omtrek kan toch de verkeerde kant vooraan hebben: IoU ziet dat niet. Bij elke vergelijking
+kijken of het verre been en de verre arm achter en donker staan zoals in het origineel. De prompts hebben een DEPTH-zin.

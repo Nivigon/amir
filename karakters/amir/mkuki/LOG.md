@@ -206,3 +206,14 @@ OVERDRACHT.md en rapport/TWIJFEL.md bijgewerkt. Verder in een nieuwe chat met re
 
 ### Gestopt (21-11, ~19:00): Grok-limiet
 Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangeklikt). Volgens de afspraak gestopt.
+
+## Sluipen zonder speer (28 frames, af)
+- Vier posevarianten (alle met "NO hand touches the ground", behalve `mk_sluip` zelf):
+  `mk_sluip_lunge` (00, 01), `mk_sluip_kort` (02, 08, 09, 22, 23), `mk_sluip_diep` (03-07, 10, 14-21; diep gehurkt,
+  dijen bijna horizontaal, romp ver voorover) en `mk_sluip` (11-13, 24-27, hand naar de grond). `mk_sluip_stap` (03,
+  a7bfeede, 0,53) was te rechtop en is niet meer gebruikt.
+- Vanaf 07 een DEPTH-zin in alle prompts (welk been en welke arm nabij/ver, ver donkerder, niet links en rechts wisselen).
+- IoU 0,70-0,83. Posts in /home/claude/werk/sluip_ns/ids.json; o.a. 03 1468b208, 07 90f61409, 14 9dcae121, 27 1ebc0648.
+- Klikken op de verzendknop: de knop verschuift met de modus-rij (Afbeelding/Video); positie per keer meten met
+  `button[type=submit]`. Grok stond bij het begin op Video: eerst Afbeelding aanzetten.
+- Export sluip_ns, 12 fps; `sluip_ns_onaf` weg.

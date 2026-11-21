@@ -56,8 +56,12 @@ Af, 7 frames (`jump_ns_plaat.png`, `jump_ns.gif`).
 ## Bukken zonder speer
 Af, 12 frames (`buk_ns_plaat.png`, `buk_ns.gif`). Geen twijfel.
 
-## Sluipen zonder speer (onaf)
-00 tot en met 02 af (`sluip_ns_onaf_plaat.png`). Gestopt op een Grok-limiet.
+## Sluipen zonder speer
+Af, 28 frames (`sluip_ns_plaat.png`, `sluip_ns.gif`).
+- **Diepte (zelfde punt als de ren)**: in het origineel is het verre been in een deel van de frames roodbruin/donker
+  (o.a. 14, 17, 18, 27); in Mkuki zijn beide benen even donker door de zwarte broek, ook na de DEPTH-zin in de prompt.
+  Kan met dezelfde aanpak als `wissel.py` (verre been en arm donkerder), maar dan met de verre kant per frame uit het
+  origineel gemeten in plaats van de vaste indeling 1-6/7-12 van de ren.
 
 ## Voor- en achterkant van de ledematen (Tom, 21-11 17:51)
 Tom zag in de rencyclus dat Amir steeds met dezelfde kant naar voren rent: niet allebei de kanten komen vooraan.
