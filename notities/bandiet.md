@@ -32,6 +32,12 @@ Amir (`BAN_GJ.min` lager, op een galerij, dak of terras), dan zoekt `banGjRichti
    en is te raken.
 5. `opkijk` vanaf frame `BAN_GJ.opkijkVan`: hij tilt zijn hoofd op, en dan `run`.
 
+Geluid: bij het afzetten de kreun van de vault (`banAfzet`), bij de landing de plof van de baviaan (`sounds/bavland.mp3`,
+`banLandSnd`, `banLandPlof`) op de sterkte van diens gewone sprong (`BAN_GJ.landVol`, 1,2 x 0,7), op het rieten dak
+zachter (`landVolRiet`), en verderop zachter zoals zijn voetstappen (`BAN_STAP.ver`). Hij start `landVoor` voor het
+neerkomen, zodat de klap in het bestand op de landing valt. Verder alles van de gewone bandiet: strijdkreet, slag,
+doodskreet, voetstappen en het stof onder het rennen.
+
 **De tussenstop op een rieten kraamdak** (`BAN_GJ.riet`, `banGjKraam`, `banGjVlieg`, `banGjDoor`, `s.gjRiet`, `s.gjOpRiet`).
 Ligt er tussen de rand en zijn landingsplek een rieten dak (lager dan hij, hoger dan de straat, met genoeg riet voorbij de
 rand; het mag deels onder de galerij doorlopen), dan landt hij eerst daarop: alleen een plof, de landing vlot tot frame
