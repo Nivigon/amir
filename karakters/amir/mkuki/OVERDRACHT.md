@@ -63,3 +63,6 @@ Versturen: na `insertText` op de verzendknop klikken (1236,462); de submit-knop 
 
 Alleen bij een Grok-limiet, moderatie of een browser die na 2 à 3 pogingen niet reageert: LOG.md bijwerken,
 committen, pushen, korte samenvatting. Verder niets vragen, zelf beslissen en keuzes in LOG.md zetten.
+Een lange chat, een trage Grok of veel stappen zijn GEEN reden om te stoppen (Tom, 21-11: "ik heb liever dat de
+nieuwe chat gewoon doorgaat"). Werk door, push na elke set, en houd de context zuinig: bekijk tegels op lage
+schaal (0,3) en alleen de vergelijkplaten die twijfel geven.
