@@ -61,7 +61,7 @@ def bouw(items, uit_png, meta_json, anker=None, overrides=None, schaal=None):
     for a in alle:
         m |= a[..., 3] > 30
     ys, xs = np.where(m)
-    x0, x1, y0, y1 = xs.min() - 4, xs.max() + 5, ys.min() - 4, ys.max() + 5
+    x0, x1, y0, y1 = max(0, xs.min() - 4), min(cw, xs.max() + 5), max(0, ys.min() - 4), min(ch, ys.max() + 5)
     bw, bh = x1 - x0, y1 - y0
     s = schaal or min((TW - 50) / bw, (TH - 50) / bh)
     tegels = []
@@ -90,7 +90,7 @@ def bouw(items, uit_png, meta_json, anker=None, overrides=None, schaal=None):
     canvas.save(uit_png)
     meta = {'canvas': [cw, ch], 'crop': [int(x0), int(y0), int(x1), int(y1)], 'schaal': s, 'nw': nw, 'nh': nh,
             'draai': draai, 'plekken': plekken,
-            'speer': {os.path.basename(it['pad']): ({k: v for k, v in r.items() if k != 'masker'} if r else None)
+            'speer': {os.path.basename(it['pad']): ({k: v for k, v in r.items() if k not in ('masker', 'band')} if r else None)
                       for it, a, r in frames}}
     json.dump(meta, open(meta_json, 'w'), indent=1)
     return meta
