@@ -1,4 +1,4 @@
-# Overdracht Mkuki-productie (stand 21-11-2026, 16:30)
+# Overdracht Mkuki-productie (stand 21-11-2026, 19:00, gestopt op een Grok-limiet)
 
 Klaar en gepusht op `claude/mkuki`: idle (22), ren met speer (12), springen met speer (7), bukken met speer (12),
 sluipen met speer (22), rol met speer (28), trap (2), ren zonder speer (12), springen zonder speer (7), bukken zonder speer (12). Zie `LOG.md` voor alle keuzes per set.
@@ -6,7 +6,8 @@ sluipen met speer (22), rol met speer (28), trap (2), ren zonder speer (12), spr
 ## Nog te doen, in deze volgorde
 
 1. (af)
-2. Basis zonder speer: `sluipen/sluipen_NN` 28, `rol/zonder/` 28.
+2. Basis zonder speer: `sluipen/sluipen_NN` 28 (00-02 af, verder met 03; zie LOG.md voor de drie posevarianten
+   en welke per frame; daarna de hele set exporteren als `sluip_ns` en `sluip_ns_onaf` weghalen), `rol/zonder/` 28.
 3. Aanvallen: speerstrike 10, speerworp 20, lowsweep 18, combo 15, stofsweep 14, rol/worp 33. De sluipaanval niet.
 4. Eindrapport in `rapport/`: overzichtsplaten en GIFs (export.py maakt die per set), TWIJFEL.md bijwerken
    (draaiende speerframes, rol 17 tot 22, en alles wat handwerk vraagt). GEEN recolours (Tom: "van mij hoef je

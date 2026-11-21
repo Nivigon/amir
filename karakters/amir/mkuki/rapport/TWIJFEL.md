@@ -55,3 +55,6 @@ Af, 7 frames (`jump_ns_plaat.png`, `jump_ns.gif`).
 
 ## Bukken zonder speer
 Af, 12 frames (`buk_ns_plaat.png`, `buk_ns.gif`). Geen twijfel.
+
+## Sluipen zonder speer (onaf)
+00 tot en met 02 af (`sluip_ns_onaf_plaat.png`). Gestopt op een Grok-limiet.

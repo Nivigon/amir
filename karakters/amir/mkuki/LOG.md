@@ -188,3 +188,21 @@ OVERDRACHT.md en rapport/TWIJFEL.md bijgewerkt. Verder in een nieuwe chat met re
 - Grok laadde rond 17:30 weer traag (tot 60 s voor de pagina); een keer gaf het assets-tabblad een venster van 0x0 en
   hing de renderer: tabblad gesloten en een nieuw gemaakt.
 - Export buk_ns, 12 fps (volgorde in_1..8, hold_1..4).
+
+## Sluipen zonder speer (begonnen, 3 van 28)
+- `mk_sluip` zette bij 00 een hand op de grond (643e36df, 0,60, afgekeurd). Drie posevarianten in localStorage, elk met
+  "NO hand touches the ground":
+  `mk_sluip_lunge` (diepe lunge, achterbeen lang gestrekt, vuisten voor de borst),
+  `mk_sluip_kort` (compact gehurkt, voeten bij elkaar),
+  `mk_sluip_stap` (sluipstap: rug krom, vuisten laag voor de buik, achterste voet op de tenen, smalle stand).
+- Af: 00 70a51f5a (lunge, 0,80), 01 3a1f4f18 (lunge, 0,78), 02 0b088e52 (kort, 0,74; eerst 5c2fc454 met lunge, 0,43).
+- 03: met lunge 9fd9bc09, 0,51 (te diep); met `mk_sluip_stap` verstuurd, toen gaf Grok "Gebruikslimiet bereikt".
+- Indeling voor de rest (op het oog, nog niet gecontroleerd): stap voor 3-7, 10, 14-21; kort voor 8, 9, 22, 23;
+  `mk_sluip` (hand naar de grond) voor 11-13 en 24-27. Bij een lage IoU de andere variant proberen.
+- Grok-tabblad: na een tijd hangt de renderer (scripts lopen tegen 45 s). Een vers tabblad laadt in ~30 s; per frame
+  een verse `grok.com/imagine` of bij hangen het tabblad sluiten en een nieuw maken. De post-id staat ook in de tab-url
+  in de tab-context, zonder script.
+- Voorlopig geexporteerd als `sluip_ns_onaf`.
+
+### Gestopt (21-11, ~19:00): Grok-limiet
+Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangeklikt). Volgens de afspraak gestopt.
