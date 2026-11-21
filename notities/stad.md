@@ -533,6 +533,24 @@ brug moeten kunnen lopen.
 Test 78 (Small steps) is het proefstuk: drie opstapjes van 28 naar een plein met een bandiet en een schildbandiet, drie
 omlaag, een hyena en een slang, en een stoeprand met een kruisboogschutter en een bandiet.
 
+### De trappose van Amir
+
+`AMIR_TRAP`, `amirTrapPose`; frames in `karakters/amir/beweging/trap/` (bron op groot formaat in `bron/`).
+
+Staat Amir met de speer stil op de rand van een trede (tot `OPSTAP.max`), met een voet boven en een beneden, dan staat
+hij er zo bij in plaats van in de idle: `op` (voorste voet hoog, de trap op) of `af` (achterste voet hoog, de trap af).
+Twee stilstaande poses uit Grok (image-to-image vanaf `amirspear.png`, de treden fel groen en eruit gekeyd), op het
+canvas en de schaal van de idle; de hoge voet staat 32 boven de lage. Het spel kijkt over de hele breedte van beide voeten
+(`laag` en `hoog`, in canvaspixels) naar de vloer (`vloerBij`): staat de lage voet helemaal op de ene vloer en de hoge
+helemaal een trede hoger, dan de pose, op de vloer van de lage voet. Zo zit de rand altijd tussen de voeten (eerst keek
+hij naar een punt per voet, en hing er een voet half in de lucht). Let op: bij het tekenen is `world` de camera (die kijkt
+vooruit), dus `amirTrapPose` krijgt `pWorld` mee. De stenen van de stad (`look: 'straat'`) steken tot zo'n 40 voorbij
+hun echte rand uit (de voeg en de overstek), daar staat de pose dus minder precies dan op grond. Zonder speer, lopend of met de stokken: de gewone beelden.
+Nog niet: een idle-beweging in de pose (zie Tom: eerst kijken of het stijf oogt), en een versie zonder speer.
+
+Test 84 (Stairs, in de reeks Rainforest) is het proefstuk: opstapjes van regenwoudgrond (`grond: true, opstap: true` in
+een regenwoud-uitzicht, mos met de regenwoud-ondergrond en rechte randen), zonder vijanden en zonder mist.
+
 ### Opstapjes op de savanne
 
 `SAV_OPSTAP`, `savOpTeken`, `savOpLaad`, `savOpLaadLevel`; `tools/savanne_opstap.py`.

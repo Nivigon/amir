@@ -3,41 +3,62 @@
 #   stam.png   de boomstam met de knopen van de lianen erom (zonder de lianen erboven)
 #   liaan.png  een rechtgetrokken stuk liaan dat naadloos onder elkaar past (het spel stapelt het tot boven beeld)
 # Het wit gaat weg met een flood-fill vanaf de rand (en de witte gaatjes tussen de strengen), de rand krijgt een
-# ontmenging tegen wit zodat er geen lichte zoom overblijft. Draai daarna tools/gen-offline-manifest.py.
+# ontmenging tegen wit zodat er geen lichte zoom overblijft. Is de plaat al doorzichtig (RGBA), dan blijft zijn eigen alpha. Draai daarna tools/gen-offline-manifest.py.
 import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-BRON = 'design/regenwoud/hangstam/bron/hangstam_grok.png'
+BRON = 'design/regenwoud/hangstam/bron/hangstam_grok2.png'   # de scherpere download (1600x1200, al doorzichtig); de eerste plaat staat er nog naast
 UIT = 'design/regenwoud/hangstam/'
 
-im = np.array(Image.open(BRON).convert('RGB')).astype(float)
-mn, mx = im.min(2), im.max(2)
-wit = (mn > 205) & ((mx - mn) < 30)
-lab, _ = ndimage.label(wit)
-rand = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
-bg = np.isin(lab, list(rand))
-# witte gaatjes binnen de vorm (tussen de strengen van een liaan)
-gat = (mn > 226) & ((mx - mn) < 25) & ~bg
-lab2, k = ndimage.label(gat)
-for i, s in enumerate(ndimage.sum(gat, lab2, range(1, k + 1))):
-    if s >= 6: bg |= lab2 == i + 1
-alpha = np.where(bg, 0.0, 1.0)
-# de rand: twee px zacht, alpha uit hoe donker de pixel is, en de kleur ontmengd tegen wit
-rnd = ndimage.binary_dilation(bg, iterations=2) & ~bg
-a2 = np.clip((235 - mn) / 115, 0, 1)
-alpha[rnd] = a2[rnd]
-rgb = im.copy()
-m = rnd & (alpha > 0.04)
-rgb[m] = np.clip((im[m] - 255 * (1 - alpha[m, None])) / alpha[m, None], 0, 255)
-# en de buitenste rij nog iets donkerder (de outline van de stijl), zodat er geen licht randje blijft
-rgb[rnd] *= 0.82
-# losse spikkels weg
-vast = alpha > 0.1
-lab3, k = ndimage.label(vast)
-for i, s in enumerate(ndimage.sum(vast, lab3, range(1, k + 1))):
-    if s < 400: alpha[lab3 == i + 1] = 0
-rgba = np.dstack([rgb, alpha * 255]).astype(np.uint8)
+bron = Image.open(BRON)
+if bron.mode == 'RGBA' and np.array(bron)[..., 3].min() == 0:
+    # een plaat die al doorzichtig is (de nieuwere Grok-download): de eigen alpha houden, geen wit wegknippen
+    ra = np.array(bron).astype(float)
+    im, alpha = ra[..., :3], ra[..., 3] / 255
+    # de download heeft een dun wit randje om de vorm: in de buitenste drie px gaat licht weg (alpha uit hoe donker),
+    # de kleur ontmengd tegen wit, en de buitenste rij iets donkerder, net als bij de witte plaat
+    bg = alpha < 0.05
+    mn = im.min(2)
+    rnd = ndimage.binary_dilation(bg, iterations=3) & ~bg
+    a2 = np.clip((235 - mn) / 115, 0, 1) * alpha
+    alpha[rnd] = np.minimum(alpha[rnd], a2[rnd])
+    m = rnd & (alpha > 0.04)
+    im[m] = np.clip((im[m] - 255 * (1 - alpha[m, None])) / alpha[m, None], 0, 255)
+    im[rnd] *= 0.82
+    vast = alpha > 0.1
+    lab3, k = ndimage.label(vast)
+    for i, s in enumerate(ndimage.sum(vast, lab3, range(1, k + 1))):
+        if s < 400: alpha[lab3 == i + 1] = 0
+    rgba = np.dstack([im, alpha * 255]).astype(np.uint8)
+else:
+  im = np.array(bron.convert('RGB')).astype(float)
+  mn, mx = im.min(2), im.max(2)
+  wit = (mn > 205) & ((mx - mn) < 30)
+  lab, _ = ndimage.label(wit)
+  rand = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
+  bg = np.isin(lab, list(rand))
+  # witte gaatjes binnen de vorm (tussen de strengen van een liaan)
+  gat = (mn > 226) & ((mx - mn) < 25) & ~bg
+  lab2, k = ndimage.label(gat)
+  for i, s in enumerate(ndimage.sum(gat, lab2, range(1, k + 1))):
+      if s >= 6: bg |= lab2 == i + 1
+  alpha = np.where(bg, 0.0, 1.0)
+  # de rand: twee px zacht, alpha uit hoe donker de pixel is, en de kleur ontmengd tegen wit
+  rnd = ndimage.binary_dilation(bg, iterations=2) & ~bg
+  a2 = np.clip((235 - mn) / 115, 0, 1)
+  alpha[rnd] = a2[rnd]
+  rgb = im.copy()
+  m = rnd & (alpha > 0.04)
+  rgb[m] = np.clip((im[m] - 255 * (1 - alpha[m, None])) / alpha[m, None], 0, 255)
+  # en de buitenste rij nog iets donkerder (de outline van de stijl), zodat er geen licht randje blijft
+  rgb[rnd] *= 0.82
+  # losse spikkels weg
+  vast = alpha > 0.1
+  lab3, k = ndimage.label(vast)
+  for i, s in enumerate(ndimage.sum(vast, lab3, range(1, k + 1))):
+      if s < 400: alpha[lab3 == i + 1] = 0
+  rgba = np.dstack([rgb, alpha * 255]).astype(np.uint8)
 
 ys, xs = np.where(alpha > 0.5)
 x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
@@ -59,8 +80,8 @@ mid = [int(np.argmax(glad[:breed // 2])), breed // 2 + int(np.argmax(glad[breed 
 print('lianen op', [round(c / breed, 3) for c in mid], 'stamhoogte', y1 - knip, 'bovenrand in stam.png', stamTop - knip)
 
 # ---- de liaan: de linker, rechtgetrokken, een stuk dat naadloos onder elkaar past ----
-cx = int(x0 + mid[0]); half = 46
-stuk = rgba[y0 + 10:stamTop - 40, cx - half:cx + half].copy()
+cx = int(x0 + mid[0]); half = 62   # breed genoeg voor de blaadjes op de scherpere plaat
+stuk = rgba[y0 + 80:stamTop - 40, cx - half:cx + half].copy()   # onder het dunne topje, anders spookt de naad
 a = stuk[..., 3].astype(float)
 # rechttrekken: elke rij schuift zo dat het midden van de stengel in het midden staat (gladgestreken)
 kern = a > 200

@@ -59,6 +59,10 @@ gang niet tegen: dat staat op de savanne, niet in de gang (`blocksMonster`, `ter
 op zijn x omhoog of omlaag komt: dan rijdt hij mee, net zoals Amir (`rijsDraagtMob`, zie "rijzende
 grond"). De bandiet en de kooiman blijven daarnaast op hun eigen niveau en halen niet uit over een
 hoogteverschil (`banZelfdeHoogte`, `kooiZelfdeHoogte`: de vloer onder Amir vergeleken met hun eigen vloer).
+Uitzondering op verzoek van de opdrachtgever: staat Amir op een springdoek, een rieten kraamdak of de doek van
+een kraam (die tellen niet als vloer), dan slaan de bandiet, de schildbandiet en de zweepman toch als hun slag er
+in de animatie bij kan, genoeg van Amir binnen het bereik van hun wapen (`amirOpDoek`, `slagBij`, `banKanBij`,
+`schbKanBij`, `zwmKanBij`, `BAN_BIJ_MIN`). Alleen de slag zelf; dolkworp, vault en hinderlaag niet.
 De uitzondering is een opstapje: een terras met `opstap: true` (tot `OPSTAP.max`, 32) lopen Amir en de lopende vijanden op en af,
 op verzoek van de opdrachtgever; slangen en schorpioenen niet (zie "opstapjes" in `notities/stad.md`).
 

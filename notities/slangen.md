@@ -20,3 +20,17 @@
 De witte flits is de bestaande (`s.flash`). De druppels vliegen van Amir af en blijven als spatjes op de grond liggen. Het lijk ligt `SLANG_DOOD.lig` (3 s) en vervaagt dan in `SLANG_DOOD.vervaag` (0,8 s). Zijn de doodframes er niet (nog niet geladen), dan valt hij terug op de oude dood (wegglijden en vervagen). De fosforslang heeft zijn eigen update en houdt de oude dood.
 
 Hoe de frames gemaakt zijn: een Grok-clip vanaf frame 46 van `enemies/slang1/snakemove.mp4`, gekeyd, het zwevende achterlijf per frame op de grond gezet, geschaald met 0,56 en uitgelijnd op `move_1` (IoU 0,95), daarna omgekleurd zoals `tools/slang_kleur.py` (op de grote clip, dan verkleind, zodat het oog klopt).
+
+## Het bloedgeluid bij een treffer
+
+Een slang die geraakt wordt met de punt of de kling (steek, worp, lage zwaai met de speer) geeft een bloedgeluid: een
+stuk van `sounds/bloedspuit.mp3` vanaf 0,27 s, met een eigen Audio (`SLANG_BLOED`, `slangBloedSpeel(dood, soort)`). De
+hardheid volgt de treffer: een treffer die hem nog niet doodt (met `hpBalk`) is klein, kort, zacht en wat hoger (`raak`);
+de dodelijke is langer, voller en harder, per soort dood zoals de animatie (`dood`: de worp, die hem neerklapt, het hardst,
+dan de steek, dan de lage zwaai). Niet met de stokken (die geven de houtklap), niet met de grondklap en niet met het mes
+(dat weert af). De fosforslang (`fosforRaak`) heeft het niet.
+
+Bij de dodelijke treffer komt daar de laatste sis achteraan (`SLANG_SIS`, `slangSisSpeel`): een slang heeft geen stem,
+dus zijn doodskreet is zijn sis (`music/snakehiss.mp3`), maar stervend. Net na het bloed, lager afgespeeld, de toon zakt
+tijdens het afspelen verder weg (`preservesPitch` uit) en hij fadet snel uit. Per soort: de worp kapt hem af (0,22 s), de
+steek laat hem wegebben (0,65 s), de lage zwaai zit ertussen. Een plof van het lijf als hij neervalt zit er nog niet in.

@@ -6657,11 +6657,36 @@ const TEST_83 = {
           { x: -1450, t: 'Cut the right vine, walk up the log and jump onto the ledge' },
           { x: -3250, t: 'This one snaps after 3 seconds: be quick' } ]
 };
+// Test 84: de trappose (AMIR_TRAP). Op verzoek (regel 3), zelf ontworpen, in het regenwoud zonder mist en zonder vijanden
+// (vredig), zodat je rustig op elke trede kunt stilstaan en de voeten goed ziet. De treden zijn opstapjes van
+// regenwoudgrond (grond: true in een regenwoud-uitzicht: mos met de regenwoud-ondergrond en rechte randen), niet de
+// golvende eindjes van de savanne (Test 80) en niet de stenen van de stad, op verzoek van de opdrachtgever. Ze
+// zijn allemaal 32 hoog (OPSTAP.max), precies het hoogteverschil tussen de voeten in de poses. Eerst een trap van drie
+// treden van 240 omhoog naar een plateau en aan de andere kant drie treden omlaag: stop met een voet op de rand, de trap
+// op en de trap af, en draai je om. Dan twee brede treden (400) als een verhoogd stuk met nog een hogere trede erop.
+const TEST_84 = {
+  name: 'Test 84: Stairs',
+  lagen: 'regenwoud',
+  view: 0.8, hpBalk: true, zicht: true, sneak: true, camera: true, rand: true,
+  speerInHand: true, vredig: true,
+  terraces: [ {r: -600, l: -2640, h: 32, grond: true, opstap: true},
+              {r: -840, l: -2400, h: 64, grond: true, opstap: true},
+              {r: -1080, l: -2160, h: 96, grond: true, opstap: true},
+              {r: -3200, l: -4600, h: 32, grond: true, opstap: true},
+              {r: -3600, l: -4200, h: 64, grond: true, opstap: true} ],
+  spawns: [],
+  rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
+  voorgrond: false,
+  cliffs: [ {x: -5800} ],
+  ends: [ {x: -5300} ],
+  tips: [ { x: -80, t: 'Test level: stairs. Stop with one foot on a step: going up, the front foot is on the higher step; going down, the back foot. Turn around on the edge too' },
+          { x: -2900, t: 'Wide steps: plenty of room to stand on every edge' } ]
+};
 const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45, TEST_46, TEST_47, TEST_48, TEST_49, TEST_50, TEST_51, TEST_52, TEST_53, TEST_54, TEST_55, TEST_56, TEST_57, TEST_58, TEST_59, TEST_60, TEST_61, TEST_62, TEST_63, TEST_64, TEST_65, TEST_66, TEST_67, TEST_68, TEST_69, TEST_70, TEST_71, TEST_72, TEST_73, TEST_75, TEST_78, TEST_79, TEST_80];
 // ---- Test levels sticks: alle proefstukken met de stokken, in een eigen reeks (zoals Baboon tests, zonder tribekeuze) ----
 const STOK_LEVELS = [TEST_74, TEST_76, TEST_77];
 // ---- Test levels rainforest: alle proefstukken in het regenwoud, in een eigen reeks (zoals Sticks, zonder tribekeuze) ----
-const RW_LEVELS = [TEST_81, TEST_82, TEST_83];
+const RW_LEVELS = [TEST_81, TEST_82, TEST_83, TEST_84];
 // ---- Episode Test levels stad: de Sahelstad, stuk voor stuk ----
 // Proefstukken in de stad (zie "de stad"), los van de echte episodes (regel 1 geldt niet). Het is een episode, dus met
 // de tribekeuze aan het begin; het eerste level was Test 59.
@@ -10263,7 +10288,11 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   ctx.fillRect(xl - 40, top + th - 2, xr - xl + 80, bottom - top + 40);
   let x = cx - (((world % tw) + tw) % tw);           // vast aan de wereld, net als de grond zelf
   while (x > xl) x -= tw;
+  // een terras van regenwoudgrond: de onderlaag ook onder de wand, met dezelfde overloop als de grond (rwOnderTeken)
+  const rwStuk = (!zwart && !hout && !floating && eimg === rwBodemImg) ? rwOnderStukken(xl, xr) : null;
+  // De wand van het terras loopt door tot de wand van de grond (rwWandTeken); daaronder neemt rwVoetTeken het over.
   for (; x < xr; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
+  if (rwStuk) for (const [a, b] of rwStuk) rwWandTeken(eimg, a, b, top, groundY, s, cx);
   // de stroken grondsoort (straat, rots) ook op de bovenkant van de laag (niet op zwart)
   if (!zwart) grondStrokenTeken(top, th, s, cx, xl, xr, (img, va, vb) => grondTegelRij(img, top, s, cx, va, vb));
   if (sneeuwOn() && !zwart){                          // de sneeuwlaag ligt ook op een hogere of zwevende savannelaag (niet op zwart)
@@ -10289,12 +10318,14 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   const hoogUit = !!(level && level.hoogUitzicht);
   const dk = hoogUit ? D.hoog : (floating ? D.zweef : D);
   const y0 = top + th * dk.donker[0], y1 = top + th * dk.donker[1];
-  const v = ctx.createLinearGradient(0, y0, 0, y1);
-  v.addColorStop(0, 'rgba(8,6,6,' + dk.diep[0] + ')'); v.addColorStop(1, 'rgba(8,6,6,' + dk.diep[1] + ')');
-  ctx.fillStyle = v;
-  ctx.fillRect(xl - 40, y0, xr - xl + 80, y1 - y0);
-  ctx.fillStyle = 'rgba(8,6,6,' + dk.diep[1] + ')';
-  ctx.fillRect(xl - 40, y1, xr - xl + 80, bottom - y1 + 40);
+  if (!rwStuk){                                       // regenwoud: geen donker, de onderlaag loopt door zoals onder de grond
+    const v = ctx.createLinearGradient(0, y0, 0, y1);
+    v.addColorStop(0, 'rgba(8,6,6,' + dk.diep[0] + ')'); v.addColorStop(1, 'rgba(8,6,6,' + dk.diep[1] + ')');
+    ctx.fillStyle = v;
+    ctx.fillRect(xl - 40, y0, xr - xl + 80, y1 - y0);
+    ctx.fillStyle = 'rgba(8,6,6,' + dk.diep[1] + ')';
+    ctx.fillRect(xl - 40, y1, xr - xl + 80, bottom - y1 + 40);
+  } else for (const [a, b] of rwStuk) rwVoetTeken(eimg, a, b, groundY, s, bottom, cx);
   if (floating && !hoogUit && !zwart){               // zweeft hij, dan is de onderkant een schaduwrand (zwart krijgt zijn afloop, zie zwartAfloop)
     const sch = ctx.createLinearGradient(0, bottom - 60, 0, bottom);
     sch.addColorStop(0, 'rgba(8,6,6,0)'); sch.addColorStop(1, 'rgba(8,6,6,0.6)');
@@ -15618,10 +15649,10 @@ function takelTekenEen(t, groundY, scale, cx){
 // van CHAR_H. Test 82 is het proefstuk, en in de sandbox onder Terrein, Hangende stam.
 const HSTAM = {
   dir: 'design/regenwoud/hangstam/',
-  bron: { b: 1117, h: 247, top: 56, mid: 105, bodem: 185 },   // stam.png: de looplijn (in het mos, niet op de toppen: zijn voeten staan erin), het hart en de onderkant van de bast (rijen)
-  haak: [0.17, 0.855],      // waar de lianen om de stam zitten (deel van de breedte, links en rechts)
-  haakRij: 8,               // de liaan begint zo veel bronrijen onder de bovenkant van stam.png (in de knoop)
-  liaan: { b: 92, h: 389 }, // liaan.png: een rechtgetrokken stuk liaan dat naadloos onder elkaar past
+  bron: { b: 1529, h: 304, top: 68, mid: 138, bodem: 251 },   // stam.png: de looplijn (in het mos, niet op de toppen: zijn voeten staan erin), het hart en de onderkant van de bast (rijen)
+  haak: [0.18, 0.835],      // waar de lianen om de stam zitten (deel van de breedte, links en rechts)
+  haakRij: 11,              // de liaan begint zo veel bronrijen onder de bovenkant van stam.png (in de knoop)
+  liaan: { b: 124, h: 530 }, // liaan.png: een rechtgetrokken stuk liaan dat naadloos onder elkaar past
   breed: 2.2,               // standaardbreedte als deel van CHAR_H
   hoog: 190,                // standaardhoogte van de looplijn boven de grond (sprite-eenheden; de gewone sprong haalt ruim 200)
   anker: 1500,              // de lianen hangen aan een tak zo hoog boven de stam (sprite-eenheden, ruim buiten beeld)
@@ -24544,6 +24575,53 @@ function idleImg(set){
   const f = a[idleFrame % a.length];
   return (f.complete && f.naturalWidth) ? f : set.idle;
 }
+// ---- de trappose: stilstaan met een voet op een trede ----
+// Staat Amir met de speer stil op de rand van een trede (een opstapje, tot OPSTAP.max hoog), met de ene voet boven en
+// de andere beneden, dan staat hij er zo bij in plaats van in de idle. Twee stilstaande poses uit Grok (image-to-image
+// vanaf amirspear.png, de treden fel groen en eruit gekeyd, bron in beweging/trap/bron/), op het canvas van de idle
+// (594 x 301, grond 297) en op dezelfde schaal (hoofd en lengte gelijk aan idle_sp):
+//   op: de voorste voet op de hoge trede (de trap op), af: de achterste voet op de hoge trede (de trap af).
+// In de frames staat de lage voet op de grondlijn en de hoge voet 32 hoger, precies een opstapje.
+// `laag` en `hoog` zijn de stukken waar de lage en de hoge voet (met de speervoet) de vloer raken, in canvaspixels vanaf
+// het midden (297), met Amir naar links kijkend (gemeten in de onderste rijen van elke voet). Het spel kijkt over die hele
+// stukken naar de vloer (vloerBij, om de `stap` canvaspixels): ligt de lage voet helemaal op de ene vloer en de hoge voet
+// helemaal een trede hoger, dan de pose, op de vloer van de lage voet. Zo zit de rand van de trede altijd in het gat tussen
+// de voeten en hangt er geen voet half in de lucht (eerst keek hij naar een punt per voet en ging de pose te vroeg aan).
+// Zonder speer, lopend, of met een hoogteverschil kleiner dan `min`: de idle.
+// Test 84 (Stairs) is het proefstuk.
+const AMIR_TRAP = {
+  op: { src: 'beweging/trap/trap_op.png', laag: [34, 67], hoog: [-41, -2] },
+  af: { src: 'beweging/trap/trap_af.png', laag: [-49, 0], hoog: [37, 57] },
+  min: 8, stap: 4,
+};
+let trapImgs = null;
+function amirTrapPose(scale, flip, x0){
+  if (x0 === undefined) x0 = world;               // waar Amir staat (bij het tekenen pWorld: world is dan de camera)
+  if (!trapImgs) trapImgs = { op: loadAny([AMIR + AMIR_TRAP.op.src, AMIR_GROOT + AMIR_TRAP.op.src]),
+                              af: loadAny([AMIR + AMIR_TRAP.af.src, AMIR_GROOT + AMIR_TRAP.af.src]) };
+  const sx = flip ? -scale : scale;
+  // de vloer onder een heel stuk canvas [a, b]: een hoogte als die overal gelijk is, anders null
+  const vloerOnder = ([a, b]) => {
+    let v = null;
+    for (let c = a; ; c = Math.min(b, c + AMIR_TRAP.stap)){
+      const h = vloerBij(x0 + c * sx, ph);
+      if (h == null || h === -Infinity || (v !== null && Math.abs(h - v) > 1)) return null;
+      v = h;
+      if (c >= b) return v;
+    }
+  };
+  for (const k of ['op', 'af']){
+    const d = AMIR_TRAP[k], img = trapImgs[k];
+    if (!img.complete || !img.naturalWidth) continue;
+    const vl = vloerOnder(d.laag), vh = vl === null ? null : vloerOnder(d.hoog);
+    if (vl === null || vh === null) continue;
+    const dh = vh - vl;
+    if (dh < AMIR_TRAP.min || dh > OPSTAP.max + 1) continue;
+    if (Math.abs(ph - vl) > 1 && Math.abs(ph - vh) > 1) continue;   // nog aan het glijden over de trede
+    return { img, vloer: vl };
+  }
+  return null;
+}
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 // Hoe diep de save-stapel van ctx nu is. Dat is niet uit te lezen, en na een fout in de lus moet
 // safeLoop hem helemaal afbouwen: anders blijft er elk beeld een laag staan, met een clip en een
@@ -28822,8 +28900,104 @@ function sneeuwJag(i, y, top, s){
 // lui geladen: de eerste keer dat een uitzicht met biome regenwoud of een strook regenwoud hem vraagt
 let rwBodemImg = null;
 function rwBodem(){
-  if (!rwBodemImg){ rwBodemImg = new Image(); rwBodemImg.src = 'design/regenwoud/grondrand_regenwoud.png'; }
+  if (!rwBodemImg){ rwBodemImg = new Image(); rwBodemImg.src = 'design/regenwoud/grondrand_regenwoud.png'; rwOnder(); }
   return imgReady(rwBodemImg) ? rwBodemImg : null;
+}
+// ---- de onderlaag van het regenwoud ----
+// Onder de mosgrond geen egale bruine vlakte maar een tegel humus met mosbrokken, wortels en botjes (regenwoud_onder.png),
+// getekend met straatOnderVul zoals de onderlaag van de straat: vast aan de wereld, naar onder donkerder. Hij begint achter
+// de onderrand van de wand van de grondrand (bronrij `anker`), zodat die rand er gekarteld overheen valt. Lui geladen met rwBodem.
+// De wand loopt niet hard op de tegel uit maar vervaagt erin, net als de rand van de straattegel: van bronrij `van` tot
+// `tot` legt rwOnderTeken de tegel in `n` stroken met oplopende dekking over de wand, zodat de gekartelde onderrand
+// verdwijnt. Onder een terras van regenwoudgrond ook (savanneLaag), zonder het donker van SAV_LAAG en met de grondwand ervoor (rwVoetTeken). Alleen onder regenwoudgrond: een strook savanne (grondSoort) in een regenwoud-uitzicht houdt zijn wand.
+const RW_ONDER = { van: 225, tot: 300, n: 10, voet: 176, voetTot: 206, wand: 296, rekMax: 3, inzet: 24 };   // voet..voetTot: waar de grondwand voor een terras begint, voet..wand: de wandband (bronrijen, zie rwVoetTeken en rwWandTeken)
+let rwOnderImg = null;
+function rwOnder(){
+  if (!rwOnderImg){ rwOnderImg = new Image(); rwOnderImg.src = 'design/regenwoud/regenwoud_onder.png'; }
+  return imgReady(rwOnderImg) ? rwOnderImg : null;
+}
+// de stukken scherm tussen l en r waar regenwoudgrond ligt (een andere grondsoort-strook eruit geknipt)
+function rwOnderStukken(l, r){
+  if (!rwOnder()) return null;
+  let stuk = [[l, r]];
+  for (const st of grondStroken()){
+    if (st.soort === 'regenwoud') continue;
+    const a = W / 2 + (Math.min(st.van, st.tot) - world), b = W / 2 + (Math.max(st.van, st.tot) - world), nieuw = [];
+    for (const [p, q] of stuk){
+      if (b <= p || a >= q){ nieuw.push([p, q]); continue; }
+      if (a > p) nieuw.push([p, a]);
+      if (b < q) nieuw.push([b, q]);
+    }
+    stuk = nieuw;
+  }
+  return stuk.length ? stuk : null;
+}
+// achter (over = false): de tegel vanaf het eind van de overloop naar onder; over: de overloop zelf, over de wand heen
+// De voet van een terras van regenwoudgrond: de wand van de gewone grond loopt ervoor door, vanaf de onderkant van het
+// loopvlak (bronrij voet, in een paar stroken zacht tot voetTot), met dezelfde overloop in de onderlaag. Zo staat het
+// terras op de grond en loopt de mosrand van de grond ernaast er onderdoor, in plaats van dat hij bij het terras ophoudt.
+function rwVoetTeken(eimg, xL, xR, groundY, s, yBot, cx){
+  const R = RW_ONDER, nw = eimg.naturalWidth, tw = nw * s, gTop = groundY - EDGE.walk * s;
+  let x = cx - (((world % tw) + tw) % tw);
+  while (x > xL) x -= tw;
+  rwOnderTeken(xL, xR, gTop, groundY, s, false, yBot, cx);   // de onderlaag achter de wand
+  ctx.save();
+  ctx.beginPath(); ctx.rect(xL, gTop + R.voet * s, xR - xL, yBot - gTop - R.voet * s); ctx.clip();
+  const n = 8, st = (R.voetTot - R.voet) / n, hoog = eimg.naturalHeight;
+  for (let xx = x; xx < xR; xx += tw){
+    for (let i = 0; i < n; i++){                      // de bovenrand zacht
+      ctx.globalAlpha = (i + 1) / n;
+      ctx.drawImage(eimg, 0, R.voet + i * st, nw, st, xx, gTop + (R.voet + i * st) * s, tw + 1, st * s + 0.5);
+    }
+    ctx.globalAlpha = 1;
+    ctx.drawImage(eimg, 0, R.voetTot, nw, hoog - R.voetTot, xx, gTop + R.voetTot * s, tw + 1, (hoog - R.voetTot) * s);
+  }
+  ctx.restore();
+  rwOnderTeken(xL, xR, gTop, groundY, s, true, yBot, cx);
+}
+// De wand van een terras van regenwoudgrond, doorgetrokken van onder zijn eigen wand tot waar de grondwand begint: de
+// wandband van de grondrand (bronrij voet tot wand) in de hoogte uitgerekt, zodat er geen naad in zit, en over de eigen
+// wand heen met een zachte bovenrand van inzet bronrijen. Zo is het een wand.
+function rwWandTeken(eimg, xL, xR, top, groundY, s, cx){
+  const R = RW_ONDER, nw = eimg.naturalWidth, tw = nw * s, bh = R.wand - R.voet, dh = bh * s;
+  const y0 = top + R.voet * s, y1 = groundY - EDGE.walk * s + R.voetTot * s;
+  if (y1 <= y0 || dh < 2) return;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(xL, y0, xR - xL, y1 - y0); ctx.clip();
+  let x = cx - (((world % tw) + tw) % tw);
+  while (x > xL) x -= tw;
+  // Een keer uitgerekt over de hele hoogte: de rotsplaten worden langer, er komt geen naad. Is het verschil heel hoog,
+  // dan in gelijke stukken van hooguit rekMax keer de band, die elkaar met een zachte bovenrand overlappen.
+  // Hij ligt over de eigen wand van het terras heen (die begint op dezelfde bronrij) en zet zacht in, zodat diens
+  // gekartelde onderkant wegvalt.
+  const n = Math.max(1, Math.ceil((y1 - y0) / (dh * R.rekMax))), stuk = (y1 - y0) / n;
+  for (let k = 0; k < n; k++){
+    const over = k ? Math.min(stuk * 0.3, dh * 0.4) : R.inzet * s;
+    const ya = y0 + k * stuk - (k ? over : 0), hh = stuk + (k ? over : 0);
+    for (let xx = x; xx < xR; xx += tw){
+      const m = 6;                                     // de bovenrand zacht inzetten
+      for (let i = 0; i < m; i++){
+        ctx.globalAlpha = (i + 1) / m;
+        ctx.drawImage(eimg, 0, R.voet + bh * (over / hh) * i / m, nw, bh * (over / hh) / m, xx, ya + over * i / m, tw + 1, over / m + 0.5);
+      }
+      ctx.globalAlpha = 1;
+      ctx.drawImage(eimg, 0, R.voet + bh * (over / hh), nw, bh * (1 - over / hh), xx, ya + over, tw + 1, hh - over + 0.6);
+    }
+  }
+  ctx.restore();
+}
+// groundY is de looplijn van deze grond (de grond zelf, of de bovenkant van een terras), yBot en cx zoals bij straatOnderVul
+function rwOnderTeken(xL, xR, top, groundY, s, over, yBot, cx){
+  const R = RW_ONDER, im = rwOnder(), yT = top + R.tot * s;
+  if (yBot === undefined) yBot = groundY + H * 2;
+  if (cx === undefined) cx = W / 2;
+  if (!over){ straatOnderVul(xL, xR, yT - 2, yBot, groundY, s, cx, im, R.van); return; }
+  const st = (R.tot - R.van) / R.n;
+  for (let i = 0; i < R.n; i++){
+    ctx.globalAlpha = (i + 1) / R.n;
+    straatOnderVul(xL, xR, top + (R.van + i * st) * s, Math.min(yBot, top + (R.van + (i + 1) * st) * s + 0.5), groundY, s, cx, im, R.van);
+  }
+  ctx.globalAlpha = 1;
 }
 function bodemPic(){
   if (stadAan()){ const b = stadBodem(); if (b) return b; }      // de stad: de straattegel (zelfde maten als EDGE)
@@ -30474,7 +30648,7 @@ const STAD_DEUR = {
   openKans: 0.15,                        // elk huis heeft een deur op de straat, dicht; zo vaak staat er een open (vast per huis)
   marge: 200,                            // de deur telt als in beeld als zijn midden zoveel binnen de rand van het beeld is (ruim: de hele deur)
   // wie op een verdieping uit een deur mag: de soorten die een galerij of dak als vloer kennen (dak in de spawner)
-  bovenSoorten: new Set(['bandiet', 'schildman', 'kruisboogbandiet', 'groen', 'zwart', 'knock'])
+  bovenSoorten: new Set(['bandiet', 'schildman', 'zweepman', 'kruisboogbandiet', 'groen', 'zwart', 'knock'])
 };
 let stadDeurStaat = {};                  // 'gevel:verdieping' -> { open, uitT }
 const stadDeurKey = d => (d.gevel | 0) + ':' + (d.verdieping | 0);
@@ -34365,10 +34539,12 @@ function persLicht(img, x, y, w, h, flip, wx, vloer, fig, groundY, scale, cx, al
 const STRAAT_TREDE = { rand: 182, uitloop: 18, onder: 168, over: 18, voegZoek: 26, donker: 0.42, schaduw: 0.4 };
 function stadOnderAan(){ return !!(level && level.stad && level.stad.onder) && stadKlaar('straatOnder'); }
 // de onderlaag tussen xL en xR, van yTop tot yBot; naar onder donkerder, gemeten vanaf de grondlijn
-function straatOnderVul(xL, xR, yTop, yBot, groundY, s, cx){
-  if (!stadKlaar('straatOnder') || xR <= xL || yBot <= yTop) return;
-  const im = stadImgs.straatOnder, uw = im.naturalWidth * s, uh = im.naturalHeight * s;
-  const Y0 = groundY + (STRAAT_TREDE.onder - EDGE.walk) * s;      // waar de onderlaag onder de straat begint: het anker voor de rijen
+// Met im en anker een andere tegel (de onderlaag van het regenwoud, RW_ONDER), anker de bronrij van de grondrand waar hij begint.
+function straatOnderVul(xL, xR, yTop, yBot, groundY, s, cx, im, anker){
+  if (!im){ if (!stadKlaar('straatOnder')) return; im = stadImgs.straatOnder; }
+  if (!imgReady(im) || xR <= xL || yBot <= yTop) return;
+  const uw = im.naturalWidth * s, uh = im.naturalHeight * s;
+  const Y0 = groundY + ((anker != null ? anker : STRAAT_TREDE.onder) - EDGE.walk) * s;   // waar de onderlaag begint: het anker voor de rijen
   let x = cx - (((world % uw) + uw) % uw);
   while (x > xL) x -= uw;
   const y0 = Y0 + Math.floor((yTop - Y0) / uh) * uh;
@@ -44370,6 +44546,34 @@ function banReik(){ return BAN_ZWAARD.to * banScale(); }          // hoe ver zij
 // kan zijn kling niet bij. De vloer onder Amir vergelijken met zijn eigen vloer.
 const BAN_HOOGTE = 90;
 function banZelfdeHoogte(s){ return Math.abs(vloerBij(playerX(), ph) - (s.base || 0)) <= BAN_HOOGTE; }
+// Uitzondering voor zijn slag: staat Amir op een springdoek, een rieten kraamdak of de doek van een kraam (die tellen
+// niet als vloer, zie stadVloeren), dan haalt hij toch uit als zijn kling er in de animatie echt bij kan: genoeg van
+// Amirs lijf binnen de hoogte die het zwaard bestrijkt (BAN_ZWAARD.low tot .high boven zijn voeten). De raakcheck
+// zelf blijft de echte kling tegen Amirs hitbox. Alleen voor de slag: de dolk, de vault en de hinderlaag niet.
+// Hetzelfde geldt voor de schildbandiet (zijn speerstoot) en de zweepman (zijn zweep): slagBij met hun eigen bereik.
+const BAN_BIJ_MIN = 0.35;   // zoveel Amir (deel van zijn hoogte) moet binnen het bereik van de slag vallen
+const SCHB_BIJ = { lo: 0, hi: 1.0 };   // de speer van de schildbandiet, in Amir boven zijn voeten
+const ZWM_BIJ  = { lo: 0, hi: 1.0 };   // de zweep: hij hangt nooit onder de voeten van de zweepman (het touw blijft boven y 0)
+// staat Amir op een springdoek, rieten kraamdak of kraamdoek? Die tellen niet als vloer (stadVloeren)
+function amirOpDoek(){
+  if (!onGround || !stadAan()) return false;
+  const px = playerX();
+  return stadPlats(nowScale()).some(p => (p.stad === 'riet' || p.stad === 'luifel' || p.kraam != null)
+    && px > p.left && px < p.right && Math.abs(ph - p.topH) <= 8);
+}
+// genoeg van Amir binnen de hoogte lo..hi (in wereld-px boven de voeten van s)?
+function slagBij(s, lo, hi){
+  const b = s.base || 0;
+  return Math.min(b + hi, ph + CHAR_H * duckShare) - Math.max(b + lo, ph) >= BAN_BIJ_MIN * CHAR_H;
+}
+function banKanBij(s){
+  if (banZelfdeHoogte(s)) return true;
+  if (!amirOpDoek()) return false;
+  const k = CHAR_H * BAN_H_SHARE / BAN.fig;
+  return slagBij(s, BAN_ZWAARD.low * k, BAN_ZWAARD.high * k);
+}
+function schbKanBij(s){ return kooiZelfdeHoogte(s) || (amirOpDoek() && slagBij(s, SCHB_BIJ.lo * CHAR_H, SCHB_BIJ.hi * CHAR_H)); }
+function zwmKanBij(s){ return kooiZelfdeHoogte(s) || (amirOpDoek() && slagBij(s, ZWM_BIJ.lo * CHAR_H, ZWM_BIJ.hi * CHAR_H)); }
 function makeBandiet(x, side, dolk, hurk, vault, takelaar, passagier, rol, variant){
   // variant: 'duin' de Duinwacht, truthy anders de elite-garde, falsy de gewone rover
   const wilVault = vault !== false;                       // vaulten is de standaard voor een rover: alleen vault: false zet het uit
@@ -44774,7 +44978,7 @@ function updateBandiet(s, dt, plats, cliff){
   // dichtbij en ook als je hem raakte voor de dolk weg was. Pas als de dolk weg is (s.gegooid) valt hij aan
   if (s.dolk && !s.gegooid && banZelfdeHoogte(s) && gap <= banWorpRange()){
     s.gegooid = true; banSet(s, 'worp'); s.face = naarJe; return; }
-  if (banZelfdeHoogte(s) && s.rust <= 0 && gap <= banReik() * BAN_SLAG_DEEL){
+  if (banKanBij(s) && s.rust <= 0 && gap <= banReik() * BAN_SLAG_DEEL){
     banSet(s, 'slag'); s.lunge = BAN_LUNGE_IN * s.face; s.dustT = 0;   // de opzwaai begint: hij glijdt nog in op zijn aanlooprest
     banStofWolk(s.x - s.face * 20, s.base || 0, 8, s.face * 40, 1.5);  // een wolkje bij de afzet; de grote komt bij de klap (de doorschuif)
     return;
@@ -44941,7 +45145,7 @@ function razSchaduw(s, dt, plats, cliff, naarJe){
   s.schA = Math.min(1, c.t / S.in); banAnim(s, dt);
   if (c.t >= S.in){
     s.schA = 1; r.sch = null;
-    if (banZelfdeHoogte(s)){ banSet(s, 'slag'); s.lunge = BAN_LUNGE_IN * s.face; s.dustT = 0; banStofWolk(s.x - s.face * 20, s.base || 0, 8, s.face * 40, 1.5); }
+    if (banKanBij(s)){ banSet(s, 'slag'); s.lunge = BAN_LUNGE_IN * s.face; s.dustT = 0; banStofWolk(s.x - s.face * 20, s.base || 0, 8, s.face * 40, 1.5); }
     else banSet(s, 'run');
   }
   return true;
@@ -48127,7 +48331,7 @@ function updateZweepman(s, dt, plats, cliff){
   if (!zichtWaak(s, dt, zichtBereik(1100) * (s.zWacht ? 1 : 2), s.zWacht ? s.face : naarJe, 'mens')){ zwmSet(s, 'idle'); anim(ZWM.idleFps); return; }
   s.face = naarJe;
   const nw = zwmNieuw(), aanval = nw ? ZWM_NIEUW.aanval : ZWM.aanval, houd = nw ? ZWM_NIEUW.houd : ZWM.houd;
-  if (s.cool <= 0 && kooiZelfdeHoogte(s) && gap < aanval * zS && (nw || gap > ZWM.min * zS)){   // nieuw: ook tegen hem aan
+  if (s.cool <= 0 && zwmKanBij(s) && gap < aanval * zS && (nw || gap > ZWM.min * zS)){   // nieuw: ook tegen hem aan
     s.soort = s.slagVast || ZWM_TEST.slag || (Math.random() < ZWM.hoogKans ? 'hoog' : 'laag');   // slagVast: de sandbox, ZWM_TEST.slag: de pauze
     zwmSet(s, 'slag'); s.frame = ZWM_SLAG[s.soort].tellVan; s.geraaktAmir = false; s.knalT = -1; s.touw = null;
     s.inzetT = 0; s.inzetP = null; s.inzetC = null; s.inzetGevaar = false;
@@ -48327,7 +48531,7 @@ function zwmTouwTeken(s, a, gs){
 // raakt de zweep Amir? Elk punt van het touw (in schermpixels) tegen Amirs vak, in het venster van de slag
 function zwmRaakt(s, bodyX, voeten, gs, pbox){
   if (s.state === 'f2') return zwmF2Raakt(s, bodyX, voeten, gs, pbox);
-  if (!s.touw || s.geraaktAmir || dead || invuln > 0 || !kooiZelfdeHoogte(s)) return false;
+  if (!s.touw || s.geraaktAmir || dead || invuln > 0 || !zwmKanBij(s)) return false;
   const C = ZWM_SLAG[s.soort || 'laag'];
   const sp = s.face === 1 ? -1 : 1, t = s.touw;
   if (s.inzetGevaar){                                    // nieuw: de inzet raakt achter hem, met dezelfde hoogteregel (laag springen, hoog bukken)
@@ -48713,7 +48917,7 @@ function zwmF2RustVak(s, nbox, bodyX, gs){
 }
 // raakt de zweep Amir? Rond de knal, elk touwpunt tegen Amirs vak (op elke hoogte: hier helpt alleen afstand of je schild)
 function zwmF2Raakt(s, bodyX, voeten, gs, pbox){
-  if (!s.touw || !s.f2C || s.f2C.hang || s.geraaktAmir || dead || invuln > 0 || !kooiZelfdeHoogte(s)) return false;
+  if (!s.touw || !s.f2C || s.f2C.hang || s.geraaktAmir || dead || invuln > 0 || !zwmKanBij(s)) return false;
   const C = s.f2C, i = zwmF2Idx(s);
   const van = s.f2 === 'sprong' ? C.van + ZWM2.sprongGevaar : C.knal - ZWM2.gevaarVoor;
   const naKnal = C.strakNa ? i >= C.knal + C.strakNa : (s.knalT >= 0 && s.t - s.knalT > ZWM2.gevaarNa);   // nieuw, de sprong: zolang hij strak naar voren trekt
@@ -49140,9 +49344,9 @@ function updateSchildman(s, dt, plats, cliff){
       const px = playerX(), punt = s.x + s.face * SCHB.speerVoor * A;
       const opPunt = Math.abs(px - punt) < (SCHB.speerR + PLAYER_HALF_W) * A;
       const onder = Math.abs(px - s.x) < (SCHB.lijfR + PLAYER_HALF_W) * A;
-      const vang = !dead && kooiZelfdeHoogte(s) && (opPunt || onder) ? schildVang(s.x < px, 'speer') : false;
+      const vang = !dead && schbKanBij(s) && (opPunt || onder) ? schildVang(s.x < px, 'speer') : false;
       if (vang){ s.geraaktAmir = true; if (vang === 'pareer') schbWankel(s); }   // op Amirs schild: hij schuift terug, of de parade
-      else if (!dead && invuln <= 0 && kooiZelfdeHoogte(s) && (opPunt || onder)){
+      else if (!dead && invuln <= 0 && schbKanBij(s) && (opPunt || onder)){
         hurtPlayer(s.x < px); s.geraaktAmir = true;
         if (invuln > 0) knock = (s.x < px ? 1 : -1) * SCHB.raakDuw;   // de speer slaat hem achteruit
       }
@@ -49185,7 +49389,7 @@ function updateSchildman(s, dt, plats, cliff){
       return;
     }
   }
-  if (s.cool <= 0 && kooiZelfdeHoogte(s) && gap < schbN(s, 'aanval') * CHAR_H * scale){
+  if (s.cool <= 0 && schbKanBij(s) && gap < schbN(s, 'aanval') * CHAR_H * scale){
     schbSet(s, 'strike');
     if (s.wraak > 0){ s.frame = schbN(s, 'pantserVan'); s.wraak = 0; }   // het antwoord op een treffer: meteen de gepantserde tell
     s.geraaktAmir = false; s.landed = false;
@@ -50418,6 +50622,65 @@ const bloedSnd = geluidAan(new Audio());
 bloedSnd.preload = 'auto'; bloedSnd.src = 'sounds/bloedspuit.mp3';
 bloedSnd.onerror = () => console.warn('ontbreekt: sounds/bloedspuit.mp3');
 function bloedSpeel(){ if (!wantSound) return; try { bloedSnd.currentTime = 0; } catch (e) {} bloedSnd.volume = 0.85; bloedSnd.play().catch(() => {}); }
+// een klein bloedgeluid als een slang geraakt wordt met de punt of de kling (steek, worp, lage zwaai met de speer); niet
+// met de stokken (die geven de houtklap) en niet met het mes (dat weert af). Een kort stuk van dezelfde spuit, zachter en
+// wat hoger, met een eigen Audio zodat het de grote spuit niet afkapt.
+// De hardheid volgt de treffer: een treffer die hem nog niet doodt is klein en kort, de dodelijke langer, voller (wat
+// lager) en harder, en per soort dood zoals de animatie (SLANG_DOOD.soort): de worp klapt hem neer en is het hardst.
+const SLANG_BLOED = {
+  van: 0.27, uit: 0.08,                            // seconden in het bestand waar het bloed begint, en zo lang uitfaden
+  raak: { tot: 0.55, vol: 0.3, snel: 1.3 },        // een treffer die nog niet doodt
+  dood: { steek: { tot: 0.8, vol: 0.6, snel: 1.1 },
+          laag:  { tot: 0.75, vol: 0.55, snel: 1.15 },
+          worp:  { tot: 0.85, vol: 0.75, snel: 1.0 } }
+};
+const slangBloedSnd = geluidAan(new Audio());
+slangBloedSnd.preload = 'auto'; slangBloedSnd.src = 'sounds/bloedspuit.mp3';
+let slangBloedKlok = 0;
+// de laatste sis: een slang heeft geen stem, dus zijn doodskreet is zijn sis (music/snakehiss.mp3), maar dan stervend:
+// net na het bloed, lager, de toon zakt tijdens het afspelen verder weg (preservesPitch uit) en hij fadet snel uit, als
+// lucht die uit hem loopt. Per soort dood zoals de animatie: de worp kapt hem af, de steek laat hem wegebben, de lage
+// zwaai zit ertussen. Alleen bij de dodelijke treffer, en alleen waar ook het bloedgeluid klinkt.
+const SLANG_SIS = {
+  van: 0.03,                                       // seconden in het bestand: net in de scherpe aanzet
+  soort: { worp:  { wacht: 0.05, duur: 0.22, vol: 0.6, toon: [0.85, 0.65] },
+           steek: { wacht: 0.12, duur: 0.65, vol: 0.55, toon: [0.8, 0.5] },
+           laag:  { wacht: 0.08, duur: 0.4, vol: 0.55, toon: [0.82, 0.58] } }
+};
+const slangSisSnd = geluidAan(new Audio());
+slangSisSnd.preload = 'auto'; slangSisSnd.src = 'music/snakehiss.mp3';
+let slangSisKlok = 0, slangSisWacht = 0;
+function slangSisSpeel(soort){
+  if (!wantSound) return;
+  const K = SLANG_SIS.soort[soort] || SLANG_SIS.soort.steek, a = slangSisSnd;
+  clearTimeout(slangSisWacht); clearInterval(slangSisKlok);
+  slangSisWacht = setTimeout(() => {
+    a.preservesPitch = a.mozPreservesPitch = a.webkitPreservesPitch = false;   // lager afspelen is ook lager klinken
+    try { a.currentTime = SLANG_SIS.van; } catch (e) {}
+    a.playbackRate = K.toon[0]; a.volume = K.vol; a.play().catch(() => {});
+    const t0 = performance.now();
+    slangSisKlok = setInterval(() => {
+      const f = (performance.now() - t0) / 1000 / K.duur;   // 0..1 over de duur, in echte seconden
+      if (f >= 1 || a.paused){ a.pause(); clearInterval(slangSisKlok); return; }
+      a.playbackRate = K.toon[0] + (K.toon[1] - K.toon[0]) * f;   // de toon zakt weg
+      a.volume = K.vol * (1 - f) * (1 - f);                       // en hij sterft snel uit
+    }, 16);
+  }, K.wacht * 1000);
+}
+function slangBloedSpeel(dood, soort){
+  if (!wantSound) return;
+  const S = SLANG_BLOED, a = slangBloedSnd;
+  const K = dood ? (S.dood[soort] || S.dood.steek) : S.raak;
+  clearInterval(slangBloedKlok);
+  try { a.currentTime = S.van; } catch (e) {}
+  a.playbackRate = K.snel; a.volume = K.vol; a.play().catch(() => {});
+  if (dood) slangSisSpeel(soort);                    // de dodelijke treffer: de laatste sis erachteraan (SLANG_SIS)
+  slangBloedKlok = setInterval(() => {               // tot 'tot', de laatste 'uit' seconden zacht weg
+    const rest = K.tot - a.currentTime;
+    if (rest <= 0 || a.paused){ a.pause(); clearInterval(slangBloedKlok); return; }
+    if (rest < S.uit) a.volume = K.vol * rest / S.uit;
+  }, 16);
+}
 // het trefpunt van een klap, set-onafhankelijk: dx naar zijn voorkant en dy boven zijn voeten, in basis-px
 function bloedTref(s, bodyX, voeten, bS, face, sx, sy){
   const front = face === 1 ? 1 : -1;
@@ -52631,7 +52894,10 @@ function sceneGrond(groundY){
     if (vg) while (x + tw < vg.l) x += tw;
     if (golfAan()) golfGrondTeken(groundY, left, tegelR);   // golvende rand: de kruin golft, zand op bruine rots
     else {
+      const rwStuk = eimg === rwBodemImg ? rwOnderStukken(vg ? Math.max(left, vg.l) : left, tegelR) : null;
+      if (rwStuk) for (const [a, b] of rwStuk) rwOnderTeken(a, b, top, groundY, s, false);   // achter de wand
       for (; x < tegelR; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
+      if (rwStuk) for (const [a, b] of rwStuk) rwOnderTeken(a, b, top, groundY, s, true);    // de wand vervaagt erin
       // de stroken grondsoort (straat, rots) over de basis heen, met hun grillige zachte rand
       grondStrokenTeken(top, th, s, W / 2, vg ? Math.max(left, vg.l) : left, tegelR,
                         (img, va, vb) => grondTegelRij(img, top, s, W / 2, va, vb));
@@ -53724,6 +53990,9 @@ function loop(now){
                  : (!useSneak && !useStof && !useRolW && !useRol && !useThrow && !useJump && !useSweep && (useCrawl || useDuck)) ? stokLaag(useCrawl) : null;   // gebukt en kruipend: stokLaag   // de grondklap gaat ook in de lucht voor (GK)   // de stokken (STOK)
     const useStok = !!(stokImg && stokImg.complete && stokImg.naturalWidth);
     snkAmirVak = null;                               // de sluipdood van de bandiet leest hier waar de speer zit
+    // stil op de rand van een trede, met de speer: de trappose (AMIR_TRAP)
+    const trapNu = (!moving && !attacking && onGround && set === sets.sp && !mesInHand() && amirSteen <= 0 && !dead)
+      ? amirTrapPose(scaleNow, autoFlip && facing === 1, pWorld) : null;
     const img = useSneak ? snkImg : useStof ? stofImg : useRolW ? rwImg : useRol ? rolImg
               : useThrow ? thrImg
               : useJump ? jimg
@@ -53733,7 +54002,7 @@ function loop(now){
               : useDuck ? dimg
               : useCombo ? comboImg
               : (attacking ? (atkMes ? sets.ns.idle : atkImgs[atkFrame])   // het mes: stilstaand, het mes doet de steek
-                           : (moving ? set.run[frame] : idleImg(set)));
+                           : (moving ? set.run[frame] : (trapNu ? trapNu.img : idleImg(set))));
     // het mes in zijn hand: bij een steek, stilstaand of lopend (in een sprong, gebukt of kruipend zit het weg)
     const mesHand = !mesInHand() || amirSteen > 0 || useStok ? null
                   : attacking && atkMes ? mesSteekHand(Math.min(atkFrame, MES.steek.length - 1))
@@ -53746,7 +54015,8 @@ function loop(now){
     const pcx = cx + (pWorld - world);            // Amir zelf (gelijk aan cx, behalve in de boss-arena)
     const wetDraw = waterDepthAt(pWorld, ph) * Math.max(0, 1 - ph / 40);
     const sinkPx = wetDraw * POOL.sink * CHAR_H * scale;   // in het water zak je een stukje weg
-    const lift = -ph * scale + sinkPx;            // hoogte boven de grond
+    const lift = trapNu && img === trapNu.img ? -trapNu.vloer * scale   // de trappose: op de vloer van de lage voet (AMIR_TRAP)
+               : -ph * scale + sinkPx;            // hoogte boven de grond
     gkGrondTeken(cx, scale, groundY);                      // de grondklap: de bult in de vloer, voor Amir (GK)
     let w, h, x, y;
     if (useSneak){
@@ -54435,7 +54705,10 @@ function loop(now){
             tipY + reach > sbox.t && tipY - reach < sbox.b){
           if (atkMes){ if (mesAfweer(s, 'slang')) swingUsed = true; }   // het mes weert af, het doodt niet
           else {
-          if (slagEen(s) && stokRaakKlap(enemyTakeHit(s))){
+          const hp0 = s.hp;
+          const dood = slagEen(s) && stokRaakKlap(enemyTakeHit(s));
+          if (!atkStok && (dood || s.hp < hp0)) slangBloedSpeel(dood, 'steek');   // het bloedgeluid bij de steek, harder als hij doodt (SLANG_BLOED)
+          if (dood){
           hits++; hitsEl.textContent = hits;
           s.state = 'dying'; s.flash = 0.25; s.ddSoort = atkStok ? 'stok' : 'steek';
           s.vx = (facing === 1 ? 420 : -420);
@@ -54449,7 +54722,9 @@ function loop(now){
       // ---- de geworpen speer ------------------------------------------
       if (s.state !== 'dying' && javRaakt(sbox, s)){
         javHitEnemy();
-        if (enemyTakeHit(s)){
+        const hp0 = s.hp, dood = enemyTakeHit(s);
+        if (dood || s.hp < hp0) slangBloedSpeel(dood, 'worp');   // de speer zit erin: het bloedgeluid
+        if (dood){
         hits++; hitsEl.textContent = hits;
         s.state = 'dying'; s.flash = 0.25; s.ddSoort = 'worp';
         s.vx = (jav.dir === 1 ? 420 : -420);
@@ -54460,7 +54735,9 @@ function loop(now){
       // ---- lage zwaai: raakt alles laag om hem heen, elke slang één keer ----
       if (s.state !== 'dying' && s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'slang'), sbox)){
         s.sweptId = sweepId;
-        if (enemyTakeHit(s)){
+        const hp0 = s.hp, dood = enemyTakeHit(s);
+        if (sweepLive && !atkStok && (dood || s.hp < hp0)) slangBloedSpeel(dood, 'laag');   // de kling van de lage zwaai, niet de stokken of de grondklap
+        if (dood){
         hits++; hitsEl.textContent = hits;
         s.state = 'dying'; s.flash = 0.25; s.ddSoort = sweepLive ? (atkStok ? 'stok' : 'laag') : 'klap';
         s.vx = (s.x < playerX() ? -420 : 420);
@@ -58761,6 +59038,7 @@ const SUBS = {
   'Test 81: Rainforest': 'Moss, giant trees and rising mist',
   'Test 82: Hanging log': 'A log on two vines: jump on it, cut it down',
   'Test 83: Log ramp': 'Cut one vine and walk up the tilted log',
+  'Test 84: Stairs': 'Stop on a step with one foot higher than the other, going up and going down',
   'Test 76: Ground slam': 'Sticks from the air: slam into the ground and send a wave forward',
   'Test 77: Sun ray': 'Meditate in the sun, then six seconds of Sun Lion: double damage, fast, a huge jump, two ground slams',
   'Test 64: De tweede speer': 'Gooi en druk meteen weer F: een tweede speer achter de eerste aan, ook uit de rol',
@@ -69499,10 +69777,18 @@ function mpCoopStart(epI){
   pvpEl('pvphud').classList.add('on');
   mpCoopHud();
 }
-// R na het einde: iedereen R en het begint opnieuw, met dezelfde regels
+// R na het einde: iedereen R en het begint opnieuw, met dezelfde regels.
+// R midden in Survival: de host (alleen of met anderen) start het potje meteen opnieuw, voor iedereen ('cnieuw');
+// een gast krijgt een melding dat alleen de host dat kan. De Co-op episode houdt R alleen na het einde.
 function mpCoopOpnieuw(){
   const C = pvp.coop;
-  if (!C || C.fase !== 'uit') return;
+  if (!C) return;
+  if (C.fase !== 'uit'){
+    if (C.ep) return;
+    if (!pvp.host){ pvpBanner('Only the host can restart', 2); return; }
+    pvpZend({ t: 'cnieuw' }); mpCoopStart();
+    return;
+  }
   pvp.rematch[pvp.mij] = true;
   pvpZend({ t: 'rematch' });
   if (!pvp.spelers.every(p => pvp.rematch[p])) pvpBanner(pvp.spelers.length > 2 ? 'Waiting for your teammates...' : 'Waiting for your teammate...');
