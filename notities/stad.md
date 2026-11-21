@@ -1069,6 +1069,11 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   verder uit dan de bovenkant (`kuil.buik`), zodat je onder de doek een uitgezakte buik ziet. Gebukt staan zijn voeten verder
   uit elkaar, dus dan is de kuil breder (`kuil.buk`, `stadKuilBreed`). Het stuk is een halve Amir-breedte korter dan de
   stallijn aan elke kant: voorbij het eind val je eraf in plaats van te zweven.
+- **Vast aan stam en paal** (`kuil.vast`, `kuil.omhoog`, `stadLuifelVast`, `stadLuifelDip`): de kuil loopt naar nul bij de
+  stam (bron-x 110) en bij de paal (875), met een zachte overgang van 170 en 150 bron-px. Bij het naveren veert de doek
+  hooguit een kwart zo ver boven zijn rustplek als hij omlaag zakt. Daarvoor schoot de doek na een stuit (vooral op de
+  trampoline in Ishmul) boven zijn rustplek uit terwijl stam en franje bleven staan: een gat tussen doek en hout, en
+  de paal scheurde doormidden. Waar Amir kan staan is de overgang al voorbij, dus de kuil onder zijn voeten is even diep.
 - **Twee lagen**: de doek met de kuil voor Amir, en na Amir alleen de voorrand rond zijn voeten (`stadLuifelVoor`, in de
   render-lus voor `critFxTeken`), minder diep ingezakt (`kuil.voor`), vanaf `kuil.rand` boven de stallijn. Zo vallen zijn
   zolen en tenen achter de voorrand en loopt de doek achter hem omhoog.

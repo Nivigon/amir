@@ -29879,6 +29879,10 @@ const STAD = {
                    // buik: de onderkant van de doek zakt zoveel keer verder dan de bovenkant (hij rekt uit onder het gewicht);
                    // buk: gebukt staan zijn voeten verder uit elkaar, dan is de kuil zoveel breder
                    kuil: { diep: 0.12, breed: 0.36, amir: 0.6, voor: 0.3, rand: 0.05, uit: 0.15, buik: 1.8, buk: 1.45, voet: 0.12 },   // voet: halve voetafstand in Amir
+                   // vast: de doek zit vast aan de stam (bron-x tot vast[0]) en aan de paal (vanaf vast[2]); daar zakt hij niet, en over
+                   // vast[1] en vast[3] bron-px loopt de kuil daarnaartoe uit, zodat er geen gat valt tussen doek en hout.
+                   // omhoog: doorveren boven de rustplek mag maar zoveel keer zo ver als omlaag zakken (anders gat onder de doek)
+                   vast: [110, 170, 875, 150], omhoog: 0.25,
                    veer: { amp: 1.3, demp: 6, freq: 18, duur: 0.7 }, stap: 6,
                    // kleur: de doek omgekleurd (alleen de blauwe pixels, het hout blijft), zie stadLuifelStrakBeeld
                    kleuren: { oker: { hue: 150, sat: 1.15, licht: 1.0 } },
@@ -35516,6 +35520,16 @@ function stadLuifelStrakBeeld(kleur){
     return c;
   });
 }
+// hoeveel de kuil op bron-x u mag zakken: 0 aan de stam en de paal, 1 in het midden, met een zachte overgang
+function stadLuifelVast(L, u){
+  const V = L.vast, z = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+  return z((u - V[0]) / V[1]) * z((V[2] - u) / V[3]);
+}
+// de kuil op scherm-x: een klok rond Amir; boven de rustplek (naveren) maar een stukje (kuil.omhoog)
+function stadLuifelDip(D, kx, sg){
+  const d = D < 0 ? D * STAD.plein.luifelStrak.kuil.omhoog : D;
+  return x => d * Math.exp(-Math.pow((x - kx) / sg, 2));
+}
 // de plaat in kolommen, elk zoveel lager als de kuil daar is (dip in scherm-px op scherm-x); voor: alleen de voorrand
 function stadLuifelStrakKolommen(p, lm, groundY, scale, cx, dip, voor){
   const L = lm.L, im = stadLuifelStrakBeeld(p.kleur), q = stadQ(im, 1), th = terrainH(lm.wand), A = CHAR_H * scale;
@@ -35524,7 +35538,7 @@ function stadLuifelStrakKolommen(p, lm, groundY, scale, cx, dip, voor){
   ctx.save(); ctx.translate(wx0, 0); ctx.scale(-lm.dir, 1);    // lokaal: x = (bron-x - wand) * fs
   const stap = voor ? 3 : 6;
   for (let x = 0; x < L.w; x += stap){
-    const sxm = wx0 + lm.dir * (L.wand - (x + stap / 2)) * fs, d = dip(sxm);
+    const sxm = wx0 + lm.dir * (L.wand - (x + stap / 2)) * fs, d = dip(sxm) * stadLuifelVast(L, x + stap / 2);
     const ob = Math.min(L.h, Math.ceil(stadStalY(L, x + stap / 2, L.onder)) + 2);   // de onderrand van de doek in deze kolom
     if (voor){
       if (Math.abs(sxm - kx) > reik || x + stap < L.stal[0][0] || x > L.stal[L.stal.length - 1][0]) continue;   // alleen de doek zelf, niet de paal of de franje
@@ -35572,7 +35586,7 @@ function stadLuifelStrakTeken(p, groundY, scale, cx, zicht){
     ctx.restore();
     return;
   }
-  stadLuifelStrakKolommen(p, lm, groundY, scale, cx, x => D * Math.exp(-Math.pow((x - kx) / sg, 2)), false);
+  stadLuifelStrakKolommen(p, lm, groundY, scale, cx, stadLuifelDip(D, kx, sg), false);
   if (K.rust > 0.05){                              // een zachte schaduw in de kuil, onder zijn voeten
     const th = terrainH(lm.wand), sxw = (K.x - lm.wand) * lm.dir / lm.fs, bronX = L.wand - sxw;
     const y = groundY - (th + lm.bh(stadStalY(L, bronX))) * scale + D * 0.3 - 0.01 * A, rx = 0.22 * A, ry = 0.025 * A;   // binnen de strook doek
@@ -35589,7 +35603,7 @@ function stadLuifelVoor(groundY, scale, cx){
     if (p.stijl !== 'strak' || p.gevel == null || !stadKlaar('luifelStrak')) continue;
     const K = stadKuil(p); if (K.rust < 0.05) continue;
     const L = STAD.plein.luifelStrak, A = CHAR_H * scale, D = stadKuilDiep(p) * A * K.amp, sg = stadKuilBreed(L) * A, kx = cx + (K.x - world);
-    stadLuifelStrakKolommen(p, stadLuifelMaat(p, scale), groundY, scale, cx, x => D * Math.exp(-Math.pow((x - kx) / sg, 2)), true);
+    stadLuifelStrakKolommen(p, stadLuifelMaat(p, scale), groundY, scale, cx, stadLuifelDip(D, kx, sg), true);
   }
 }
 function stadLuifelTeken(p, groundY, scale, cx, zicht){
