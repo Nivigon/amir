@@ -137,3 +137,9 @@ groot na; terug kiest nu de figuur die het best op het origineel past.
 - kleur.py: de regel "blauw boven de riem is ketting" pakte in de rol de hele broek (die ligt daar boven de riem); nu
   alleen kleine stukjes die tegen de kralen aan liggen.
 - Export rol_sp, 12 fps.
+
+## Trap met speer (2 frames, af)
+- Prompt `mk_trap`: de bukprompt met "He stands upright on a stair step, one foot placed higher than the other; keep his
+  exact stance". Posts: trap_af 1c0245bd (IoU 0,74), trap_op 3da6e5f4 (0,77). Hoofd en vuist uit het origineel.
+- Export trap_sp, 4 fps (twee losse poses, geen loop).
+- Grok laadt sinds ~12:15 weer traag (60-90 s per pagina, soms time-outs van scripts). Werkt wel; ik wacht langer per stap.
