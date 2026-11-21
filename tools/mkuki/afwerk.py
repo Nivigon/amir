@@ -7,6 +7,7 @@ afwerk(kleed, orig, info, hoofd=True, voeten=True) -> dict(lijf, vuist, zones, v
 import numpy as np
 from scipy import ndimage as nd
 import kleur
+MIS = []  # handen waar de vuist niet geplakt is (Grok tekende de hand elders)
 
 
 def _vacht(o):
@@ -134,7 +135,11 @@ def afwerk(kleed, orig, info, hoofd=True, voeten=True, hoofd_lijn=None, benen=Fa
         for hx, hy in info['handen']:
             disc = (xx - hx) ** 2 + (yy - hy) ** 2 < r * r
             rand = ((xx - hx) ** 2 + (yy - hy) ** 2 < (r + 3) ** 2) & ~disc
-            org = disc & oal & ~info['masker']
+            org = disc & oal & ~info['masker'] & ~_vacht(orig) & ~_broek_oud(orig)
+            # staat de hand van Grok hier niet (rol: andere houding), dan geen vuist uit het origineel plakken
+            if org.sum() and (org & (kleed[..., 3] > 40)).sum() < 0.5 * org.sum():
+                MIS.append((round(hx), round(hy)))
+                continue
             # Grok-pixels in de schijf weg, behalve waar ze aan de rand doorlopen (pols, manchet)
             out[disc & ~org & ~nd.binary_dilation(rand & (out[..., 3] > 0), iterations=1)] = 0
             out[org] = orig[org]

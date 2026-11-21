@@ -108,3 +108,32 @@ groot na; terug kiest nu de figuur die het best op het origineel past.
 - s6 kwam terug op 1248x832; geplakt met tools/mkuki/plakmaat.sh.
 - IoU 0,67 tot 0,82. Posts staan in werk/sluip/ids.json (niet in de repo); s0 62bb1310, s12 2c621ddc, s21 d97a911d.
 - Export sluipen_sp, 12 fps.
+
+## 21-11-2026, 11:00 verder (nieuwe chat): rol met speer (28 frames, af)
+
+- De werkmap van de vorige chat was weg. De omgekleurde referentie opnieuw opgehaald uit Grok (post `d0bb0d1c`,
+  1648x1200) en gekeyd naar `/home/claude/werk/een/ref_hulp.png`.
+- Ophalen nu met twee tegels van 1209x576 (rechterdeel vanaf x=519, waar de grote figuur staat): `tools/mkuki/tegel2.sh`,
+  en `tools/mkuki/verwerk.sh` (plakken, terugzetten, post-id in ids.json). `tegelxy.sh` als de figuur verder links staat.
+- Speermeting: rol 23 en 24 lijn gefit op de schacht (`tools/mkuki/fitlijn.py`), rol 23-25 band 9,5 px breed.
+- Prompts (localStorage op grok.com): `mk_rol3` (basis: "caught mid-movement in a forward roll", vuisten), `mk_rol4`
+  (armen lang naar voren en omlaag, voor 4 en 5), `mk_rol5` (hoofd laag tussen de armen, 8 en 9), `mk_rol6` (opgerold, vuisten
+  voor het gezicht, 13-16), `mk_rol7` (opgerold, armen ver naar links, 17 en 18), `mk_rol_lig` (op de rug, 22),
+  `mk_rol_zit` (zittend, 23 en 24), `mk_rol_kniel` (geknield, 25-28).
+- Keuze: ondersteboven-frames (11-19) worden NIET gedraaid aangeboden. Rechtop gezet ("draai") gaf in de proef van 11 een
+  rechtopstaande figuur (IoU 0,39): Grok maakt van een omgedraaide handstand een staande man. Zo aangeboden zoals ze zijn
+  lukt het wel (0,65-0,75). `"draai": true` blijft alleen voor het afwerken (klaar1.py `--draai`), zodat hoofd en voeten
+  in de goede richting gezocht worden.
+- Posts (laatste = gebruikt): 1 20c63994, 2 13238ef8, 3 06efa016, 4 acbdd7d8, 5 5ca8acdc, 6 77693cba, 7 20cfe7fe,
+  8 0ee63858, 9 d3433ed3, 10 be5a672e, 11 b3f1f0c8, 12 037c7a9e, 13 eeaf7ef7, 14 14ea1598, 15 d0a39eec, 16 eb454482,
+  17 48e25a19, 18 31b87283, 19 59516103, 20 9370854c, 21 a357b6ee, 22 73cf25e5, 23 09f68af4, 24 1cc85608, 25 82222ee0,
+  26 c7f85e19, 27 b689b5a6, 28 5bf9cc24. Afgekeurd: 3 (470a0d9e, ff70105e: vuist en speerresten), 4 (29778e83), 5 (dedd73ea),
+  8 (4037bd7b, kleiner), 9 (9c06b540), 11 (0cba6fea: rechtop), 13 (28309b74), 17 (b2711f72: armen omhoog), 18 (1fbae8d6),
+  22 (efeb885d: staand). IoU 0,63-0,82.
+- Afwerken in de rol: vanaf 11 geen hoofd uit het origineel (`--geenhoofd`), want in de liggende en ondersteboven poses
+  pakte de hoofdzone vachtresten en speerstukken mee; het hoofd van Grok is daar schoon. `--schoon` haalt dunne losse
+  sliertjes weg. Vuist uit het origineel alleen als de hand van Grok er ook zit (anders zweefde er een losse vuist);
+  niet geplakt in 3 (een van de drie handstukken) en 19.
+- kleur.py: de regel "blauw boven de riem is ketting" pakte in de rol de hele broek (die ligt daar boven de riem); nu
+  alleen kleine stukjes die tegen de kralen aan liggen.
+- Export rol_sp, 12 fps.

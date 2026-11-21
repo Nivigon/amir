@@ -61,9 +61,11 @@ def zones(rgba):
     if (z == 3).any() and (z == 1).any():
         riem_top = np.percentile(np.where(z == 3)[0], 10)
         lab, n = nd.label(z == 1)
+        totaal = (z == 1).sum()
         for i in range(1, n + 1):
             m = lab == i
-            if np.where(m)[0].mean() < riem_top - 4:
+            # alleen kleine stukjes: in de rol ligt de broek zelf boven de riem (ondersteboven, liggend)
+            if np.where(m)[0].mean() < riem_top - 4 and m.sum() < 0.25 * totaal and (nd.binary_dilation(m, iterations=4) & (z == 5)).any():
                 z[m] = 5
     # oranje vlekjes binnen de schort zijn schaduw van de schort
     lab, n = nd.label(z == 6)
