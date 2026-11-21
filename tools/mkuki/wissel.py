@@ -1,4 +1,5 @@
-"""(ren_sp: de voorarm houdt de speer en heeft een losse vuistlaag, die blijft ongemoeid.)
+"""(ren_sp: de voorarm houdt in elk frame de speer, dus de armen wisselen niet: de voorarm (met de losse
+vuistlaag) blijft ongemoeid en de achterarm is in alle frames de verre arm. Alleen de benen wisselen.)
 
 Laat de renloop van Mkuki echt links-rechts wisselen.
 
@@ -84,8 +85,8 @@ def main():
                 out[rand, :3] *= 0.55
                 zo[dij, :3] = ZONE_BROEK
                 lab[dij] = VB
-            ver = (lab == AB) | ((lab == VA) & (set_ != 'ren_sp'))
-            nab = (lab == VB) | (lab == AA)
+            ver = (lab == AB) | ((lab == VA) & (set_ != 'ren_sp')) | ((lab == AA) & (set_ == 'ren_sp'))
+            nab = (lab == VB) | ((lab == AA) & (set_ != 'ren_sp'))
         else:
             ver = (lab == VB) | (lab == AA)
             nab = (lab == AB) | ((lab == VA) & (set_ != 'ren_sp'))
