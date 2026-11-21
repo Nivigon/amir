@@ -89,3 +89,11 @@ de andere sets van voor 17:51.
   (0,56-0,65) omdat de vacht in het origineel de omtrek groter maakt en bij 5 de voorste onderarm met de speer is
   weggehaald; de houding (draaiing, armen, benen) is per frame nagekeken.
 - Frame 4 leunt iets minder voorover dan het origineel; frame 9 staat iets rechter.
+
+## Speerworp
+- Draaiing per frame nagekeken: 00-07 borst naar de camera, 08-09 driekwart naar rechts, 10-17 profiel/rug naar de camera,
+  18 profiel, 19 driekwart. Frames waar Grok hem verkeerd draaide zijn afgekeurd (10, 14, 18).
+- 08: de originele vuist om de schacht is niet geplakt (Grok's werkhand ligt er net naast); de speer loopt langs zijn
+  eigen vuist.
+- 12: voorste hand is een vuist in plaats van open; 15: achterarm te gestrekt; 16 en 17: voorste arm reikt minder ver.
+- 00-02: het hoofd uit het origineel had resten van de speer; daarom overal het hoofd van Grok (--geenhoofd).

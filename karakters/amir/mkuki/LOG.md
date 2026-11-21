@@ -272,7 +272,7 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
   10 3094bf84 0,78 mk_strike
 - Export strike_sp, 12 fps.
 
-## Speerworp (begonnen, 16 van 20)
+## Speerworp (20 frames, af)
 - Bronframes staan in `amir runc/amir_sprites/design/amir/speerworp/` (map in `THR_DIRS`). Lokaal een symlink
   `karakters/amir/speerworp` naar die map (in .git/info/exclude, niet gecommit), zodat de tools een pad onder
   `karakters/amir/` krijgen; de uitvoer staat in `karakters/amir/mkuki/speerworp/`.
@@ -297,4 +297,11 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
   14 ce7692f7 0,67 mk_worp_rugzwaai; afgekeurd 56992d06 (borst naar de camera)
   15 9ee0d934 0,54 mk_worp_rughoog; afgekeurd 7534d266 (achterarm bij de heup i.p.v. achter op borsthoogte). Achterarm nu te gestrekt.
   16 afgekeurd 2b10ab7c (voorste arm te hoog, 0,50); volgende poging met mk_worp_rugzak (arm omlaag)
-- Voorlopig geexporteerd als `worp_onaf` (00-15).
+  16 afgekeurd 2b10ab7c (voorste arm te hoog, 0,50); volgende poging met mk_worp_rugzak (arm omlaag)
+  16 726205c5 0,54 mk_worp_rugzak; voorste arm reikt minder ver dan origineel
+  17 2bc67d6f 0,57 mk_worp_hand_neer; voorste hand iets minder ver
+  18 6c659d72 0,81 mk_worp_loop; afgekeurd cda0d2a2 (te frontaal, 0,61)
+  19 37c42c67 0,75 mk_worp_staan2; afgekeurd fa614249 (vechthouding met vuisten omhoog)
+- Prompts erbij: `mk_worp_hand_neer`, `mk_worp_loop`, `mk_worp_staan2` (de gevechtszin van mk_strike vervangen door 'standing calmly').
+- Export worp_sp, 12 fps; `worp_onaf` weg.
+- Op grok.com stonden tussendoor posts van een andere sessie ("Masked Bandit ... Landing"); de tabbladen van deze run verdwenen af en toe. Geen invloed op de frames.
