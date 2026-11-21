@@ -44936,6 +44936,13 @@ const banAfzetSnd = banStemmen('sounds/banditafzet.mp3', 2);                    
 function banRoep(){ banStemSpeel(banRoepSnd[Math.random() < 0.5 ? 0 : 1], BAN_ROEP_VOL); }   // Die! of False king!, bij de charge
 function banSterf(){ banStemSpeel(banDoodSnd, BAN_ROEP_VOL); }                                // de doodskreet
 function banAfzet(){ banStemSpeel(banAfzetSnd, BAN_ROEP_VOL); }                               // de kreun bij het afzetten van de vault
+// de landing van de chaser na de galerijsprong: de plof van de baviaan (bavland.mp3), op de sterkte van diens gewone sprong
+// (BAV_LAND.sprong maal BAV_LAND.vol), op het rieten dak zachter, en verderop zachter zoals zijn voetstappen (BAN_STAP)
+const banLandSnd = banStemmen('sounds/bavland.mp3', 3);
+function banLandPlof(wx, riet){
+  const af = Math.max(0.3, 1 - Math.abs(wx - playerX()) / (BAN_STAP.ver * W));
+  banStemSpeel(banLandSnd, Math.min(1, (riet ? BAN_GJ.landVolRiet : BAN_GJ.landVol) * af));
+}
 
 // Zijn voetstappen onder het rennen, gemaakt met de Web Audio API zoals de poten van de baviaan (`bavPoot`),
 // maar lichter: een mens op droge grond, niet de dreun van een poot. Een korte, snelle toon die in toonhoogte
@@ -45239,8 +45246,24 @@ const BAN_GJ = {
   landY: [99, 88, 72, 38, 21, 6, 6],   // hoe hoog (canvas-px) hij in de landingsframes 0 tot 6 nog boven de grond hing
   klap: 7,              // het landingsframe waarop hij neerkomt: daar de stofwolk
   houd: 0.55,           // zo lang blijft hij laag zitten na de landing (het strafvenster)
-  opkijkVan: 8          // opkijk vanaf dit frame (het opkijken zelf), tot het eind
+  opkijkVan: 8,         // opkijk vanaf dit frame (het opkijken zelf), tot het eind
+  landVol: 0.84,        // de plof bij de landing op de straat (BAV_LAND.vol 1,2 maal BAV_LAND.sprong 0,7, net als de sprong van de baviaan)
+  landVolRiet: 0.45,    // en op het rieten dak, dat hem opvangt
+  landVoor: 0.1,        // de klap zit zoveel seconden in het bestand (BAV_LAND.voor): zo ver voor het neerkomen start hij
+  // de tussenstop: ligt er een rieten kraamdak onder de rand (lager dan hij, hoger dan Amir), dan landt hij eerst daarop
+  // en springt hij meteen door naar de straat, zonder tell en zonder het lange zitten
+  riet: { min: 80,      // het rieten dak ligt minstens zoveel lager dan hij en hoger dan de straat eronder
+          tot: 10,      // op het riet speelt de landing tot dit frame, dan zet hij meteen weer af
+          fps: 30,      // en dat gaat vlot
+          v0: 380,      // de tweede sprong is kleiner
+          voor: 70 }    // en zo ver voorbij de rand van het rieten dak komt hij neer
 };
+// de kraam onder x (het rieten dak of de doek), of null. Een vijand staat er normaal niet op (stadVloeren telt ze niet)
+function banGjKraam(x){
+  if (!stadAan()) return null;
+  for (const p of stadPlats(nowScale())) if ((p.stad === 'riet' || p.kraam != null) && x > p.left - 10 && x < p.right + 10) return p;
+  return null;
+}
 // een wereldhoogte uit canvas-px van de galerijset
 function banGjHoog(px){ return px * banSetScale('afzet') / nowScale(); }
 // de rand van zijn vloer in richting dir: de eerste plek waar het naar beneden gaat (dropAhead), of null
@@ -45252,9 +45275,32 @@ function banGjRand(s, dir, halfL){
   return null;
 }
 // waar hij zou landen als hij nu bij de rand in richting dir afsprong, of null als dat niet kan (ravijn, wand, niet lager)
-function banGjLanding(s, dir, plats, cliff){
-  const halfL = BAN_LIJF.half * banScale(), x = s.x + dir * (halfL + BAN_GJ.voor);
-  const b = vloerBij(x, (s.base || 0) - BAN_GJ.min);
+function banGjLanding(s, dir, plats, cliff, verder){
+  const halfL = BAN_LIJF.half * banScale();
+  let x = s.x + dir * (halfL + (verder != null ? verder : BAN_GJ.voor));
+  let b = vloerBij(x, (s.base || 0) - BAN_GJ.min);
+  // een kraam op de landingsplek: een rieten dak tussen hem en de straat is een tussenstop, anders (de doek, of te hoog of
+  // te laag) landt hij ernaast in plaats van er dwars doorheen
+  // een rieten dak tussen de rand en de landingsplek (niet onder de galerij zelf) is de tussenstop
+  if (verder == null && stadAan()){
+    const van = s.x + dir * halfL, tot = x + dir * 60, lo = Math.min(van, tot), hi = Math.max(van, tot);
+    for (const p of stadPlats(nowScale())){
+      if (p.stad !== 'riet' || p.right < lo || p.left > hi) continue;
+      // er moet genoeg riet voorbij de rand liggen (het mag deels onder de galerij doorlopen)
+      const buiten = dir < 0 ? (s.x - halfL - 40) - p.left : p.right - (s.x + halfL + 40);
+      if (buiten < halfL * 1.4) continue;
+      if (!(p.topH < (s.base || 0) - BAN_GJ.riet.min && p.topH > vloerBij((p.left + p.right) / 2, p.topH - 1) + BAN_GJ.riet.min)) continue;
+      const vrijL = dir < 0 ? p.left + halfL * 0.6 : s.x + halfL + 60, vrijR = dir < 0 ? s.x - halfL - 60 : p.right - halfL * 0.6;
+      const xr = Math.max(vrijL, Math.min(vrijR, x));            // ruim op het riet, voorbij de rand van de galerij
+      return { x: xr, base: p.topH, riet: p };
+    }
+  }
+  const k = banGjKraam(x);
+  if (k){
+    x = (dir < 0 ? k.left : k.right) + dir * (halfL + 30);
+    b = vloerBij(x, (s.base || 0) - BAN_GJ.min);
+    if (banGjKraam(x)) return null;                               // nog een kraam: geen plek
+  }
   if (!(b < (s.base || 0) - BAN_GJ.min * 0.5) || gatOp(x, b)) return null;
   if (hardBlocked({ x: s.x, base: b }, x, plats, cliff, 80)) return null;
   return { x, base: b };
@@ -45277,12 +45323,36 @@ function banGjStart(s, dir){
 function banGjLos(s, plats, cliff){
   const L = banGjLanding(s, s.gjDir, plats, cliff);
   if (!L){ banSet(s, 'run'); return; }                            // geen plek om te landen meer: hij blijft boven
-  const h0 = (s.base || 0) - L.base;
-  s.gjX0 = s.x; s.gjX1 = L.x; s.gjT = 0;
-  s.gjDuur = (BAN_GJ.v0 + Math.sqrt(BAN_GJ.v0 * BAN_GJ.v0 + 2 * BAN_GJ.g * h0)) / BAN_GJ.g;   // de hele vlucht
-  s.base = L.base; s.air = h0; s.airV = -BAN_GJ.v0;
+  banGjVlieg(s, L, BAN_GJ.v0);
   banAfzet();                                                     // het afzetgeluid
-  banStofWolk(s.x, (s.base || 0) + h0, 5, -s.gjDir * 40, 1.1);
+  banStofWolk(s.x, (s.base || 0) + s.air, 5, -s.gjDir * 40, 1.1);
+}
+// de vlucht naar landingsplek L (met v0 omhoog): zijn vloer wordt meteen die van L, s.air de hoogte erboven
+function banGjVlieg(s, L, v0){
+  const h0 = (s.base || 0) - L.base;
+  s.gjX0 = s.x; s.gjX1 = L.x; s.gjT = 0; s.gjV0 = v0;
+  s.gjDuur = (v0 + Math.sqrt(v0 * v0 + 2 * BAN_GJ.g * h0)) / BAN_GJ.g;   // de hele vlucht
+  s.base = L.base; s.air = h0; s.airV = -v0;
+  s.gjRiet = L.riet || null;                                     // landt hij op een rieten dak (de tussenstop)?
+  s.gjPlof = false;                                              // de landingsplof is nog niet gespeeld
+}
+// van het rieten dak door naar de straat: de rand op Amirs kant, een kleine sprong zonder tell
+function banGjDoor(s, plats, cliff){
+  const k = s.gjRiet; s.gjRiet = null; s.gjOpRiet = false;
+  const dir = playerX() >= s.x ? 1 : -1, halfL = BAN_LIJF.half * banScale();
+  const rand = dir < 0 ? k.left : k.right;
+  const x = rand + dir * (halfL + BAN_GJ.riet.voor);
+  const b = vloerBij(x, (s.base || 0) - BAN_GJ.riet.min);
+  if (banGjKraam(x) || gatOp(x, b) || !(b < (s.base || 0) - 20) || hardBlocked({ x: s.x, base: b }, x, plats, cliff, 80)){
+    // die kant op kan niet: dan de andere rand
+    const r2 = dir < 0 ? k.right : k.left, x2 = r2 - dir * (halfL + BAN_GJ.riet.voor), b2 = vloerBij(x2, (s.base || 0) - BAN_GJ.riet.min);
+    banSet(s, 'afzet'); s.frame = BAN_GJ.los; s.gjDir = -dir; s.face = -dir;
+    banGjVlieg(s, { x: x2, base: b2 }, BAN_GJ.riet.v0);
+    return;
+  }
+  banSet(s, 'afzet'); s.frame = BAN_GJ.los; s.gjDir = dir; s.face = dir;
+  banGjVlieg(s, { x, base: b }, BAN_GJ.riet.v0);
+  banStofWolk(s.x, (s.base || 0) + s.air, 3, -dir * 30, 0.8);
 }
 // de hele galerijsprong, per beeld; true zolang hij ermee bezig is
 function banGjStap(s, dt, plats, cliff){
@@ -45309,12 +45379,20 @@ function banGjStap(s, dt, plats, cliff){
       if (f < 0){ if (s.state !== 'zweef') banSet(s, 'zweef'); }
       else { if (s.state !== 'landing') banSet(s, 'landing'); s.frame = f; }
     }
+    if (!s.gjPlof && s.airV > 0 && s.air <= s.airV * BAN_GJ.landVoor){ s.gjPlof = true; banLandPlof(s.x, !!s.gjRiet); }   // de plof, zo dat de klap op het neerkomen valt
     if (s.air <= 0){                                              // neer: de klap en de stofwolk
       s.air = 0; s.airV = 0; s.x = s.gjX1;
       banSet(s, 'landing'); s.frame = BAN_GJ.klap; s.gjT = 0;
+      if (s.gjRiet){ s.gjOpRiet = true; puffWorld(s.x, 4, 0, 0.8, s.base || 0); banVoetstap(s.x); return true; }   // op het riet: alleen een plof
       banStofWolk(s.x, s.base || 0, 14, 0, 1.9); puffWorld(s.x, 9, 0, 1.3, s.base || 0);
       banVoetstap(s.x);
     }
+    return true;
+  }
+  if (st === 'landing' && s.gjOpRiet){                            // op het rieten dak: kort door de knieen en meteen door
+    s.acc += dt * BAN_GJ.riet.fps;
+    while (s.acc >= 1 && s.frame < BAN_GJ.riet.tot){ s.acc -= 1; s.frame++; }
+    if (s.frame >= BAN_GJ.riet.tot) banGjDoor(s, plats, cliff);
     return true;
   }
   if (st === 'landing'){                                          // de klap uitspelen, dan laag blijven zitten (het strafvenster)
@@ -45482,8 +45560,8 @@ function updateBandiet(s, dt, plats, cliff){
   if (s.rust > 0) s.rust = Math.max(0, s.rust - dt);
   else if (s.traag > 0) s.traag = Math.max(0, s.traag - dt);   // na de terugslag: eerst stil (rust), dan traag op gang
   s.t += dt;
-  if (!(s.air > 0)) s.base = opstapVolg(s, vloerBij(s.x, s.base), dt);   // over een opstapje glijdend (in de galerijsprong heeft hij zijn landingsvloer al)
-  if (!s.dropping && !(s.air > 0)) rijsDraagtMob(s, dt);   // mee omhoog en omlaag met een lift of rijzend blok
+  if (!(s.air > 0) && !s.gjOpRiet) s.base = opstapVolg(s, vloerBij(s.x, s.base), dt);   // over een opstapje glijdend (in de galerijsprong heeft hij zijn landingsvloer al)
+  if (!s.dropping && !(s.air > 0) && !s.gjOpRiet) rijsDraagtMob(s, dt);   // mee omhoog en omlaag met een lift of rijzend blok
 
   if (s.wacht){                                      // staat in de arena te wachten tot Amir uitgetekend is: stilstaan, naar hem kijken
     s.frame = 0; s.acc = 0; s.face = playerX() >= s.x ? 1 : -1; return;
@@ -45551,6 +45629,7 @@ function updateBandiet(s, dt, plats, cliff){
   }
 
   // de galerijsprong van de chaser (zie BAN_GJ): aan de rand hurken, afzetten, vallen, landen, opkijken
+  if (s.gjOpRiet && s.state !== 'landing') banGjDoor(s, plats, cliff);   // op het riet geraakt: toch door naar beneden (het riet draagt hem niet)
   if (BAN_GJ_SETS.includes(s.state) && banGjStap(s, dt, plats, cliff)) return;
 
   // ---- het takelwiel: de takelaar slaat het rad, de passagiers rijden mee omhoog en stormen er dan af ----
