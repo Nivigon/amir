@@ -1689,11 +1689,12 @@
         <button id="sbanvault">Vault uit</button>
         <button id="sbanelite">Elite uit</button>
         <button id="sbanduin">Duin uit</button>
+        <button id="sbanchaser" title="de chaser (Asloper, asgrijs met oranje): iets sneller, en hij springt van een galerij of dak naar beneden als je lager staat (zie BAN_GJ)">Chaser uit</button>
         <button id="sbanarena">Arena aan</button>
         <button id="sbangolf">Golf aan</button>
         <button id="sbbloed">Bloed uit</button>
         <button id="sbbloedvar">Spuit: fel</button>
-        <span class="hint">rent op je af, haalt uit en schiet in de uitval door (met stof); dan draait hij om en komt weer. Dolk aan: hij gooit eerst zijn dolk. Hinderlaag: hij zit gehurkt met de rug naar je, hoort je, springt op en werpt zijn dolk. Van boven: hij komt van boven de arena in en landt met stof. Vault aan: komt hij bij een kei en sta jij aan de overkant, dan springt hij er in een radslag overheen (regel 7-uitzondering). Elite aan: de zwarte garde van de valse koning (zwart met goud). Duin aan: de Duinwacht (duinzand, brons, koperen zwaard, grijze wenkbrauwen). Golf: telkens een erbij, van twee kanten, steeds sneller. Bloed aan: hij krijgt 3 treffers, elke klap laat een snee achter en de derde laat bloed uit zijn borst spuiten (Spuit: fel of donker)</span>
+        <span class="hint">rent op je af, haalt uit en schiet in de uitval door (met stof); dan draait hij om en komt weer. Dolk aan: hij gooit eerst zijn dolk. Hinderlaag: hij zit gehurkt met de rug naar je, hoort je, springt op en werpt zijn dolk. Van boven: hij komt van boven de arena in en landt met stof. Vault aan: komt hij bij een kei en sta jij aan de overkant, dan springt hij er in een radslag overheen (regel 7-uitzondering). Elite aan: de zwarte garde van de valse koning (zwart met goud). Duin aan: de Duinwacht (duinzand, brons, koperen zwaard, grijze wenkbrauwen). Chaser aan: de Asloper (asgrijs met een oranje sjerp), iets sneller dan je sprint; staat hij hoger dan jij, dan springt hij van de galerij of het dak (aan de rand even diep hurken, dan de sprong, een zware landing met stof en even laag blijven zitten). De sprong zie je in City Survival of in een stadslevel met een chaser op een dak. Golf: telkens een erbij, van twee kanten, steeds sneller. Bloed aan: hij krijgt 3 treffers, elke klap laat een snee achter en de derde laat bloed uit zijn borst spuiten (Spuit: fel of donker)</span>
       </div>
       <div class="row">
         <label>Zijn animaties</label>
@@ -3552,6 +3553,7 @@ const KLEIN_FAM = [
   'enemies/bandiet/',
   'enemies/bandiet_elite/',
   'enemies/bandiet_duin/',                        // de Duinwacht; ontbrak hier, zodat een telefoon de grote frames haalde (en offline niets had)
+  'enemies/bandiet_as/',                          // de chaser (Asloper), met de galerijsprong
   'enemies/schildbandiet/',
   'enemies/kooiman/',
   'enemies/meelman/',
@@ -21594,9 +21596,10 @@ function stokLaadLevel(lv){
   // die sets vooraf; in de oudere episodes kwamen ze bij de eerste counter binnen, midden in het gevecht.
   if (lv && (lv.stokken || tr)){
     const sp = lv.spawns || [];
-    if (lv.bandietGolf || sp.some(s => s.kind === 'bandiet' && !s.elite && !s.duin)) banLaadIdle(false);
+    if (lv.bandietGolf || sp.some(s => s.kind === 'bandiet' && !s.elite && !s.duin && !s.chaser)) banLaadIdle(false);
     if (sp.some(s => s.kind === 'bandiet' && s.elite)) banLaadIdle(true);
     if (sp.some(s => s.kind === 'bandiet' && s.duin)) banLaadIdle('duin');
+    if (sp.some(s => s.kind === 'bandiet' && s.chaser)) banLaadIdle('as');
   }
 }
 function stokReset(){ stokBuf = false; atkStok = null; stokBlok.f = -1; stokBlok.acc = 0; stokBlok.venster = 0; stokBlok.koel = 0; stokBlok.vast = false; }
@@ -22502,7 +22505,7 @@ function stokTreffer(s, wx, h, sx, deel){
       s.knock = (s.x < playerX() ? -1 : 1) * STOK.stun.terug;
       s.rust = STOK.stun.duur; s.traag = 0; s.inv = 0;   // stil, en open: de volgende slag pareert hij niet
       s.stokStun = STOK.stun.duur;
-      banLaadIdle(s.duin ? 'duin' : s.elite);       // de staande idle voor het wankelen (al binnen in een level met zicht)
+      banLaadIdle(banVariant(s));                  // de staande idle voor het wankelen (al binnen in een level met zicht)
     }
   } else {
     if (voel){ houtRaak(STOK.toon.slag, 0.8); hitstop = Math.max(hitstop, 0.04); }
@@ -38883,7 +38886,7 @@ function warmBouw(){
   if (heeft('panter')){ warmDing(panImg); if (winterOn()) warmDing(panSkins.wit); }
   // de bandiet (met zijn elite- en duin-varianten en zijn dolk) en de kooiman met zijn kooi: de
   // banken staan er al (setLevel laadde ze), dus we warmen alle geladen sets
-  if (heeft('bandiet') || level.bandietGolf || level.bandArena){ warmDing(banBank); warmDing(banBankElite); warmDing(banBankDuin); warmDing(banDolkRecht); }
+  if (heeft('bandiet') || level.bandietGolf || level.bandArena){ warmDing(banBank); warmDing(banBankElite); warmDing(banBankDuin); warmDing(banBankAs); warmDing(banDolkRecht); }
   if (heeft('kooiman')){
     warmDing(kooiBank); warmDing(kooiKooiImg);
     // de duel-kooiman heeft altijd een vogel, maar vogelLaadLevel laadt hem alleen bij s.vogel: forceer hem
@@ -40612,7 +40615,7 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         if (sp.achter > 0) bx += (bx > world ? 1 : -1) * sp.achter;   // tegelijk gestart, maar verder weg (zie de schildbandiet)
         const dak = sp.dak ? stadDakPlek(bx, sp.dak) : null;   // op een dak van de stad: binnen de dakrand, wat de schermmaat ook is
         if (dak) bx = dak.x;
-        const b = makeBandiet(bx, bx > world ? 1 : -1, sp.dolk, sp.hurk, sp.vault, false, false, null, sp.duin ? 'duin' : sp.elite);
+        const b = makeBandiet(bx, bx > world ? 1 : -1, sp.dolk, sp.hurk, sp.vault, false, false, null, banVariant(sp));
         b.base = dak ? dak.h : sp.vloer != null ? sp.vloer : sp.boven ? bovenVloer(bx) : terrainH(bx);
         if (sp.aanvoerder){                     // de aanvoerder: meer levens, een eigen kleur, zijn dood speelt het level uit
           b.aanvoerder = true; b.naam = sp.naam || null; b.tint = sp.tint || null; b.sluipVrij = sp.sluip === false;
@@ -40622,7 +40625,7 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         }
         else if (sp.hp){ b.hp = b.maxHp = sp.hp; b.hpBalk = true; }   // meer levens zonder aanvoerder te zijn (de elite-garde met vijf, zoals in Co-op; Test 74)
         if (sp.neer) banStartDrop(b);           // van boven de arena in
-        else if (!sp.hurk){ zichtZet(b, sp); if (zichtVoor(b)) banLaadIdle(sp.duin ? 'duin' : sp.elite); }   // de hinderlaag en wie van boven invalt hebben hun eigen opmaat
+        else if (!sp.hurk){ zichtZet(b, sp); if (zichtVoor(b)) banLaadIdle(banVariant(sp)); }   // de hinderlaag en wie van boven invalt hebben hun eigen opmaat
         bandieten.push(b); continue;
       }
       if (sp.kind === 'fosfor'){                   // altijd een groep van drie
@@ -44663,16 +44666,19 @@ const BAN = {
   fig: 351,                       // de staande figuur van kruin tot zool, in canvaspixels
   n:   { run: 14, slag: 33, look: 48, worp: 81, dood: 63,
          hurk_in: 28, hurk_idle: 24, schouder: 16, spot: 70, vault: 68,
-         walk: 16, idle: 15, idle_in: 10, schouder_sta: 14 },   // het hurkpakket (ambush), de vault en de staande patrouille/idle (sprites_idle.json)
+         walk: 16, idle: 15, idle_in: 10, schouder_sta: 14,      // het hurkpakket (ambush), de vault en de staande patrouille/idle (sprites_idle.json)
+         afzet: 29, zweef: 1, landing: 14, opkijk: 18 },        // de galerijsprong van de chaser (sprites_galerij.json, alleen in bandiet_as)
   fps: { run: 24, slag: 26, look: 18, worp: 32, dood: 30,
          hurk_in: 12, hurk_idle: 8, schouder: 18, spot: 38, vault: 90,
-         walk: 24, idle: 24, idle_in: 24, schouder_sta: 24 },   // eigen fps per set; de vault en de idle-sets gaan op ticks (BAN_VAULT_TICKS / BAN_IDLE_TICKS) op 24 fps; schouder en spot zijn vlot zodat hij snel opkomt en werpt
+         walk: 24, idle: 24, idle_in: 24, schouder_sta: 24,
+         afzet: 24, zweef: 24, landing: 24, opkijk: 24 },   // eigen fps per set; de vault en de idle-sets gaan op ticks (BAN_VAULT_TICKS / BAN_IDLE_TICKS) op 24 fps; schouder en spot zijn vlot zodat hij snel opkomt en werpt
   raak: [21, 27],                 // de frames van de slag waarop de kling schade doet
   klap: 20                        // hier begint de neerwaartse haal: daar valt het zwaaigeluid, en de uitval naar voren
 };
 const BAN_LOOP = { run: true, slag: false, look: false, worp: false, dood: false,
                    hurk_in: false, hurk_idle: true, schouder: false, spot: false, vault: false,
-                   walk: true, idle: true, idle_in: false, schouder_sta: false };
+                   walk: true, idle: true, idle_in: false, schouder_sta: false,
+                   afzet: false, zweef: true, landing: false, opkijk: false };
 // de staande patrouille- en idle-sets (walk, idle, idle_in, schouder_sta) staan op een eigen canvas
 // (397x563, voetlijn 555), op dezelfde schaal als de hoofdset (fig 351, geen correctie), uit sprites_idle.json
 // en LEESMIJ_idle.txt. Elk frame heeft een eigen duur in ticks op 24 fps (BAN_IDLE_TICKS), net als de vault.
@@ -44701,6 +44707,11 @@ for (const k of ['hurk_in', 'hurk_idle', 'schouder', 'spot']) BAN_SETGEO[k] = BA
 // via BAN_VAULT_GROND (zie de tekenlus), niet via dit vaste `ground`.
 BAN_SETGEO.vault = { w: 699, h: 510, anker: 408, ground: 462, fig: 351 };
 for (const k of ['walk', 'idle', 'idle_in', 'schouder_sta']) BAN_SETGEO[k] = BAN_IDLE_GEO;
+// de galerijsprong van de chaser (enemies/bandiet_as/, sprites_galerij.json en LEESMIJ_galerij.txt): een eigen canvas
+// van 471x563, voetlijn 555, op dezelfde schaal als de hoofdset. De idle-set ligt er 30 px in, dus het anker is 199 + 30.
+// De sprongbaan is uit de frames gehaald (elk frame staat op de voetlijn): de hoogte komt uit de engine (s.air)
+const BAN_GJ_GEO = { w: 471, h: 563, anker: 229, ground: 555, fig: 351 };
+for (const k of ['afzet', 'zweef', 'landing', 'opkijk']) BAN_SETGEO[k] = BAN_GJ_GEO;
 function banGeo(state){ return BAN_SETGEO[state] || BAN; }
 // de werpset: wanneer de dolk de hand verlaat, en tot waar de animatie loopt voor hij weer rent
 const BAN_WORP_RELEASE = 58;   // op dit frame verlaat de dolk zijn hand
@@ -44990,13 +45001,19 @@ const banBankElite = {};   // de elite-garde tekent uit een eigen cache (enemies
 const BAN_ROOT_ELITE = 'enemies/bandiet_elite/';   // zwart met een goud accent, uit tools/bandiet_elite_kleur.js
 const banBankDuin = {};    // de Duinwacht tekent uit een eigen cache (enemies/bandiet_duin/), apart van de rest
 const BAN_ROOT_DUIN = 'enemies/bandiet_duin/';     // duinzand met brons, koperen zwaard en grijze wenkbrauwen, uit tools/bandiet_duin_kleur.py
-// welke cache en map een bandiet gebruikt: 'duin' de Duinwacht, waar (truthy anders) de elite, anders de gewone rovers
-function banVar(v){ return v === 'duin' ? { bank: banBankDuin, root: BAN_ROOT_DUIN }
+const banBankAs = {};      // de chaser (de Asloper) tekent uit een eigen cache (enemies/bandiet_as/), met de galerijsprong erbij
+const BAN_ROOT_AS = 'enemies/bandiet_as/';         // asgrijs gewaad met een oranje sjerp, uit tools/bandiet_as_kleur.py
+// welke cache en map een bandiet gebruikt: 'as' de chaser, 'duin' de Duinwacht, waar (truthy anders) de elite, anders de gewone rovers
+function banVar(v){ return v === 'as' ? { bank: banBankAs, root: BAN_ROOT_AS }
+                    : v === 'duin' ? { bank: banBankDuin, root: BAN_ROOT_DUIN }
                     : v ? { bank: banBankElite, root: BAN_ROOT_ELITE }
                     : { bank: banBank, root: BAN_ROOT }; }
+// de variant van een neergezette bandiet of spawn, zoals banVar hem wil: 'as', 'duin', of de elite (truthy)
+function banVariant(s){ return s.chaser ? 'as' : s.duin ? 'duin' : !!s.elite; }
 const BAN_HURK_SETS = ['hurk_in', 'hurk_idle', 'schouder', 'spot'];
 const BAN_IDLE_SETS = ['walk', 'idle', 'idle_in', 'schouder_sta'];   // de staande patrouille/idle (sprites_idle.json)
-const BAN_EXTRA_SETS = [...BAN_HURK_SETS, 'vault', ...BAN_IDLE_SETS];   // zware sets die niet standaard meeladen
+const BAN_GJ_SETS = ['afzet', 'zweef', 'landing', 'opkijk'];   // de galerijsprong van de chaser (sprites_galerij.json), alleen in bandiet_as
+const BAN_EXTRA_SETS = [...BAN_HURK_SETS, 'vault', ...BAN_IDLE_SETS, ...BAN_GJ_SETS];   // zware sets die niet standaard meeladen
 function banLaadSet(k, variant){
   const { bank, root } = banVar(variant);
   laadNodig('ban:' + root + k);
@@ -45017,6 +45034,8 @@ function banLaadVault(elite){ banLaad(elite); banLaadSet('vault', elite); }
 // de staande patrouille/idle (walk, idle, idle_in, schouder_sta) alleen laden waar ze gebruikt worden
 // (nu de arena-entree en de sandbox), zodat ze de laadpoort van een gewoon bandietlevel niet vertragen
 function banLaadIdle(elite){ banLaad(elite); for (const k of BAN_IDLE_SETS) banLaadSet(k, elite); }
+// de chaser: de gewone sets, de vault en de galerijsprong (alleen zijn eigen map heeft die)
+function banLaadChaser(){ banLaad('as'); banLaadVault('as'); for (const k of BAN_GJ_SETS) banLaadSet(k, 'as'); }
 // de plaatjes alvast ophalen als dit level bandieten gebruikt (een golf of een spawn), zodat
 // er niemand zonder frame opkomt
 function banLaadLevel(lv){
@@ -45035,8 +45054,9 @@ function banLaadLevel(lv){
   if (sp.some(s => s.kind === 'bandiet' && s.elite && (s.vault || lv.bandArena))) banLaadVault(true);
   if (lv.bandArena) banLaadIdle(true);                                                        // de entree: garde die staand en gehurkt idlen voor het gevecht
   if (sp.some(s => s.kind === 'bandiet' && s.duin)){ banLaad('duin'); banLaadVault('duin'); } // de Duinwacht (vault staat standaard aan)
+  if (sp.some(s => s.kind === 'bandiet' && s.chaser)) banLaadChaser();                       // de chaser met zijn galerijsprong
   // met het zicht staat een rover in rust te idlen tot hij je ziet (zie "zicht")
-  if (lv.zicht) for (const s of sp) if (s.kind === 'bandiet' && !s.hurk && !s.neer && s.zicht !== false) banLaadIdle(s.duin ? 'duin' : !!s.elite);
+  if (lv.zicht) for (const s of sp) if (s.kind === 'bandiet' && !s.hurk && !s.neer && s.zicht !== false) banLaadIdle(banVariant(s));
 }
 
 // de dolk als projectiel (enemies/bandiet/dolk/, met dolk.json en LEESMIJ_dolk.txt als bron). Hij tolt
@@ -45109,9 +45129,10 @@ function banKanBij(s){
 function schbKanBij(s){ return kooiZelfdeHoogte(s) || (amirOpDoek() && slagBij(s, SCHB_BIJ.lo * CHAR_H, SCHB_BIJ.hi * CHAR_H)); }
 function zwmKanBij(s){ return kooiZelfdeHoogte(s) || (amirOpDoek() && slagBij(s, ZWM_BIJ.lo * CHAR_H, ZWM_BIJ.hi * CHAR_H)); }
 function makeBandiet(x, side, dolk, hurk, vault, takelaar, passagier, rol, variant){
-  // variant: 'duin' de Duinwacht, truthy anders de elite-garde, falsy de gewone rover
+  // variant: 'as' de chaser, 'duin' de Duinwacht, truthy anders de elite-garde, falsy de gewone rover
   const wilVault = vault !== false;                       // vaulten is de standaard voor een rover: alleen vault: false zet het uit
   banLaad(variant);
+  if (variant === 'as') banLaadChaser();                  // de chaser: ook zijn galerijsprong
   if (hurk) banLaadHurk(variant);
   if (wilVault) banLaadVault(variant);                    // de vaultframes als deze bandiet over keien springt
   if (passagier) banLaadIdle(variant);                    // een passagier idle't staand terwijl hij omhoog getakeld wordt
@@ -45129,6 +45150,7 @@ function makeBandiet(x, side, dolk, hurk, vault, takelaar, passagier, rol, varia
            takelaar: !!takelaar,                          // hij staat bij een takelwiel en slaat het rad (zodat het plateau stijgt)
            passagier: !!passagier, rol: rol || null,      // hij staat op het plateau en rijdt mee omhoog, dan komt hij in actie (rol: hurk, dolk of ren)
            elite: variant === true || variant === 'elite',   // de garde van de valse koning: tekent uit enemies/bandiet_elite/
+           chaser: variant === 'as',                          // de chaser (Asloper): tekent uit enemies/bandiet_as/, iets sneller, springt van een galerij (BAN_GJ)
            duin: variant === 'duin',                          // de Duinwacht: tekent uit enemies/bandiet_duin/
            air: 0, airV: 0,                               // van boven neerkomen: hoogte boven zijn vloer en de valsnelheid
            hitUsed: false, sweptId: -1, klaar: false, vrij: false, veeg: false,
@@ -45143,6 +45165,119 @@ function banSet(s, state){
 // van boven de arena in: hij verschijnt hoog boven zijn vloer en valt in de run-pose naar beneden, landt met
 // stof en rent dan op Amir af. Zolang hij valt (s.air > 0) is hij niet raakbaar en doet hij geen schade.
 const BAN_DROP = { hoog: 760, g: 2600 };           // de valhoogte (wereld-eenheden boven zijn vloer) en de valversnelling
+// ---- de chaser (de Asloper): iets sneller dan een gewone rover, en hij springt van een galerij naar beneden ----
+// Een bandiet met chaser: true (variant 'as') tekent uit enemies/bandiet_as/ (asgrijs met een oranje sjerp). Hij rent
+// iets harder (vK) en vault zoals elke rover over keien. Staat hij hoger dan Amir (een galerij, een dak, een terras), dan
+// rent hij naar de rand en springt eraf: aan de rand hurkt hij diep en houdt dat even vast (de tell), zet af, valt
+// (de engine tilt hem met s.air), landt zwaar met een hand op de grond en een stofwolk, blijft even laag zitten (het
+// strafvenster: dan is hij te raken en doet hij niets), kijkt op en sprint op Amir af. Uitzondering op "vijanden blijven op
+// hun niveau", op verzoek van de opdrachtgever. In de lucht is hij niet te raken.
+const BAN_GJ = {
+  vK: 1.06,             // zijn ren: 480 * 1,06 = 509, net boven je sprint (495)
+  min: 120,             // zoveel lager moet Amirs vloer liggen voor hij springt (wereld-eenheden)
+  zoek: 900,            // zo ver zoekt hij een rand om af te springen (wereld-px, naar beide kanten)
+  afzetVan: 3,          // de afzet begint op dit frame (0 tot 2 is staan)
+  diep: 10,             // het diepste hurkframe: daar houdt hij de tell vast
+  tell: 0.4,            // zo lang (s) houdt hij de diepe hurk vast aan de rand
+  los: 15,              // op dit frame komt hij los van de galerij
+  afzetFps: 18,         // het hurken en afzetten
+  v0: 620,              // de snelheid omhoog bij het afzetten (wereld-eenheden/s)
+  g: 2600,              // de valversnelling, zoals BAN_DROP
+  voor: 150,            // zo ver voorbij de rand landt hij (wereld-px, bovenop zijn halve lijf)
+  landY: [99, 88, 72, 38, 21, 6, 6],   // hoe hoog (canvas-px) hij in de landingsframes 0 tot 6 nog boven de grond hing
+  klap: 7,              // het landingsframe waarop hij neerkomt: daar de stofwolk
+  houd: 0.55,           // zo lang blijft hij laag zitten na de landing (het strafvenster)
+  opkijkVan: 8          // opkijk vanaf dit frame (het opkijken zelf), tot het eind
+};
+// een wereldhoogte uit canvas-px van de galerijset
+function banGjHoog(px){ return px * banSetScale('afzet') / nowScale(); }
+// de rand van zijn vloer in richting dir: de eerste plek waar het naar beneden gaat (dropAhead), of null
+function banGjRand(s, dir, halfL){
+  for (let d = 20; d <= BAN_GJ.zoek; d += 20){
+    const nx = s.x + dir * d;
+    if (dropAhead(nx + dir * halfL, s.base || 0, undefined, undefined, nx)) return nx;
+  }
+  return null;
+}
+// waar hij zou landen als hij nu bij de rand in richting dir afsprong, of null als dat niet kan (ravijn, wand, niet lager)
+function banGjLanding(s, dir, plats, cliff){
+  const halfL = BAN_LIJF.half * banScale(), x = s.x + dir * (halfL + BAN_GJ.voor);
+  const b = vloerBij(x, (s.base || 0) - BAN_GJ.min);
+  if (!(b < (s.base || 0) - BAN_GJ.min * 0.5) || gatOp(x, b)) return null;
+  if (hardBlocked({ x: s.x, base: b }, x, plats, cliff, 80)) return null;
+  return { x, base: b };
+}
+// moet de chaser hier naar beneden springen? Hij staat hoger dan Amir en vindt een rand: geeft de richting
+function banGjRichting(s, naarJe){
+  if (!s.chaser || s.rust > 0 || (s.air || 0) > 0) return 0;
+  const amirVloer = vloerBij(playerX(), ph);
+  if (amirVloer > (s.base || 0) - BAN_GJ.min) return 0;          // Amir staat niet lager
+  const halfL = BAN_LIJF.half * banScale();
+  if (banGjRand(s, naarJe, halfL) != null) return naarJe;         // de rand aan Amirs kant
+  if (Math.abs(playerX() - s.x) < BAN_GJ.zoek * 0.5 && banGjRand(s, -naarJe, halfL) != null) return -naarJe;   // Amir onder hem: de andere rand
+  return 0;
+}
+// de sprong beginnen: aan de rand hurken en de tell
+function banGjStart(s, dir){
+  banSet(s, 'afzet'); s.frame = BAN_GJ.afzetVan; s.face = dir; s.gjDir = dir; s.gjT = 0; s.knock = 0;
+}
+// los van de galerij: de vlucht uitrekenen (omhoog, dan vallen tot de vloer beneden) en meteen naar die vloer
+function banGjLos(s, plats, cliff){
+  const L = banGjLanding(s, s.gjDir, plats, cliff);
+  if (!L){ banSet(s, 'run'); return; }                            // geen plek om te landen meer: hij blijft boven
+  const h0 = (s.base || 0) - L.base;
+  s.gjX0 = s.x; s.gjX1 = L.x; s.gjT = 0;
+  s.gjDuur = (BAN_GJ.v0 + Math.sqrt(BAN_GJ.v0 * BAN_GJ.v0 + 2 * BAN_GJ.g * h0)) / BAN_GJ.g;   // de hele vlucht
+  s.base = L.base; s.air = h0; s.airV = -BAN_GJ.v0;
+  banAfzet();                                                     // het afzetgeluid
+  banStofWolk(s.x, (s.base || 0) + h0, 5, -s.gjDir * 40, 1.1);
+}
+// de hele galerijsprong, per beeld; true zolang hij ermee bezig is
+function banGjStap(s, dt, plats, cliff){
+  const st = s.state;
+  if (st === 'afzet' && !(s.air > 0)){                            // aan de rand: hurken, de tell, afzetten
+    if (banZelfdeHoogte(s) || !s.chaser){ banSet(s, 'run'); return false; }   // Amir kwam naar boven: niet meer springen
+    s.face = s.gjDir;
+    if (s.frame === BAN_GJ.diep && s.gjT < BAN_GJ.tell){ s.gjT += dt; return true; }   // de diepe hurk vasthouden
+    s.acc += dt * BAN_GJ.afzetFps;
+    while (s.acc >= 1){ s.acc -= 1; if (s.frame < BAN.n.afzet - 1) s.frame++; if (s.frame === BAN_GJ.diep) break; }
+    if (s.frame >= BAN_GJ.los) banGjLos(s, plats, cliff);
+    return true;
+  }
+  if (s.air > 0 && (st === 'afzet' || st === 'zweef' || st === 'landing')){   // in de lucht
+    s.gjT += dt;
+    s.airV += BAN_GJ.g * dt; s.air -= s.airV * dt;
+    const k = Math.min(1, s.gjT / (s.gjDuur || 1));
+    s.x = s.gjX0 + (s.gjX1 - s.gjX0) * k;
+    if (s.airV < 0){                                              // nog omhoog: de afzetframes lopen door
+      s.acc += dt * 24; while (s.acc >= 1){ s.acc -= 1; if (s.frame < BAN.n.afzet - 1) s.frame++; }
+    } else {                                                      // omlaag: zweven, en vlak boven de grond de landingsframes
+      let f = -1;
+      for (let i = 0; i < BAN_GJ.landY.length; i++) if (banGjHoog(BAN_GJ.landY[i]) >= s.air){ f = i; break; }
+      if (f < 0){ if (s.state !== 'zweef') banSet(s, 'zweef'); }
+      else { if (s.state !== 'landing') banSet(s, 'landing'); s.frame = f; }
+    }
+    if (s.air <= 0){                                              // neer: de klap en de stofwolk
+      s.air = 0; s.airV = 0; s.x = s.gjX1;
+      banSet(s, 'landing'); s.frame = BAN_GJ.klap; s.gjT = 0;
+      banStofWolk(s.x, s.base || 0, 14, 0, 1.9); puffWorld(s.x, 9, 0, 1.3, s.base || 0);
+      banVoetstap(s.x);
+    }
+    return true;
+  }
+  if (st === 'landing'){                                          // de klap uitspelen, dan laag blijven zitten (het strafvenster)
+    if (s.frame < BAN.n.landing - 1){ s.acc += dt * 24; while (s.acc >= 1 && s.frame < BAN.n.landing - 1){ s.acc -= 1; s.frame++; } return true; }
+    s.gjT += dt;
+    if (s.gjT >= BAN_GJ.houd){ banSet(s, 'opkijk'); s.frame = BAN_GJ.opkijkVan; }
+    return true;
+  }
+  if (st === 'opkijk'){                                           // opkijken, dan sprinten
+    s.acc += dt * 24;
+    while (s.acc >= 1){ s.acc -= 1; if (s.frame < BAN.n.opkijk - 1) s.frame++; else { banSet(s, 'run'); s.face = playerX() >= s.x ? 1 : -1; return false; } }
+    return true;
+  }
+  return false;
+}
 function banStartDrop(s){ s.dropping = true; s.air = BAN_DROP.hoog; s.airV = 0; banSet(s, 'run'); }
 function banAnim(s, dt){
   const n = BAN.n[s.state] || 1;
@@ -45261,11 +45396,11 @@ function banStofWolk(wx, base, n, kick, grootte){
 function banGlijStof(s){ banStofWolk(s.x - s.face * 28, s.base || 0, 4, -s.lunge * 0.12, 1.3); }
 // de staande idle van deze rover is binnen (alle frames geladen), zodat een wissel ernaar nooit een leeg beeld geeft
 function banIdleKlaar(s){
-  const set = (s.duin ? banBankDuin : s.elite ? banBankElite : banBank).idle;
+  const set = banVar(banVariant(s)).bank.idle;
   return !!set && set.every(im => im && im.complete && im.naturalWidth > 0);
 }
 function banFrameImg(s){
-  const bank = s.duin ? banBankDuin : s.elite ? banBankElite : banBank;
+  const bank = banVar(banVariant(s)).bank;
   const set = bank[s.state] || bank.run;
   return set && set[Math.min(s.frame, set.length - 1)];
 }
@@ -45283,7 +45418,7 @@ function updateBandieten(dt, plats, cliff){
 // schuift hij niet op, zodat twee maten bij Amir niet op elkaar gaan staan.
 function banScheidHouding(s){
   if (s.verblind > 0 || s.stokStun > 0 || s.knock || (s.rust > 0 && s.flash > 0)) return 2;
-  if (s.rust > 0 || s.state === 'slag' || s.state === 'worp' || s.state === 'spot' || s.state === 'vault') return 1;
+  if (s.rust > 0 || s.state === 'slag' || s.state === 'worp' || s.state === 'spot' || s.state === 'vault' || BAN_GJ_SETS.includes(s.state) || s.air > 0) return 1;
   return 0;
 }
 function updateBandiet(s, dt, plats, cliff){
@@ -45295,8 +45430,8 @@ function updateBandiet(s, dt, plats, cliff){
   if (s.rust > 0) s.rust = Math.max(0, s.rust - dt);
   else if (s.traag > 0) s.traag = Math.max(0, s.traag - dt);   // na de terugslag: eerst stil (rust), dan traag op gang
   s.t += dt;
-  s.base = opstapVolg(s, vloerBij(s.x, s.base), dt);   // over een opstapje glijdend
-  if (!s.dropping) rijsDraagtMob(s, dt);             // mee omhoog en omlaag met een lift of rijzend blok
+  if (!(s.air > 0)) s.base = opstapVolg(s, vloerBij(s.x, s.base), dt);   // over een opstapje glijdend (in de galerijsprong heeft hij zijn landingsvloer al)
+  if (!s.dropping && !(s.air > 0)) rijsDraagtMob(s, dt);   // mee omhoog en omlaag met een lift of rijzend blok
 
   if (s.wacht){                                      // staat in de arena te wachten tot Amir uitgetekend is: stilstaan, naar hem kijken
     s.frame = 0; s.acc = 0; s.face = playerX() >= s.x ? 1 : -1; return;
@@ -45362,6 +45497,9 @@ function updateBandiet(s, dt, plats, cliff){
     if (!banMove(s, s.knock * dt, plats, cliff)) s.knock = 0;
     else { s.knock *= Math.pow(0.02, dt); if (Math.abs(s.knock) < 4) s.knock = 0; }
   }
+
+  // de galerijsprong van de chaser (zie BAN_GJ): aan de rand hurken, afzetten, vallen, landen, opkijken
+  if (BAN_GJ_SETS.includes(s.state) && banGjStap(s, dt, plats, cliff)) return;
 
   // ---- het takelwiel: de takelaar slaat het rad, de passagiers rijden mee omhoog en stormen er dan af ----
   const tk = takelLevel();
@@ -45525,8 +45663,18 @@ function updateBandiet(s, dt, plats, cliff){
     const kei = banKeiVoor(s, naarJe, plats);
     if (kei){ banStartVault(s, kei, naarJe); return; }
   }
-  const voor = s.x, v = BAN_RUN_SPD * tempo * razV(s);   // in de razernij iets sneller (RAZ.v)
-  banMove(s, naarJe * v * dt, plats, cliff);
+  // de chaser staat hoger dan Amir: naar de rand rennen en eraf springen (BAN_GJ)
+  let loop = naarJe;
+  const gd = banGjRichting(s, naarJe);
+  if (gd){
+    const halfL = BAN_LIJF.half * banScale();
+    if (dropAhead(s.x + gd * (halfL + 24), s.base || 0, undefined, undefined, s.x + gd * 24) && banGjLanding(s, gd, plats, cliff)){
+      banGjStart(s, gd); return;
+    }
+    loop = gd; s.face = gd;
+  }
+  const voor = s.x, v = BAN_RUN_SPD * tempo * razV(s) * (s.chaser ? BAN_GJ.vK : 1);   // in de razernij iets sneller (RAZ.v), de chaser altijd (BAN_GJ.vK)
+  banMove(s, loop * v * dt, plats, cliff);
   if (Math.abs(s.x - voor) < v * dt * 0.4){   // een kei, een ravijnrand of de klifwand
     s.stuck += dt;
     if (s.stuck >= BAN_STUCK_T){ s.stuck = 0; banSet(s, 'look'); }
@@ -45550,7 +45698,7 @@ function banPareer(s, vonkWx, vonkY){
 }
 function hitBandiet(s){
   const doorDekking = (atkCombo || stokDoor()) && atkFrame >= 0 && steekLive();   // de derde slag (COMBO) en de counter met de stokken slaan door zijn dekking heen
-  if ((s.inv > 0 && !doorDekking) || s.state === 'dood' || s.state === 'vault') return false;   // in de lucht (de vault) is hij niet te raken
+  if ((s.inv > 0 && !doorDekking) || s.state === 'dood' || s.state === 'vault' || s.air > 0) return false;   // in de lucht (de vault, de galerijsprong) is hij niet te raken
   if (razAan(s) && !gifTikNu) return false;          // razend (zie RAZ): niets komt erdoor, ook de derde slag en de tweede speer niet
   if (comboX){                                     // de duw (DUW): geen schade, alleen ver terug en even stil
     if (s.duwId === duwId) return false;            // een keer per duw
@@ -57749,6 +57897,8 @@ function readLevel(txt){
                                                 elite: s.elite === true,
                                                 // duin: de Duinwacht (duinzand met brons en koper), uit de duin-set
                                                 duin: s.duin === true,
+                                                // chaser: de Asloper (asgrijs met oranje), iets sneller en springt van een galerij naar beneden
+                                                chaser: s.chaser === true,
                                                 // de aanvoerder (zie "de aanvoerder"): zijn dood speelt het level uit of opent de eindpoort;
                                                 // hp meer levens, tint een canvas-filter als kleur, naam en titel in beeld, sluip: false geen sluipaanval
                                                 aanvoerder: s.aanvoerder === true ? true : undefined,
@@ -58223,7 +58373,7 @@ function laadVrij(){
   for (const s in hySkins) if (s !== 'zwart' && !nodig('hy:' + s)) delete hySkins[s];
   if (panGeladen && !nodig('pan')){ for (const k in panImg) delete panImg[k]; panGeladen = false; }
   for (const s in panSkins) if (s !== 'zwart' && !nodig('pan:' + s)) delete panSkins[s];
-  for (const v of [false, true, 'duin']){
+  for (const v of [false, true, 'duin', 'as']){
     const { bank, root } = banVar(v);
     for (const k in bank) if (!nodig('ban:' + root + k)) delete bank[k];
   }
@@ -64079,13 +64229,13 @@ function sbSpawn(kind, kant, plek, hoogte){       // kant en plek: de arena-modu
   x = Math.max(x, endWall() + 220);
   if (kind === 'hyena1' || kind === 'hyena2'){ spawnHyenaPack(kind === 'hyena2' ? 2 : 1, side); }   // bij twee telt de richting niet
   else if (kind === 'bandiet'){
-    const b = makeBandiet(x, side, sbBanDolk, false, sbBanVault, false, false, null, sbBanDuin ? 'duin' : sbBanElite);
+    const b = makeBandiet(x, side, sbBanDolk, false, sbBanVault, false, false, null, sbBanVariant());
     b.base = vlBij(x);
     b.vrij = sbBanVrij;
     bandieten.push(b);
   }
   else if (kind === 'bandiet_aanv' || kind === 'bandiet_raz' || kind === 'bandiet_schaduw'){   // de aanvoerder (zie "de aanvoerder"): zes levens, een eigen kleur, een naam
-    const b = makeBandiet(x, side, sbBanDolk, false, sbBanVault, false, false, null, sbBanDuin ? 'duin' : sbBanElite);
+    const b = makeBandiet(x, side, sbBanDolk, false, sbBanVault, false, false, null, sbBanVariant());
     b.base = vlBij(x); b.vrij = sbBanVrij;
     b.aanvoerder = true; b.naam = 'Aanvoerder'; b.hp = b.maxHp = 6; b.hpBalk = true;
     b.tint = 'sepia(0.9) saturate(3.2) hue-rotate(-25deg) brightness(1.05)';
@@ -64097,14 +64247,14 @@ function sbSpawn(kind, kant, plek, hoogte){       // kant en plek: de arena-modu
     bandieten.push(b);
   }
   else if (kind === 'bandiet_neer'){                 // van boven de arena in: valt en landt met stof
-    const b = makeBandiet(x, side, sbBanDolk, false, sbBanVault, false, false, null, sbBanDuin ? 'duin' : sbBanElite);
+    const b = makeBandiet(x, side, sbBanDolk, false, sbBanVault, false, false, null, sbBanVariant());
     b.base = vlBij(x);
     b.vrij = false;                                  // AI aan, anders valt hij niet
     banStartDrop(b);
     bandieten.push(b);
   }
   else if (kind === 'bandiet_hurk'){                 // de hinderlaag: gehurkt, springt op en werpt
-    const b = makeBandiet(x, side, false, true, false, false, false, null, sbBanDuin ? 'duin' : sbBanElite);
+    const b = makeBandiet(x, side, false, true, false, false, false, null, sbBanVariant());
     b.base = vlBij(x);
     b.vrij = false;                                  // AI aan, anders komt de hinderlaag niet op gang
     bandieten.push(b);
@@ -64141,7 +64291,7 @@ function sbSpawn(kind, kant, plek, hoogte){       // kant en plek: de arena-modu
   for (const lijst of [snakes, scorps, panthers, hyenas, bandieten, schildmannen, zweepmannen, meelmannen, kruisbogen, fosforGroepen])
     for (const o of lijst) if (o.zicht === undefined) zichtZet(o, sneakSp);
   for (const k of kooimannen) if (k.zicht === undefined && !k.duel) zichtZet(k, sneakSp);
-  for (const b of bandieten) if (b.zicht && !b.ambush) banLaadIdle(b.duin ? 'duin' : b.elite);
+  for (const b of bandieten) if (b.zicht && !b.ambush) banLaadIdle(banVariant(b));
   cv.focus();
 }
 // ---- arena-modus: golven vijanden in de sandbox ----------------------------
@@ -64439,7 +64589,7 @@ function sbArenaKant(){
 // onder Gedrag, en zijn idle omdat zichtZet in de sandbox elke vijand laat kijken), zodat Start ze alvast ophaalt en
 // het aftellen erop wacht (sbAftelUpdate). De fosfor tekent met de frames van de zandslang (snk.groen). Zo vraagt de
 // arena offline nog steeds alleen wat de speler aangezet heeft.
-function sbArenaLaadBandiet(){ const v = sbBanDuin ? 'duin' : sbBanElite; banLaadIdle(v); if (sbBanVault) banLaadVault(v); if (bloedAan) bloedLaad(); }
+function sbArenaLaadBandiet(){ const v = sbBanVariant(); banLaadIdle(v); if (sbBanVault) banLaadVault(v); if (bloedAan) bloedLaad(); }
 function sbArenaLaadSchild(){ schbLagenLaad(); exeLaad(); }
 const SB_ARENA_LAAD = { scorp: () => scpLaad(), groen: () => slangLaad('groen'), zwart: () => slangLaad('zwart'), knock: () => slangLaad('knock'),
                         fosfor: () => slangLaad('groen'), hyena1: () => hyLoad(), panter: () => panLoad(),
@@ -64844,7 +64994,7 @@ const SB_WIZ_PLAATS = [   // [waar in de wizard (data-wiz), wat (een selector), 
   ['modus', '#sbarenamodus'], ['modus', '#sbarenakant'],
   ['algemeen', '#sbarenahint', true], ['algemeen', '#sbarenastroomrij'], ['algemeen', '#sbarenagolfrij'], ['algemeen', '#sbgatesrij'],
   ['lijst', '#sbarenalijst'],
-  ['bandiet', '#sbanvrij'], ['bandiet', '#sbandolk'], ['bandiet', '#sbanvault'], ['bandiet', '#sbanelite'], ['bandiet', '#sbanduin'], ['bandiet', '#sbbloed'], ['bandiet', '#sbbloedvar'],
+  ['bandiet', '#sbanvrij'], ['bandiet', '#sbandolk'], ['bandiet', '#sbanvault'], ['bandiet', '#sbanelite'], ['bandiet', '#sbanduin'], ['bandiet', '#sbanchaser'], ['bandiet', '#sbbloed'], ['bandiet', '#sbbloedvar'],
   ['slang', '#sbklim'],
   ['schild', '#sbschvrij'], ['schild', '#sbschexe'], ['schild', '#sbschgeene'],
   ['meel', '#sbmeelvrij'],
@@ -65267,8 +65417,8 @@ const sbBanEliteBtn = document.getElementById('sbanelite');
 function sbBanEliteLabel(){ sbBanEliteBtn.textContent = sbBanElite ? 'Elite aan' : 'Elite uit'; sbBanEliteBtn.classList.toggle('on', sbBanElite); }
 sbBanEliteBtn.onclick = () => {
   sbBanElite = !sbBanElite;
-  if (sbBanElite){ sbBanDuin = false; sbBanDuinLabel(); banLaad(true); banLaadHurk(true); banLaadVault(true); }   // de elite-frames (ook de zware sets) laden; elite en duin sluiten elkaar uit
-  for (const s of bandieten){ s.elite = sbBanElite; if (sbBanElite) s.duin = false; }   // ook de al neergezette tekenen dan uit de elite-set
+  if (sbBanElite){ sbBanDuin = false; sbBanDuinLabel(); sbBanChaser = false; sbBanChaserLabel(); banLaad(true); banLaadHurk(true); banLaadVault(true); }   // de elite-frames (ook de zware sets) laden; elite, duin en chaser sluiten elkaar uit
+  for (const s of bandieten){ s.elite = sbBanElite; if (sbBanElite){ s.duin = false; s.chaser = false; } }   // ook de al neergezette tekenen dan uit de elite-set
   sbBanEliteLabel(); cv.focus();
 };
 sbBanEliteLabel();
@@ -65278,11 +65428,24 @@ const sbBanDuinBtn = document.getElementById('sbanduin');
 function sbBanDuinLabel(){ sbBanDuinBtn.textContent = sbBanDuin ? 'Duin aan' : 'Duin uit'; sbBanDuinBtn.classList.toggle('on', sbBanDuin); }
 sbBanDuinBtn.onclick = () => {
   sbBanDuin = !sbBanDuin;
-  if (sbBanDuin){ sbBanElite = false; sbBanEliteLabel(); banLaad('duin'); banLaadHurk('duin'); banLaadVault('duin'); }   // de duin-frames laden
-  for (const s of bandieten){ s.duin = sbBanDuin; if (sbBanDuin) s.elite = false; }
+  if (sbBanDuin){ sbBanElite = false; sbBanEliteLabel(); sbBanChaser = false; sbBanChaserLabel(); banLaad('duin'); banLaadHurk('duin'); banLaadVault('duin'); }   // de duin-frames laden
+  for (const s of bandieten){ s.duin = sbBanDuin; if (sbBanDuin){ s.elite = false; s.chaser = false; } }
   sbBanDuinLabel(); cv.focus();
 };
 sbBanDuinLabel();
+// de chaser aan of uit (de Asloper: asgrijs met oranje, iets sneller, springt van een galerij, zie BAN_GJ); sluit elite en duin uit
+let sbBanChaser = false;
+const sbBanChaserBtn = document.getElementById('sbanchaser');
+function sbBanChaserLabel(){ sbBanChaserBtn.textContent = sbBanChaser ? 'Chaser aan' : 'Chaser uit'; sbBanChaserBtn.classList.toggle('on', sbBanChaser); }
+sbBanChaserBtn.onclick = () => {
+  sbBanChaser = !sbBanChaser;
+  if (sbBanChaser){ sbBanElite = false; sbBanEliteLabel(); sbBanDuin = false; sbBanDuinLabel(); banLaadChaser(); banLaadHurk('as'); }
+  for (const s of bandieten){ s.chaser = sbBanChaser; if (sbBanChaser){ s.elite = false; s.duin = false; } }
+  sbBanChaserLabel(); cv.focus();
+};
+sbBanChaserLabel();
+// de variant van een nieuwe bandiet in de sandbox (zie banVar)
+function sbBanVariant(){ return sbBanChaser ? 'as' : sbBanDuin ? 'duin' : sbBanElite; }
 // een oploop-golf in de sandbox, los van een level: om en om links en rechts een bandiet, steeds sneller
 let sbGolfOn = false, sbGolfT = 0, sbGolfElapsed = 0, sbGolfKant = -1;
 const sbGolfBtn = document.getElementById('sbangolf');
@@ -65324,7 +65487,7 @@ function sbGolfTick(dt){
   let x = world + sbGolfKant * (W / 2 / viewZoom() + 320);
   x = Math.min(x, cliffAt().wall - 200);
   x = Math.max(x, endWall() + 200);
-  const b = makeBandiet(x, x > world ? 1 : -1, sbBanDolk, false, sbBanVault, false, false, null, sbBanDuin ? 'duin' : sbBanElite);
+  const b = makeBandiet(x, x > world ? 1 : -1, sbBanDolk, false, sbBanVault, false, false, null, sbBanVariant());
   b.base = vloerBij(x, ph); b.vrij = false;
   bandieten.push(b);
 }
@@ -68283,6 +68446,7 @@ const MP_SOORTEN = [
   { k: 'hyena',     naam: 'Hyena' },
   { k: 'goudaap',   naam: 'Golden monkey' },
   { k: 'bandiet',   naam: 'Bandit',          var: ['bandit', 'elite guard'] },
+  { k: 'chaser',    naam: 'Chaser' },         // de Asloper: iets sneller, komt liefst uit een bovendeur en springt van de galerij (BAN_GJ)
   { k: 'schildman', naam: 'Shield bandit',   var: ['easy', 'normal'] },
   { k: 'kooiman',   naam: 'Cage man',        var: ['plain', 'duel'] },
   { k: 'meelman',   naam: 'Flour man' },
@@ -69190,7 +69354,7 @@ const MPC = {
   deurOpen: 1.6,            // zo lang staat een deur open na de vijand, dan valt hij dicht
   lijkWeg: 5,               // een dode vijand is na zoveel seconden weg, met een wolkje stof (mpcLijkStap); de gast volgt de lijst van de host
   dubbel: 0.25,             // de gast meldt een treffer op dezelfde vijand hooguit zo vaak
-  punten: { slang: 10, scorp: 10, goudaap: 10, hyena: 10, bandiet: 15, meelman: 15, zweepman: 15, kooiman: 20, kruisboog: 20, schildman: 25 },
+  punten: { slang: 10, scorp: 10, goudaap: 10, hyena: 10, bandiet: 15, chaser: 20, meelman: 15, zweepman: 15, kooiman: 20, kruisboog: 20, schildman: 25 },
   moeilijk: 5,              // de moeilijke versie: zoveel punten extra
   reeks: 10, reeksT: 3,     // een multikill: zoveel punten extra per kill in de reeks, kills binnen zoveel seconden
   knikkers: 10, goud: 3,    // de knikkerzak van de tonnen, en zoveel goud voor wie een ton met goud breekt
@@ -69856,8 +70020,11 @@ function mpcSpawn(sp){
   // op een map met een mensenkant (Ishmul) komt een mens soms van die kant in plaats van uit een deur
   const vanKant = !dier && K.mensKant && Math.random() < (K.mensKans || 0);
   if (!dier && !vanKant){
-    const kanBoven = STAD_DEUR.bovenSoorten.has(sp.k === 'kruisboog' ? 'kruisboogbandiet' : sp.k);
+    const kanBoven = STAD_DEUR.bovenSoorten.has(sp.k === 'kruisboog' ? 'kruisboogbandiet' : sp.k === 'chaser' ? 'bandiet' : sp.k);
     let keus = K.deuren.filter(d => !d.balkon && (d.verdieping === 0 || (kanBoven && lev.boven < MPC.boven)));
+    // de chaser komt liefst boven naar buiten, zodat hij van de galerij springt (BAN_GJ)
+    const boven = keus.filter(d => d.verdieping > 0);
+    if (sp.k === 'chaser' && boven.length && Math.random() < 0.75) keus = boven;
     const bal = K.deuren.filter(d => d.balkon);
     if (sp.k === 'kruisboog' && bal.length && lev.balkon < MPC.balkon && Math.random() < 0.6) keus = bal;
     deur = keus[Math.floor(Math.random() * keus.length)];
@@ -69897,6 +70064,7 @@ function mpcMaak(sp, x, side, base){
     if (h){ b.hp = b.maxHp = MPC.elite.hp; b.hpBalk = true; }
     bandieten.push(b); return b;
   }
+  if (sp.k === 'chaser'){ const b = makeBandiet(x, side, false, false, true, false, false, null, 'as'); b.base = base; bandieten.push(b); return b; }
   if (sp.k === 'schildman'){ const m = makeSchildman(x, side, h ? 'moeilijk' : 'makkelijk'); m.base = base; if (!h) m.tint = SCHB_TINT.makkelijk; schildmannen.push(m); return m; }
   if (sp.k === 'kooiman'){ const k = makeKooiman(x, side, h, h); k.base = base; k.vogelGedaan = true; kooimannen.push(k); return k; }
   if (sp.k === 'meelman'){ const m = makeMeelman(x, side); m.base = base; meelmannen.push(m); return m; }
@@ -70117,7 +70285,8 @@ function mpcEinde(){
 // het eindscherm: alleen het team, en de beste score op dit apparaat bij deze keuze van vijanden
 function mpcEindSleutel(){
   const v = pvp.regels.coop.vij;
-  return 'amir.coopBest.' + MP_SOORTEN.map(q => q.k + '=' + v[q.k]).join(',');
+  // de chaser kwam later: met hem uit is de sleutel dezelfde als van voor hem, zodat de oude records blijven gelden
+  return 'amir.coopBest.' + MP_SOORTEN.filter(q => q.k !== 'chaser' || (v[q.k] && v[q.k] !== 'uit')).map(q => q.k + '=' + v[q.k]).join(',');
 }
 function mpcEindToon(e){
   const C = pvp.coop; C.fase = 'uit'; C.eind = e; godMode = true; pvp.rematch = [false, false];
@@ -70317,6 +70486,7 @@ function mpCoopLaad(){
   if (aan('hyena')) hyLoad();
   if (aan('goudaap')) goudaapLaad();
   if (aan('bandiet')){ if (mak('bandiet')){ banLaad(false); banLaadVault(false); } if (hard('bandiet')){ banLaad(true); banLaadVault(true); } if (bloedAan) bloedLaad(); }
+  if (aan('chaser')) banLaadChaser();
   if (aan('schildman')){ schbLagenLaad(); exeLaad(); }
   if (aan('kooiman')){ kooiLaad(); if (hard('kooiman')) vogelLaad(); }
   if (aan('meelman')) meelLaad();
