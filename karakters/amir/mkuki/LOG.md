@@ -60,3 +60,18 @@ Nu zo, en dit is de werkwijze voor de rest van de run:
    `1734dfd8-...` (nu ook de vuist weg, afgekeurd), `b24b194e-17d3-4b7b-b196-d13184762e7b` (goed).
 Andere fixes: de groene band tekent Grok nu donker (V 0,35), zone 4 accepteert dat. Vref per zone opnieuw gemeten.
 Kralen (138,36,32) en koper (200,132,92) iets dichter bij de referentie.
+
+### Ren met speer (begonnen, niet af)
+Aanpak per frame los (`tools/mkuki/paar.py`): frame groot, omgekleurde referentie klein linksboven. Rasters met
+een anker gaven bij de ren te vaak gelijkgetrokken poses (IoU 0,61-0,64), los per frame 0,72-0,81.
+- ren_sp_7 (anker): post `6677ff21-1646-45fe-8421-cb5e3115393e`, IoU 0,81.
+- raster `3d905c1e-fe51-4999-a0e0-140a37f7a42a`: alleen ren_sp_1 goed (0,72), de rest afgekeurd.
+- ren_sp_2: `fb13bccd-afda-48c9-bf61-462bb64865b9` (0,80). ren_sp_3: `30f79b0f-568a-4187-bd3d-a83fd09d3842` (0,72).
+- ren_sp_4: `829d5e73-62f6-491e-8abb-10a62724fd69` (0,60, wandelpas): noodgreep met de originele benen, zie TWIJFEL.md.
+- Een generatie voor ren_sp_4 tussendoor is kwijt (history.back ging een post te ver).
+
+### 04:05 gestopt
+Grok-pagina hangt (laden 60-90 s, time-outs op klikken en scripts). Gestopt volgens de opdracht. Verder:
+de ren afmaken (5, 6, 8-12), dan de rest van het plan. Werkmap (niet in de repo): `/home/claude/werk/`.
+Handig voor de volgende keer: Enter verstuurt niet altijd, de verzendknop wel; na een generatie de pagina opnieuw laden
+duurt lang, dus liever een nieuw tabblad per generatie.

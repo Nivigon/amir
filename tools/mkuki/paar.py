@@ -36,42 +36,54 @@ def bouw(naam, pad):
 
 
 def terug(naam):
+    """Robuust: grootste figuur (niet het voorbeeld), schaal en plek zoeken op IoU met het origineel."""
     m = json.load(open(naam + '.json'))
-    g = Image.open(naam + '_grok.png').convert('RGB').resize((1650, 1100), Image.LANCZOS)
+    g = Image.open(naam + '_grok.png').convert('RGB')
     k = raster.key(np.asarray(g))
-    k[:600, :520] = 0  # het voorbeeld weg
+    al = k[..., 3] > 60
+    lab, n = nd.label(al)
+    sz = nd.sum(al, lab, range(1, n + 1))
+    best = None
+    for i in np.argsort(-sz)[:3]:
+        ys, xs = np.where(lab == i + 1)
+        if best is None or ys.max() - ys.min() > best[1]:
+            best = (i + 1, ys.max() - ys.min())
+    keep = nd.binary_dilation(lab == best[0], iterations=3)
+    k[~keep] = 0
+    ys, xs = np.where(k[..., 3] > 60)
+    fig = k[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
     o = raster.laad(m['pad'])
     from speer_meet import override
     if m['speer']:
         o, _ = raster.zonder_speer(o, override(m['pad']))
     if m['draai']:
         o = o[::-1, ::-1].copy()
-    H, W = o.shape[:2]
-    s = m['s']
-    big = Image.fromarray(k).resize((int(round(1650 / s)), int(round(1100 / s))), Image.LANCZOS)
-    a = np.asarray(big)
-    sx = m['x0'] - int(round(m['px'] / s)); sy = m['y0'] - int(round(m['py'] / s))
-    doek = np.zeros_like(o); ah, aw = a.shape[:2]
-    ys0 = max(0, sy); xs0 = max(0, sx); ys1 = min(H, sy + ah); xs1 = min(W, sx + aw)
-    doek[ys0:ys1, xs0:xs1] = a[ys0 - sy:ys1 - sy, xs0 - sx:xs1 - sx]
-    # alleen de grootste figuur houden
-    al = doek[..., 3] > 60; lab, n = nd.label(al)
-    if n > 1:
-        sz = nd.sum(al, lab, range(1, n + 1)); keep = nd.binary_dilation(lab == np.argmax(sz) + 1, iterations=2)
-        doek[~keep] = 0
     vacht = nd.binary_dilation(afwerk._vacht(o) & (o[..., 3] > 40), iterations=3)
     o2 = o.copy(); o2[vacht, 3] = 0
-    b, dx, dy, v = uitlijn.lijn_uit(doek, o2, 30)
+    H, W = o.shape[:2]
+    oy, ox = np.where(o2[..., 3] > 60)
+    oh, ow = oy.max() - oy.min() + 1, ox.max() - ox.min() + 1
+    res = None
+    for f in np.linspace(0.9, 1.1, 9):
+        nh = int(round(oh * f)); nw = int(round(fig.shape[1] * nh / fig.shape[0]))
+        im = np.asarray(Image.fromarray(fig).resize((nw, nh), Image.LANCZOS))
+        doek = np.zeros_like(o)
+        cy = int(oy.min() + oh / 2 - nh / 2); cx = int(ox.min() + ow / 2 - nw / 2)
+        y0, x0 = max(0, cy), max(0, cx); y1, x1 = min(H, cy + nh), min(W, cx + nw)
+        doek[y0:y1, x0:x1] = im[y0 - cy:y1 - cy, x0 - cx:x1 - cx]
+        b, dx, dy, v = uitlijn.lijn_uit(doek, o2, 40)
+        if res is None or v > res[3]:
+            res = (b, dx, dy, v, f)
+    b, dx, dy, v, f = res
     if m['draai']:
         b = b[::-1, ::-1].copy()
+        mm = (o2[..., 3] > 128)[::-1, ::-1]
+    else:
+        mm = o2[..., 3] > 128
     np.save(naam + '.npy', b)
-    print(os.path.basename(m['pad']), dx, dy, round(v, 3))
-    oo = raster.laad(m['pad'])
-    mm = o2[..., 3] > 128
-    if m['draai']:
-        mm = mm[::-1, ::-1]
+    print(os.path.basename(m['pad']), dx, dy, round(f, 3), round(v, 3))
     r = mm ^ nd.binary_erosion(mm); c = b.copy(); c[r] = [255, 255, 255, 255]
-    ys, xs = np.where((c[..., 3] > 0) | (oo[..., 3] > 0))
+    ys, xs = np.where((c[..., 3] > 0))
     Image.fromarray(c[ys.min():ys.max() + 1, xs.min():xs.max() + 1]).resize(((xs.max() - xs.min() + 1) * 2, (ys.max() - ys.min() + 1) * 2), Image.NEAREST).save(naam + '_vergelijk.png')
     return v
 
