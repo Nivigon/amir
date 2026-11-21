@@ -118,3 +118,15 @@ eerst afstand en gooi je naar wie je achterna komt. Het pijltje telt bij F en oo
 sneller en met `contraUitval` (0) van de uitval, zodat hij de afstand van de rol niet teruggeeft. Overal waar de rol-worp
 kan (eerst alleen in Test 60 en de sandbox, met een vlag `rolContra`; die is weg), en `ROL_WORP.contra` zet hem uit. Schuifjes in het groepje Timing.
 De echte animatie (landen, omdraaien, gooien) moet nog komen; dan valt het omslaan op de landing weg.
+
+## De rol in een ander tenue (Test 85)
+
+`ROL_TENUE`, `rolTenueLaad`, `amirTenue`, `idleTenue`, levelveld `rolTenue`.
+
+- Met `rolTenue: 'monnik'` in een level rolt C in dat tenue en V in het gewone. Wat hij het laatst aanhad blijft hij dragen
+  als hij stilstaat (`amirTenue`, de idle zonder speer `idle/idle_ns_monnik.png`); lopen, springen en de rest zijn nog de
+  gewone sets. Elk potje begint in het gewone tenue.
+- De frames: `karakters/amir/beweging/rol/monnik/rol_1..28.png`, de gewone rol zonder speer, in rasters van zes in Grok
+  omgekleed (eerst zes sleutelframes, dan per raster een al aangekleed anker plus vijf nieuwe). Zelfde canvas, grondrij en
+  anker als `ROL`. De werkwijze staat in het project: `claude/outfit_raster_methode.md`.
+- Alleen zonder speer (Test 85 heeft `geenSpeer`); een tenue-set met speer is er nog niet. Lui geladen (`rolTenueLaadLevel`).
