@@ -28,7 +28,9 @@ kelderZaal: { trap: {x}, plafond: {r}, palen: [x], deuren: [{x, bandiet}], kooie
 - **Trap**: `trap_hout.png` gespiegeld. Onder de wang legt `kzaalReset` onzichtbare opstapjes (`look: 'geen'`,
   `opstap: true`, `kz: true`, elk `KZAAL.trap.stap` hoog) langs een looplijn `zak` bronpx onder de bovenrand.
   Een wereld-x is een schermpixel, dus de breedte schaalt met `nowScale()`: verandert het formaat, dan legt
-  `kzaalUpdate` de treden opnieuw. De wang komt na Amir (`kzaalVoor`), zijn slagschaduw op de muur in `kzaalAchter`.
+  `kzaalUpdate` de treden opnieuw. Het plafond schuift daarbij mee (`kzaalPlafRechts`, `kzaalPlafR`): het begint nooit
+  boven een stuk trap waar Amir er niet onder past. Zonder die klem was de trap op een laptop smaller en steiler dan het
+  vaste `plafond.r` en liep Amir halverwege de trap met zijn hoofd tegen de rand van het plafond vast. De wang komt na Amir (`kzaalVoor`), zijn slagschaduw op de muur in `kzaalAchter`.
 - **Plafond**: `plafond.png` als strook (`KZAAL.plafond`), met een zachte onderrand (het leem vloeit weg in de muur)
   en aarde erboven die naar het trapgat toe wegzakt. De botsing is een onzichtbare zwever (`look: 'geen'`) met de
   onderkant op de balkkoppen.
@@ -40,7 +42,11 @@ kelderZaal: { trap: {x}, plafond: {r}, palen: [x], deuren: [{x, bandiet}], kooie
   (`kooi.binnen`, dekking); het beest staat ertussen te grommen (zijn dreig-frames, nog geen echte vijand). Het deurtje
   zit op de kopse kant aan de kant van Amir en is dicht onzichtbaar. Open zwaait het in perspectief: 160 stroken,
   strook op u krijgt x = u·B·cos(hoek), z = u·B·sin(hoek), schaal k = D/(D+z), donker 0,45·sin(hoek), D = 6 kooihoogtes
-  (`kzaalKooiDeur`). Na `kooi.los` s stapt de echte hyena eruit (`makeHyena`). Maten van de deur uit de tool Kooideur
+  (`kzaalKooiDeur`). De opening is een regie (`kzaalVries`, `kzaalVriesStap`), zoals de stamp van de kooiman: de wereld
+  staat stil (ook Amir), het luikje klinkt als het luikje van de kooiman (`kooiDeurGeluid`), het deurtje zwaait in
+  `kooi.duur` (2 s) open, het beest gromt nog `kooi.wacht` s en stapt dan in `kooi.uit` s langzaam naar buiten (zijn
+  loopframes op `kooi.loop` van hun tempo). Pas daarna komt de echte hyena bij het deurtje (`kzaalKooiLos`, `makeHyena`)
+  en loopt het spel door. Een lege kooi gaat open zonder regie. Maten van de deur uit de tool Kooideur
   schalen: breed 0,62, hoog 0,87, scharnier 0,015 en 0,075 van de kooihoogte.
 - **Licht**: `kzaalMidden` meet de bundel, `donkerGatenNa` snijdt hem uit het donker (`kzaalGaten`), en `kzaalLichtNa`
   tekent de bundel, de lichtvlek en de stofjes erover.

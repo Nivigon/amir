@@ -16360,10 +16360,14 @@ const KZAAL = {
   deur: { hoog: 1.45, ogen: [0.5, 0.33], ogenDx: 0.07, oog: 0.016, kijk: 0.012,
           trigger: 430, rammel: 0.5, fases: [0.06, 0.04, 0.04], schok: 0.22, freeze: 0.1,
           scherf: { duur: 0.5, groot: 1.5 } },
+  // de opening is een regie (kzaalVries): de wereld staat stil, het luikje klinkt als het luikje van de kooiman,
+  // het deurtje zwaait in duur s open, na wacht s stapt het beest in uit s naar buiten (loopframes op loop x zijn
+  // fps), en pas dan loopt het spel door
   kooi: { hoog: 1.0, deur: { breed: 0.62, hoog: 0.87, sx: 0.015, sy: 0.075 }, binnen: 0.21, achter: 0.21,
-          trigger: 400, duur: 0.9, los: 0.22, D: 6, stroken: 160 },
+          trigger: 400, duur: 2.0, los: 0.22, D: 6, stroken: 160, wacht: 1.1, uit: 2.2, loop: 0.55, na: 0.25 },
   bundel: { boven: 3.4, breed: 1.6, vloer: [-2.4, -0.4], stof: 90 }   // de lichtbundel, in Amir t.o.v. de voet van de trap
 };
+let kzaalVries = null;   // de regie van een kooi die opengaat: {i, t}, de wereld staat stil (zie kzaalVriesStap)
 let kzaalImgs = null, kzaalStaat = null, kzaalBundelPx = null, kzaalScherven = [];
 function kzaalLevel(){ return (level && level.kelderZaal) || null; }
 function kzaalLaad(){
@@ -16422,16 +16426,10 @@ function kzaalTreden(T, sc){
 }
 // ---- bij de start van het level ----
 function kzaalReset(){
-  kzaalScherven = []; kzaalBundelPx = null;
+  kzaalScherven = []; kzaalBundelPx = null; kzaalVries = null;
   const K = kzaalLevel(); if (!K){ kzaalStaat = null; return; }
   kzaalLaad();
   kzaalTredenLeg(K);
-  level.zwevers = (level.zwevers || []).filter(z => !z.kz);
-  const P = KZAAL.plafond;
-  if (K.plafond){
-    const onder = (P.hoog + P.plaat * (1 - P.kop)) * CHAR_H;   // tegen de balkkoppen stoot je je hoofd
-    level.zwevers.push({ r: K.plafond.r, l: endWall() - 2000, h: onder + 400, onder, look: 'geen', kz: true });
-  }
   kzaalStaat = {
     deuren: (K.deuren || []).map(d => ({ fase: 'dicht', t: 0, knip: 2 + Math.random() * 3 })),
     kooien: (K.kooien || []).map(() => ({ fase: 'dicht', t: 0, los: false, f: 0 }))
@@ -16441,11 +16439,33 @@ function kzaalReset(){
     if (sp.kkooi != null && K.kooien && K.kooien[sp.kkooi]) sp.x = K.kooien[sp.kkooi].x;
   }
 }
-let kzaalTredenSc = 0;
+let kzaalTredenSc = 0, kzaalPlafR = null;
+// de onderkant van het plafond (de balkkoppen), in wereld-eenheden boven de vloer
+function kzaalPlafOnder(){ const P = KZAAL.plafond; return (P.hoog + P.plaat * (1 - P.kop)) * CHAR_H; }
+// het rechtereind van het plafond: plafond.r, maar nooit boven een stuk trap waar Amir er niet onder past. De trap
+// schaalt in de breedte mee met het scherm (smaller op een kleiner formaat, dus steiler), het plafond niet: zonder deze
+// klem liep Amir op een laptop halverwege de trap met zijn hoofd tegen de rand van het plafond en kon hij niet verder
+function kzaalPlafRechts(K, sc){
+  if (!K.plafond) return null;
+  let r = K.plafond.r;
+  if (K.trap){
+    const P = KZAAL.trap, s = kzaalTrapS(), ruimte = kzaalPlafOnder() - CHAR_H * 1.08 - P.stap;
+    let ix = 0;
+    while (ix < P.w && kzaalTrapLoop(ix) * s > ruimte) ix++;
+    r = Math.min(r, kzaalTrapX(K.trap, ix, sc));
+  }
+  return r;
+}
 function kzaalTredenLeg(K){
   kzaalTredenSc = nowScale();
   level.terraces = (level.terraces || []).filter(t => !t.kz);
   if (K.trap) level.terraces.push(...kzaalTreden(K.trap, kzaalTredenSc));
+  level.zwevers = (level.zwevers || []).filter(z => !z.kz);   // het plafond schuift mee met de trap
+  kzaalPlafR = kzaalPlafRechts(K, kzaalTredenSc);
+  if (kzaalPlafR != null){
+    const onder = kzaalPlafOnder();                     // tegen de balkkoppen stoot je je hoofd
+    level.zwevers.push({ r: kzaalPlafR, l: endWall() - 2000, h: onder + 400, onder, look: 'geen', kz: true });
+  }
 }
 // mag deze spawn komen? Een beest in een kooi laat de kooi zelf los, een bandiet achter een deur pas als die open is
 function kzaalKlaar(sp){
@@ -16455,6 +16475,36 @@ function kzaalKlaar(sp){
   return !st || st.fase === 'open';
 }
 function kzaalBandietIn(i){ return (level.spawns || []).some(sp => sp.kgat === i && !sp.used); }
+// het beest uit kooi i komt echt in het spel, bij het deurtje, met zijn kop naar Amir
+function kzaalKooiLos(i){
+  const K = kzaalLevel(), k = K && K.kooien && K.kooien[i], st = kzaalStaat && kzaalStaat.kooien[i];
+  if (!k || !st || st.los) return;
+  st.los = true;
+  for (const sp of (level.spawns || [])) if (sp.kkooi === i && !sp.used){
+    sp.used = true;
+    const uit = kzaalKooiUitX(k, nowScale(), 1), side = world > uit ? -1 : 1;
+    const h = makeHyena(uit, side, { laughed: false, lachT: Infinity });
+    h.base = 0; zichtZet(h, sp);
+    hyenas.push(h);
+  }
+}
+// waar het beest staat terwijl hij naar buiten stapt (p van 0, midden in de kooi, tot 1, net buiten het deurtje)
+function kzaalKooiUitX(k, sc, p){
+  const m = kzaalKooiMaat(k, sc), van = k.x + m.w * 0.02, tot = m.deurX + 0.15 * CHAR_H * sc;
+  return van + (tot - van) * p;
+}
+// de regie van de kooi: de wereld staat stil (dt 0, zoals de stamp van de kooiman), op echte tijd zwaait het deurtje
+// open, het beest gromt nog even en stapt dan langzaam naar buiten; daarna loopt het spel door
+function kzaalVriesStap(rdt){
+  const R = kzaalVries, C = KZAAL.kooi, K = kzaalLevel();
+  const st = kzaalStaat && kzaalStaat.kooien[R.i];
+  if (!K || !st){ kzaalVries = null; return; }
+  R.t += rdt; st.t += rdt;
+  if (shake > 0) shake = Math.max(0, shake - rdt);
+  const loopT = R.t - C.wacht;
+  st.f += rdt * HY.fps.dreigen * (loopT > 0 ? C.loop * HY.fps.loop / HY.fps.dreigen : 1);
+  if (loopT >= C.uit + C.na || R.t > C.wacht + C.uit + 3){ kzaalVries = null; kzaalKooiLos(R.i); }
+}
 function kzaalUpdate(dt){
   const K = kzaalLevel(); if (!K || !kzaalStaat) return;
   if (Math.abs(nowScale() - kzaalTredenSc) > 1e-6) kzaalTredenLeg(K);   // een ander formaat: de trap is breder of smaller
@@ -16481,20 +16531,16 @@ function kzaalUpdate(dt){
     const st = kzaalStaat.kooien[i];
     st.f += dt * HY.fps.dreigen;
     if (st.fase === 'dicht'){
-      if (!dead && (k.open || 'bij') === 'bij' && Math.abs(world - k.x) <= C.trigger + C.hoog * CHAR_H){ st.fase = 'open'; st.t = 0; deurSlamSpeel(); shake = Math.max(shake, 0.08); }
+      if (!dead && !kzaalVries && (k.open || 'bij') === 'bij' && Math.abs(world - k.x) <= C.trigger + C.hoog * CHAR_H){
+        st.fase = 'open'; st.t = 0; shake = Math.max(shake, 0.08);
+        kooiDeurGeluid();                              // het luikje van de kooiman
+        if ((level.spawns || []).some(sp => sp.kkooi === i && !sp.used)) kzaalVries = { i, t: 0 };   // met een beest erin: de regie
+        else st.los = true;
+      }
       return;
     }
+    if (kzaalVries && kzaalVries.i === i) return;      // de regie loopt op echte tijd (kzaalVriesStap)
     st.t += dt;
-    if (!st.los && st.t >= C.los){                     // het deurtje staat open: het beest stapt eruit
-      st.los = true;
-      for (const sp of (level.spawns || [])) if (sp.kkooi === i && !sp.used){
-        sp.used = true;
-        const sc = nowScale(), uit = kzaalKooiMaat(k, sc).deurX + 0.15 * CHAR_H * sc, side = world > uit ? -1 : 1;
-        const h = makeHyena(uit, side, { laughed: false, lachT: Infinity });
-        h.base = 0; zichtZet(h, sp);
-        hyenas.push(h);
-      }
-    }
   });
   for (let i = kzaalScherven.length - 1; i >= 0; i--){ kzaalScherven[i].t += dt; if (kzaalScherven[i].t > D.scherf.duur) kzaalScherven.splice(i, 1); }
 }
@@ -16598,10 +16644,15 @@ function kzaalMidden(groundY, scale, cx){
     ctx.filter = 'none';
     // het beest erin, grommend naar de deur toe, tot hij los is
     if (!st.los && (level.spawns || []).some(sp => sp.kkooi === i && !sp.used)){
-      const B = hyBank({ skin: winterOn() ? 'wit' : 'zwart' }), fr = B && B.dreigen && B.dreigen[Math.floor(st.f) % HY.n.dreigen];
+      const B = hyBank({ skin: winterOn() ? 'wit' : 'zwart' });
+      const R = kzaalVries && kzaalVries.i === i ? kzaalVries : null, p = R ? Math.min(1, Math.max(0, (R.t - C.wacht) / C.uit)) : 0;
+      const loopt = R && R.t > C.wacht && B && B.loop;   // in de regie: de loopframes, langzaam naar buiten
+      const fr = loopt ? B.loop[Math.floor(st.f) % HY.n.loop] : B && B.dreigen && B.dreigen[Math.floor(st.f) % HY.n.dreigen];
       if (fr && imgReady(fr)){
         const hS = hyScale() * 0.92, hw = HY.w * hS, hh = HY.h * hS;
-        ctx.save(); ctx.translate(x + m.w * 0.52, y + m.h * 0.94); ctx.scale(-1, 1);
+        const bx = loopt ? cx + (kzaalKooiUitX(k, scale, p) - world) : x + m.w * 0.52;
+        const by = y + m.h * (0.94 + 0.06 * Math.min(1, p * 1.6));   // eruit stapt hij van de kooibodem op de vloer
+        ctx.save(); ctx.translate(bx, by); ctx.scale(-1, 1);
         ctx.drawImage(fr, -hw / 2, -HY.ground * hS, hw, hh); ctx.restore();
       }
     }
@@ -16613,7 +16664,7 @@ function kzaalMidden(groundY, scale, cx){
   const P = KZAAL.plafond, plaat = kzaalPlafondPlaat();
   if (K.plafond && plaat){
     const ph = P.plaat * A, pw = ph * plaat.width / plaat.height, bot = groundY - P.hoog * A;
-    const r = cx + (K.plafond.r - world);
+    const r = cx + ((kzaalPlafR != null ? kzaalPlafR : K.plafond.r) - world);
     if (r > xl){
       ctx.save();
       ctx.beginPath(); ctx.rect(xl, groundY - 10 * A, Math.min(r, xr) - xl, 10 * A); ctx.clip();
@@ -54049,6 +54100,8 @@ function loop(now){
   // de freeze van de opening van Murghtaan 3 (MURC_INTRO): de wereld staat stil, de balken en de naam lopen op echte tijd
   if (running && !paused && !won) murcBalkStap(realDt);
   if (murcVries){ dt = 0; }
+  // de regie van een kooi in de kelderzaal: de wereld staat stil terwijl het beest eruit stapt (zie kzaalVriesStap)
+  if (kzaalVries){ dt = 0; if (running && !paused && !won) kzaalVriesStap(realDt); }
   if (kooiVries > 0){
     dt = 0;
     if (running && !paused && !won){
