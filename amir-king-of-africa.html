@@ -4128,11 +4128,23 @@ const STOF_SOORTEN = [
     start: s => { s.state = 'walk'; s.frame = 0; s.acc = 0; s.stuck = 0; } }
 ];
 function stofRaak(s, S){
-  s.verblind = STOF.duur;
   const weg = s.x >= playerX() ? 1 : -1;        // eerst wankelt hij achteruit, weg van Amir
+  // Co-op, bij een gast: de host denkt voor de vijanden, dus de blindheid moet daar gezet worden (anders zag alleen de
+  // gooier de sterretjes en vocht de vijand bij de host gewoon door). Hier alleen de kreet en het stof; de host stuurt
+  // de blindheid terug met de stand van de vijanden (mpcStofVanGast)
+  if (mpcGast() && s.mpId != null){
+    const k = mpcVind(s);
+    if (k) pvpZendAan(0, { t: 'stofR', a: k, id: s.mpId });
+    stofRaakBeeld(s, S, weg);
+    return;
+  }
+  s.verblind = STOF.duur;
   if (S.soort === 'slang') s.side = -weg; else s.face = weg;
   s.vbThuis = s.x + weg * STOF.dwaalBreed * 0.6;
   S.start(s);
+  stofRaakBeeld(s, S, weg);
+}
+function stofRaakBeeld(s, S, weg){
   stofKreet(S);
   const F = STOF_FX.raak, base = s.base || 0, h = S.hoofd;   // een wolk om zijn hoofd, en zand dat van hem af valt
   for (let i = 0; i < F.wolk; i++)
@@ -22048,7 +22060,7 @@ function gkInslag(){
   hitstop = Math.max(hitstop, GK.stop); shake = Math.max(shake, GK.schok);
   mistStoot(tip, 0.85, 45, dir * -520);                      // de klap duwt de mist weg, en het gat rolt met de golf mee naar voren
   gkId++; sweepId++;                                        // een nieuwe zwaai: elke vijand een keer
-  const ber = (GK.bereik[straalBurst() ? 'lang' : (typeof duoKeuze !== 'undefined' && duoKeuze.gkBereik) || 'middel'] || 2) * CHAR_H * sc;   // ontketend (STRAAL): het lange bereik
+  let ber = (GK.bereik[straalBurst() ? 'lang' : (typeof duoKeuze !== 'undefined' && duoKeuze.gkBereik) || 'middel'] || 2) * CHAR_H * sc;   // ontketend (STRAAL): het lange bereik
   gkRaak = { x0: px - dir * 0.08 * CHAR_H * sc, tip, front: tip, staart: px - dir * 0.08 * CHAR_H * sc, dir, ver: tip + dir * ber, t: 0,
              onderTot: tip + dir * GK.onderR * CHAR_H * sc,
              schade: tribeStok() ? GK.schade.licht + stokTalentWaarde('stok_slam1', 'schade', 0)   // de stoktribe: een halve, Heavy Slam erbij
@@ -22056,8 +22068,10 @@ function gkInslag(){
              knock: tribeStok() ? stokTalentWaarde('stok_slam1', 'knock', 1) * stokTalentWaarde('stok_slam2', 'knock', 1)
                    : gkZwaarNu() ? GK.zwaar.knock : 1,
              traagK: stokTalentWaarde('stok_slam2', 'traagK', 1) };   // Crushing Slam: de vijand loopt daarna trager
-  gkKlapBeeld(tip, tip2, dir, sc, ber, vloer);
-  if (mpCoopAan()) pvpZend({ t: 'gk', x: Math.round(tip), x2: Math.round(tip2), d: dir, b: Math.round(ber / sc), v: Math.round(vloer) });   // de anderen zien de klap ook
+  const rand = gkRandVoor(px, tip, dir, vloer);             // een ravijn vlak voor hem: de golf komt er niet overheen
+  if (rand != null){ gkRaak.tip = gkRaak.front = gkRaak.ver = gkRaak.onderTot = rand; ber = 0; }
+  gkKlapBeeld(rand ?? tip, tip2, dir, sc, ber, vloer);
+  if (mpCoopAan()) pvpZend({ t: 'gk', x: Math.round(rand ?? tip), x2: Math.round(tip2), d: dir, b: Math.round(ber / sc), v: Math.round(vloer) });   // de anderen zien de klap ook
 }
 // de golf, het stof en het geluid van een klap; ook voor de klap van een andere speler in Co-op (zonder treffers)
 function gkKlapBeeld(tip, tip2, dir, sc, ber, vloer){
@@ -22163,6 +22177,14 @@ function gkPluim(g){
 }
 // de vloer van de grondklap op x, voor wie op hoogte h staat: ook een dak, galerij, zwever of takeldek (vloerBij)
 function gkVloerBij(x, h){ const v = vloerBij(x, h); return v > -Infinity ? v : terrainH(x); }
+// houdt dit de golf tegen: een andere vloerhoogte (trede, terras, dakrand) of een ravijn (een brug of rijzer erover niet).
+// Boven een ravijn geeft de vloer gewoon de grondhoogte, dus het gat moet apart: anders rolt de golf eroverheen
+function gkStopBij(x, vloer){ return Math.abs(gkVloerBij(x, vloer) - vloer) > 30 || !!gatOp(x, vloer); }
+// de golf begint pas bij de stokpunt: ligt er tussen Amir en de punt al een ravijn, dan begint en eindigt hij aan die rand
+function gkRandVoor(px, tip, dir, vloer){
+  for (let x = px; (tip - x) * dir > 0; x += dir * 6) if (gkStopBij(x + dir * 6, vloer)) return x;
+  return null;
+}
 function gkSteen(wx, vx, vh, r){
   gkFx.stenen.push({ wx, vl: gkFx.vloer ?? terrainH(wx), h: 0, vx, vh, r, rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 16, age: 0, life: 0.9 + Math.random() * 0.5,
                      kleur: Math.random() < 0.5 ? '#6b5236' : '#4a3826' });
@@ -22174,7 +22196,7 @@ function gkUpdate(dt){
   const sc = gkSchaal, rnd = (a, b) => a + Math.random() * (b - a);
   for (const g of gkFx.golven){
     const stap = GK.golfV * sc * dt;
-    if (Math.abs(gkVloerBij(g.x + g.dir * stap, g.vloer) - g.vloer) > 30){   // een trede, terras of de rand van een dak houdt de golf tegen
+    if (gkStopBij(g.x + g.dir * stap, g.vloer)){   // een trede, terras, de rand van een dak of een ravijn houdt de golf tegen
       g.ver = Math.min(g.ver, Math.abs(g.x - g.x0));
       if (gkRaak && gkRaak.dir === g.dir) gkRaak.ver = g.x;
     }
@@ -71747,6 +71769,16 @@ function mpcTrefferVanGast(m){
     if (raak && atkStok && m.a === 'bandieten') stokTreffer(o, o.x, 0, undefined, 'gevolg');   // de reeks, het wankelen en de stun
   } finally { [atkStok, atkFrame, atkCombo, gkRaak] = eig; stokHoutGast = null; prooiGast = null; mpcWisselUit(); }
 }
+// de host krijgt stof van gast m.p in de ogen van een vijand: met de stand van die gast (hij wankelt van hem weg), en
+// alleen als die vijand bij de host ook te verblinden is (STOF_SOORTEN, mag). De blindheid gaat met de stand mee terug
+function mpcStofVanGast(m){
+  const q = mpcLijst(m.a); if (!q) return;
+  const o = q.l().find(v => v.mpId === m.id); if (!o || !mpcLeeft(o) || !pvpAnderNu(m.p)) return;
+  const S = STOF_SOORTEN.find(S => S.lijst().includes(o));
+  if (!S || !S.mag(o)) return;
+  mpcWisselIn(m.p);
+  try { stofRaak(o, S); } finally { mpcWisselUit(); }
+}
 // de tonnen: een treffer van de gast gaat naar de host, die telt; de host stuurt elke treffer terug, voor het beeld
 const mpcTonRaakOrig = tonRaak;
 tonRaak = function(t, from, amir){
@@ -72411,6 +72443,7 @@ function mpCoopOntvang(m){
   if (m.t === 'v'){ if (!pvp.host) pvpNetIn(pvpNetVan(0), 'v', m, mpcStandLees); return true; }   // in de speelbuffer (zie "de netcode")
   if (m.t === 'hb') return true;
   if (m.t === 'mh'){ if (pvp.host) mpcTrefferVanGast(m); return true; }
+  if (m.t === 'stofR'){ if (pvp.host) mpcStofVanGast(m); return true; }   // een gast gooide stof in de ogen van een vijand
   if (m.t === 'prooi'){ const q = mpcLijst(m.a), o = q && q.l().find(v => v.mpId === m.id); if (o && !pvp.host) prooiZet(o); return true; }   // de host maakte hem prooi (zie "de Pathfinder Spear")
   if (m.t === 'gk'){ if (!laadWacht) gkKlapBeeld(m.x, m.x2, m.d, nowScale(), m.b * nowScale(), m.v); return true; }   // de grondklap van een ander: alleen beeld en geluid
   if (m.t === 'au2'){ if (!laadWacht) mpcHurtOrig(!!m.l, m.s || 1); return true; }
