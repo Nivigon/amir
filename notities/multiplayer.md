@@ -855,6 +855,15 @@ niet met `STOK_AAN` of in een level met `broekKeuze` of een eigen `skin`).
   als het niet de gewone is). Het vaantje waait in de hand net als op de rug (`pfRugWind`): stil wiegt het, rennend
   waait het naar achteren. Zolang iets laadt het gebakken frame. Stel je de speer
   bij in de tool, draai dan met de export `mkuki_spel_bak.py`, `mkuki_spel_zones.py` en `mkuki_spel_los.py`.
+- **De idle glad (23-11-2026).** De 20 Grok-frames van `idle/idle_sp` verschilden elk een beetje: nek en kralen
+  veranderden van vorm en schort en broek wiebelden tot 5 px op en neer, terwijl in de oude idle alles vanaf de heup
+  stilstaat. `tools/mkuki_idle_glad.py <mkuki-checkout>` maakt ze uit een lijf: frame 0 (bewaard in
+  `karakters/amir/mkuki/idle/idle_sp/bron/` op claude/mkuki) bewogen zoals de oude Amir. Bovenlijf en hoofd met de
+  optical flow van de oude frames (vanaf de riem uitlopend tot stil), de verre arm om schouder en elleboog met de
+  hoeken van de oude arm (de hand op de heup rond frame 10), en een donkere buitenrand om lijf en arm zoals de oude
+  Amir heeft. Het schrijft de spelframes met zonekaarten (groot en klein) en de bronframes in de mkuki-checkout,
+  zodat de tool en een volgende bak hetzelfde zien. Draai je later `mkuki_spel_bak.py` en de rest opnieuw, dan
+  komen deze frames vanzelf mee, want ze staan ook op claude/mkuki.
 - **Testen.** `node tools/outfittest.js map`: elke outfit in idle, ren en stoot naast het oude tenue, de losse speer
   tegen het gebakken frame (alleen randjes van de schacht mogen verschillen) en elke speersoort in zijn hand, en de sandbox.
   `node tools/mptest.js --proef --stokken gast2`: twee spelers Mkuki, een met de stokken.
