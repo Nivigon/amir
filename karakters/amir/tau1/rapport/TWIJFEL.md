@@ -21,3 +21,13 @@
   (`bron/rennen_03_hersteld.png`). Het gewone spel heeft het gat nog: zelfde reparatie kan daar ook in.
 - Zonekaart: de kap is vacht-zone (groen), tanden wit, ogen oranje. De broek is overal het origineel, dus de
   broek-zone volgt de paarse kleur; een paar pixels donkere schaduw vallen erbuiten.
+
+## Stoksets (nacht 22 op 23 nov)
+
+- Geen krassen in bukken, sluipen, slag, stapslag, slag2, laag, draaislag, draaiterug, blok en grondklap: `dij.json`
+  heeft voor die sets nog geen dijlijn. Wil je ze erin, dan per set een dijlijn zetten en `tau.maak` opnieuw draaien.
+- Draaislag 10 tot 14 en draaiterug 0 en 1 zijn rugaanzichten: alleen de achterkant van de kap, geen ogen of tanden.
+  Draaiterug 2 houdt het profiel. Kijk of de overgang in de draai goed leest.
+- Grondklap 17: IoU 0,80 (de stok voor het hoofd), de kap zelf lijkt goed, wel even nakijken in de gif.
+- De kap is per vel van zes frames door Grok getekend, dus binnen een vel is hij gelijk, maar tussen twee vellen kan
+  de vorm iets verspringen (bijvoorbeeld stapslag 2 naar 3). In de gifs is dat te zien als een klein sprongetje.
