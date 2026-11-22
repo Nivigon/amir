@@ -101,3 +101,6 @@ IoU per kop 0,90 tot 0,95. De prompt (`tau_kopr`) kreeg twee aanvullingen na fou
 - sluipen (28): klaar, `rapport/sluipen_plaat.png`, `sluipen.gif`. Geen krassen.
 - slag (18): klaar. Waar een stok voor het hoofd langs gaat, valt de kap er achter (de stokken zijn het origineel).
 - blok (13): klaar.
+- draaislag (15) en draaiterug (6): klaar. De rugaanzichten (draaislag 10 tot 14, draaiterug 0 en 1) kregen eerst
+  een gezicht met gloeiende ogen aan de achterkant; overgedaan met een eigen rug-prompt (`tau_rug`): alleen de
+  achterkant van de kap, geen ogen. Draaiterug 2 (halverwege de draai) houdt het profiel met de tanden.
