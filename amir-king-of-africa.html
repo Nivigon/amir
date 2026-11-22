@@ -56403,7 +56403,7 @@ function loop(now){
     camEase += (hlCam - camEase) * Math.min(1, realDt * MPC_HL.camV);
   } else if (mpCam !== null){                           // Co-op, dood: zacht naar de teamgenoot. Deze gaat voor de meekijkende camera, anders zette
     if (camEase === null) camEase = pWorld;      // die hem elk beeld terug op het lijk en trok deze hem weer een stukje weg: het beeld schudde
-    camEase += (mpCam - camEase) * Math.min(1, realDt * 3);
+    camEase = mpcKijkCam(mpCam, camEase, realDt);   // ver weg (een huis, de winkel): een fade in plaats van een schuif
   } else if (stadTrapCamX() !== null){                  // de stadstrap: de camera glijdt naar de uitgang (zie "de stadstrap")
     camEase = stadTrapCamX();
   } else if (arena){                      // zacht naar de arena-camera toe glijden
@@ -56429,8 +56429,14 @@ function loop(now){
     if (Math.abs(pWorld - camEase) < 1) camEase = null;
   }
   if (straatHier()){ if (camEase === null) camEase = pWorld; camEase = straatCamKlem(camEase); }   // de camera blijft in de straat
-  const huisC = binnenBij(pWorld);
-  if (huisC){ if (camEase === null) camEase = pWorld; camEase = binnenCamKlem(huisC, camEase); }   // en in het huis (zie "binnen")
+  if (mpCam === null) mpcKijkFade = null;
+  const huisC = binnenBij(mpCam !== null && camEase !== null ? camEase : pWorld);   // wie meekijkt: het huis waar de camera staat
+  if (huisC){
+    if (camEase === null) camEase = pWorld;
+    const w0 = world; if (mpCam !== null) world = camEase;   // binnenZoom kijkt op world: de kamer van de teamgenoot, niet die van het lijk
+    camEase = binnenCamKlem(huisC, camEase);   // en in het huis (zie "binnen")
+    world = w0;
+  }
   if (camEase !== null){ camSwap = pWorld; world = camEase; }
   scene(groundY);
   nepBasis = ctx.getTransform();                   // voor het nep-terrein van een masker (maskerNepTeken): de transform van voor de zoom
@@ -58579,6 +58585,7 @@ function loop(now){
     sbAftelTeken();                                 // en het cijfer van de afteller, voor de golven losgaan
     bandArenaFadeTeken();                           // de fade naar zwart van de takel-entree (bandiet-arena)
     stadTrapFadeTeken();                            // de fade van de stadstrap
+    mpcKijkFadeTeken();                             // Co-op: de fade van de meekijkcamera naar een teamgenoot ver weg
     straatHudTeken();                               // de kills en de minimap van een stadje met straten
     straatFadeTeken();                              // en de zwarte fade door een poort
     exeVignetTeken();                               // de rode waas op het splijten van de executie
@@ -72274,6 +72281,31 @@ function mpcKijkNaam(p){
   if (p === 'zelf') return 'yourself';
   return mpSpelerNoem(p) || 'your teammate';
 }
+// de overgang van de meekijkcamera: staat de teamgenoot ver weg of in een andere kamer (een huis of de winkel in, die
+// liggen ver van de straat), dan geen lange schuif door de lege wereld maar even zwart, en dan staat de camera bij hem.
+// Ook als hij zelf een deur door gaat terwijl je meekijkt. ver: in schermbreedtes
+const MPC_KIJK_FADE = { uit: 0.25, in: 0.35, ver: 1.5 };
+let mpcKijkFade = null;                             // { t, gewisseld }
+function mpcKijkCam(doel, cam, realDt){
+  const T = MPC_KIJK_FADE, F = mpcKijkFade;
+  if (!F){
+    const ver = Math.abs(doel - cam) > T.ver * W / viewZoom() || binnenBij(doel) !== binnenBij(cam);
+    if (!ver) return cam + (doel - cam) * Math.min(1, realDt * 3);
+    mpcKijkFade = { t: 0, gewisseld: false };
+    return cam;
+  }
+  F.t += realDt;
+  if (F.t >= T.uit) F.gewisseld = true;
+  if (F.t >= T.uit + T.in) mpcKijkFade = null;
+  return F.gewisseld ? doel : cam;
+}
+function mpcKijkFadeTeken(){
+  const F = mpcKijkFade, T = MPC_KIJK_FADE; if (!F) return;
+  const a = F.t < T.uit ? F.t / T.uit : Math.max(0, 1 - (F.t - T.uit) / T.in);
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = 'rgba(0,0,0,' + a + ')'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.restore();
+}
 function mpCoopCam(){
   if (!mpCoopAan() || !dead) return null;
   const k = mpcKijkNu();
@@ -72810,7 +72842,7 @@ function hinderVrijLokaal(i){
 // de host: beginnen als iedereen er levend is, open als het gevecht klaar is
 function hinderHostStap(dt){
   const i = hinderNu();
-  if (i < 0 || hinder.regie) return;
+  if (i < 0 || hinder.regie || pvp.coop.inWinkel) return;   // in de winkel begint er buiten niets
   const H = hinderLijst()[i];
   if (hinder.stand[i] === 'wacht'){
     if (hinderAllenBij(H.x)){ pvpZend({ t: 'hl', i }); hinderStart(i); }
@@ -72821,7 +72853,9 @@ function hinderHostStap(dt){
   if (hinderVechtKlaar(i, H.x) || hinder.vechtT > MPC_HL.vangnet){ pvpZend({ t: 'hlvrij', i }); hinderVrijLokaal(i); }
 }
 function hinderAllenBij(x){
-  const bij = px => px != null && px - x <= MPC_HL.verzamel;
+  // in een huis (de winkel ligt op -20000, ver links van elke lijn) telt niemand als bij de lijn: anders begon de
+  // hinderlaag buiten terwijl het team in de winkel stond
+  const bij = px => px != null && px - x <= MPC_HL.verzamel && !binnenBij(px);
   return pvp.spelers.every(p => {
     if (p === 0) return !dead && bij(world);
     const g = pvpAnderNu(p);
