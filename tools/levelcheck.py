@@ -2044,6 +2044,13 @@ def zwevende_lagen(lv, sp):
     if not zs:
         return
     _, red = sp.sprong(sp.LOOP * sp.SPRINT, lambda x: math.inf, 0)   # hoe breed een gat je met een sprint haalt
+    def vloer(z):                                     # de hoogste grond (savanne of terras) onder het blok
+        return max([0] + [t['h'] for t in lv.terraces if t['h'] > 0 and t['l'] <= z['r'] and t['r'] >= z['l']])
+    def van_onder(z):                                 # vanaf de grond eronder spring je er zelf op
+        return z['h'] - vloer(z) <= sp.SPRONG_H - 10
+    # een kruipdak: laag boven de grond (je kruipt eronder door) en bovenop niet te halen. Daar spring je niet
+    # tussen, dus het telt niet mee in de sprongen tussen de blokken (Test 87)
+    zs = [z for z in zs if not (z['onder'] - vloer(z) < sp.CHAR_H and not van_onder(z))]
     zs = sorted(zs, key=lambda z: z['l'])
     for i in range(len(zs) - 1):
         a, b = zs[i], zs[i + 1]                       # a ligt links van b (negatiever)
@@ -2051,6 +2058,8 @@ def zwevende_lagen(lv, sp):
             continue                                   # ze raken of overlappen: geen sprong ertussen
         if binnen_strook(lv, a['r']) is not binnen_strook(lv, b['l']):
             continue                                   # twee huizen (binnen): daar spring je niet tussen, je gaat door de deur
+        if van_onder(b):
+            continue                                   # b haal je ook vanaf de grond: de sprong vanaf a hoeft niet
         gat, dh = b['l'] - a['r'], abs(b['h'] - a['h'])
         if dh > sp.SPRONG_H - 10:
             yield letop(a['r'], 'de stap tussen de zwevende lagen op %s en %s is %s hoog: bijna de hele sprong van %s'
