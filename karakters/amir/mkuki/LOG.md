@@ -478,3 +478,10 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
   komt van de armen (iets anders boven het hoofd), de stand klopt nu.
 - combo_06: VERVANGEN, post `1863b647` 0,79 (was 0,76), `mk_nk_cb06`: bovenste vuist hoger, boven het hoofd.
 - combo_07: NIET vervangen. Het beeld van 06 op 07 (0,61) zette de vuisten niet op de plek van het origineel.
+### Speerworp, prioriteit B
+- Symlink `karakters/amir/speerworp` opnieuw gezet (zie hierboven, niet gecommit).
+- speerworp_12: VERVANGEN, post `8eb46544` 0,78 (was 0,69), `mk_nk_swp12`: voorste hand open met gespreide vingers.
+- speerworp_15: VERVANGEN, post `196199c2` 0,59 (was 0,54), `mk_nk_swp15b`: rug naar ons, achterarm met gebogen elleboog
+  en hangende hand. Eerste poging `60705d8f` (`mk_nk_swp15`) gaf de borst naar ons, afgekeurd; de rug-zin moest uitgebreider.
+- speerworp_16: VERVANGEN, post `549d7501` 0,66 (was 0,54), `mk_nk_swp16b`: voorste arm lang naar voren en omlaag.
+- speerworp_17: NIET vervangen. Het beeld van 16 op 17 (0,57) reikt verder, maar de achterarm staat uit in plaats van omlaag.

@@ -29,9 +29,9 @@ Prioriteit: **A** = zichtbaar fout, eerst doen. **B** = wijkt af, verbeteren als
 | B (af 22-11, Grok 1863b647) | aanval/combo/combo_06.png | bovenste vuist te laag | vuist hoog boven het hoofd |
 | B (niet vervangen, het beeld van 06 paste niet; LOG 22-11) | aanval/combo/combo_07.png | bovenste vuist te laag | idem |
 | B (af 22-11, Grok 0c415682) | aanval/combo/combo_02.png | voeten smaller | bredere stand |
-| B | speerworp/speerworp_15.png | achterarm te gestrekt | zoals origineel |
-| B | speerworp/speerworp_16.png en speerworp_17.png | voorste arm reikt minder ver | verder naar voren |
-| B | speerworp/speerworp_12.png | voorste hand een vuist | open hand |
+| B (af 22-11, Grok 196199c2) | speerworp/speerworp_15.png | achterarm te gestrekt | zoals origineel |
+| B (16 af 22-11, Grok 549d7501; 17 niet, achterarm paste niet) | speerworp/speerworp_16.png en speerworp_17.png | voorste arm reikt minder ver | verder naar voren |
+| B (af 22-11, Grok 8eb46544) | speerworp/speerworp_12.png | voorste hand een vuist | open hand |
 | B | aanval/speerstrike/ frame 4 en 9 (bestandsnaam in LOG.md, sectie Speerstoot) | 4 leunt minder voorover, 9 staat rechter | zoals origineel |
 | B | beweging/rol/zonder/rol_25.png | hand reikt minder ver | hand verder naar voren naar de grond |
 | B | beweging/rol/met/rol_17.png en rol_18.png | vuisten niet op de handpunten | vuisten op de plek van de originele handen |
