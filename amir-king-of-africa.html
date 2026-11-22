@@ -26291,9 +26291,116 @@ let mkVoorgeladen = false;
 function mkSkinVoorladen(){
   if (mkVoorgeladen) return;
   mkVoorgeladen = true;
-  const doe = () => { const L = SKIN.lijst.mkuki; if (!L || !L.size) return setTimeout(doe, 300);
-    for (const r of L) mkSkinLaad(KLEIN + SKIN.soorten.mkuki + r); };
-  skinLijstLaad('mkuki'); doe();
+  const doe = () => { const L = SKIN.lijst.mkuki; if (!L || !L.size || !MK_LOS.data) return setTimeout(doe, 300);
+    const F = MK_LOS.data.frames, b = KLEIN + SKIN.soorten.mkuki;
+    for (const r of L){
+      mkSkinLaad(b + r);
+      const d = F[r]; if (!d) continue;
+      const s = b + r.replace(/\.png$/, '');
+      mkSkinLaad(s + '_lijf.png'); if (d.b) mkSkinLaad(s + '_boven.png'); if (d.m) mkSkinLaad(s + '_sm.png');
+    }
+    for (const h in MK_LOS.data.hoeken) mkSkinLaad(SKIN.soorten.mkuki + 'bron/amirspeer_' + h + '.png');
+  };
+  skinLijstLaad('mkuki'); mkLosLaad(); doe();
+}
+
+// ---- de losse speer van Mkuki (MK_LOS): lijf, speer en vuist apart, zodat elke speersoort in zijn handen kan ----
+// tools/mkuki_spel_los.py bakt per frame van de skin het lijf zonder speer (_lijf.png), wat over de speer heen komt (het
+// voor-masker van het lijf en de vuist, _boven.png) en de maskers van de speer (_sm.png: rood weg, groen achter het
+// lijf), met hun zonekaarten, en in los.json per frame de speer zoals de Mkuki animeer tool hem zet: hoek (de gewone of
+// een langere of verkorte schacht), midden en breedte als deel van het canvas, draaiing, spiegelen, achter het lijf.
+// broekBeeld tekent dan: speer achter, lijf, speer voor, boven, met de outfitkleuren op lijf en boven. De speer is het
+// plaatje van zijn soort: de gewone (bron/amirspeer_<hoek>.png, met het lint in de kleur van de soort, speerKleur) of
+// de Pathfinder (bron/pf_<hoek>.png, de schacht rekt mee zoals in de tool) met zijn vaantje recht omlaag aan de knoop.
+// Mijn eigen Amir draagt de soort in zijn hand (speerBlauw); een teamgenoot de gewone. Zolang iets nog laadt: het
+// gebakken frame met de speer erin.
+const MK_LOS = { data: null };
+function mkLosLaad(){
+  if (MK_LOS.data !== null) return;
+  MK_LOS.data = false;
+  fetch(SKIN.soorten.mkuki + 'los.json').then(r => r.json()).then(d => { MK_LOS.data = d; })
+    .catch(e => { console.warn('mkuki los.json', e); MK_LOS.data = null; });
+}
+const mkMaskCache = new WeakMap();                       // _sm.png -> [weg, achter] als doeken met alleen alfa
+function mkMaskers(sm){
+  let m = mkMaskCache.get(sm);
+  if (m) return m;
+  const w = sm.naturalWidth, h = sm.naturalHeight, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(sm, 0, 0);
+  const d = g.getImageData(0, 0, w, h).data;
+  m = [0, 1].map(k => {
+    const o = document.createElement('canvas'); o.width = w; o.height = h;
+    const og = o.getContext('2d'), od = og.createImageData(w, h);
+    for (let i = 0; i < d.length; i += 4){ od.data[i + 3] = d[i + k]; }
+    og.putImageData(od, 0, 0); return o;
+  });
+  mkMaskCache.set(sm, m);
+  return m;
+}
+// de speer van een frame tekenen op g (in framepixels W x H); false als het plaatje nog niet binnen is
+function mkSpeerTeken(g, s, soortId, W, H){
+  const pf = soortId === 'pathfinder', D = MK_LOS.data;
+  const bron = mkSkinLaad(SKIN.soorten.mkuki + 'bron/' + (pf ? 'pf_' : 'amirspeer_') + s.a + '.png');
+  if (!imgReady(bron)) return false;
+  const im = pf ? bron : speerKleur(bron, soortId);
+  const w = s.w * W, h = w * (pf ? D.pf[s.a].asp : D.hoeken[s.a].asp);
+  g.save();
+  g.globalAlpha *= s.op == null ? 1 : s.op;
+  g.translate(s.cx * W, s.cy * H); g.rotate(s.r * Math.PI / 180);
+  if (s.f) g.scale(-1, 1);
+  g.drawImage(im, -w / 2, -h / 2, w, h);
+  if (pf && pfVaan[0] && imgReady(pfVaan[0])){            // het vaantje: aan de knoop, recht omlaag in het frame
+    const kx = -w / 2 + D.pf[s.a].kx * w, ky = -h / 2 + D.pf[s.a].ky * h;
+    const m = g.getTransform(), p = m.transformPoint(new DOMPoint(kx, ky));
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    const v = pfVaan[0], fk = w / bron.naturalWidth / PATHFINDER.vaanK, kn = PATHFINDER.vaan[0];
+    g.drawImage(v, p.x - kn[0] * fk, p.y - kn[1] * fk, v.naturalWidth * fk, v.naturalHeight * fk);
+  }
+  g.restore();
+  return true;
+}
+let mkLosCv = null, mkSpeerCv = null, mkSpeerCv2 = null;
+// het hele frame: speer, lijf, boven, met de outfit; null als iets nog laadt (dan het gebakken frame)
+function mkLosBeeld(mk, rel, kl, soortId, cv){
+  const D = MK_LOS.data, d = D && D.frames[rel];
+  if (!d) { if (D === null) mkLosLaad(); return null; }
+  const b = SKIN_SRC.get.call(mk).replace(/\.png$/, '');
+  const lijf = mkSkinLaad(b + '_lijf.png'), boven = d.b ? mkSkinLaad(b + '_boven.png') : null, sm = d.m ? mkSkinLaad(b + '_sm.png') : null;
+  if (!imgReady(lijf) || (boven && !imgReady(boven)) || (sm && !imgReady(sm))) return null;
+  if (d.s && soortId === 'pathfinder') pfLaad();
+  const W = lijf.naturalWidth, H = lijf.naturalHeight;
+  if (!cv){ if (!mkLosCv) mkLosCv = document.createElement('canvas'); cv = mkLosCv; }
+  if (cv.width !== W || cv.height !== H){ cv.width = W; cv.height = H; }
+  const g = cv.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+  g.clearRect(0, 0, W, H);
+  const lap = (im, x) => { if (!kl.zones) return; const l = mkLap(im, kl); if (l) g.drawImage(l.cv, l.x, l.y); };
+  let voor = null;                                       // wat van de speer na het lijf komt
+  if (d.s){
+    if (sm){                                             // met maskers: eerst op een eigen doek, weg eraf, dan splitsen
+      const [weg, achter] = mkMaskers(sm);
+      if (!mkSpeerCv){ mkSpeerCv = document.createElement('canvas'); mkSpeerCv2 = document.createElement('canvas'); }
+      for (const c of [mkSpeerCv, mkSpeerCv2]) if (c.width !== W || c.height !== H){ c.width = W; c.height = H; }
+      const s1 = mkSpeerCv.getContext('2d'), s2 = mkSpeerCv2.getContext('2d');
+      s1.globalCompositeOperation = 'source-over'; s1.clearRect(0, 0, W, H);
+      if (!mkSpeerTeken(s1, d.s, soortId, W, H)) return null;
+      s1.globalCompositeOperation = 'destination-out'; s1.drawImage(weg, 0, 0, W, H);
+      s1.globalCompositeOperation = 'source-over';
+      if (d.s.b) g.drawImage(mkSpeerCv, 0, 0);
+      else {
+        s2.globalCompositeOperation = 'source-over'; s2.clearRect(0, 0, W, H); s2.drawImage(mkSpeerCv, 0, 0);
+        s2.globalCompositeOperation = 'destination-in'; s2.drawImage(achter, 0, 0, W, H); s2.globalCompositeOperation = 'source-over';
+        g.drawImage(mkSpeerCv2, 0, 0);                   // het achter-stuk
+        s1.globalCompositeOperation = 'destination-out'; s1.drawImage(achter, 0, 0, W, H); s1.globalCompositeOperation = 'source-over';
+        voor = () => g.drawImage(mkSpeerCv, 0, 0);
+      }
+    } else if (d.s.b){ if (!mkSpeerTeken(g, d.s, soortId, W, H)) return null; }
+    else voor = () => mkSpeerTeken(g, d.s, soortId, W, H);
+  }
+  g.drawImage(lijf, 0, 0); lap(lijf);
+  if (voor && voor() === false) return null;
+  if (boven){ g.drawImage(boven, 0, 0); lap(boven); }
+  return cv;
 }
 function mkLap(img, kl){
   let cache = mkLapCache.get(kl.id);
@@ -26425,7 +26532,10 @@ function broekBeeld(basis, img, kl = broekNu(), cv = null){
   if (kl.skin){                                         // een outfit van Mkuki (MK_OUTFIT): het frame uit de skin
     const mk = mkSkinVan(img, kl.skin);
     if (!mk) return basis;                              // niet in de skin (of nog niet geladen): het oude tenue
-    basis = basis === img ? mk : vaanBlauw(mk);         // het lint van de speer in de kleur van de speersoort, net als het oude
+    // de losse speer (MK_LOS): mijn eigen Amir (basis is dan vaanBlauw van het frame) met de soort in zijn hand
+    const los = mkLosBeeld(mk, img._skinRel, kl, basis === img ? null : speerSoortId(speerBlauw), cv);
+    if (los) return los;
+    basis = basis === img ? mk : vaanBlauw(mk);         // nog aan het laden: het gebakken frame, het lint in de kleur van de soort
     img = mk;
     if (!kl.zones) return basis;
   }
