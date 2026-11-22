@@ -858,3 +858,24 @@ niet met `STOK_AAN` of in een level met `broekKeuze` of een eigen `skin`).
 - **Testen.** `node tools/outfittest.js map`: elke outfit in idle, ren en stoot naast het oude tenue, de losse speer
   tegen het gebakken frame (alleen randjes van de schacht mogen verschillen) en elke speersoort in zijn hand, en de sandbox.
   `node tools/mptest.js --proef --stokken gast2`: twee spelers Mkuki, een met de stokken.
+
+### Silver Pride, het zilveren leeuwenhart (gebouwd, 22-11-2026)
+
+`ZH`, `zhGebruik`, `zhStart`, `zhStap`, `zhTeken`, `zhTauNa`, `zhOpstaan`, `zhKVoor`, `zhOntwaakT`, `zhCarry`, `TEST_91`
+
+Op verzoek van de opdrachtgever: een revive-item voor de stokspeler (de speerspeler krijgt later zijn eigen, de veren).
+- **De winkel:** `zilverhart` in `MPC_WINKEL`, tab Team, `stok: true`, en alleen te zien met een teamgenoot (net als Give 5 gold).
+  Prijs 35, 50, 65 (de derde keer is de laatste, daarna Sold out). Je draagt er een tegelijk (`ZH.max`, `zhCarry`); Undo kan zolang
+  je hem niet gebruikte. Het beeld is `items/zilverhart/hart.png` met het leeuwenmedaillon linksboven (`leeuw_medaillon.png`, de
+  Tau-kop in zilver); het icoon in de balk is `hart_icoon.png` met G. In een episode gaat het hart mee in de tas (`tas.zh`).
+- **Gebruik:** ligt er een teamgenoot dood, dan drukt de stokspeler G (`zhGebruik`): Amir bukt even (`zhNeerT`, via `canDuck`), het hart
+  ligt een halve Amir voor hem, pulseert `ZH.puls` s met zilver licht (lub-dub, steeds sneller), en dan komt de dode eruit: van
+  `ZH.klein` naar normaal in `ZH.groei` s, met een zachte lichtzuil en een ring over de grond, geen flits. Tau brult tegelijk
+  `ZH.tauBoven` Amir boven het hart (`zhTauNa`, dezelfde frames als de zonnestraal, wit met een koelere gloed).
+- **Het netwerk:** het bericht `zh` (`{voor, x, h}`, in `MP_DOOR`) gaat naar iedereen; ieder speelt het zelf af. De dode staat op zijn
+  eigen scherm op (`zhOpstaan`, precies op het hart, net als bij `symPak`), met `invuln` en `zhOntwaakT` op `ZH.onkw` (3 s). Zolang
+  zijn stand nog niet binnen is, tekent `pvpTekenEen` het lijk niet meer, en hij groeit via `zhKVoor`.
+- **Geen abilities** zolang `zhOntwaakT > 0`: geen rol, duw, woede, stof, grondklap, lage slag, blok, meditatie of kalebas. Gewoon slaan mag.
+- **Test 91: Silver Pride** (in Test levels sticks): een oefenteamgenoot in de kleuren van de mentor ligt voor je, G speelt het af, het hart
+  is daar onbeperkt en na `ZH.dummyStaat` s valt hij weer om. Proef: `node tools/zilverhart_test.js [map]` en
+  `node tools/mptest.js --zilverhart --stokken host`.

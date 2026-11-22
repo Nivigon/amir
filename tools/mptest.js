@@ -26,6 +26,7 @@
 //                                        goed de andere Amir en de vijanden bij de gast de echte baan volgden: bij de best
 //                                        passende vertraging (ms) de gemiddelde afwijking in px (lager is vloeiender en klopt beter)
 //   node tools/mptest.js --duel --spelers 2   het Duel: allebei in de ronde, de gast valt, de ronde naar de host, ronde 2
+//   node tools/mptest.js --zilverhart --stokken host   Silver Pride: de gast valt, de host legt het hart neer, de gast komt eruit
 //   node tools/mptest.js --stokken gast  deze spelers kiezen in de lobby de stokken (ook host, gast2, of host,gast): kijkt na
 //                                        dat iedereen het weet, dat hun potje met stokken start zonder speer, en hun winkel
 //   node tools/mptest.js --geensnel      zonder het nagebootste snelle kanaal (zoals via het relais)
@@ -85,6 +86,28 @@ async function tot(page, f, arg, max = 30000){
 // de Co-op episode (--ep): de levels samen uitspelen. Een spawn die bij een gast komt, het eind dat op iedereen wacht,
 // een revive-ton bij de levende ergens midden in het level, door naar het volgende level met de score, game over en R
 // voor hetzelfde level, en het slot na het laatste level
+// Silver Pride (ZH): de gast valt, de host (met de stokken) legt het zilveren hart neer met G, de gast komt eruit: precies op
+// het hart, onkwetsbaar en zonder abilities. node tools/mptest.js --zilverhart --stokken host
+async function zhProef(R){
+  const [H, G] = R, allen = R.map(r => r.page);
+  for (const p of allen) await p.evaluate(() => { godMode = true; MPC.reviveNa = 999; });
+  await H.page.evaluate(() => { world = -1500; ph = 0; facing = -1; });
+  await G.page.evaluate(() => { world = -2200; ph = 0; });
+  await wacht(800);
+  await G.page.evaluate(() => { godMode = false; invuln = 0; lives = 1; hurtPlayer(true); });
+  meld(await tot(H.page, () => pvpAnderen().some(p => pvp.anders[p].g && pvp.anders[p].g.d), null, 6000), 'de host ziet de gast dood liggen');
+  meld(await H.page.evaluate(() => { zhCarry = 1; return mpcWinkelVoorMij(MPC_WINKEL.find(q => q.k === 'zilverhart')); }), 'Silver Pride staat in de winkel van de stokspeler');
+  await H.page.evaluate(() => { cv.focus(); zhGebruik(); });
+  meld(await H.page.evaluate(() => zhLijst.length === 1 && zhCarry === 0), 'het hart ligt en is uit de tas');
+  meld(await tot(G.page, () => zhLijst.length === 1, null, 3000), 'de gast krijgt het bericht en ziet het hart');
+  meld(await tot(G.page, () => !dead && lives === 1 && zhOntwaakT > 0 && invuln > 2, null, 6000), 'de gast komt uit het hart: levend, onkwetsbaar en zonder abilities');
+  const [hx, gx] = [await H.page.evaluate(() => zhLijst[0] ? Math.round(zhLijst[0].x) : null), await G.page.evaluate(() => Math.round(world))];
+  meld(hx != null && Math.abs(hx - gx) < 2, 'hij staat op het hart (' + hx + ', ' + gx + ')');
+  meld(await G.page.evaluate(() => { const v = rol; rolStart(); const r = rol; rol = v; return !r; }), 'rollen kan nog niet');
+  await wacht(3500);
+  meld(await G.page.evaluate(() => zhOntwaakT === 0), 'na 3 s mag hij weer alles');
+  for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
+}
 async function epProef(R){
   const [H, G] = R, allen = R.map(r => r.page);
   const elk = async (f, arg, max) => { for (const r of R) if (!await tot(r.page, f, arg, max)) return r.wie; return null; };
@@ -836,6 +859,7 @@ async function elk(H, G){
   }
   if (args.includes('--winkel')){ await winkelProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--hl')){ await hlProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
+  if (args.includes('--zilverhart')){ await zhProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--ep')){ await epProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--elk')){ await elk(H, G); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--proef')){ await proef(ramen, lobby); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
