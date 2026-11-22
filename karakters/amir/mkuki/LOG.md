@@ -512,3 +512,10 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
 - Vuistlaag van 1 en 12 weg (de speerhand van Grok zit niet op de gemeten plek); in de Animeer tool schuift de speer
   daar naar de Mkuki-vuist.
 - Nog open: de ren zonder speer (ren_ns) heeft dezelfde fout.
+### Ren zonder speer (ren_ns): armen om en om
+- Zelfde fout als ren_sp. Nu nabije arm voor en verre arm achter in 11, 12, 1, 2; 3 t/m 10 ongewijzigd (verre arm voor
+  in 4-9, armen langs het lijf in 3 en 10).
+- Frame 1: post `7bdee498` (prompt `mk_nk_rensp_arm` op het Mkuki-frame in hulpkleuren; Grok deed hier beide armen).
+  Afgekeurd: `5e6a0d65` (`mk_nk_renns_arm`, beide armen tegelijk: niets gewisseld), voor 2: `7394e5ad` en `5086b046` (beide
+  vuisten voor), `9f984fe6` (`mk_nk_renns_ver`, tweede stap: verre arm weer voor).
+- 2, 11 en 12: het bovenlijf van frame 1 (`7bdee498`) op hun eigen benen gezet (`boven2.py` lijnt het uit op kop en romp).
