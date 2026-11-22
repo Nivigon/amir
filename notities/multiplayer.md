@@ -793,3 +793,27 @@ layouts" (rechts een paneel, links blijft de winkelkamer met de marktman zichtba
   (de host stuurt `wkvertrek` met `aan: false`). Bij nul stuurt de host `winkelUit` (`mpcVertrekStap`, vanuit `pvpStap`, ook
   in de pauze van Co-op solo).
 
+
+## De outfits van Mkuki (22-11-2026)
+
+Op verzoek: Amir met de speer is voortaan Mkuki, de basisskin van de speer-tribe, en met de stokken het oude tenue
+met de leeuwenvacht. Dat geldt overal, niet alleen in Multiplayer: buiten Multiplayer is het Outfit 1 (`broekNu`, alleen
+niet met `STOK_AAN` of in een level met `broekKeuze` of een eigen `skin`).
+
+- **Hoe het tekent.** Een outfit is een "broekkleur" met `skin: 'mkuki'` (`MK_OUTFIT.lijst`). `broekBeeld` zoekt bij het
+  oude frame het frame uit de skin (`mkSkinVan`: zelfde naam in `karakters/amir/mkuki_spel/`, via `_skinRel` uit SKIN) en
+  kleurt de kleding om met de zonekaart ernaast (`mkLap`, `<frame>_zones.png`): per zone de doelkleur maal de helderheid
+  van het frame gedeeld door die van de Mkuki-kleur (`MK_OUTFIT.vref`), dus licht en schaduw blijven. Per tekening en
+  per speler, dus in Co-op kan de een Mkuki zijn en de ander met de stokken het oude tenue. Wat de skin niet heeft
+  (de oude ren, de sluipaanval, de executie, de stokken, de schaduw) blijft het oude tenue.
+- **De zonekaarten** komen uit `tools/mkuki_spel_zones.py`: precies zoals `tools/mkuki_spel_bak.py` het frame bakt (speer,
+  maskers, vuist), maar met het lijf in de zonekleuren. Bak je de skin opnieuw (een export uit de Mkuki animeer tool),
+  draai dan ook dit script. `--check` kijkt eerst na of de lijven nog kloppen met de frames in de repo.
+- **De zes outfits** (neutrale namen, zodat een naam niet stuurt): 1 Mkuki zelf; 2 donkerbruine broek, zand schort, wit
+  boven; 3 creme broek, witte schort, rood boven; 4 zwarte broek, oker schort, donkerrood en goud; 5 witte broek, ivoren
+  schort, goud; 6 bordeaux met goud. Elk een eigen broekkleur, zodat je elkaar uit elkaar houdt.
+- **De lobby.** `mpBroekLijst`: met de speer de outfits (`MP_OUTFIT`, bewaard in `amir.mpoutfit`, standaard mk1, mk3, mk4
+  per slot), met de stokken de broeken (`MP_BROEK_OUD`, `amir.mpbroek`). Wisselt je wapen, dan zet `mpBroekPas` je keuze
+  om. Het bericht blijft `{t: 'broek', id}`. `MP_NAAM.kleur` heeft per outfit zijn opvallendste kleur (`stip`).
+- **Testen.** `node tools/outfittest.js map`: elke outfit in idle, ren en stoot naast het oude tenue, en de sandbox.
+  `node tools/mptest.js --proef --stokken gast2`: twee spelers Mkuki, een met de stokken.

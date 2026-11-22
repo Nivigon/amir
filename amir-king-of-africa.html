@@ -3769,12 +3769,7 @@ function skinWissel(){                              // elk bekend Amir-plaatje n
 }
 function skinZet(soort){
   soort = soort && SKIN.soorten[soort] ? soort : null;
-  if (soort && !SKIN.lijst[soort]){
-    SKIN.lijst[soort] = new Set();                  // eerst leeg, tot lijst.json binnen is
-    fetch(SKIN.soorten[soort] + 'lijst.json').then(r => r.json()).then(a => {
-      SKIN.lijst[soort] = new Set(a); if (SKIN.aan === soort) skinWissel();
-    }).catch(e => console.warn('skin ' + soort + ': geen lijst', e));
-  }
+  if (soort) skinLijstLaad(soort);                  // eerst leeg, tot lijst.json binnen is (staat bij MK_OUTFIT)
   if (SKIN.aan === soort) return;
   SKIN.aan = soort; skinWissel();
 }
@@ -26232,10 +26227,111 @@ const BROEK = {
 const broekLapCache = new Map();                         // kleur-id -> WeakMap(plaatje -> {cv, x, y} of null)
 // na een keuze: de lapjes van kleuren die niemand draagt weg (het voorbeeld in het keuzescherm bakte ze ook)
 function broekOpruim(houd){ for (const id of [...broekLapCache.keys()]) if (!houd.includes(id)) broekLapCache.delete(id); }
-function broekKleurVan(id){ return BROEK.kleuren.find(k => k.id === id) || null; }
+function broekKleurVan(id){ return BROEK.kleuren.find(k => k.id === id) || MK_OUTFIT.lijst.find(k => k.id === id) || null; }
+// Amir met de speer is Mkuki, in Outfit 1 (MK_OUTFIT); met de stokken het oude tenue (geen lapje). In Multiplayer de keuze
+// uit de lobby, in een level met broekKeuze (Test 73) de broek uit dat scherm.
 function broekNu(){
   if (pvp && pvp.broek && !sandbox) return broekKleurVan(pvp.broek[pvp.mij]);   // Multiplayer: de kleur uit de lobby (mpBroek)
-  return level && level.broekKeuze && !sandbox ? broekKleurVan(duoKeuze.broek) : null;
+  if (level && level.broekKeuze && !sandbox) return broekKleurVan(duoKeuze.broek);
+  return STOK_AAN ? null : MK_OUTFIT.lijst[0];
+}
+
+// ---- de outfits van Mkuki: Amir met de speer in de Mkuki-skin, zes kleurstellingen (MK_OUTFIT) ----
+// Een outfit is een "broekkleur" met skin: 'mkuki'. broekBeeld tekent dan in plaats van het oude frame het frame uit de
+// Mkuki-skin (karakters/amir/mkuki_spel/, zelfde naam en canvas, gebakken met tools/mkuki_spel_bak.py) en kleurt de kleding
+// om met de zonekaart ernaast (<frame>_zones.png, tools/mkuki_spel_zones.py): per zone de doelkleur maal de helderheid van
+// het frame gedeeld door die van de Mkuki-kleur (vref), zodat licht en schaduw blijven. Outfit 1 is Mkuki zelf (geen lapje).
+// Per tekening en per speler, dus in Co-op kan de een Mkuki zijn en de ander met de stokken het oude tenue. Wat de skin niet
+// heeft (de oude ren, de sluipaanval, de executie, de stokken) blijft het oude tenue. Een level met `skin` (SKIN) gaat voor.
+// De namen zijn neutraal (Outfit 1 tot 6), zodat een naam niet bepaalt wat iemand kiest.
+const MK_OUTFIT = {
+  // zones 1 tot 6 in de kaart: broek, schort, riem, schuine band, kralen, armbanden
+  kaart: [[0, 0, 255], [255, 255, 0], [255, 0, 0], [0, 255, 0], [0, 255, 255], [255, 128, 0]],
+  vref: [60, 185, 88, 78, 138, 200].map(v => v / 255),   // de helderheid van de Mkuki-kleur per zone (zo is de skin gebakken)
+  lijst: [
+    { id: 'mk1', naam: 'Outfit 1', skin: 'mkuki', stip: '#b98c62', zones: null },
+    { id: 'mk2', naam: 'Outfit 2', skin: 'mkuki', stip: '#f0ece0',
+      zones: [[70, 46, 32], [185, 140, 98], [236, 230, 214], [236, 230, 214], [240, 236, 224], [196, 120, 70]] },
+    { id: 'mk3', naam: 'Outfit 3', skin: 'mkuki', stip: '#c8302a',
+      zones: [[222, 208, 180], [240, 236, 226], [172, 36, 32], [172, 36, 32], [190, 36, 32], [196, 120, 70]] },
+    { id: 'mk4', naam: 'Outfit 4', skin: 'mkuki', stip: '#c48c28',
+      zones: [[36, 32, 30], [196, 140, 40], [120, 30, 26], [120, 30, 26], [240, 236, 226], [214, 170, 58]] },
+    { id: 'mk5', naam: 'Outfit 5', skin: 'mkuki', stip: '#e6c34a',
+      zones: [[244, 242, 236], [222, 212, 186], [214, 170, 58], [214, 170, 58], [214, 170, 58], [214, 170, 58]] },
+    { id: 'mk6', naam: 'Outfit 6', skin: 'mkuki', stip: '#8c1c2a',
+      zones: [[96, 24, 32], [112, 26, 36], [214, 170, 58], [214, 170, 58], [214, 170, 58], [214, 170, 58]] } ]
+};
+const mkSkinBeeld = new Map();                            // pad in de skin -> Image
+const mkLapCache = new Map();                             // outfit-id -> WeakMap(skinframe -> {cv, x, y} of null)
+function skinLijstLaad(soort){
+  if (SKIN.lijst[soort]) return SKIN.lijst[soort];
+  SKIN.lijst[soort] = new Set();                          // eerst leeg, tot lijst.json binnen is
+  fetch(SKIN.soorten[soort] + 'lijst.json').then(r => r.json()).then(a => {
+    SKIN.lijst[soort] = new Set(a); if (SKIN.aan === soort) skinWissel();
+  }).catch(e => console.warn('skin ' + soort + ': geen lijst', e));
+  return SKIN.lijst[soort];
+}
+function mkSkinLaad(p){
+  let im = mkSkinBeeld.get(p);
+  if (!im){ im = new Image(); im.decoding = 'async'; im.src = p; mkSkinBeeld.set(p, im); }
+  return im;
+}
+// het frame uit de skin bij een oud frame van Amir (of null: niet in de skin, of een level met een eigen skin)
+function mkSkinVan(img, soort){
+  if (SKIN.aan || !img || !img._skinRel) return null;
+  if (!mkVoorgeladen) mkSkinVoorladen();
+  const L = skinLijstLaad(soort);
+  if (!L.has(img._skinRel)) return null;
+  let p = img._skinOrig; try { p = decodeURI(p); } catch (_){}
+  const im = mkSkinLaad((p.indexOf('klein/') === 0 ? 'klein/' : '') + SKIN.soorten[soort] + img._skinRel);
+  return imgReady(im) ? im : null;
+}
+// alvast alle frames van de skin laden, zodat Amir niet even in het oude tenue staat (een keer per sessie)
+let mkVoorgeladen = false;
+function mkSkinVoorladen(){
+  if (mkVoorgeladen) return;
+  mkVoorgeladen = true;
+  const doe = () => { const L = SKIN.lijst.mkuki; if (!L || !L.size) return setTimeout(doe, 300);
+    for (const r of L) mkSkinLaad(KLEIN + SKIN.soorten.mkuki + r); };
+  skinLijstLaad('mkuki'); doe();
+}
+function mkLap(img, kl){
+  let cache = mkLapCache.get(kl.id);
+  if (!cache){ cache = new WeakMap(); mkLapCache.set(kl.id, cache); }
+  let lap = cache.get(img);
+  if (lap !== undefined) return lap;
+  const zi = mkSkinLaad(SKIN_SRC.get.call(img).replace(/\.png$/, '_zones.png'));
+  if (!imgReady(zi)) return null;                         // nog niet binnen: even zonder kleur, de volgende keer wel
+  lap = null;
+  try {
+    const w = img.naturalWidth, h = img.naturalHeight;
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(zi, 0, 0, w, h);
+    const z = g.getImageData(0, 0, w, h).data;
+    g.clearRect(0, 0, w, h); g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, w, h), p = d.data, K = MK_OUTFIT.kaart;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let j = 0, i = 0; j < w * h; j++, i += 4){
+      let k = -1;
+      if (z[i + 3] > 128 && p[i + 3]) for (let q = 0; q < 6; q++){
+        if (Math.abs(z[i] - K[q][0]) < 40 && Math.abs(z[i + 1] - K[q][1]) < 40 && Math.abs(z[i + 2] - K[q][2]) < 40){ k = q; break; }
+      }
+      if (k < 0){ p[i + 3] = 0; continue; }
+      const f = Math.min(1.45, Math.max(0.15, Math.max(p[i], p[i + 1], p[i + 2]) / 255 / MK_OUTFIT.vref[k])), c2 = kl.zones[k];
+      p[i] = Math.min(255, c2[0] * f); p[i + 1] = Math.min(255, c2[1] * f); p[i + 2] = Math.min(255, c2[2] * f);
+      const x = j % w, y = (j - x) / w;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    if (x1 >= 0){
+      g.putImageData(d, 0, 0);
+      const cv = document.createElement('canvas'); cv.width = x1 - x0 + 1; cv.height = y1 - y0 + 1;
+      cv.getContext('2d').drawImage(c, x0, y0, cv.width, cv.height, 0, 0, cv.width, cv.height);
+      lap = { cv, x: x0, y: y0 };
+    }
+  } catch (e){ lap = null; }
+  cache.set(img, lap);
+  return lap;
 }
 function broekLap(img, kl){
   let cache = broekLapCache.get(kl.id);
@@ -26325,8 +26421,16 @@ let broekCv = null;
 // Alleen een echt plaatje krijgt een lapje: een doek dat elk beeld anders is (rigCv van de mik-rig) zou het lapje
 // van zijn eerste stand houden. De rig kleurt daarom zijn losse delen (rigLaag) en zijn doek gaat er hier langs.
 function broekBeeld(basis, img, kl = broekNu(), cv = null){
-  if (!kl || !img || !(img instanceof HTMLImageElement) || !imgReady(img)) return basis;
-  const lap = broekLap(img, kl);
+  if (!kl || !img || !(img instanceof HTMLImageElement)) return basis;
+  if (kl.skin){                                         // een outfit van Mkuki (MK_OUTFIT): het frame uit de skin
+    const mk = mkSkinVan(img, kl.skin);
+    if (!mk) return basis;                              // niet in de skin (of nog niet geladen): het oude tenue
+    basis = basis === img ? mk : vaanBlauw(mk);         // het lint van de speer in de kleur van de speersoort, net als het oude
+    img = mk;
+    if (!kl.zones) return basis;
+  }
+  if (!imgReady(img)) return basis;
+  const lap = kl.skin ? mkLap(img, kl) : broekLap(img, kl);
   if (!lap) return basis;
   const bw = basis.naturalWidth || basis.width, bh = basis.naturalHeight || basis.height;
   if (!cv){ if (!broekCv) broekCv = document.createElement('canvas'); cv = broekCv; }
@@ -70188,8 +70292,9 @@ function mpLobbyOpen(){
   pvpStatus('');
   mpLobbyToon();
   if (pvp.host) pvpZend({ t: 'lobby', inst: pvp.inst, spelers: pvp.spelers });
-  pvpZend({ t: 'broek', id: pvp.broek[pvp.mij] });
   if (!pvp.wapen[pvp.mij]) pvp.wapen[pvp.mij] = mpWapenEigen();
+  mpBroekPas();                                     // met de speer een outfit van Mkuki, met de stokken een broek
+  pvpZend({ t: 'broek', id: pvp.broek[pvp.mij] });
   pvpZend({ t: 'wapen', w: pvp.wapen[pvp.mij] });
   pvp.naam[pvp.mij] = mpNaamEigen(); pvpZend({ t: 'naam', n: pvp.naam[pvp.mij] });
   mpNaamVeld(); mpBroekToon(); mpWapenToon(); mpBroekStart();
@@ -70200,27 +70305,43 @@ function mpLobbyDicht(){ pvpEl('menuPvp').classList.remove('lobby'); pvpEl('star
 // los van wie host is, en een kleur die een ander al draagt sla je over. Kiezen twee tegelijk dezelfde, dan houdt het
 // laagste slot hem (de host eerst) en schuift de ander door naar de eerste vrije. Standaard paars, rood en turkoois.
 // Je keuze blijft bewaard op dit apparaat (amir.mpbroek).
-const MP_BROEK = [{ id: 'paars', naam: 'Purple' }].concat(BROEK.kleuren.map(k => ({ id: k.id, naam: k.naam })));
+// Met de speer ben je Mkuki en kies je een van de zes outfits (MK_OUTFIT, bewaard in amir.mpoutfit, standaard Outfit 1,
+// 3 en 4 per slot); met de stokken het oude tenue met de broekkleuren. Wissel je van wapen, dan wissel je mee van lijst
+// (mpBroekPas). Het bericht blijft {t: 'broek', id}: de id zegt of het een outfit of een broek is.
+const MP_BROEK_OUD = [{ id: 'paars', naam: 'Purple' }].concat(BROEK.kleuren.map(k => ({ id: k.id, naam: k.naam })));
+const MP_OUTFIT = MK_OUTFIT.lijst.map(k => ({ id: k.id, naam: k.naam }));
+const MP_BROEK = MP_BROEK_OUD.concat(MP_OUTFIT);
 function mpBroekNaam(id){ const k = MP_BROEK.find(b => b.id === id); return k ? k.naam : ''; }
 const MP_BROEK_STANDAARD = ['paars', 'rood', 'turq'];   // per slot: de host, de eerste en de tweede gast
-function mpBroekEigen(slot){
+const MP_OUTFIT_STANDAARD = ['mk1', 'mk3', 'mk4'];
+function mpBroekLijst(w){ return (w || (pvp && pvp.mij != null && pvp.wapen[pvp.mij]) || mpWapenEigen()) === 'stok' ? MP_BROEK_OUD : MP_OUTFIT; }
+function mpBroekEigen(slot, w){
+  const L = mpBroekLijst(w), outfit = L === MP_OUTFIT;
   let id = null;
-  try { id = localStorage.getItem('amir.mpbroek'); } catch (e){}
-  return MP_BROEK.some(b => b.id === id) ? id : MP_BROEK_STANDAARD[slot] || 'paars';
+  try { id = localStorage.getItem(outfit ? 'amir.mpoutfit' : 'amir.mpbroek'); } catch (e){}
+  return L.some(b => b.id === id) ? id : (outfit ? MP_OUTFIT_STANDAARD : MP_BROEK_STANDAARD)[slot] || L[0].id;
 }
 function mpBroekZet(id){
   if (!pvp || id === pvp.broek[pvp.mij]) return;
   pvp.broekVan = pvp.broek[pvp.mij]; pvp.broekT0 = performance.now();
   pvp.broek[pvp.mij] = id;
-  try { localStorage.setItem('amir.mpbroek', id); } catch (e){}
+  try { localStorage.setItem(MP_OUTFIT.some(b => b.id === id) ? 'amir.mpoutfit' : 'amir.mpbroek', id); } catch (e){}
   pvpZend({ t: 'broek', id });
   mpBroekToon(); mpTeamToon();
+}
+// past mijn keuze niet bij mijn wapen (net gewisseld), dan de bewaarde keuze voor dat wapen, of de eerste vrije
+function mpBroekPas(){
+  if (!pvp || pvp.mij == null) return;
+  const L = mpBroekLijst();
+  if (L.some(b => b.id === pvp.broek[pvp.mij])) return;
+  const id = mpBroekEigen(pvp.mij);
+  mpBroekZet(mpBroekAnders().includes(id) ? mpBroekVrij(id, 1) : id);
 }
 // wat de anderen dragen
 function mpBroekAnders(){ return pvp.spelers.filter(p => p !== pvp.mij && pvp.broek[p]).map(p => pvp.broek[p]); }
 // de volgende kleur die niemand anders draagt
 function mpBroekVrij(van, stap){
-  const L = MP_BROEK, bezet = mpBroekAnders();
+  const L = mpBroekLijst(), bezet = mpBroekAnders();
   let i = Math.max(0, L.findIndex(b => b.id === van));
   for (let n = 0; n < L.length; n++){ i = (i + stap + L.length) % L.length; if (!bezet.includes(L[i].id)) return L[i].id; }
   return van;
@@ -70272,7 +70393,8 @@ function mpBroekStart(){
 // MP_DOOR, en een nieuwe gast krijgt de namen in pvpGastErbij). Zonder naam heet je naar je broek ("Fire red"). Of je de
 // namen boven de hoofden ziet kiest ieder zelf, met het vinkje onder de naam (amir.mpnamen, standaard aan).
 const MP_NAAM = { max: 14,
-  kleur: { paars: '#a070e8', rood: '#ec4a36', oranje: '#f39433', goud: '#eec24f', turq: '#3fd0c6', wit: '#f4eedf', zwart: '#3a3a40' } };
+  kleur: { paars: '#a070e8', rood: '#ec4a36', oranje: '#f39433', goud: '#eec24f', turq: '#3fd0c6', wit: '#f4eedf', zwart: '#3a3a40',
+    ...Object.fromEntries(MK_OUTFIT.lijst.map(k => [k.id, k.stip])) } };   // de outfits van Mkuki: hun opvallendste kleur
 function mpNaamSchoon(n){ return String(n == null ? '' : n).replace(/[\u0000-\u001f\u007f-\u009f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, MP_NAAM.max); }
 function mpNaamEigen(){ let n = ''; try { n = localStorage.getItem('amir.mpnaam') || ''; } catch (e){} return mpNaamSchoon(n); }
 function mpNaamZet(n){
@@ -70432,6 +70554,7 @@ function mpWapenZet(w){
   try { localStorage.setItem('amir.mpwapen', w); } catch (e){}
   if (w === 'stok') stokLaad();                    // voor het voorbeeld naast de lobby, en het potje
   pvpZend({ t: 'wapen', w });
+  mpBroekPas();                                    // de speer is Mkuki met een outfit, de stokken het oude tenue met een broek
   mpWapenToon();
 }
 function mpWapenAnder(p, w){
