@@ -22,10 +22,10 @@ Prioriteit: **A** = zichtbaar fout, eerst doen. **B** = wijkt af, verbeteren als
 | B (af 22-11, Grok f8fe1b2c) | beweging/rol/worp/worp_5.png | voeten te dicht bij elkaar | voeten verder uit elkaar, verspringend |
 | B (af 22-11, Grok cb68dc87) | beweging/rol/worp/worp_24.png | voorste arm te laag | voorste arm hoger, naar links |
 | B (af 22-11, een nieuw beeld 3cecc798, vuist boven het hoofd) | beweging/rol/worp/worp_15.png t/m worp_23.png | een Grok-beeld voor alle 9; achterste vuist te laag | vuist vlak boven het hoofd; eventueel per frame een eigen beeld voor beweging |
-| B | aanval/lowsweep/sweep_10.png | armen te kort | armen ver naar rechts gestrekt |
-| B | aanval/lowsweep/sweep_13.png | trap hoger, standbeen rechter; met de hand geplaatst | zijtrap zoals origineel; overgang 12 naar 13 controleren |
-| B | aanval/lowsweep/sweep_9.png | romp te rechtop | bijna plat voorover |
-| B | aanval/lowsweep/sweep_6.png | linkerarm korter | arm verder |
+| B (niet vervangen, Grok gaf een arm en zette hem hoger; LOG 22-11) | aanval/lowsweep/sweep_10.png | armen te kort | armen ver naar rechts gestrekt |
+| B (af 22-11, Grok 4d54af81, met de hand geplaatst) | aanval/lowsweep/sweep_13.png | trap hoger, standbeen rechter; met de hand geplaatst | zijtrap zoals origineel; overgang 12 naar 13 controleren |
+| B (af 22-11, Grok af377795) | aanval/lowsweep/sweep_9.png | romp te rechtop | bijna plat voorover |
+| B (af 22-11, Grok 2a49d175) | aanval/lowsweep/sweep_6.png | linkerarm korter | arm verder |
 | B | aanval/combo/combo_06.png | bovenste vuist te laag | vuist hoog boven het hoofd |
 | B | aanval/combo/combo_07.png | bovenste vuist te laag | idem |
 | B | aanval/combo/combo_02.png | voeten smaller | bredere stand |

@@ -463,3 +463,13 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
 - worp_24: VERVANGEN, post `cb68dc87` 0,77 (was 0,56), `mk_nk_rw24`: voorste arm op schouderhoogte naar links.
 - worp_5: VERVANGEN, post `f8fe1b2c` 0,55 (was 0,59), `mk_nk_rw5`: voeten ver uit elkaar en verspringend (voor plat, achter
   op de bal). Zelfde hoogte als het vorige frame.
+### Lage zwaai, prioriteit B
+- sweep_9: VERVANGEN, post `af377795` 0,55 (was 0,57), `mk_nk_sw9`: profiel rechts, romp bijna plat voorover, hand op de grond,
+  achterarm schuin omhoog. Romp nu duidelijk vlakker.
+- sweep_13: VERVANGEN, post `4d54af81`, `mk_nk_sw13b` (lage trap, knie gebogen, standbeen rechts). Met de hand geplaatst
+  (`/home/claude/handplaats.py ... 1.0 0 0`, IoU 0,31; het IoU-zoeken gaf 0,13 en zette hem verkeerd). Trap lager dan het
+  vorige frame, dichter bij het origineel; standbeen nu het rechter. `f6216d9b` met `mk_nk_sw13` (hoge trap) afgekeurd.
+- sweep_6: VERVANGEN, post `2a49d175` 0,52 (was 0,54), `mk_nk_sw6`: linkerarm verder naar links-onder. Iets lagere IoU door
+  de bredere knieen, maar de arm reikt nu verder.
+- sweep_10: NIET vervangen. `f675b74f` (`mk_nk_sw10`) gaf een arm ver naar rechts, maar maar een arm zichtbaar en hij kwam
+  hoger en verschoven te staan (0,35). Het huidige frame (twee armen) blijft beter.
