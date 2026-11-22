@@ -115,7 +115,9 @@ in vier standen (stil, licht wiegen, wind, harde wind).
   weer af; gemeten: een rennende bandiet 8,0 px per beeld, gemarkeerd met 0,1 was het 7,2), en elke treffer op hem kost
   `PROOI.extra` (een half) leven meer (`prooiExtra`, in `fcHalf`, dus bij elke soort die `fcHalf` aanroept; de schildbandiet
   niet, die telt in schildstanden). Te zien: een rode rand om zijn silhouet (`prooiGloed`: zolang de lus van zijn soort hem
-  tekent, krijgt elk plaatje een drop-shadow; niet als het doorzichtig is, zoals zijn schaduw) en het vaantje op een stokje
+  tekent, krijgt elk plaatje een rode rand eronder; niet als het doorzichtig is, zoals zijn schaduw. De rand wordt per
+  plaatje, uitsnede en maat een keer gebakken met de drop-shadow (`prooiRandBak`, `PROOI_RAND`) en daarna gewoon
+  getekend: een live filter op elk plaatje maakte City Survival traag) en het vaantje op een stokje
   boven zijn hoofd (`prooiTeken`, vanuit `vijandHpBalk`), knipperend in de laatste seconde, feller op een extra treffer.
 - **Sandbox:** Speer en spullen, Gif, **Pathfinder Spear** (`sbPathfinder`).
 
