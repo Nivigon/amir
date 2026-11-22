@@ -2271,6 +2271,7 @@
         <button data-sbwater="poel">Poel</button>
         <button data-sbwater="plas">Plas</button>
         <button id="sbspetter" class="on">Spetter nieuw</button>
+        <button id="sbwaterweer" class="on" title="In het regenwoud kleurt het water mee met het weer: droog het gewone blauw, met regen en onweer donker grijsgroen (WATER.weer). Zet Tijd van de dag op Regenwoud en het weer op Regen of Onweer">Waterkleur: weer</button>
       </div>
       <div class="row">
         <label>Zuil</label>
@@ -6832,7 +6833,29 @@ const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TES
 // ---- Test levels sticks: alle proefstukken met de stokken, in een eigen reeks (zoals Baboon tests, zonder tribekeuze) ----
 const STOK_LEVELS = [TEST_74, TEST_76, TEST_77];
 // ---- Test levels rainforest: alle proefstukken in het regenwoud, in een eigen reeks (zoals Sticks, zonder tribekeuze) ----
-const RW_LEVELS = [TEST_81, TEST_82, TEST_83, TEST_84];
+// Test 87: twee rivieren die naar je toe stromen (RIVIER_STROOM, `stroom: true`). Op verzoek (regel 3), zelf ontworpen,
+// in het regenwoud zonder vijanden (vredig), om het water rustig te bekijken. Eerst een brede, rustige rivier met een brug,
+// zoals in Ishmul, in droog weer (het gewone blauw); dan slaat het om naar regen en komt een smallere rivier die hard
+// stroomt (val: true), ook met een brug, in het onweer, zodat je het water van kleur ziet verschieten (WATER.weer).
+// Zonder brug waad je erdoor; hier gaan beide met een brug, en tussendoor is er droge grond om omlaag te kijken
+const TEST_87 = {
+  name: 'Test 87: Rivers',
+  lagen: 'regenwoud',
+  view: 0.8, hpBalk: true, zicht: true, sneak: true, camera: true, rand: true, slangEenKlap: true, hyOmkeer: true,
+  speerInHand: true, vredig: true,
+  weer: [ {x: -100, soort: 'droog', sterkte: 1}, {x: -2300, soort: 'regen', sterkte: 0.8},
+          {x: -2900, soort: 'onweer', sterkte: 1} ],
+  wateren: [ {k: 'rivier', x: -1400, w: 1100, brug: true, achter: 0.9, stroom: true},
+             {k: 'rivier', x: -3500, w: 760, brug: true, achter: 0.9, stroom: true, val: true} ],
+  spawns: [],
+  rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
+  voorgrond: false,
+  cliffs: [ {x: -5600} ],
+  ends: [ {x: -5100} ],
+  tips: [ { x: -80, t: 'Test level: rivers. A calm river first, then rain and a fast one' },
+          { x: -2700, t: 'A storm is coming: watch the water turn darker' } ]
+};
+const RW_LEVELS = [TEST_81, TEST_82, TEST_83, TEST_84, TEST_87];
 // ---- Episode Test levels stad: de Sahelstad, stuk voor stuk ----
 // Proefstukken in de stad (zie "de stad"), los van de echte episodes (regel 1 geldt niet). Het is een episode, dus met
 // de tribekeuze aan het begin; het eerste level was Test 59.
@@ -29153,6 +29176,12 @@ function dkVgTeken(groundY, scale){
 const WATER = {
   palet: { diep: [52, 92, 110], midden: [80, 128, 144], ondiep: [112, 160, 168], glans: [226, 246, 244],
            schuim: [236, 244, 238], nat: [70, 44, 26] },
+  // het water kleurt mee met het weer (waterWeerKleur): droog het palet hierboven, in de regen loopt het naar `storm`,
+  // donker grijsgroen en troebel. Hoe ver: regen keer `regen` plus onweer keer `onweer` (samen hooguit 1). Alleen in
+  // een uitzicht met biome regenwoud (waterWeerAan); in de sandbox de knop Waterkleur: weer
+  weer: { storm: { diep: [30, 38, 34], midden: [56, 66, 58], ondiep: [92, 100, 88], glans: [214, 222, 216],
+                   schuim: [220, 222, 214], nat: [50, 34, 20] },
+          regen: 0.7, onweer: 0.3 },
   lucht: 0.35,                 // zoveel van de horizonkleur ligt er op de verre kant van het water
   rimpel: { a: 0.42, b: 0.30, v: [10, 4], vb: [-7, 3] },   // twee lagen: dekking en schuifsnelheid (px per s)
   glinster: { dicht: 1 / 2600, a: 0.9 },                 // een glinster per zoveel vierkante pixel
@@ -29178,6 +29207,22 @@ const WATER = {
   rug: 52, lip: 56,            // de grond in beeld: de verre rand en de voorste lip, in eenheden van de grondtegel vanaf de looplijn
   geluid: { val: 0.32, rivier: 0.2, bron: 0.14, fontein: 0.16, ver: 520, hz: 750 }
 };
+// ---- het water kleurt mee met het weer: van het gewone palet naar de stormkleur (WATER.weer) ----
+const WATER_BASIS = JSON.parse(JSON.stringify(WATER.palet));
+let waterStormT = 0;                                // hoe ver het palet nu naar de storm is (0 tot 1), in stapjes van 0,02
+let sbWaterWeer = true;                             // sandbox: de knop Waterkleur
+function waterWeerAan(){
+  if (sceneCfg().biome !== 'regenwoud') return false;
+  return sandbox ? sbWaterWeer : !!level && level.waterWeer !== false;
+}
+function waterWeerKleur(){
+  const N = weerNu, Ww = WATER.weer;
+  const doel = waterWeerAan() && N ? Math.min(1, (N.regen || 0) * Ww.regen + (N.onweer || 0) * Ww.onweer) : 0;
+  const t = Math.round(doel * 50) / 50;             // weerNu loopt al zacht op en af; hier alleen afronden
+  if (t === waterStormT) return;
+  waterStormT = t;
+  for (const k in WATER_BASIS) WATER.palet[k] = waterMeng(WATER_BASIS[k], Ww.storm[k] || WATER_BASIS[k], t);
+}
 function waterenLijst(){ return (level && Array.isArray(level.wateren)) ? level.wateren : []; }
 let waterKlok = 0;                                  // speltijd, zodat het water in de pauze stilstaat
 function waterRgb(c, a){ return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (a === undefined ? 1 : a) + ')'; }
@@ -29251,9 +29296,12 @@ function brugTeken(groundY, scale, cx){
   }
 }
 // ---- de textuur: rimpels, eenmaal getekend en daarna alleen verschoven ----
+// de texturen hebben de kleur van het palet erin; met het weer (waterWeerKleur) per stapje van 0,1 een eigen set
+const waterTexSets = {};
 let waterTex = null;
 function waterTextuur(){
-  if (waterTex) return waterTex;
+  const sleutel = Math.round(waterStormT * 10);
+  if (waterTexSets[sleutel]) return (waterTex = waterTexSets[sleutel]);
   const maak = (w, h, n, kleur, lang, dik, staand) => {
     const c = document.createElement('canvas'); c.width = w; c.height = h;
     const g = c.getContext('2d');
@@ -29277,6 +29325,7 @@ function waterTextuur(){
     val: maak(96, 256, 46, P.glans, [14, 46], [1, 2.6], true),
     valDonker: maak(96, 256, 30, P.diep, [16, 50], [1.4, 3], true)
   };
+  waterTexSets[sleutel] = waterTex;
   return waterTex;
 }
 // een textuurlaag over het pad, geschoven met (ox, oy)
@@ -29480,6 +29529,39 @@ function waterRingenVan(i, cx, cy, rx, ry){
   for (const r of waterRingen) if (r.o === i) uit.push({ sx: cx + r.u * rx, sy: cy + r.v * ry, t: r.t, duur: r.duur });
   return uit;
 }
+// ---- de rivier die naar je toe stroomt (`stroom: true`): recht tussen de wanden, met oeverplanten ervoor ----
+// De grond heeft vooraan een rechte wand; een rivier die daar naar de camera doorloopt botst met die wand. Daarom
+// blijft hij zo breed als de lip, en staan er op elke naad tussen water en wand oeverplanten: donkere, onscherpe
+// struiken en gras (de plaatjes van de voorgrond), vast aan de rivier, zodat ze de naad afdekken waar de camera ook staat.
+// Rustig of snel zoals elke rivier: zonder `val` traag (vRustig), met `val: true` snel (v).
+const RIVIER_STROOM = {
+  schaduw: 34, schaduwA: 0.45,   // de schaduw onder de lip: hoe lang (px bij schaal 1) en hoe donker
+  plant: { n: 6, spreid: 0.7, h: [0.7, 1.15], struik: 0.45, vaag: 5 }  // per naad: zoveel, zo ver uit elkaar (in Amir), en hoe hoog:
+                                                                        // als deel van de wand onder de lip die in beeld is, zodat ze de brug vrijlaten
+};
+function waterStroomPlanten(o, i, groundY, scale, cx0){
+  const w = o.w || 240, cx = cx0 + (o.x - world);
+  if (cx - w > W / viewZoom() + W || cx + w < -W) return;
+  const m = ctx.getTransform(), yO = m.d ? (cv.height - m.f) / m.d : groundY + H;
+  const P = RIVIER_STROOM.plant, amir = CHAR_H * scale;
+  const lt = rwSilhouetAan() ? VG_RW.kleur : vgSchaduw();
+  const wand = Math.max(amir * 0.4, yO - (groundY + WATER.lip * edgeScale(H * 0.18)));   // de wand onder de lip, in beeld
+  for (const kant of [-1, 1]){
+    const xe = cx + kant * w / 2;
+    for (let j = 0; j < P.n; j++){
+      const r = rnd(i * 31 + j + (kant > 0 ? 17 : 0), 61), r2 = rnd(i * 31 + j + (kant > 0 ? 17 : 0), 62);
+      const S = VG_SOORT[r < P.struik ? 'struik' : 'gras'], img = vgImg(S);
+      if (!img || !imgReady(img)) continue;
+      const p = vgPlaatje(img, false, S.voet, lt, P.vaag);
+      const hh = wand * (P.h[0] + (P.h[1] - P.h[0]) * r2), ww = p.w * hh / p.h, mm = p.m * hh / p.h;
+      // de eerste staat precies op de naad, de rest eromheen
+      const x = xe + (j ? (rnd(i * 31 + j, 63 + kant) - 0.5) * 2 * P.spreid * amir : 0), voet = yO + hh * 0.12;
+      ctx.save(); ctx.translate(x, voet); if (r2 < 0.5) ctx.scale(-1, 1);
+      ctx.drawImage(p.c, -ww / 2 - mm, -hh - mm, ww + mm * 2, hh + mm * 2);
+      ctx.restore();
+    }
+  }
+}
 function waterRivierTeken(o, i, groundY, s){
   const w = o.w || 240, cx = W / 2 + (o.x - world);
   if (cx - w > W / viewZoom() + W || cx + w < -W) return;
@@ -29490,20 +29572,25 @@ function waterRivierTeken(o, i, groundY, s){
   // ver weg smaller (achter: de breedte achteraan, standaard 0,4; een brede rivier onder een lange brug wil daar meer, Ishmul 0,9);
   // voorbij de lip (met `voor`) groeit hij nog maar zacht door
   const ach = o.achter != null ? o.achter : 0.4;
-  const breed = k => w * (k <= 1 ? ach + (1 - ach) * k : 1 + 0.25 * (k - 1)) / 2;
+  // met `stroom` loopt hij voorbij de lip recht door, zo breed als de lip: tussen de wanden van de grond
+  const breed = k => w * (k <= 1 ? ach + (1 - ach) * k : o.stroom ? 1 : 1 + 0.25 * (k - 1)) / 2;
   // en hij kronkelt, vooraan recht; onder een brug loopt hij recht (anders steekt de bocht als een los stuk achter de leuning uit)
   const kron = k => o.brug ? 0 : Math.sin(Math.min(1, k) * 3.6 + i * 1.3) * w * 0.22 * (1 - Math.min(1, k) * 0.8);
   // met `voor: true` valt hij niet over de lip maar loopt hij door naar de camera, tot onder uit beeld (zoals het pad van een
   // kruispunt in de stad)
-  const m = ctx.getTransform(), yO = o.voor && m.d ? (cv.height - m.f) / m.d + 20 : yB;
+  // kruispunt in de stad). Met `stroom: true` (RIVIER_STROOM) net zo, maar hij blijft zo breed als de lip, recht tussen de
+  // wanden van de grond, met oeverplanten voor de camera over de naad (waterStroomPlanten)
+  const voor = o.voor || o.stroom;
+  const m = ctx.getTransform(), yO = voor && m.d ? (cv.height - m.f) / m.d + 20 : yB;
   const kM = (yO - yT) / (yB - yT), yE = yO;
-  for (let j = 0; j <= n; j++){ const k = j / n * kM; pts.push([cx + kron(k) - breed(k) + oever(k, -1), yT + (yB - yT) * k]); }
-  for (let j = n; j >= 0; j--){ const k = j / n * kM; pts.push([cx + kron(k) + breed(k) + oever(k, 1), yT + (yB - yT) * k]); }
+  const golf = k => o.stroom && k > 1 ? Math.max(0, 1 - (k - 1) * 6) : 1;   // de golvende oever wordt voorbij de lip recht
+  for (let j = 0; j <= n; j++){ const k = j / n * kM; pts.push([cx + kron(k) - breed(k) + oever(k, -1) * golf(k), yT + (yB - yT) * k]); }
+  for (let j = n; j >= 0; j--){ const k = j / n * kM; pts.push([cx + kron(k) + breed(k) + oever(k, 1) * golf(k), yT + (yB - yT) * k]); }
   const pad = waterPadVan(pts);
   waterVul(pad, yT, yE, cx - w / 2, cx + w / 2, { v, seed: i * 97, ringen: waterRingenVan(i, cx, (yT + yE) / 2, w * 0.4, (yE - yT) / 2) });
   // de oevers, maar niet over de achterkant (daar loopt hij door) en de voorkant (daar valt hij)
   ctx.save();
-  ctx.beginPath(); ctx.rect(cx - w * 2, yT + 4, w * 4, (o.voor ? yE + 40 : yB) - yT - 6); ctx.clip();
+  ctx.beginPath(); ctx.rect(cx - w * 2, yT + 4, w * 4, (voor ? yE + 40 : yB) - yT - 6); ctx.clip();
   waterRand(pad, 1.8);
   ctx.restore();
   // ver weg loopt hij weg in de vlakte: de achterkant vervaagt in het land
@@ -29512,7 +29599,13 @@ function waterRivierTeken(o, i, groundY, s){
   fg.addColorStop(0, waterRgb(waterMeng(waterLuchtKleur(), land, 0.2), 0.9)); fg.addColorStop(1, waterRgb(land, 0));
   ctx.save(); ctx.clip(pad); ctx.fillStyle = fg; ctx.fillRect(cx - w, yT - 2, w * 2, (yB - yT) * 0.35 + 2); ctx.restore();
   // en vooraan valt hij over de lip, langs de wand van de grond naar beneden; een rustige rivier valt trager (valRustig)
-  if (!o.voor) waterValGordijn(cx + kron(1) - breed(1) + 6, cx + kron(1) + breed(1) - 6, yB - 4, groundY + H * 1.2, o.val ? v * 6 : SR.valRustig, i, true);
+  if (o.stroom){
+    // onder de lip (en de brug) een zachte schaduw: het water komt eronder vandaan
+    const sg = ctx.createLinearGradient(0, yB - 4, 0, yB + RIVIER_STROOM.schaduw * s);
+    sg.addColorStop(0, 'rgba(8,10,12,' + RIVIER_STROOM.schaduwA + ')'); sg.addColorStop(1, 'rgba(8,10,12,0)');
+    ctx.save(); ctx.clip(pad); ctx.fillStyle = sg; ctx.fillRect(cx - w, yB - 4, w * 2, RIVIER_STROOM.schaduw * s + 4); ctx.restore();
+  }
+  if (!voor) waterValGordijn(cx + kron(1) - breed(1) + 6, cx + kron(1) + breed(1) - 6, yB - 4, groundY + H * 1.2, o.val ? v * 6 : SR.valRustig, i, true);
 }
 // een vallend gordijn van water tussen xl en xr, van y0 naar y1; met donker: loopt weg in de diepte
 function waterValGordijn(xl, xr, y0, y1, v, seed, donker, buig){
@@ -29582,6 +29675,7 @@ function waterVoorTeken(groundY, scale, cx){
   const s = edgeScale(H * 0.18), P = WATER.palet;
   for (let i = 0; i < lijst.length; i++){
     const o = lijst[i];
+    if (o.k === 'rivier' && o.stroom){ waterStroomPlanten(o, i, groundY, scale, cx); continue; }
     if (o.k === 'val'){
       const t = waterValTerras(o); if (!t) continue;
       const w = o.w || 110, x = cx + (o.x - world);
@@ -29743,6 +29837,7 @@ function waterStraal(x, yB, hoog, bw, i, v){
 // ---- de stap: klok, druppels, regenringen, Amir onder de val en het geluid ----
 let waterValNat = 0;
 function waterStap(dt){
+  waterWeerKleur();
   const lijst = waterenLijst();
   if (!lijst.length){ waterDruppels.length = 0; waterRingen.length = 0; waterPlonzen.length = 0; waterGeluid(0); return; }
   waterKlok += dt;
@@ -60702,6 +60797,7 @@ const SUBS = {
   'Test 82: Hanging log': 'A log on two vines: jump on it, cut it down',
   'Test 83: Log ramp': 'Cut one vine and walk up the tilted log',
   'Test 84: Stairs': 'Stop on a step with one foot higher than the other, going up and going down',
+  'Test 87: Rivers': 'Two rivers flowing towards you, a calm one and a fast one, as the weather turns',
   'Test 85: Roll outfit': 'V rolls in the normal outfit, C in the monk outfit, and he keeps what he rolled in',
   'Test 86: The cellar': 'A torch-lit cellar: a wooden stair, lattice doors with eyes behind them, and a cage that opens',
   'Test 76: Ground slam': 'Sticks from the air: slam into the ground and send a wave forward',
@@ -66471,6 +66567,12 @@ function sbWater(k){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-sbwater]').forEach(b => b.onclick = () => sbWater(b.dataset.sbwater));
+document.getElementById('sbwaterweer').onclick = e => {
+  sbWaterWeer = !sbWaterWeer;
+  e.target.classList.toggle('on', sbWaterWeer);
+  e.target.textContent = sbWaterWeer ? 'Waterkleur: weer' : 'Waterkleur: vast';
+  cv.focus();
+};
 document.getElementById('sbspetter').onclick = e => {
   SPETTER.nieuw = !SPETTER.nieuw;
   e.target.classList.toggle('on', SPETTER.nieuw);

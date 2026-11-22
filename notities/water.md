@@ -1,5 +1,7 @@
 # Water
 
+Het plan voor water en regen per uitzicht (regenwoud eerst, in stappen) staat in `notities/water-plan.md`.
+
 Een materiaal voor al het water: `WATER` in de kop `// ---- water: één materiaal voor plas, poel, rivier, waterval en bron ----`.
 Proefstuk: **Test 67: Water** (geen vijanden, `vredig: true`). De oude poel (`POOL`, het veld `water`, een plaat met het
 water erin geschilderd) staat er nog los naast en is nog niet overgezet.
@@ -16,6 +18,13 @@ bij de rest. Er zijn geen plaatjes: alles wordt getekend.
 4. **Rand**: een natte donkere rand om de oever, een schaduwrand onder de verre oever, en een gebroken schuimlijn.
 5. **Regen**: bij `weerNu.regen` komen er ringen op elk water (`waterRingen`).
 
+**Kleur met het weer** (`WATER.weer`, `waterWeerKleur`, `waterWeerAan`): in een uitzicht met biome regenwoud loopt het
+palet mee met het weer, van het gewone blauw (droog) naar `WATER.weer.storm`, donker grijsgroen en troebel. Hoe ver:
+`weerNu.regen` keer `regen` (0,7) plus `weerNu.onweer` keer `onweer` (0,3), dus zacht mee met het weer zelf. Het
+gewone palet staat bewaard in `WATER_BASIS`; de texturen (`waterTextuur`) hebben per stapje van 0,1 een eigen set.
+Een level zet het uit met `waterWeer: false`; buiten het regenwoud (Ishmul, de stad, de savanne) blijft alles blauw.
+In de sandbox de knop **Waterkleur: weer** onder Water (Tijd van de dag op Regenwoud, het weer op Regen of Onweer).
+
 Het palet komt uit de oude poel (`WATER.palet`): diep, midden, ondiep, glans, schuim en nat zand. 's Nachts en in de
 avond kleurt de lichtlaag het water mee, net als de rest van de wereld.
 
@@ -29,6 +38,20 @@ avond kleurt de lichtlaag het water mee, net als de rest van de wereld.
 | `val` | een waterval van de rechterkant (`r`) van het terras op `x`: een beekje op het bovenvlak (`waterTerrasTeken`), het gordijn voor Amir langs (`waterVoorTeken`) en een kom eronder (`kom` keer `w` breed) met schuim en stuifwater | 0,6 in de kom, ondiep bij de wand zodat je het terras op komt |
 | `bron` | een kom met een straal (`hoog` in Amir) en een kroon van druppels | 0,5 |
 | `fontein` | decor voor de stad: een geschilderde plaat van leem met het water erin (zie hieronder) | 0 |
+
+## De rivier die naar je toe stroomt (`stroom: true`)
+
+`RIVIER_STROOM`, `waterStroomPlanten`, in `waterRivierTeken` en `waterVoorTeken`
+
+Een rivier met `stroom: true` valt niet over de lip maar loopt door naar de camera, tot onder uit beeld, zoals `voor`;
+alleen blijft hij voorbij de lip zo breed als de lip, recht tussen de wanden van de grond (`voor` wordt naar voren breder,
+en dat botst met de rechte wand ernaast). Onder de lip (en de brug) een zachte schaduw, zodat het water eronder vandaan
+komt. Op elke naad tussen water en wand staan oeverplanten voor Amir langs: donkere, onscherpe struiken en gras (de plaatjes
+van de voorgrond, in het regenwoud in de kleur van de silhouetten), vast aan de rivier, zodat ze de naad afdekken waar de
+camera ook staat. Hun hoogte volgt de wand onder de lip die in beeld is, zodat de brug vrij blijft. Rustig zonder `val`,
+snel met `val: true`. Proefstuk: **Test 87: Rivers** (in de reeks Test levels rainforest), een rustige en een snelle, met
+brug, terwijl het weer van droog naar onweer gaat. Op verzoek van de opdrachtgever (22-11-2026), na schetsen van de val, de
+ingesneden oever, de rivier van opzij, de grond ervoor en het water als strook onderin.
 
 ## De fontein (`k: 'fontein'`)
 
