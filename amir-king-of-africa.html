@@ -6964,7 +6964,8 @@ const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TES
 // ---- Test levels sticks: alle proefstukken met de stokken, in een eigen reeks (zoals Baboon tests, zonder tribekeuze) ----
 const STOK_LEVELS = [TEST_74, TEST_76, TEST_77];
 // ---- Test levels rainforest: alle proefstukken in het regenwoud, in een eigen reeks (zoals Sticks, zonder tribekeuze) ----
-// Test 87: twee rivieren die naar je toe stromen (RIVIER_STROOM, `stroom: true`). Op verzoek (regel 3), zelf ontworpen,
+// Test 87: twee rivieren die naar je toe stromen (RIVIER_STROOM, `stroom: true`); de eerste is stil water (`stil: true`), op
+// verzoek van de opdrachtgever, omdat ook de rustige stroming te hard voelde. Op verzoek (regel 3), zelf ontworpen,
 // in het regenwoud zonder vijanden (vredig), om het water rustig te bekijken. Eerst een brede, rustige rivier met een brug,
 // zoals in Ishmul, in droog weer (het gewone blauw); dan slaat het om naar regen en komt een smallere rivier die hard
 // stroomt (val: true), ook met een brug, in het onweer, zodat je het water van kleur ziet verschieten (WATER.weer).
@@ -6976,7 +6977,7 @@ const TEST_87 = {
   speerInHand: true, vredig: true,
   weer: [ {x: -100, soort: 'droog', sterkte: 1}, {x: -2300, soort: 'regen', sterkte: 0.8},
           {x: -2900, soort: 'onweer', sterkte: 1} ],
-  wateren: [ {k: 'rivier', x: -1400, w: 1100, brug: true, achter: 0.9, stroom: true},
+  wateren: [ {k: 'rivier', x: -1400, w: 1100, brug: true, achter: 0.9, stroom: true, stil: true},
              {k: 'rivier', x: -3500, w: 760, brug: true, achter: 0.9, stroom: true, val: true} ],
   spawns: [],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
@@ -29960,9 +29961,43 @@ function waterRingenVan(i, cx, cy, rx, ry){
 // Rustig of snel zoals elke rivier: zonder `val` traag (vRustig), met `val: true` snel (v).
 const RIVIER_STROOM = {
   schaduw: 34, schaduwA: 0.45,   // de schaduw onder de lip: hoe lang (px bij schaal 1) en hoe donker
+  rustig: 6,                     // zonder `val`: zo traag stroomt hij naar je toe (px per s); bijna stil, een rustige rivier
+                                 // (de gewone rustige rivier, vRustig 22, voelde naar voren veel te hard); met `stil: true`
+                                 // stroomt hij helemaal niet: een stuk stilstaand water onder de brug, alleen de rimpels schuiven zacht
   plant: { n: 6, spreid: 0.7, h: [0.7, 1.15], struik: 0.45, vaag: 5 }  // per naad: zoveel, zo ver uit elkaar (in Amir), en hoe hoog:
                                                                         // als deel van de wand onder de lip die in beeld is, zodat ze de brug vrijlaten
 };
+// ---- het spiegelbeeld van Amir in de rivier (WATER_SPIEGEL) ----
+// De schaduw van Amir (amirSchaduw) zet elk beeld zijn frame klaar in amirSpiegel; de rivier met `stroom` tekent dat
+// ondersteboven in zijn water, in smalle stroken die met de rimpels heen en weer wiegen, en vervagend naar beneden.
+// Binnen de vorm van het water (clip), dus de brug en de oeverplanten vallen er vanzelf overheen. De waterlijn
+// waarin hij spiegelt ligt een stuk (`as`) onder de looplijn: onder de brug, waar het water begint.
+const WATER_SPIEGEL = { a: 0.5, uit: 1.1, as: 0.45, strook: 2, amp: 2.2, freq: 0.16, tempo: 3.2, oud: 150 };
+let amirSpiegel = null;                             // {img, ox, y, w, h, flip, wx, t}: uit het vorige beeld
+function waterSpiegelAmir(pad, groundY, yB, xl, xr, s){
+  const A = amirSpiegel, S = WATER_SPIEGEL;
+  if (!A || performance.now() - A.t > S.oud || !A.img || !A.img.naturalWidth) return;
+  const x = W / 2 + (A.wx - world) + A.ox;
+  if (x + A.w < xl || x > xr) return;
+  const img = A.img, iw = img.naturalWidth, ih = img.naturalHeight;
+  const yA = groundY + (yB - groundY) * S.as;       // de waterlijn
+  const d0 = 2 * yA - (A.y + A.h), d1 = 2 * yA - A.y;
+  ctx.save(); ctx.clip(pad);
+  for (let yy = Math.max(d0, yA); yy < d1; yy += S.strook){
+    const bronY = 2 * yA - yy - S.strook;           // dit stukje van Amir (op het scherm), gespiegeld naar yy
+    const sy = (bronY - A.y) / A.h * ih, sh = S.strook / A.h * ih;
+    if (sy + sh <= 0 || sy >= ih) continue;
+    const a = S.a * Math.max(0, 1 - (yy - yA) / (A.h * S.uit));
+    if (a <= 0.01) break;
+    const golf = Math.sin(waterKlok * S.tempo + yy * S.freq) * S.amp * s * (0.4 + (yy - yA) / A.h);
+    ctx.globalAlpha = a;
+    ctx.save(); ctx.translate(x + golf, yy + S.strook); ctx.scale(1, -1);
+    if (A.flip){ ctx.translate(A.w, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(img, 0, sy, iw, sh, 0, 0, A.w, S.strook + 0.5);
+    ctx.restore();
+  }
+  ctx.restore();
+}
 function waterStroomPlanten(o, i, groundY, scale, cx0){
   const w = o.w || 240, cx = cx0 + (o.x - world);
   if (cx - w > W / viewZoom() + W || cx + w < -W) return;
@@ -29990,7 +30025,7 @@ function waterRivierTeken(o, i, groundY, s){
   const w = o.w || 240, cx = W / 2 + (o.x - world);
   if (cx - w > W / viewZoom() + W || cx + w < -W) return;
   const yT = groundY - WATER.rug * s, yB = groundY + WATER.lip * s;
-  const SR = WATER.soort.rivier, v = (o.v || (o.val ? SR.v : SR.vRustig));
+  const SR = WATER.soort.rivier, v = o.stil ? 0 : (o.v || (o.val ? SR.v : o.stroom ? RIVIER_STROOM.rustig : SR.vRustig));
   // de bedding: van achteren smal (ver weg) naar voren breed, met golvende oevers
   const pts = [], n = 40, oever = (k, kant) => Math.sin(k * 7 + i + kant * 2) * 5 + Math.sin(k * 15 + kant) * 2.5 + Math.sin(k * 41 + kant * 3) * 1.2;
   // ver weg smaller (achter: de breedte achteraan, standaard 0,4; een brede rivier onder een lange brug wil daar meer, Ishmul 0,9);
@@ -30024,6 +30059,7 @@ function waterRivierTeken(o, i, groundY, s){
   ctx.save(); ctx.clip(pad); ctx.fillStyle = fg; ctx.fillRect(cx - w, yT - 2, w * 2, (yB - yT) * 0.35 + 2); ctx.restore();
   // en vooraan valt hij over de lip, langs de wand van de grond naar beneden; een rustige rivier valt trager (valRustig)
   if (o.stroom){
+    waterSpiegelAmir(pad, groundY, yB, cx - w / 2, cx + w / 2, s);   // zijn spiegelbeeld, onder de schaduw van de lip
     // onder de lip (en de brug) een zachte schaduw: het water komt eronder vandaan
     const sg = ctx.createLinearGradient(0, yB - 4, 0, yB + RIVIER_STROOM.schaduw * s);
     sg.addColorStop(0, 'rgba(8,10,12,' + RIVIER_STROOM.schaduwA + ')'); sg.addColorStop(1, 'rgba(8,10,12,0)');
@@ -56297,6 +56333,7 @@ function loop(now){
         ctx.clip();
       }
       const flipNu = useThrow ? thrFlip() : (autoFlip && facing === 1);
+      amirSpiegel = { img, ox: x - pcx, y, w, h, flip: flipNu, wx: pWorld, t: performance.now() };   // voor het water (WATER_SPIEGEL)
       const fc = fakkelCast(pWorld, vloer);          // de fakkel als lichtbron: neemt de richtingsschaduw over waar het donker is
       drawAmirSchaduw(img, x, y, w, h, flipNu, pcx, groundY + lift, shY,
                       ph - (vloer === null ? 0 : vloer), scale, amirZon(vloer, pWorld) * (1 - fc.w), amirLicht());
