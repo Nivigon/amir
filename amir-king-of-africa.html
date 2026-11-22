@@ -26338,7 +26338,7 @@ function mkMaskers(sm){
   return m;
 }
 // de speer van een frame tekenen op g (in framepixels W x H); false als het plaatje nog niet binnen is
-function mkSpeerTeken(g, s, soortId, W, H){
+function mkSpeerTeken(g, s, soortId, W, H, wind){
   const pf = soortId === 'pathfinder', D = MK_LOS.data;
   const bron = mkSkinLaad(SKIN.soorten.mkuki + 'bron/' + (pf ? 'pf_' : 'amirspeer_') + s.a + '.png');
   if (!imgReady(bron)) return false;
@@ -26349,19 +26349,32 @@ function mkSpeerTeken(g, s, soortId, W, H){
   g.translate(s.cx * W, s.cy * H); g.rotate(s.r * Math.PI / 180);
   if (s.f) g.scale(-1, 1);
   g.drawImage(im, -w / 2, -h / 2, w, h);
-  if (pf && pfVaan[0] && imgReady(pfVaan[0])){            // het vaantje: aan de knoop, recht omlaag in het frame
-    const kx = -w / 2 + D.pf[s.a].kx * w, ky = -h / 2 + D.pf[s.a].ky * h;
-    const m = g.getTransform(), p = m.transformPoint(new DOMPoint(kx, ky));
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    const v = pfVaan[0], fk = w / bron.naturalWidth / PATHFINDER.vaanK, kn = PATHFINDER.vaan[0];
-    g.drawImage(v, p.x - kn[0] * fk, p.y - kn[1] * fk, v.naturalWidth * fk, v.naturalHeight * fk);
+  if (pf){                                               // het vaantje: aan de knoop, omlaag in het frame, en het waait
+    // zoals pfVaanTeken op de rug: hoe harder de wind (de vaart van Amir), hoe verder uit, en het wappert ertussen heen
+    // en weer; het frame kijkt naar links, dus achter hem (waar het heen waait) is rechts: gespiegeld
+    const t = performance.now() / 1000, wd = Math.max(0, Math.min(1, wind || 0));
+    const st = Math.max(0, Math.min(3, wd * 3 + (wd < 0.15 ? 0.35 + 0.45 * Math.sin(t * 1.7) : 0.6 * Math.sin(t * (5 + 7 * wd)))));
+    const i = Math.round(st), v = pfVaan[i];
+    if (v && imgReady(v)){
+      const kx = -w / 2 + D.pf[s.a].kx * w, ky = -h / 2 + D.pf[s.a].ky * h;
+      const p = g.getTransform().transformPoint(new DOMPoint(kx, ky));
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.translate(p.x, p.y); g.rotate((1 - wd) * 0.07 * Math.sin(t * 2.3)); g.scale(-1, 1);
+      const fk = w / bron.naturalWidth / PATHFINDER.vaanK, kn = PATHFINDER.vaan[i];
+      g.drawImage(v, -kn[0] * fk, -kn[1] * fk, v.naturalWidth * fk, v.naturalHeight * fk);
+    }
   }
   g.restore();
   return true;
 }
 let mkLosCv = null, mkSpeerCv = null, mkSpeerCv2 = null;
+// de speer in mijn hand voor MK_LOS (en voor de anderen in de stand van Co-op, sp en vw): de soort en de wind
+// voor de stand naar de anderen: alleen als er iets anders dan de gewone speer in mijn hand zit
+function mkSpeerZend(){ const n = mkSpeerNu(); return n.s ? (n.s === 'pathfinder' ? { sp: n.s, vw: +n.w.toFixed(2) } : { sp: n.s }) : {}; }
+function mkSpeerNu(){ return { s: spearFound ? speerSoortId(speerBlauw) : null, w: speerSoortId(speerBlauw) === 'pathfinder' ? pfRugWind() : 0 }; }
 // het hele frame: speer, lijf, boven, met de outfit; null als iets nog laadt (dan het gebakken frame)
-function mkLosBeeld(mk, rel, kl, soortId, cv){
+function mkLosBeeld(mk, rel, kl, speer, cv){
+  const soortId = speer ? speer.s || null : null, wind = speer ? speer.w || 0 : 0;
   const D = MK_LOS.data, d = D && D.frames[rel];
   if (!d) { if (D === null) mkLosLaad(); return null; }
   const b = SKIN_SRC.get.call(mk).replace(/\.png$/, '');
@@ -26383,7 +26396,7 @@ function mkLosBeeld(mk, rel, kl, soortId, cv){
       for (const c of [mkSpeerCv, mkSpeerCv2]) if (c.width !== W || c.height !== H){ c.width = W; c.height = H; }
       const s1 = mkSpeerCv.getContext('2d'), s2 = mkSpeerCv2.getContext('2d');
       s1.globalCompositeOperation = 'source-over'; s1.clearRect(0, 0, W, H);
-      if (!mkSpeerTeken(s1, d.s, soortId, W, H)) return null;
+      if (!mkSpeerTeken(s1, d.s, soortId, W, H, wind)) return null;
       s1.globalCompositeOperation = 'destination-out'; s1.drawImage(weg, 0, 0, W, H);
       s1.globalCompositeOperation = 'source-over';
       if (d.s.b) g.drawImage(mkSpeerCv, 0, 0);
@@ -26394,8 +26407,8 @@ function mkLosBeeld(mk, rel, kl, soortId, cv){
         s1.globalCompositeOperation = 'destination-out'; s1.drawImage(achter, 0, 0, W, H); s1.globalCompositeOperation = 'source-over';
         voor = () => g.drawImage(mkSpeerCv, 0, 0);
       }
-    } else if (d.s.b){ if (!mkSpeerTeken(g, d.s, soortId, W, H)) return null; }
-    else voor = () => mkSpeerTeken(g, d.s, soortId, W, H);
+    } else if (d.s.b){ if (!mkSpeerTeken(g, d.s, soortId, W, H, wind)) return null; }
+    else voor = () => mkSpeerTeken(g, d.s, soortId, W, H, wind);
   }
   g.drawImage(lijf, 0, 0); lap(lijf);
   if (voor && voor() === false) return null;
@@ -26527,13 +26540,13 @@ function broekLap(img, kl){
 let broekCv = null;
 // Alleen een echt plaatje krijgt een lapje: een doek dat elk beeld anders is (rigCv van de mik-rig) zou het lapje
 // van zijn eerste stand houden. De rig kleurt daarom zijn losse delen (rigLaag) en zijn doek gaat er hier langs.
-function broekBeeld(basis, img, kl = broekNu(), cv = null){
+function broekBeeld(basis, img, kl = broekNu(), cv = null, speer = null){
   if (!kl || !img || !(img instanceof HTMLImageElement)) return basis;
   if (kl.skin){                                         // een outfit van Mkuki (MK_OUTFIT): het frame uit de skin
     const mk = mkSkinVan(img, kl.skin);
     if (!mk) return basis;                              // niet in de skin (of nog niet geladen): het oude tenue
-    // de losse speer (MK_LOS): mijn eigen Amir (basis is dan vaanBlauw van het frame) met de soort in zijn hand
-    const los = mkLosBeeld(mk, img._skinRel, kl, basis === img ? null : speerSoortId(speerBlauw), cv);
+    // de losse speer (MK_LOS): de soort in zijn hand en de wind voor het vaantje (speer: mkSpeerNu, of van een teamgenoot)
+    const los = mkLosBeeld(mk, img._skinRel, kl, speer, cv);
     if (los) return los;
     basis = basis === img ? mk : vaanBlauw(mk);         // nog aan het laden: het gebakken frame, het lint in de kleur van de soort
     img = mk;
@@ -56905,14 +56918,14 @@ function loop(now){
     sgDuikZet(w, h, groundY + lift - y);              // de sprintgreep: even voorover naar de speer (SPRINTGREEP)
     const gloedW = woedeGloed(), gloedZ = straalGloed(), gloed = Math.max(gloedW, gloedZ), zonKl = gloedZ > gloedW;   // de zonnestraal (STRAAL): goud in plaats van oranje
     if (gloed > 0){                                   // de woede: een warme gloed die als een vlam om zijn rand likt
-      const beeld = amirSteen > 0 ? fosforKopie(img, 'steen') : broekBeeld(vaanBlauw(img), img);
+      const beeld = amirSteen > 0 ? fosforKopie(img, 'steen') : broekBeeld(vaanBlauw(img), img, undefined, null, mkSpeerNu());
       ctx.shadowColor = (zonKl ? 'rgba(255,196,40,' : 'rgba(255,120,30,') + (0.9 * gloed).toFixed(3) + ')';   // eerst ruim en diep oranje
       ctx.shadowBlur = CHAR_H * scale * (0.07 + 0.04 * gloed) * DPR;          // shadowBlur rekent in canvaspixels
       ctx.drawImage(beeld, 0, 0, w, h);
       ctx.shadowColor = (zonKl ? 'rgba(255,244,190,' : 'rgba(255,196,90,') + gloed.toFixed(3) + ')';           // dan een smal, lichter randje
       ctx.shadowBlur = CHAR_H * scale * 0.022 * DPR;
     }
-    const amirBeeld = amirSteen > 0 ? fosforKopie(img, 'steen') : broekBeeld(vaanBlauw(img), img);   // door de fosforslang versteend; anders met de broekkleur (BROEK)
+    const amirBeeld = amirSteen > 0 ? fosforKopie(img, 'steen') : broekBeeld(vaanBlauw(img), img, undefined, null, mkSpeerNu());   // door de fosforslang versteend; anders met de broekkleur (BROEK)
     if (useRolW && ROL_WORP.smear > 0 && Math.abs(rwF - ROL_WORP.los) <= 1){
       // de smear: rond het loslaten een paar vage kopieen achter hem, zodat de worp snel oogt. Het beeld kijkt naar
       // links (ook gespiegeld, want de spiegeling zit al in de transformatie), dus achter hem is +x
@@ -71022,7 +71035,7 @@ function pvpStap(rdt){
     const j = jav && jav.state !== 'weg' ? { x: Math.round(jav.x), h: Math.round(jav.h), sa: +jav.sa.toFixed(3), dir: jav.dir, st: jav.state, t: +(jav.t || 0).toFixed(2), b: jav.blauw || 0, n: pvp.jn } : null;
     pvpZendSnel(Object.assign({ t: 's', q: ++pvp.qs, tm: +pvpNu().toFixed(3), ak: pvp.coop && !pvp.host && pvp.nets[0] ? pvp.nets[0].v.q : undefined, x: Math.round(playerX()), h: Math.round(ph), f: facing, hu: +hurt.toFixed(2),
       sf: atkFrame, ss: atkStok || undefined, sl: steekLive() && !atkMes ? 1 : 0, sn: pvp.sn, sw: swFrame, wn: pvp.wn, j, l: lives, d: dead ? 1 : 0,
-      iv: invuln > 0 ? 1 : 0, du: +duckT.toFixed(2), ds: +duckShare.toFixed(2) }, pvp.mijn));   // iv, du en ds: de stand voor de vijanden van Co-op (mpcGastStand)
+      iv: invuln > 0 ? 1 : 0, du: +duckT.toFixed(2), ds: +duckShare.toFixed(2), ...mkSpeerZend() }, pvp.mijn));   // iv, du en ds: de stand voor de vijanden van Co-op (mpcGastStand)
   }
   if (pvp.coop) mpcVriesWacht(rdt);                 // Co-op: een freeze die niet afloopt laat Amir niet voorgoed staan
   if (pvp.coop) mpCoopStap(rdt, rdt);                // Co-op: de rondes, de deuren en de vijanden
@@ -71088,7 +71101,8 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
     if (pvp.coop && g.d) mpcLig(w, h, -g.dy * scale);  // Co-op: mijn teamgenoot ligt dood
     // zijn broekkleur uit de lobby, op een eigen doek per slot: het gedeelde doek van broekBeeld is ook het beeld van mijn
     // Amir (amirHer), en lijkAchterAmir tekende dat later opnieuw, dus dan stond zijn beeld in zijn kleur op mijn plek
-    const kb = broekBeeld(im, im, broekKleurVan(pvp.broek[p]), pvpBroekCv[p] || (pvpBroekCv[p] = document.createElement('canvas')));
+    const kb = broekBeeld(im, im, broekKleurVan(pvp.broek[p]), pvpBroekCv[p] || (pvpBroekCv[p] = document.createElement('canvas')),
+                         { s: typeof g.sp === 'string' && SPEER_SOORTEN[g.sp] ? g.sp : null, w: +g.vw || 0 });   // zijn speersoort en het vaantje (MK_LOS)
     ctx.drawImage(g.hu > 0 ? amirRood(kb, Math.min(0.75, g.hu * 2)) : kb, 0, 0, w, h);
     ctx.restore();
   }

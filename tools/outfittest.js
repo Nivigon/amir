@@ -74,15 +74,16 @@ async function tot(page, f, max = 30000){ const t = Date.now(); while (Date.now(
     const ims = fr.map(r => oud[L.indexOf(r)]).filter(Boolean);
     for (let n = 0; n < 40; n++){                       // eerst alles binnen: de Pathfinder, de vaantjes en de zonekaarten
       let ok = true;
-      for (const s of soorten) for (const im of ims){ const c = mkLosBeeld(mkSkinVan(im, 'mkuki'), im._skinRel, MK_OUTFIT.lijst[2], s, document.createElement('canvas')); if (!c) ok = false; }
+      for (const s of soorten) for (const im of ims){ const c = mkLosBeeld(mkSkinVan(im, 'mkuki'), im._skinRel, MK_OUTFIT.lijst[2], { s, w: 0.6 }, document.createElement('canvas')); if (!c) ok = false; }
       if (ok && n > 4 && pfVaan[0] && imgReady(pfVaan[0])) break;
       await new Promise(r => setTimeout(r, 300));
     }
     const cw = 300, ch = 300, cv = document.createElement('canvas'); cv.width = cw * ims.length; cv.height = ch * soorten.length;
     const g = cv.getContext('2d'); g.fillStyle = '#e8965a'; g.fillRect(0, 0, cv.width, cv.height);
     soorten.forEach((s, j) => ims.forEach((im, i) => {
-      const c = mkLosBeeld(mkSkinVan(im, 'mkuki'), im._skinRel, MK_OUTFIT.lijst[2], s, document.createElement('canvas'));
-      if (!c) return;
+      // zoals een teamgenoot getekend wordt: broekBeeld met zijn soort en wind (sp en vw uit zijn stand)
+      const c = broekBeeld(im, im, MK_OUTFIT.lijst[2], document.createElement('canvas'), { s, w: j === soorten.length - 1 ? 0.6 + 0.4 * (i % 2) : 0 });
+      if (!c || c === im) return;
       const k = Math.min(cw / c.width * 1.3, ch / c.height);
       g.drawImage(c, i * cw + (cw - c.width * k) / 2, j * ch + ch - c.height * k, c.width * k, c.height * k);
     }));
