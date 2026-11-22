@@ -79,3 +79,13 @@ Kap-posts per frame in `bron/grok_posts.json` (kop_ren0..11). IoU kop 0,90-0,95.
 Kap per frame op kop en schouders (prompt `tau_kop2`, met "viewing direction exactly as drawn"). IoU kop 0,94-0,97.
 Posts in `bron/grok_posts.json` (kop_jump0..6). De krassen zijn 2x zo groot (de sprongframes zijn op 2x getekend).
 De vacht houdt hier de oogvlekjes op de borst (origineel), alleen de kap is nieuw.
+
+### Rollen (klaar, 28)
+Zelfde aanpak, prompt `tau_rol` (met "caught mid-movement in a forward roll ... even upside down"), frames NIET
+gedraaid aangeboden (de kap kwam ook ondersteboven goed). IoU kop 0,91-0,97. Posts in `bron/grok_posts.json`.
+Geen krassen in de rol (zie TWIJFEL.md).
+
+## Stand 03:45: alles uit de eerste ronde af
+- Staan 1, rennen 12, springen 7, rollen 28. Zonekaarten, recolours (wit, zwart met goud) per frame in `recolour/`.
+- Rapport: `rapport/*_plaat.png`, `*.gif`, `idle_tau_wit_zwart.png`, `TWIJFEL.md`.
+- Nog niet in het spel gezet (geen pull request, niets live).
