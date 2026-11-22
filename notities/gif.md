@@ -55,6 +55,10 @@ Wat er in de inventory zit en hoeveel gif de speren nog hebben, gaat mee naar he
 
 ### Te zien
 
+- **De actiebalk** (laptop, `BALK`, `'gif'`): zolang er gif op de speren zit een vakje met het flesje uit de winkel en
+  rechtsonder het aantal treffers dat er nog over is; de taart loopt leeg naarmate ze opraken, en opnieuw smeren laat het
+  vak flitsen. Op de telefoon is er geen actiebalk; daar blijft de groene rand om het tasje.
+
 - `gifSpat` en `gifFxTeken`: druppels rood en groen, bij elke treffer en elke tik (getekend na Amir, naast de crit-ster).
 - `gifVijandTeken` (vanuit `vijandHpBalk`, dus bij elke vijand na zijn sprite): een groene waas en vier belletjes.
 - `gifBalkAf` in `vijandHpBalk`: de balk loopt langzaam leeg naar de volgende tik, het stuk dat het gif al opat ademt
@@ -65,7 +69,7 @@ Wat er in de inventory zit en hoeveel gif de speren nog hebben, gaat mee naar he
 - `gifHandTeken`: de speer in de hand zit in de sprite van Amir, dus daar weet het spel alleen bij de steek en het
   spannen waar de punt is; dan een groene gloed en een druppel.
 - De speer in de hand van Mkuki (de losse speer, `MK_LOS`) is groenig zolang er gif op zit, ook rechtop bij stilstaan en
-  lopen: `mkSpeerNu` geeft `g` mee (`gifSterkte`, minder naarmate de treffers opraken) en `mkSpeerTeken` legt er de groene
+  lopen: `mkSpeerNu` geeft `g` mee (`gifSterkte`: 1 zolang er gif op zit, hij vervaagt niet) en `mkSpeerTeken` legt er de groene
   kopie overheen. `mkGifBeeld` maakt die kopie: alleen het staal (weinig kleur, niet te donker, en dan het grootste
   aaneengesloten stuk) wordt zuurgroen met zijn eigen schaduw en glans; de schacht en het rode lint blijven zoals ze zijn
   (gekozen uit vijf varianten, 22-11-2026). Alleen je eigen speer; een teamgenoot in Co-op ziet hem gewoon.
