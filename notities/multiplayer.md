@@ -869,7 +869,7 @@ Op verzoek van de opdrachtgever: een revive-item voor de stokspeler (de speerspe
   je hem niet gebruikte. Het beeld is `items/zilverhart/hart.png` met het leeuwenmedaillon linksboven (`leeuw_medaillon.png`, de
   Tau-kop in zilver); het icoon in de balk is `hart_icoon.png` met G. In een episode gaat het hart mee in de tas (`tas.zh`).
 - **Gebruik:** ligt er een teamgenoot dood, dan drukt de stokspeler G (`zhGebruik`): Amir bukt even (`zhNeerT`, via `canDuck`), het hart
-  ligt een halve Amir voor hem, pulseert `ZH.puls` s in een doorschijnende zilveren bol die met elke slag uitzet en krimpt (lub-dub, steeds sneller), die in de uitbarsting uiteenspringt in vonken, en dan komt de dode eruit: van
+  ligt een halve Amir voor hem, pulseert `ZH.puls` s (3,3) met het geluid `sounds/zilverhart_puls.mp3` (ElevenLabs, gerekt en harder gemaakt) in een doorschijnende zilveren bol die met elke slag uitzet en krimpt (lub-dub, steeds sneller), die in de uitbarsting uiteenspringt in vonken, en dan komt de dode eruit: van
   `ZH.klein` naar normaal in `ZH.groei` s, met een zachte lichtzuil en een ring over de grond, geen flits. Tau brult tegelijk
   `ZH.tauBoven` Amir boven het hart (`zhTauNa`, dezelfde frames als de zonnestraal, wit met een koelere gloed).
 - **Het netwerk:** het bericht `zh` (`{voor, x, h}`, in `MP_DOOR`) gaat naar iedereen; ieder speelt het zelf af. De dode staat op zijn
