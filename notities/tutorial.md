@@ -2,7 +2,7 @@
 
 Kop in de HTML: `// ---- tutorial: de mentor en zijn tekstwolk (level.mentor, zie notities/tutorial.md) ----`, direct na
 `checkTips`. Grep: `MENTOR`, `mentorReset`, `mentorUpdate`, `mentorTeken`, `mentorWolkTeken`, `mentorVal`, `mentorKleur`,
-`mentorOpname`. Het level is `TEST_87` (Test 87: The First Hunt), de opname `tools/mentor_opname.js`, het spoor
+`mentorOpname`. Het level is `TEST_89` (Test 89: The First Hunt), de opname `tools/mentor_opname.js`, het spoor
 `design/tutorial/mentor_spoor.json`.
 
 ## Wat het is

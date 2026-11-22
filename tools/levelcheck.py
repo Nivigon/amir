@@ -2049,7 +2049,7 @@ def zwevende_lagen(lv, sp):
     def van_onder(z):                                 # vanaf de grond eronder spring je er zelf op
         return z['h'] - vloer(z) <= sp.SPRONG_H - 10
     # een kruipdak: laag boven de grond (je kruipt eronder door) en bovenop niet te halen. Daar spring je niet
-    # tussen, dus het telt niet mee in de sprongen tussen de blokken (Test 87)
+    # tussen, dus het telt niet mee in de sprongen tussen de blokken (Test 89)
     zs = [z for z in zs if not (z['onder'] - vloer(z) < sp.CHAR_H and not van_onder(z))]
     zs = sorted(zs, key=lambda z: z['l'])
     for i in range(len(zs) - 1):

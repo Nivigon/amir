@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// De opname van de mentor (Test 87, The First Hunt): speelt het level met Amir en legt per beeld vast welk plaatje
+// De opname van de mentor (Test 89, The First Hunt): speelt het level met Amir en legt per beeld vast welk plaatje
 // waar stond. Daaruit tekent het spel de mentor (zie "tutorial: de mentor" in de HTML en notities/tutorial.md).
 //
 // Per stuk (seg) staat hieronder een rij opdrachten: lopen tot een x, springen, kruipen, rollen, omdraaien en wachten.
