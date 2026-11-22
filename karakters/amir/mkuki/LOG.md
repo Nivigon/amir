@@ -485,3 +485,15 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
   en hangende hand. Eerste poging `60705d8f` (`mk_nk_swp15`) gaf de borst naar ons, afgekeurd; de rug-zin moest uitgebreider.
 - speerworp_16: VERVANGEN, post `549d7501` 0,66 (was 0,54), `mk_nk_swp16b`: voorste arm lang naar voren en omlaag.
 - speerworp_17: NIET vervangen. Het beeld van 16 op 17 (0,57) reikt verder, maar de achterarm staat uit in plaats van omlaag.
+### Speerstoot, prioriteit B
+- attack_sp_4: NIET vervangen. `176f158f` (`mk_nk_ss4`, "leaning forward 30 degrees") gaf weer een rechte romp, 0,58.
+- attack_sp_9: NIET vervangen. `c020dbe1` (`mk_nk_ss9`) leunt wel iets meer voorover, maar de vuisten zitten niet op de
+  plek van de speerhand (vuist niet geplakt op 289,127), dus de speer zou los zweven. Het huidige frame blijft.
+### Rol, prioriteit B
+- rol_25 (zonder speer): NIET vervangen. `3d7f2e2e` (`mk_nk_rz25`) zet de hand wel verder naar voren op de grond, maar
+  draait hem met de borst naar ons; het origineel is profiel met de rug half zichtbaar. Afgekeurd op de 3D-regel.
+- rol_17 en rol_18 (met speer): NIET via Grok geprobeerd. Het zijn ondersteboven-frames waar Grok eerder vier keer een
+  rechtop staande of gespiegelde figuur van maakte (zie de rol-secties hierboven). Wat er mis is (vuisten niet op de
+  handpunten) is een plaatsing van de vuistlaag, geen houding: dat is werk voor de Animeer tool.
+### Prioriteit C (alleen gekeken, niets veranderd)
+- Bekeken op de bijgewerkte platen; geen nieuwe Grok-generaties. De opmerkingen in NAKIJKEN.md blijven staan.

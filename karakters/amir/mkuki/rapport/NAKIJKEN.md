@@ -1,6 +1,6 @@
 # Mkuki: frames om na te lopen en zo mogelijk opnieuw te maken via Grok
 
-Stand 22-11-2026. Dit zijn de frames waar de houding (draaiing, armen, voeten, hoogte) niet goed genoeg op het
+Stand 22-11-2026 (nagelopen in de nacht van 22-11, zie LOG.md "nakijken"; per regel staat erbij of het af is). Dit zijn de frames waar de houding (draaiing, armen, voeten, hoogte) niet goed genoeg op het
 origineel lijkt. De plaatsing van de speer staat hier NIET in: die doet Tom in de Animeer tool.
 
 Paden: het Mkuki-frame staat onder `karakters/amir/mkuki/<pad>`, het origineel onder `karakters/amir/<pad>`.
@@ -32,9 +32,9 @@ Prioriteit: **A** = zichtbaar fout, eerst doen. **B** = wijkt af, verbeteren als
 | B (af 22-11, Grok 196199c2) | speerworp/speerworp_15.png | achterarm te gestrekt | zoals origineel |
 | B (16 af 22-11, Grok 549d7501; 17 niet, achterarm paste niet) | speerworp/speerworp_16.png en speerworp_17.png | voorste arm reikt minder ver | verder naar voren |
 | B (af 22-11, Grok 8eb46544) | speerworp/speerworp_12.png | voorste hand een vuist | open hand |
-| B | aanval/speerstrike/ frame 4 en 9 (bestandsnaam in LOG.md, sectie Speerstoot) | 4 leunt minder voorover, 9 staat rechter | zoals origineel |
-| B | beweging/rol/zonder/rol_25.png | hand reikt minder ver | hand verder naar voren naar de grond |
-| B | beweging/rol/met/rol_17.png en rol_18.png | vuisten niet op de handpunten | vuisten op de plek van de originele handen |
+| B (niet vervangen, 4 bleef rechtop, 9 vuist niet op de schacht; LOG 22-11) | aanval/speerstrike/ frame 4 en 9 (bestandsnaam in LOG.md, sectie Speerstoot) | 4 leunt minder voorover, 9 staat rechter | zoals origineel |
+| B (niet vervangen, Grok draaide de borst naar ons; LOG 22-11) | beweging/rol/zonder/rol_25.png | hand reikt minder ver | hand verder naar voren naar de grond |
+| B (niet via Grok: vuistplaatsing, Animeer tool; LOG 22-11) | beweging/rol/met/rol_17.png en rol_18.png | vuisten niet op de handpunten | vuisten op de plek van de originele handen |
 | C | beweging/rol/met/rol_22.png | benen iets anders | |
 | C | beweging/run/nieuw/ren_ns_10.png | IoU laag, volgt de omtrek | |
 | C | beweging/jump/jump/amirjump2afzet.png | hoofd van Grok | naast de rest leggen |
