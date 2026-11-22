@@ -92,3 +92,36 @@ skelet, een speer in een runeschijf en een volle hand en rug gaan zoals altijd.
 
 Nu alleen in de sandbox, knop **Sprint grab** onder Speerworp (`sbSprintGreep`), of een level met `sprintGreep: true`
 (geen level heeft het). Gemeten in Chromium: zonder greep mist E op 211 px, met greep pakt E op 121 tot 211 px.
+
+## de Pathfinder Spear: het rode vaantje en de prooi (`PATHFINDER`, `PROOI`, `javTeken`, `pfStap`, `prooiRaak`)
+
+Gevraagd (22-11-2026): een lichte upgrade van de speer voor de winkel van Co-op, naar een groep binnen de speerstam
+(Mkuki) die meerdere krijgers dragen. Het werd de vleugelspeer met een houten schacht, een rood-witte kralengrip, een
+rood bandje om de binding en een rood vaantje dat meewaait. De art komt uit Grok (`design/speer/pathfinder/bron/`), door
+`tools/pathfinder_speer.py` op de lengte en dikte van `speer_projectiel.png` gezet (624 px lang, schacht 17 px tegen 15):
+de dop, de greep en de kop houden hun vorm en het hout ertussen rekt mee, want de bron op een schaal geschaald gaf
+een schacht twee keer zo dik en dan leek hij korter dan de gewone; het vaantje is los,
+in vier standen (stil, licht wiegen, wind, harde wind).
+
+- **De soort.** `SPEER_SOORTEN.pathfinder`, in het veld van het vaantje (`speerBlauw`, `rugSperen[].blauw`, `jav.blauw`,
+  `losseSperen[].blauw`). Je koopt er een per speerplek (`koop.pathfinder` telt, `pfAantal`; in de sandbox de knop: een).
+  `pfStap` maakt elk beeld zoveel gewone speren die je draagt Pathfinder-speren als je er bezit min wat er al is (`pfTel`:
+  hand, rug, in de lucht, los op de grond), de rug eerst; een rekspeer blijft gewoon zolang je ze allemaal hebt. Welke in je
+  hand zit kiest de speervolgorde (zie `notities/speer-inventory.md`).
+- **Het beeld.** `javTeken(soort, k, wind, windX)` vervangt overal het tekenen van `javImg`: op de rug, in de worp (zonder
+  de draai-frames), liggend, in een wand, in een oefendoel, het baken en de losse speren van een teamgenoot. In Amirs handen
+  zit nog de gewone speer in zijn sprites, tot de speer los over de animaties komt (daar wordt aan gewerkt).
+- **Het vaantje.** `pfVaanTeken` hangt het aan het knoopje (`PATHFINDER.knoop`) en draait het altijd naar beneden in de
+  wereld (de inverse van de transformatie), en spiegelt het als het de andere kant op moet waaien. De sterkte: in de vlucht
+  1, vallend 0,6, vast 0,15, op de rug de vaart van Amir (`pfV`, `PATHFINDER.wind`), liggend plat langs de schacht.
+- **De prooi.** Een geworpen Pathfinder-speer die raakt (`worpTref` en `jav.blauw`, in `gifRaak`) markeert de vijand
+  `PROOI.duur` (3) s. Hij loopt `PROOI.traag` (20%) trager (`prooiTraag`: van wat hij dit beeld opschoof gaat dat deel er
+  weer af; gemeten: een rennende bandiet 8,0 px per beeld, gemarkeerd met 0,1 was het 7,2), en elke treffer op hem kost
+  `PROOI.extra` (een half) leven meer (`prooiExtra`, in `fcHalf`, dus bij elke soort die `fcHalf` aanroept; de schildbandiet
+  niet, die telt in schildstanden). Te zien: een rode rand om zijn silhouet (`prooiGloed`: zolang de lus van zijn soort hem
+  tekent, krijgt elk plaatje een rode rand eronder; niet als het doorzichtig is, zoals zijn schaduw. De rand wordt per
+  plaatje, uitsnede en maat een keer gebakken met de drop-shadow (`prooiRandBak`, `PROOI_RAND`) en daarna gewoon
+  getekend: een live filter op elk plaatje maakte City Survival traag) en het vaantje op een stokje
+  boven zijn hoofd (`prooiTeken`, vanuit `vijandHpBalk`), knipperend in de laatste seconde, feller op een extra treffer.
+- **Sandbox:** Speer en spullen, Gif, **Pathfinder Spear** (`sbPathfinder`).
+

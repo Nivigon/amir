@@ -195,7 +195,9 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de rol-worp: F tijdens de rol, hij gooit uit de landing; Test 60 met oefendoelen en afstellen | `ROL_WORP`, `rolWorpDruk`, `rolWorpLos`, `rolDoelen` | notities/rol.md |
 | het schild van Amir: C vasthouden, vangen en de parade | `AMIR_SCHILD`, `schildVang`, `schildTeken` | notities/schild.md |
 | reserve-speren op de rug (prototype) | `RUG`, `RUG_MAX`, `rugSperen` | notities/rug-speren.md |
+| de speervolgorde: welke speersoort eerst in je hand zit (de inventory, Hold first), vanzelf de beste na oprapen en na een worp, Z wisselt | `speerVolgorde`, `speerSorteer`, `speerWissel`, `speerVoorop`, `rugSort`, `invSperenToon`, `pfAantal` | notities/speer-inventory.md |
 | de oude speer: gespalkt, drie keer te gebruiken, dan breekt hij; per stand slechter | `OUDE_SPEER`, `oudSoort`, `oudBreek`, `oudSteekStap` | notities/oude-speer.md |
+| de Pathfinder Spear: de speer uit de winkel van Co-op met het rode vaantje dat meewaait (op de rug, in de worp, liggend), en de prooi: een geworpen treffer markeert 3 s (rode rand, vaantje boven het hoofd, 20% trager, een half leven extra per treffer) | `PATHFINDER`, `PROOI`, `javTeken`, `pfVaanTeken`, `pfStap`, `prooiRaak`, `prooiGloed` | notities/speer.md |
 | zicht: een vijand ziet je alleen als er niets tussen zit | `ZICHT`, `vijandZiet`, `zichtWaak` | notities/zicht.md |
 | sneak: de sluipaanval, gehoor in plaats van achterbereik en de argwaanklok (mens-vijanden) | `SNEAK`, `sneakKan`, `sneakRust`, `lawaaiPuls`, `sneakOogTeken` | notities/sneak.md |
 | de sluipaanval van Amir: de animatie (steek van schuin onder, de vijand aan de punt, afschudden), een regie zoals de executie | `SNK`, `sneakRegie`, `sneakStart`, `sneakHangZet`, `hangDraai` | notities/sneak.md |
@@ -280,7 +282,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de springdoek: de luifel aan de muur van een huis, indigo, doorgezakt, met een eigen hoogte en worp (Stad 9) | `STAD_SPRINGDOEK`, `stadLuifelBeeld`, `sbSpringdoek` | notities/stad.md |
 | de einddeur: E voor een open deur hoog in een huis speelt het level uit (Stad 9) | `eindDeur`, `eindDeurUit`, `eindDeurTeken` | notities/stad.md |
 | het kelderluik: een schuine kelderingang tegen een muur, het luik vliegt open met de deurslag en E speelt het level uit (Stad 14) | `KELDER`, `kelderUpdate`, `kelderUit`, `kelderTeken` | notities/stad.md |
-| de kelderzaal: een kelder als level, met een houten trap (je loopt achter de wang), een plafond met balkkoppen, traliedeuren waar een bandiet doorbreekt en een kooi met een deurtje in perspectief (Test 86) | `KZAAL`, `kzaalReset`, `kzaalKooiDeur`, `kzaalLichtNa`, `kgat`, `kkooi` | notities/kelder.md |
+| de kelderzaal: een kelder als level, met een houten trap (je loopt achter de wang), een plafond met balkkoppen, traliedeuren waar een bandiet doorbreekt en een dierenkooi die opengaat (Test 86) | `KZAAL`, `kzaalReset`, `kzaalLichtNa`, `kgat` | notities/kelder.md |
 | de luifel bij de put: een schuine doek die je meteen terugwerpt, vanaf de balk te halen | `STAD.plein.luifel`, `stadLuifelWorp`, `stadLuifelTeken` | notities/stad.md |
 | de strakke luifel: een indigo doek in een houten raam aan de muur, je staat in de stof en de doek zakt in onder je voeten; met `ritme` een trampoline waar je hoogte opbouwt door op tijd te springen (Stad 10) | `luifelStrak`, `stadKuil`, `stadLuifelVoor`, `stadRitme`, `stijl: 'strak'` | notities/stad.md |
 | poort: een stenen boog, decor of de plek waar een vijand uitkomt | `POORT`, `poortOpen`, `poortKlaar` | notities/poort.md |
@@ -304,6 +306,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | Amir zegt er iets van als hij geraakt wordt | `SFX_RAAK`, `playRaak()` | notities/geluid.md |
 | Amir zegt iets als een vijand sterft | `SFX_RUST`, `vijandDood(baas)`, `DOOD_KANS` | notities/geluid.md |
 | stap voor stap leren spelen | `tutorial` | notities/wegwijzers.md |
+| de tutorial The First Hunt: een mentor (omgekleurde Amir, opgenomen spoor) die voordoet en wacht, een tekstwolk met toetsen, een fade terug na een val en een race (Test 89) | `MENTOR`, `mentorUpdate`, `mentorTeken`, `mentorWolkTeken`, `mentorVal`, `mentorOpname` | notities/tutorial.md |
 | gaten in de grond | `gaps`, `grondDoorlopen` | notities/wegwijzers.md |
 | zuil: een smalle strook grond tussen twee ravijnen | `ZUIL`, `zuilBij`, `zuilWand` | notities/zuil.md |
 | zuil met een hoogte: hoger of lager dan de grond | `ZUIL_HOOG`, `zuilLijst`, `zuilBasis` | notities/zuil.md |
@@ -316,6 +319,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de fontein: een plaat van leem met het water erin, decor met de rand als trede; een steek in het water geeft een plons (sandbox, Fontein) | `WATER.soort.fontein`, `waterFonteinTeken`, `waterFonteinSlag` | notities/water.md |
 | schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil` | notities/decor.md |
 | tonnen: houten tonnen die breken (drie treffers, Nyundo in een keer, een kalebas erin), ook op een dak of zwevende laag | `TON`, `tonRaak`, `tonBruut`, `tonPlekX`, `tonOp` | notities/tonnen.md |
+| dierenkooien: houten kooien met een hyena, slang of bandiet, half of slordig onder een zanddoek, op te springen en eroverheen te lopen; een lijk valt eraf; het kistje als opstap en sfeer; decor op de stoep in muurkleur en een stuk kooi voor de camera; met `open` zwaait het deurtje open (dichtbij of op een zegel), een korte freeze, en het beest stapt gebukt naar buiten en richt zich op tot een echte vijand (Stad 16, Test 86) | `DKOOI`, `dkBouw`, `dkPlats`, `dkLijkVal`, `dkPlaat`, `dkStap`, `dkOpen`, `dkBeest`, `dkLos` | notities/kooien.md |
 | wapenrek: een houten rek in de stad met speren; E pakt er een, in de hand of op de rug | `WAPENREK`, `wapenrekken`, `rekTrek` | notities/wapenrek.md |
 | rotsdecor: losse rotsstukken als props, lui geladen, in de Maker onder Decor | `ROTS_FAM`, `rotsSoorten`, `propLaad`, `mkVulRots` | notities/decor.md |
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille` | notities/slangen.md |
@@ -368,7 +372,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de hinderlaag en het leiband: een lijn die het team pas voorbij kan als iedereen levend bij is, dan een regie (balken, de camera langs de plekken waar de vijanden binnenkomen) en het gevecht; in een Co-op episode niet verder dan 1000 van een teamgenoot (Survival is vrij) | `MPC_HL`, `hinderlagen`, `hinderStart`, `hinderHostStap`, `hinderCamX`, `MPC_LEIBAND`, `leibandKlem` | notities/multiplayer.md |
 | Ishmul, de voorstad: de tweede map van Co-op Survival (rivier met brug, plein op opstapjes met fontein, luifel, savanne), en de instellingen per map | `MP_ISHMUL_LEVEL`, `MPC_KAARTEN`, `mpcKaart`, `mpStarts` | notities/multiplayer.md |
 | de versies van de Co-op map: avond, nacht met fakkels aan de muren of diepe nacht, willekeurig en om de 3 rondes een andere, gesynchroniseerd met `cv` | `MPC_VERSIE`, `mpcVersieZet`, `mpcVersieWissel`, `mpcFakkelsStap` | notities/multiplayer.md |
-| de winkel van Co-op: na `winkelNa` rondes allebei naar een binnenkamer, ieder zijn eigen prijslijst en beurs, goud per kill en per ronde, Full Circle met twee upgrades die samen mogen, Ready van allebei | `MPC_WINKEL`, `mpcWinkelIn`, `mpcWinkelUit`, `mpcWinkelKoop`, `mpcGoudIedereen`, `mpcFcModus` | notities/multiplayer.md |
+| de winkel van Co-op: na `winkelNa` rondes allebei naar een binnenkamer, ieder zijn eigen prijslijst en beurs, goud per kill en per ronde, Full Circle met twee upgrades die samen mogen; het scherm rechts met tabs, kaarten met plaatjes, You carry en de marktman links, Undo van de laatste aankoop, en na Ready van iedereen 3 s aftellen (Not ready stopt het) | `MPC_WINKEL`, `MPC_WINKEL_CAT`, `mpcWinkelToon`, `mpcUndo`, `mpcVertrekStap`, `mpcWinkelIn`, `mpcWinkelUit`, `mpcWinkelKoop`, `mpcGoudIedereen`, `mpcFcModus` | notities/multiplayer.md |
 | sandbox | de vrije testmodus |  |
 
 Op schijf: `karakters/` (Amir, dorpeling, dorpelinge), `enemies/`, `design/` (decor,
@@ -424,13 +428,14 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `vredig` | `true`: geen vijanden, en ook geen vrije slangen of kalebassen die het spel anders bij lege `spawns` stuurt (Test 67) |
 | `rocks` | keien om op te springen: `{x, s}` |
 | `tonnen` | houten tonnen die breken: `{x, y, f, kalebas}`, of `put`/`luifel`/`kraam` met `a` (Amir van die put, losse luifel of kraam) in plaats van `x`; hoger op met `dak` (een dak of galerij van de stad, met `a` vanaf het midden van dat dak) of `zwever: true` (zie `notities/tonnen.md`) |
+| `dierkooien` | dierenkooien: `{x, maat, doek, dier, f, achter, vg, s, dekking, kleur, open, id, deur}`, `maat` hoog/laag/slang, `doek` half/over, `dier` hyena/slang/bandiet, `open` `'bij'` of `'zegel'` (een zegel met `kooi: id`) laat het beest eruit als echte vijand, zonder `open` decor, `achter` decor op de stoep, `vg` voor de camera; `kistjes: [{x, f, achter, vg, s}]` het kistje onder het doek, opstap en sfeer; een spawn met `dak: 'kooi'` staat op een kooi (Stad 16, zie `notities/kooien.md`) |
 | `wapenrekken` | houten rekken met speren: `{x, f, n}`, `n` speren (standaard en hooguit 4, een per touwlus), of `put`/`luifel`/`kraam` met `a` zoals bij `tonnen`; E pakt er een (zie `notities/wapenrek.md`) |
 | `spawns` | vijanden: `{x, k}`, `k` is groen/zwart/knock/scorp/hyenas/panter/fosfor/bandiet/kooiman/meelman/schildman/kruisboogbandiet, met vlaggen per soort (zie `notities/velden.md`) |
 | `goud` | `true`: een goudstuk per kill, een kalebas kost 5 goud in de winkel, goud en kalebassen gaan mee naar het volgende level (De Gouden Poort, zie "goud" in `notities/episodes.md`) |
 | `multikill` | kills binnen 3 s na elkaar zijn een reeks, met het snoer kralen, het woord, de stinger en vanaf de tweede kill 1 goud extra (in een level met goud). Standaard aan in elk level, `multikill: false` zet hem uit (zie `notities/multikill.md`) |
 | `rapport` | na het level het levelrapport in het winscherm: kills, multikills, langste reeks, tijd en goud (in een level met goud). Standaard aan in elk level, `rapport: false` zet het uit (zie `notities/multikill.md`) |
 | `kelder` | het kelderluik: `{x}`, de achterkant van de wig tegen een hoge leemmuur; het luik vliegt open als Amir eraan komt en E speelt het level uit, in plaats van `ends` (alleen Stad 14, zie "het kelderluik" in `notities/stad.md`) |
-| `kelderZaal` | de kelderzaal: `{trap: {x}, plafond: {r}, palen, deuren: [{x}], kooien: [{x}], bundel}`, met `lagen: 'kelder'`; een spawn met `kgat: i` breekt door deur i, met `kkooi: i` zit hij in kooi i (alleen Test 86, zie `notities/kelder.md`) |
+| `kelderZaal` | de kelderzaal: `{trap: {x}, plafond: {r}, palen, deuren: [{x}], bundel}`, met `lagen: 'kelder'`; een spawn met `kgat: i` breekt door deur i; een kooi met een beest is een gewone `dierkooien` (alleen Test 86, zie `notities/kelder.md`) |
 | `eindDeur` | de einddeur: `{gevel, verdieping}`, die deur staat open en E ervoor (op een galerij) speelt het level uit, in plaats van `ends` (alleen Stad 9, zie "de einddeur" in `notities/stad.md`) |
 | `munt` | de munt van de koning: `{x, y, vast}`; E pakt hem, en na het level is er een talentpunt extra (een keer per run) |
 | `kisten` | schatkisten: `{x, y, vast, goud, f}`, `y` en `vast` zoals bij de munt; E maakt hem open en `goud` (standaard 20) gaat bij je goud. Sterf je, dan is hij weer dicht (zie "de schatkist" in `notities/episodes.md`) |
@@ -462,7 +467,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `fakkels` | geanimeerde wandfakkels: `{x, y, s, f}`, `x` de schacht, `y` de hoogte van de voet boven de grond in Amir (0 = op de grond, hoger = tegen een wand), `s` schaal, `f` spiegelen; brandend decor met gloed, vonken, schaduw en vuurgeluid (zie "fakkel") |
 | `talentKeuze` | `true`: voor het begin kies je zelf welke talents gelden, van alle tribes (alleen voor een Test level; nu Test 14) |
 | `zweepKeuze` | `true`: voor het begin kies je de oude, de nieuwe, de nieuwere zweepman of nieuwer schreeuw (`ZWM_NIEUW`, `ZWM_NIEUWER`, in het scherm van `duoKeuze`); alleen Test 58 en 59 (zie `notities/zweepman.md`) |
-| `zegels` | zegels plat in de grond: `{x, ravijn, sluit, breed, muur, speerval, teken, vijand, plafond, rijs, poort, speer, verstop, onzichtbaar, veeg, dak}`; met `onzichtbaar` is er niets van te zien tot iemand erop stapt (dan gaat hij aan en verschijnt hij), met `dak` ligt hij boven een gang op de savanne in plaats van op de gang-bodem, met `verstop` ligt hij onder het zand tot de lage zwaai hem blootveegt, `veeg` kiest de onthulling (standaard de wolk, traag en middel), `veegDuur` en `veegMaat` het tempo en de grootte, `vloer` de kleur van het zand (zie `notities/velden.md`) |
+| `zegels` | zegels plat in de grond: `{x, ravijn, sluit, breed, muur, speerval, teken, vijand, plafond, rijs, poort, kooi, speer, verstop, onzichtbaar, veeg, dak}`; `kooi` opent de dierenkooien met die `id` en `open: 'zegel'`; met `onzichtbaar` is er niets van te zien tot iemand erop stapt (dan gaat hij aan en verschijnt hij), met `dak` ligt hij boven een gang op de savanne in plaats van op de gang-bodem, met `verstop` ligt hij onder het zand tot de lage zwaai hem blootveegt, `veeg` kiest de onthulling (standaard de wolk, traag en middel), `veegDuur` en `veegMaat` het tempo en de grootte, `vloer` de kleur van het zand (zie `notities/velden.md`) |
 | `poorten` | stenen bogen uit `design/boog/`: `{id, x, k, f, y, s, look, hek, wand, wandF, wandH, wandX, regie, bij}`, `look` steen, sneeuw of savanne (zonder: sneeuw in een winterlevel), decor; een zegel of rune met `poort: id` opent hem en dan komen de spawns met `poort: id` eruit (zie "poort"); `hek` een valhek dat optakelt, `wand` een rotswand erachter (`true` de kale wand, of een soort uit `HEK_WANDEN`: `kaal`, `spits`, `pieken`, `zuilen`, `boog`, `grot`), `wandH` zijn hoogte en `wandX` een verschuiving, allebei in Amir, `regie` vanzelf open als hij in beeld komt (of bij `bij`) met Amir vast tot de vijand eruit is (zie "het hek van de poort") |
 | `rotsen` | losse rotsen als decor: `{x, soort, groot, y}`, een van de platen onder een rune (`spits`, `pieken`, `zuilen`, `boog`) zonder schijf, `x` de linkervoet, `groot` de hoogte in Amir, `y` een vaste vloer; getekend achter de plateaus, zodat een zwever erin kan snijden (zie `notities/decor.md`) |
 | `rijzers` | steen dat uit een ravijn omhoog komt: `{id, r, l, tot, van, v, wacht, duur}`, `id` de naam waar een zegel of een rune (`doel: true`) met `rijs` naar wijst, `tot` en `van` de bovenkant boven en beneden (standaard -1 en -900), `wacht` seconden voor hij begint, `duur` seconden boven voor hij terugzakt (zie "rijzende grond"); met `zak: true` staat hij boven en zakt hij onder Amir weg; `look` de bovenrand (`savanne`, `rots`, `sneeuw`, `zwart`) en `kleurVanaf` een hoogte waaronder het blok zwart blijft; in een put (`putten`) is de gangvloer zijn grond (Test 48) |
@@ -483,6 +488,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `ends` | de fakkels die het level uitspelen: `{x}` |
 | `npcs` | dorpelingen: `{x, k, f, s}` |
 | `tips` | tekst onderweg: `{x, t}` |
+| `mentor` | de mentor van de tutorial: `{spoor, finish, prijs, win, verlies, vallen, stations: [{zeg, seg, ok, eis, nog, kijk, terug, race}]}`; zijn spoor komt uit `tools/mentor_opname.js` (alleen Test 89, zie `notities/tutorial.md`) |
 | `hinderlagen` | de hinderlaag van Co-op: `[{x, vecht, shots: [{x, h, t, poort, deur, kelder}]}]`, een lijn op `x` tot het hele team er levend is, dan de regie langs de shots en het gevecht; een spawn met `hl` en `shot` komt binnen op zijn shot (alleen de Co-op episode The Smugglers' Cellar, zie `notities/multiplayer.md`) |
 | `pijlen` | rode pijlen in de lucht die iets aanwijzen: `{x, t}`, alleen voor testlevels (Test 47) |
 
@@ -585,6 +591,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Winkelinrichting** (`design/stad/binnen/toonbank_leem.png`, `plank_pin.png`, `wand_*.png`, `kruik_groot.png`, `zak_*.png`, `manden.png`, uit `bron/winkel_b.jpg`) → `tools/winkel_b_knip.py`, daarna `gen-offline-manifest.py`
 - **Wapenrek** (`design/stad/wapenrek/`, uit de Grok-plaat in `bron/`) → `tools/wapenrek_knip.py`, daarna `gen-offline-manifest.py`
 - **Deurgordijnen** (`design/stad/gordijn/`, uit de Grok-platen in `bron/`) → `tools/gordijn_knip.py`, daarna `gen-klein.py` en `gen-offline-manifest.py` (de gordijnmap staat niet in de lijst van `gen-klein.py`, dus het spel laadt de grote versie, net als bij de tonnen)
+- **Dierenkooien** (`design/stad/kooi/`, uit de Grok-segmenten in `bron/` en het blad van `galerij.png`) → `tools/kooi_bak.py`, en het deurtje (`deur.png`) `tools/kooi_deur.py`, daarna `gen-offline-manifest.py`
 - **Tonnen** (`design/stad/ton/`, uit de Grok-platen in `bron/`) → `tools/ton_kleur.py`, daarna `gen-offline-manifest.py`
 - **Savanne-opstapjes** (`design/opstap/savanne_onder.png` uit de grondrand, `savanne_eind.png` uit de Grok-plaat in `bron/`) → `tools/savanne_opstap.py`, daarna `gen-offline-manifest.py`
 - **Rotsdecor** (`design/rotsdecor/`, losse rotsstukken uit de platen in `bron/`) → `tools/rotsdecor_knip.py`, daarna `gen-offline-manifest.py`
@@ -592,6 +599,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **De stokken van Amir** (`karakters/amir/stokken/`, uit `bron/lijf/` en `bron/stok_grok.jpg`) → `tools/stok_bak.py` (zet de regels die het print in `STOK`: de canvasmaat en `slip`), daarna `gen-klein.py` en `gen-offline-manifest.py`; `gen-klein.py` schrijft ook andere kleine plaatjes opnieuw, zet die terug
 - **Tau, de leeuwenkop van de zonnestraal** (`karakters/amir/tau/`, uit de Grok-clip in `bron/`) → `tools/tau_leeuw.py`, daarna `gen-offline-manifest.py`; een ander aantal frames of een andere maat gaat in `TAU`
 - **Oude speer** (`design/speer/oud/`, uit de gewone speer) → `tools/oude_speer.py`, daarna `gen-offline-manifest.py`
+- **Pathfinder Spear** (`design/speer/pathfinder/`, uit de Grok-platen in `bron/`) → `tools/pathfinder_speer.py` (zet de regel die het print in `PATHFINDER`), daarna `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`
 - **Winterversies** → `tools/sneeuw.py`, `sneeuw_bg.py`, `sneeuw_dorp.py`, `winter_art.py`
 

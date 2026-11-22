@@ -32,6 +32,21 @@ Amir (`BAN_GJ.min` lager, op een galerij, dak of terras), dan zoekt `banGjRichti
    en is te raken.
 5. `opkijk` vanaf frame `BAN_GJ.opkijkVan`: hij tilt zijn hoofd op, en dan `run`.
 
+Geluid: bij het afzetten de kreun van de vault (`banAfzet`), bij de landing de plof van de baviaan (`sounds/bavland.mp3`,
+`banLandSnd`, `banLandPlof`) op de sterkte van diens gewone sprong (`BAN_GJ.landVol`, 1,2 x 0,7), op het rieten dak
+zachter (`landVolRiet`), en verderop zachter zoals zijn voetstappen (`BAN_STAP.ver`). Hij start `landVoor` voor het
+neerkomen, zodat de klap in het bestand op de landing valt. Verder alles van de gewone bandiet: strijdkreet, slag,
+doodskreet, voetstappen en het stof onder het rennen.
+
+**De tussenstop op een rieten kraamdak** (`BAN_GJ.riet`, `banGjKraam`, `banGjVlieg`, `banGjDoor`, `s.gjRiet`, `s.gjOpRiet`).
+Ligt er tussen de rand en zijn landingsplek een rieten dak (lager dan hij, hoger dan de straat, met genoeg riet voorbij de
+rand; het mag deels onder de galerij doorlopen), dan landt hij eerst daarop: alleen een plof, de landing vlot tot frame
+`riet.tot`, en dan meteen een kleine sprong (`riet.v0`, zonder tell) over de rand van het riet aan Amirs kant naar de straat
+(kan dat niet, dan de andere rand). Het riet telt voor een vijand normaal niet als vloer (`stadVloeren`), dus zolang hij
+erop staat houdt `s.gjOpRiet` zijn vloer vast (geen `vloerBij`, geen `rijsDraagtMob`); wordt hij er geraakt, dan springt
+hij toch door. Valt de landingsplek op een andere kraam (de doek, of riet op de verkeerde hoogte), dan landt hij ernaast
+in plaats van erdoorheen. Proef op The Dye Yard: van de lage galerij over de kraam links naar de straat.
+
 In de lucht (`s.air > 0`) is hij niet te raken (`hitBandiet`) en doet hij geen schade (de tekenlus slaat hem over, zoals bij
 `neer`). De schaduw is de kleine ellips van het neerkomen. Een treffer aan de rand (een worp) breekt de sprong af.
 

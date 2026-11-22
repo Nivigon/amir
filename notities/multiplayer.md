@@ -164,6 +164,14 @@ de lobby staat dan in het staande stokframe.
   80 goud na Hardwood). Slaat als Hardwood (0,75), en een stokslag op het schild van de schildbandiet haalt met kans
   `STOK.goudSchild` (0,5) een stand extra af (`hitSchildman`, met de crit-ster). `stokHoutNu` geeft 3. De stokken uit
   `STOK.skins.goud` (zwart met het gouden leeuwenkopje), en de kwast van gouden manen hangt als slip aan de knoop.
+- **De Pathfinder Spear (22-11-2026):** een speerartikel (`speer: true`, 40 goud, een per speerplek, `koop.pathfinder` telt hoeveel, `mpcWinkelHeb` is uitverkocht bij 1 + `RUG_MAX`), zie "de Pathfinder
+  Spear" in `notities/speer.md`. De host markeert: een treffer van een gast draagt `pf` in `mh` (zijn worp met een
+  Pathfinder-speer), `mpcTrefferVanGast` zet dan `prooiGast`, en `prooiRaak` stuurt `{t: 'prooi', a, id}` naar de anderen.
+  Alleen de host vertraagt (`prooiTraag` doet niets bij een gast: daar komen de plekken van de host).
+- **Het zijpaneel van de winkel (22-11-2026):** een klik op een artikel kiest het (`mpcKeus`, een gouden rand) en het paneel
+  `#wkinfo` laat de naam, de sfeertekst (`sfeer`, met de bron `bron` schuin eronder), de uitleg en **Buy** zien
+  (`mpcInfoToon`); een dubbelklik koopt meteen. Sfeertekst staat nu bij de Pathfinder Spear en het gif; de inventory
+  laat die van het gif ook zien (`INV_DING.gif.sfeer`, `#invsfeer`). De winkel buiten Co-op koopt nog met een klik.
 - **De grondklap (16-11-2026):** een stokspeler heeft in Co-op de grondklap van `notities/stokken.md` (`mpWapenLevel` zet
   `grondklap`, niet in het Duel), met 5 s afkoeling (`GK.koelCoop`). Een treffer van de golf van een gast gaat in `mh` met
   `gk` (begin, eind van "recht eronder", richting, schade, knock) naar de host, die er tijdens de treffer `gkRaak` van maakt,
@@ -686,11 +694,36 @@ zijn, of ze kunnen door die freeze niet verder tot de andere speler levend en bi
   vijand binnen 200 px van een speler, en na 6 s staat elke vijand binnen bereik van de lijn. `HL_LV=3,6` beperkt tot die
   levels (`HL_LV=x` slaat ze over), `HL_DEUR=1` print waar de deuren echt staan.
 - **Het leiband** (`leibandKlem`, alleen in de Co-op episodes; in Co-op Survival, ook Ishmul en Co-op solo, loop je vrij, op verzoek van de opdrachtgever): een levende speler komt niet verder dan `MPC_LEIBAND.max`
-  (1000) van een levende teamgenoot; wie al verder weg was (na een revive of een val) mag alleen dichterbij. Niet in een
+  (1200, was 1000) van een levende teamgenoot; wie al verder weg was (na een revive of een val) mag alleen dichterbij. Niet in een
   huis, de winkel of de regie. Een hint: "Stay close to your teammate".
+- **Ruimer en zichtbaar (21-11-2026).** Gevraagd: "vergroot de range met 20%, en zorg dat er licht duidelijk is tot waar je
+  mag gaan". `MPC_LEIBAND.max` is 1200 (was 1000). Op de grens staat een zuil van warm licht met een plas op de grond en
+  opstijgende vonkjes (`leibandGrens`, `leibandTeken`), die opkomt vanaf `MPC_LEIBAND.zie` (900) van de grens en zacht ademt.
+  De grens is de doorsnede van `x ± max` rond elke levende teamgenoot (zonder de speling van wie al verder weg was). Hij
+  wordt getekend na de lichtlaag en het weer (`leibandNa`, `leibandNaTeken`, zoals `stadNachtNa`): daarvoor kleurde de
+  nacht hem blauw en dun. Niet als je dood ligt, in een huis of de winkel, of in de regie.
 - **Anders dan gevraagd:** het spel bevriest niet echt (een `dt = 0` zou de vijanden ook stilzetten, en `mpcVriesWacht`
   ontdooit een freeze die te lang duurt); de spelers staan vast en zijn onaantastbaar, de vijanden lopen binnen en wachten
   dan (zie hierboven).
+
+## Bijgesteld na het spelen (21-11-2026)
+
+- **Wie dood ligt pakt niets op.** `eDruk` en `sgPak` doen niets zolang `dead`: geen speer, rek of kist terwijl je op de
+  revive wacht. Daarvoor kon dat wel.
+- **Beginnermodus** (`mpcBeginAmulet`, `pvp.inst.coop.beginner`, de rij `#mpbeginrij` onder Map in de lobby, voor Co-op
+  Survival en de episodes, niet het Duel): iedereen begint met `koop.amulet` op 2, de Gris-gris op trap 2 (20%). In de
+  episode gaat die mee met `koop`, dus ook naar het volgende level; trap 3 koop je in de winkel.
+- **Ambush 6 en 7 een tikje makkelijker:** per hinderlaag een vijand eruit. Ambush 6: de dolkbandiet uit de deur van
+  hinderlaag 1 en die van het dak in hinderlaag 2. Ambush 7: de dolkbandiet uit de deur (hinderlaag 1), die van het dak
+  (hinderlaag 2) en die naast de elite bij het luik (hinderlaag 3).
+- **De kruisboog op de galerij is ook met de stokken te halen.** Een kruisboogschutter op een galerij hoort bij een
+  hinderlaag en moet dood voor de lijn opengaat, maar zonder speer kwam je er niet bij. Op verzoek van de opdrachtgever geen
+  rietkraam (die zet je zo op de galerij), maar een **doekkraam in de steeg aan de verre kant** van het lagere huis van de
+  galerij: de doek werpt je op het dak (2 hoog, 771), en van dat dak spring je op de galerij (401). De speerman kiest de worp
+  van afstand, de stokkenman de omweg. Ambush 3: de doek van -4900 naar -4625 (dak van huis 5). Ambush 4: de rietkraam onder
+  de galerij (-3750, daarmee sprong je er direct op) is een doek op -3425 (dak van huis 4). Ambush 6: de doek van -3650 naar
+  -3325 (huis 3) en een nieuwe op -5730 (huis 6). Ambush 7: de doek onder de galerij van -3600 naar -3325, en nieuw op -2530
+  (huis 2) en -4930 (huis 5 en 6, voor twee galerijen). Nagemeten in Chromium: straat, tafel, doek, dak, galerij.
 
 ## Co-op solo (gebouwd, 18-11-2026)
 
@@ -734,3 +767,29 @@ want de doorgestuurde gast loopt een sprong verder achter) en per gast de vijand
 Voor de lobby is eerder een los script gebruikt met een nagebootste `Peer` die berichten tussen twee
 vensters in een browsercontext doorgeeft via een `BroadcastChannel` (Host, Join, lobby, instellen, Ready, Start, Escape
 naar de lobby, Leave). De echte PeerJS-server is vanuit de cloud van Claude niet te bereiken.
+
+## De nieuwe winkel van Co-op (22-11-2026): tabs, kaarten, Undo en aftellen
+
+Kop in de HTML: `// ---- Undo in de winkel van Co-op` en `mpcWinkelToon`. Ontwerp: optie A2 op het canvas "Amir winkel: twee
+layouts" (rechts een paneel, links blijft de winkelkamer met de marktman zichtbaar).
+
+- **Layout** (`#winkelui.coop`): het paneel staat rechts (64vw), de kamer links blijft zichtbaar onder een zacht verloop.
+  Bovenin `Shop` en je goud (`#wkgoud`), dan de tabs (`#wktabs`, `MPC_WINKEL_CAT`: Spears of Sticks voor een stokspeler,
+  Supplies, Charms & life, Team alleen met een teamgenoot). Elk artikel in `MPC_WINKEL` heeft een `cat`; een artikel met
+  `nieuw: true` (nu de Pathfinder) staat als brede kaart bovenaan met NEW.
+- **Kaarten** met een plaatje (`mpcBeeld`): de echte speer, de Pathfinder, de kalebas en het gif; de rest een eenvoudig icoon
+  (`MPC_IKOON`, `mpcStokIkoon`), plek voor echte art later.
+- **Het zijpaneel** (`mpcInfoToon`): het item groot (`#wkinfobeeld`), sfeertekst, uitleg, **You carry** (`mpcDraagToon`: je
+  speren in hand en op de rug zoals in de inventory, en je tas) en Buy (bij de Pathfinder "Buy another" als je er al een hebt).
+  Zonder keuze toont hij het eerste artikel van de tab.
+- **De marktman** zegt iets in de ballon links (`#wkzeg`, `mpcZeg`, de zinnen in `MPC_ZEG`): bij openen, kopen, de Pathfinder,
+  Undo, te weinig goud en Ready.
+- **Undo** (`mpcLaatste`, `mpcUndo`, `mpcUndoKan`, `#wkundo`): alleen je laatste aankoop, alleen bij deze marktman
+  (`mpcWinkelIn` en `mpcWinkelUit` zetten hem op null, dus in Survival alleen wat je deze ronde kocht), en alleen zolang hij
+  onaangeroerd is (`mpcUndoStand` legt het na het kopen vast: levens, gif, speren, `RUG_MAX`, Pathfinders). Give 5 gold is
+  niet terug te draaien. Het goud komt helemaal terug.
+- **Aftellen na Ready** (`MPC_WINKEL_WEG.aftel`, 3 s): het scherm blijft open na Ready. Is iedereen klaar, dan zet de host
+  `C.vertrek` en stuurt `wkvertrek`; iedereen toont "Leaving in 3..." (`mpcVertrekToon`, ook in de banner). Not ready stopt het
+  (de host stuurt `wkvertrek` met `aan: false`). Bij nul stuurt de host `winkelUit` (`mpcVertrekStap`, vanuit `pvpStap`, ook
+  in de pauze van Co-op solo).
+

@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+"""De Pathfinder Spear: de speer uit de winkel van Co-op, met het rode vaantje dat meewaait.
+
+Uit de Grok-platen in design/speer/pathfinder/bron/ (al uitgeknipt, op doorzichtig):
+  speer.png            de speer, punt rechts, het vaantje er al af (alleen het rode bandje om de binding)
+  vaantje_1..4.png     het vaantje los, in vier standen: stil, licht wiegen, wind, harde wind
+  knopen.json          per vaantje waar het knoopje zit (in px van dat plaatje)
+schrijft het
+  design/speer/pathfinder/jav.png        even lang en bijna even slank als de gewone speer (speer_projectiel.png, 624 px),
+                                         punt rechts; het hout rekt mee, dop, greep en kop houden hun vorm
+  design/speer/pathfinder/vaantje_n.png  het vaantje, maal VAAN_K (scherper)
+
+en print de getallen voor PATHFINDER in de HTML: de maat, waar de punt zit en waar het knoopje van het vaantje
+aan de speer hangt (in px van jav.png), en per vaantje zijn knoopje.
+
+  python3 tools/pathfinder_speer.py
+daarna tools/gen-offline-manifest.py.
+"""
+import json, os
+import numpy as np
+from PIL import Image
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MAP = os.path.join(ROOT, 'design/speer/pathfinder')
+BRON = os.path.join(MAP, 'bron')
+JAV_W = 624            # de lengte van de gewone speer (JAV.w): dezelfde schaal
+SCHACHT = 17           # de dikte van de schacht in jav.png; de gewone speer is 15 (een upgrade mag iets steviger)
+VAAN_S = 0.30 * JAV_W / 1313   # het vaantje ten opzichte van bron/speer.png: dezelfde maat als in de eerste versie
+VAAN_K = 2             # de vaantjes twee keer zo groot opslaan als ze getekend worden, voor de scherpte
+KNOOP = (985, 119)     # waar het vaantje aan de speer hangt, in px van bron/speer.png (onder het rode bandje)
+# de stukken langs de speer, in px van bron/speer.png: de dop, het hout, de greep met kralen, het hout, de kop
+# (binding, dwarsstuk en blad). De dop, de greep en de kop krijgen een vaste schaal, het hout rekt mee tot de
+# speer even lang is als de gewone; zo is hij even lang en even slank, zonder dat de kralen of de kop vervormen.
+DOP, GREEP, KOP = (0, 75), (385, 722), 968
+
+sp = Image.open(os.path.join(BRON, 'speer.png')).convert('RGBA')
+sp = sp.crop(sp.getbbox())
+a0 = np.array(sp)[..., 3] > 128
+dik = int(a0[:, (GREEP[1] + KOP) // 2].sum())        # de dikte van de schacht in de bron
+s = SCHACHT / dik
+H = round(sp.height * s)
+def stuk(x0, x1, w=None):
+    im = sp.crop((x0, 0, x1, sp.height))
+    return im.resize((w or max(1, round((x1 - x0) * s)), H), Image.LANCZOS)
+vast = [stuk(*DOP), stuk(*GREEP), stuk(KOP, sp.width)]
+hout = JAV_W - sum(im.width for im in vast)
+h1 = GREEP[0] - DOP[1]; h2 = KOP - GREEP[1]
+w1 = round(hout * h1 / (h1 + h2)); w2 = hout - w1
+delen = [vast[0], stuk(DOP[1], GREEP[0], w1), vast[1], stuk(GREEP[1], KOP, w2), vast[2]]
+jav = Image.new('RGBA', (JAV_W, H)); x = 0
+for im in delen: jav.alpha_composite(im, (x, 0)); x += im.width
+jav.save(os.path.join(MAP, 'jav.png'))
+a = np.array(jav)[..., 3] > 128
+tip_y = float(np.where(a[:, JAV_W - 3])[0].mean())
+kop_x = JAV_W - vast[2].width            # waar de kop begint in jav.png
+knoop = (kop_x + (KNOOP[0] - KOP) * s, KNOOP[1] * s)
+k = VAAN_S
+
+knopen = json.load(open(os.path.join(BRON, 'knopen.json')))
+vaan = []
+for i, kn in enumerate(knopen):
+    f = Image.open(os.path.join(BRON, kn['file'])).convert('RGBA')
+    s = VAAN_S * VAAN_K
+    f = f.resize((max(1, round(f.width * s)), max(1, round(f.height * s))), Image.LANCZOS)
+    f.save(os.path.join(MAP, 'vaantje_%d.png' % (i + 1)))
+    vaan.append([round(kn['knoop'][0] * s, 1), round(kn['knoop'][1] * s, 1)])
+
+print('PATHFINDER = { w: %d, h: %d, tipX: %d, tipY: %.1f, knoop: [%.1f, %.1f], vaanK: %d, vaan: %s }'
+      % (jav.width, jav.height, JAV_W - 1, tip_y, knoop[0], knoop[1], VAAN_K, json.dumps(vaan)))
