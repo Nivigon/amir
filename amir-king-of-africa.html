@@ -24071,8 +24071,7 @@ function rugSpeerTeken(pcx, feetY, scale){
     ctx.globalAlpha = a;
     ctx.translate(tipX, tipY);
     ctx.rotate(hoek);
-    javTeken(r.blauw, kk, pfRugWind(), pfWindX);
-    gifPuntTeken(L);                                    // vergiftigd: een groene punt (zie "het gif")
+    javTeken(r.blauw, kk, pfRugWind(), pfWindX, gifSterkte());   // vergiftigd: het staal zuurgroen (zie "het gif")
     ctx.restore();
     if (a > 0.6) gifDrupTeken(tipX, tipY, scale, i);    // en af en toe een druppel
   }
@@ -26095,18 +26094,23 @@ function pfTel(){
 }
 // de speer, liggend getekend met de punt op (0, 0) en de schacht naar -x, zoals overal met javImg: k de schaal van
 // JAV.w naar het scherm; wind 0 tot 1 (hoe hard het vaantje waait) of 'plat' (de speer ligt), windX waar het heen waait
-function javTeken(blauw, k, wind, windX){
+// gif: 0 tot 1, het staal zuurgroen van het gif (mkGifBeeld), zoals de speer in de hand; alleen de rug-speren geven het mee
+function javTeken(blauw, k, wind, windX, gif){
+  const teken = (im, x, y, w, h) => {
+    ctx.drawImage(im, x, y, w, h);
+    if (gif > 0){ const a0 = ctx.globalAlpha; ctx.globalAlpha = a0 * gif; ctx.drawImage(mkGifBeeld(im), x, y, w, h); ctx.globalAlpha = a0; }
+  };
   if (speerSoortId(blauw) === 'pathfinder'){
     pfLaad();
     if (imgReady(pfImg)){
       const P = PATHFINDER;
       k *= P.groot;
       pfVaanTeken(k, wind, windX);
-      ctx.drawImage(pfImg, -P.tipX * k, -P.tipY * k, P.w * k, P.h * k);
+      teken(pfImg, -P.tipX * k, -P.tipY * k, P.w * k, P.h * k);
       return;
     }
   }
-  ctx.drawImage(vaanBlauw(javImg, blauw), -JAV.tipX * k, -JAV.tipY * k, JAV.w * k, JAV.h * k);
+  teken(vaanBlauw(javImg, blauw), -JAV.tipX * k, -JAV.tipY * k, JAV.w * k, JAV.h * k);
 }
 function pfVaanTeken(k, wind, windX){
   const P = PATHFINDER, t = performance.now() / 1000;
@@ -26402,20 +26406,48 @@ function mkMaskers(sm){
   return m;
 }
 // de speer van een frame tekenen op g (in framepixels W x H); false als het plaatje nog niet binnen is
-// de speer groenig van het gif: een kopie van het plaatje met een groene waas erover (per plaatje een keer gemaakt)
+// de speer van het gif: een kopie van het plaatje waarin alleen het staal zuurgroen is (de schacht en het lint blijven),
+// met de schaduw en glans van het staal erin; per plaatje een keer gemaakt. Staal: weinig kleur en niet te donker.
 const mkGifCache = new WeakMap();
 function mkGifBeeld(im){
   let c = mkGifCache.get(im);
   if (c) return c;
   const w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
   c = document.createElement('canvas'); c.width = w; c.height = h;
-  const g = c.getContext('2d');
+  const g = c.getContext('2d', { willReadFrequently: true });
   g.drawImage(im, 0, 0);
-  g.globalCompositeOperation = 'source-atop';
-  g.fillStyle = 'rgba(110,205,45,0.55)'; g.fillRect(0, 0, w, h);
+  try {
+    const d = g.getImageData(0, 0, w, h), q = d.data, n = w * h, staal = new Uint8Array(n);
+    for (let j = 0, i = 0; j < n; j++, i += 4){
+      if (q[i + 3] < 40) continue;
+      const mx = Math.max(q[i], q[i + 1], q[i + 2]), mn = Math.min(q[i], q[i + 1], q[i + 2]);
+      if (mx > 45 && (mx - mn) / mx < 0.22) staal[j] = 1;
+    }
+    // alleen het grootste aaneengesloten stuk staal is de punt; losse grijze plekjes op de schacht blijven bruin
+    const groep = new Int32Array(n), rij = new Int32Array(n);
+    let beste = 0, besteN = 0, nr = 0;
+    for (let j0 = 0; j0 < n; j0++){
+      if (!staal[j0] || groep[j0]) continue;
+      nr++; let kop = 0, staart = 0; rij[staart++] = j0; groep[j0] = nr;
+      while (kop < staart){
+        const j = rij[kop++], x = j % w;
+        for (const m of [x > 0 ? j - 1 : -1, x < w - 1 ? j + 1 : -1, j - w, j + w])
+          if (m >= 0 && m < n && staal[m] && !groep[m]){ groep[m] = nr; rij[staart++] = m; }
+      }
+      if (staart > besteN){ besteN = staart; beste = nr; }
+    }
+    for (let j = 0, i = 0; j < n; j++, i += 4){
+      if (groep[j] !== beste || !beste){ q[i + 3] = 0; continue; }   // geen staal: doorzichtig, het origineel blijft
+      const f = 0.3 + 1.2 * (q[i] * 0.3 + q[i + 1] * 0.59 + q[i + 2] * 0.11) / 255;
+      q[i] = Math.min(255, 95 * f); q[i + 1] = Math.min(255, 225 * f); q[i + 2] = Math.min(255, 35 * f);
+    }
+    g.putImageData(d, 0, 0);
+  } catch (e){ g.clearRect(0, 0, w, h); }                // geen pixels te lezen: dan maar geen groen
   mkGifCache.set(im, c);
   return c;
 }
+// hoe groen de speren van het gif zijn: 0 zonder gif, minder naarmate de treffers opraken
+function gifSterkte(){ return gifHits > 0 ? 0.35 + 0.65 * gifHits / GIF.hits : 0; }
 function mkSpeerTeken(g, s, soortId, W, H, wind, gif){
   const pf = soortId === 'pathfinder', D = MK_LOS.data;
   const bron = mkSkinLaad(SKIN.soorten.mkuki + 'bron/' + (pf ? 'pf_' : 'amirspeer_') + s.a + '.png');
@@ -26455,7 +26487,7 @@ let mkLosCv = null, mkSpeerCv = null, mkSpeerCv2 = null;
 // voor de stand naar de anderen: alleen als er iets anders dan de gewone speer in mijn hand zit
 function mkSpeerZend(){ const n = mkSpeerNu(); return n.s ? (n.s === 'pathfinder' ? { sp: n.s, vw: +n.w.toFixed(2) } : { sp: n.s }) : {}; }
 function mkSpeerNu(){ return { s: spearFound ? speerSoortId(speerBlauw) : null, w: speerSoortId(speerBlauw) === 'pathfinder' ? pfRugWind() : 0,
-  g: gifHits > 0 ? 0.35 + 0.65 * gifHits / GIF.hits : 0 }; }   // g: hoe groen van het gif (alleen mijn eigen speer)
+  g: gifSterkte() }; }   // g: hoe groen van het gif (alleen mijn eigen speer)
 // het hele frame: speer, lijf, boven, met de outfit; null als iets nog laadt (dan het gebakken frame)
 function mkLosBeeld(mk, rel, kl, speer, cv){
   const soortId = speer ? speer.s || null : null, wind = speer ? speer.w || 0 : 0, gif = speer ? speer.g || 0 : 0;
