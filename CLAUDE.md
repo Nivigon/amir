@@ -306,7 +306,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | Amir zegt er iets van als hij geraakt wordt | `SFX_RAAK`, `playRaak()` | notities/geluid.md |
 | Amir zegt iets als een vijand sterft | `SFX_RUST`, `vijandDood(baas)`, `DOOD_KANS` | notities/geluid.md |
 | stap voor stap leren spelen | `tutorial` | notities/wegwijzers.md |
-| de tutorial The First Hunt: een mentor (omgekleurde Amir, opgenomen spoor) die voordoet en wacht, een tekstwolk met toetsen, een fade terug na een val en een race (Test 89) | `MENTOR`, `mentorUpdate`, `mentorTeken`, `mentorWolkTeken`, `mentorVal`, `mentorOpname` | notities/tutorial.md |
+| de tutorial The First Hunt: een mentor (omgekleurde Amir, opgenomen spoor) die voordoet en wacht, een tekstwolk met toetsen, een fade terug na een val en een race; een eigen knop onder Single Player met "Start here" tot hij uitgespeeld is | `TUT_1`, `TUT_LEVELS`, `btnTutorial`, `tutKnopToon`, `MENTOR`, `mentorUpdate`, `mentorTeken`, `mentorWolkTeken`, `mentorVal`, `mentorOpname` | notities/tutorial.md |
 | gaten in de grond | `gaps`, `grondDoorlopen` | notities/wegwijzers.md |
 | zuil: een smalle strook grond tussen twee ravijnen | `ZUIL`, `zuilBij`, `zuilWand` | notities/zuil.md |
 | zuil met een hoogte: hoger of lager dan de grond | `ZUIL_HOOG`, `zuilLijst`, `zuilBasis` | notities/zuil.md |
@@ -489,8 +489,8 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `ends` | de fakkels die het level uitspelen: `{x}` |
 | `npcs` | dorpelingen: `{x, k, f, s}` |
 | `tips` | tekst onderweg: `{x, t}` |
-| `kruipstammen` | een omgevallen stam op twee keien om onderdoor te kruipen: `{x, s}`, `x` het midden; readLevel zet er een onzichtbaar dak onder (`KRUIPSTAM`, `kruipstamDak`; alleen Test 89, zie `notities/tutorial.md`) |
-| `mentor` | de mentor van de tutorial: `{spoor, finish, prijs, win, verlies, vallen, stations: [{zeg, seg, ok, eis, nog, kijk, terug, race}]}`; zijn spoor komt uit `tools/mentor_opname.js` (alleen Test 89, zie `notities/tutorial.md`) |
+| `kruipstammen` | een omgevallen stam op twee keien om onderdoor te kruipen: `{x, s}`, `x` het midden; readLevel zet er een onzichtbaar dak onder (`KRUIPSTAM`, `kruipstamDak`; alleen The First Hunt, zie `notities/tutorial.md`) |
+| `mentor` | de mentor van de tutorial: `{spoor, finish, prijs, win, verlies, vallen, stations: [{zeg, seg, ok, eis, nog, kijk, terug, race}]}`; zijn spoor komt uit `tools/mentor_opname.js` (alleen The First Hunt, zie `notities/tutorial.md`) |
 | `hinderlagen` | de hinderlaag van Co-op: `[{x, vecht, shots: [{x, h, t, poort, deur, kelder}]}]`, een lijn op `x` tot het hele team er levend is, dan de regie langs de shots en het gevecht; een spawn met `hl` en `shot` komt binnen op zijn shot (alleen de Co-op episode The Smugglers' Cellar, zie `notities/multiplayer.md`) |
 | `pijlen` | rode pijlen in de lucht die iets aanwijzen: `{x, t}`, alleen voor testlevels (Test 47) |
 
@@ -509,7 +509,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
    en hut aan de start, Amir begint aan de rand van het level en de camera kijkt er niet voorbij
    (zie het veld `rand`). Dat geldt voor elk nieuw level vanaf nu; de bestaande levels houden hun
    rotswand (rule 1, en een speerval zit in die wand). De Maker had al een kale start (`kaleKlif`).
-2. De naam in de array van die reeks (`KUM_LEVELS`, `TEST_LEVELS`, `STOK_LEVELS`, `RW_LEVELS`, `BAB_LEVELS`, `STAD_LEVELS`, `OAK_LEVELS`, `BEL_LEVELS`, `GP_LEVELS`, `RIV_LEVELS` of `KUM_LEVELS`).
+2. De naam in de array van die reeks (`KUM_LEVELS`, `TEST_LEVELS`, `STOK_LEVELS`, `RW_LEVELS`, `TUT_LEVELS`, `BAB_LEVELS`, `STAD_LEVELS`, `OAK_LEVELS`, `BEL_LEVELS`, `GP_LEVELS`, `RIV_LEVELS` of `KUM_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
    De voorgrond komt er vanzelf bij (zie hierboven); zet alleen een eigen `voorgrond` als het level
