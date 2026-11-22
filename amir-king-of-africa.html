@@ -25515,20 +25515,57 @@ function prooiExtra(s, min){
 }
 // de markering boven zijn hoofd (vanuit vijandHpBalk): het vaantje op een stokje; de rode rand om zijn lijf doet prooiGloed
 // de rode rand om het silhouet van een prooi (zoals de rode gloed van een razende aanvoerder, RAZ): terwijl de lus van
-// een vijandsoort een gemarkeerde vijand tekent (prooiGloedS), krijgt elk plaatje dat hij tekent een drop-shadow erbij.
-// Een filter alleen voor de paar vijanden die prooi zijn; de rest tekent zoals altijd
+// een vijandsoort een gemarkeerde vijand tekent (prooiGloedS), krijgt elk plaatje dat hij tekent een rode rand eronder.
+// Niet met een live filter op elk plaatje (dat was zwaar: elk plaatje apart gerenderd en vervaagd, elk beeld opnieuw),
+// maar met een rand die per plaatje, uitsnede en maat een keer gebakken wordt (prooiRandBak) en daarna met globalAlpha
+// onder het plaatje gaat. De rest tekent zoals altijd, via de snelle weg bovenaan.
 let prooiGloedS = null;
 const prooiDrawImage = ctx.drawImage.bind(ctx);
-ctx.drawImage = function(){
+const PROOI_RAND = { max: 160, stap: 6 };         // max: zoveel gebakken randen, daarna begint de voorraad opnieuw; stap: de maat in stappen van zoveel px
+let prooiRanden = new Map(), prooiRandId = new WeakMap(), prooiRandTel = 0;
+// de rode rand (zonder het plaatje zelf) van img (uitsnede sx, sy, sw, sh) op bw x bh schermpixels, met de vlaag fl
+function prooiRandBak(img, sx, sy, sw, sh, bw, bh, fl){
+  let id = prooiRandId.get(img);
+  if (id == null){ id = ++prooiRandTel; prooiRandId.set(img, id); }
+  const sleutel = id + '|' + sx + '|' + sy + '|' + sw + '|' + sh + '|' + bw + '|' + bh + '|' + fl;
+  let r = prooiRanden.get(sleutel);
+  if (r) return r;
+  if (prooiRanden.size >= PROOI_RAND.max) prooiRanden = new Map();
+  const pad = Math.ceil(14 * fl) + 2;
+  const c = document.createElement('canvas');
+  c.width = bw + pad * 2; c.height = bh + pad * 2;
+  const g = c.getContext('2d');
+  g.filter = 'drop-shadow(0 0 2px rgba(255,40,28,1)) drop-shadow(0 0 ' + (7 * fl).toFixed(1) + 'px rgba(255,50,30,0.7))';
+  g.drawImage(img, sx, sy, sw, sh, pad, pad, bw, bh);
+  g.filter = 'none';
+  g.globalCompositeOperation = 'destination-out';   // het plaatje zelf eruit: alleen de rand blijft, die gaat eronder
+  g.drawImage(img, sx, sy, sw, sh, pad, pad, bw, bh);
+  r = { c, pad };
+  prooiRanden.set(sleutel, r);
+  return r;
+}
+ctx.drawImage = function(img, a, b, c, d, e, f, g, h){
   const s = prooiGloedS;
   if (!s || !s.prooi || s.prooi.t <= 0 || ctx.globalAlpha < 0.85) return prooiDrawImage.apply(null, arguments);   // doorzichtig: zijn schaduw op de grond, geen rand
+  // de uitsnede en de plek op het doek, voor alle drie de vormen van drawImage
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  let sx = 0, sy = 0, sw = iw, sh = ih, dx, dy, dw, dh;
+  if (arguments.length >= 9){ sx = a; sy = b; sw = c; sh = d; dx = e; dy = f; dw = g; dh = h; }
+  else if (arguments.length >= 5){ dx = a; dy = b; dw = c; dh = d; }
+  else { dx = a; dy = b; dw = iw; dh = ih; }
+  const m = ctx.getTransform(), sk = Math.hypot(m.a, m.b) || 1;
+  const q = PROOI_RAND.stap, bw = Math.ceil(Math.abs(dw) * sk / q) * q, bh = Math.ceil(Math.abs(dh) * (Math.hypot(m.c, m.d) || 1) / q) * q;   // in stappen, zodat een zoom niet elk beeld een nieuwe bakt
+  if (!(bw > 0 && bh > 0) || bw > 2048 || bh > 2048 || !(iw > 0)) return prooiDrawImage.apply(null, arguments);
   const p = s.prooi, nu = performance.now() / 1000;
   const knip = p.t < PROOI.knipper ? (Math.sin(nu * 22) > 0 ? 1 : 0.3) : 1, fl = p.flits > 0 ? 1.5 : 1;
   const op = Math.min(1, p.leeft / PROOI.in) * knip, puls = 0.8 + 0.2 * Math.sin(nu * 5 + s.x * 0.01);
-  const f0 = ctx.filter;
-  ctx.filter = ((f0 && f0 !== 'none') ? f0 + ' ' : '') + 'drop-shadow(0 0 2px rgba(255,40,28,' + Math.min(1, op * fl).toFixed(2) + ')) '
-    + 'drop-shadow(0 0 ' + (7 * fl).toFixed(1) + 'px rgba(255,50,30,' + (0.7 * op * puls).toFixed(2) + '))';
-  try { return prooiDrawImage.apply(null, arguments); } finally { ctx.filter = f0; }
+  const r = prooiRandBak(img, sx, sy, sw, sh, bw, bh, fl);
+  const a0 = ctx.globalAlpha, pw = r.pad * Math.abs(dw) / bw, ph = r.pad * Math.abs(dh) / bh;
+  ctx.globalAlpha = a0 * Math.min(1, op * (0.85 + 0.15 * puls));
+  // een negatieve breedte of hoogte spiegelt; de rand gaat dan mee
+  prooiDrawImage(r.c, dw < 0 ? dx + pw : dx - pw, dh < 0 ? dy + ph : dy - ph, dw < 0 ? dw - 2 * pw : dw + 2 * pw, dh < 0 ? dh - 2 * ph : dh + 2 * ph);
+  ctx.globalAlpha = a0;
+  return prooiDrawImage.apply(null, arguments);
 };
 function prooiTeken(sx, topY, s, scale){
   const p = s && s.prooi;
