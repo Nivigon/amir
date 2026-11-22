@@ -57,6 +57,14 @@ landing met het zweefframe als begin en een image-to-image eindpose als eind); `
 (sprongbaan eruit, `y_verwijderd` per frame), daarna `tools/bandiet_as_kleur.py` op die map voor de kleuren. Daarna
 `gen-klein.py` en `gen-offline-manifest.py`.
 
+**De maat.** De Grok-clips zoomen tijdens het spelen in: de afzet liep van 1,02 naar 1,05 keer de idle-maat, en de
+landingsclip zoomt tijdens de klap (landing 1 tot 7) van 1,05 naar 1,16, zodat de chaser na het neerkomen en tijdens het
+opkijken zo'n 14% groter was dan in zijn ren. Gemeten met de kop en met de dolk in zijn sjerp (idle_in_00 76 px, het oude
+opkijk_17 88 px). `tools/bandiet_gj_schaal.py` schaalt elk frame rond het voetpunt naar de maat van de ren (1,02), groot
+en klein, en zet de factor als `schaal` per frame in `sprites_galerij.json`; staat die er al, dan stopt het (geen dubbele
+krimp). `BAN_GJ.landY` is daarna mee geschaald. Maak je de sets opnieuw uit de clips, draai dan eerst dit script weer
+(na het weghalen van de `schaal`-velden) en meet na.
+
 In **City Survival** (Co-op Survival) is hij een eigen soort `chaser` in `MP_SOORTEN` (Enemies: Chaser, standaard aan,
 `MPC.punten.chaser` 20). `mpcSpawn` laat hem liefst (3 op 4) uit een bovendeur komen, zodat hij van de galerij springt.
 De recordsleutel (`amir.coopBest`) telt hem alleen mee als hij aan staat, zodat de records van voor de chaser blijven gelden.
