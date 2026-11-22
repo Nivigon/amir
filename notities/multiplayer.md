@@ -871,7 +871,7 @@ Op verzoek van de opdrachtgever: een revive-item voor de stokspeler (de speerspe
 - **Gebruik:** ligt er een teamgenoot dood, dan drukt de stokspeler G (`zhGebruik`): Amir bukt even (`zhNeerT`, via `canDuck`), het hart
   ligt een halve Amir voor hem, pulseert `ZH.puls` s (3,3) met het geluid `sounds/zilverhart_puls.mp3` (ElevenLabs, gerekt en harder gemaakt) in een doorschijnende zilveren bol die met elke slag uitzet en krimpt (lub-dub, steeds sneller), die in de uitbarsting uiteenspringt in vonken, en dan komt de dode eruit: van
   `ZH.klein` naar normaal in `ZH.groei` s, met een zachte lichtzuil en een ring over de grond, geen flits. Tau brult tegelijk
-  `ZH.tauBoven` Amir boven het hart (`zhTauNa`, dezelfde frames als de zonnestraal, wit met een koelere gloed).
+  `ZH.tauBoven` Amir boven het hart (`zhTauNa`, dezelfde frames als de zonnestraal, wit met een koelere gloed). De uitbarsting klapt: de brul harder (`sounds/zilverhart_brul.mp3`) met de klap van de zonnestraal eronder, een witte klap met een schokgolf vanuit het hart, een korte witte flits over het hele beeld en het beeld schudt (`ZH.schok`, `ZH.stop`, `ZH.flits`), bij iedereen die het ziet.
 - **Het netwerk:** het bericht `zh` (`{voor, x, h}`, in `MP_DOOR`) gaat naar iedereen; ieder speelt het zelf af. De dode staat op zijn
   eigen scherm op (`zhOpstaan`, precies op het hart, net als bij `symPak`), met `invuln` en `zhOntwaakT` op `ZH.onkw` (3 s). Zolang
   zijn stand nog niet binnen is, tekent `pvpTekenEen` het lijk niet meer, en hij groeit via `zhKVoor`.
