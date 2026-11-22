@@ -815,6 +815,8 @@ niet met `STOK_AAN` of in een level met `broekKeuze` of een eigen `skin`).
 - **De lobby.** `mpBroekLijst`: met de speer de outfits (`MP_OUTFIT`, bewaard in `amir.mpoutfit`, standaard mk1, mk3, mk4
   per slot), met de stokken de broeken (`MP_BROEK_OUD`, `amir.mpbroek`). Wisselt je wapen, dan zet `mpBroekPas` je keuze
   om. Het bericht blijft `{t: 'broek', id}`. `MP_NAAM.kleur` heeft per outfit zijn opvallendste kleur (`stip`).
+  `mpLobbyOpen` zet een level-skin uit (`skinZet(null)`): het menu houdt het laatst geladen level vast, en had dat een
+  eigen skin (Test 90, Tau), dan gaf `mkSkinVan` niets en stond Amir in de lobby in het oude tenue in plaats van in zijn outfit.
 - **De losse speer (MK_LOS, 22-11-2026).** De speer zit niet meer in het frame: `tools/mkuki_spel_los.py` bakt per frame
   het lijf zonder speer (`_lijf.png`), wat over de speer komt (voor-masker en vuist, `_boven.png`), de maskers van de speer
   (`_sm.png`, rood weg en groen achter) met hun zonekaarten, en `los.json` met per frame de speer uit de Mkuki animeer tool
