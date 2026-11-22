@@ -55,14 +55,30 @@ Wat er in de inventory zit en hoeveel gif de speren nog hebben, gaat mee naar he
 
 ### Te zien
 
+- **De actiebalk** (laptop, `BALK`, `'gif'`): zolang er gif op de speren zit een vakje met het flesje uit de winkel en
+  rechtsonder het aantal treffers dat er nog over is; de taart loopt leeg naarmate ze opraken, en opnieuw smeren laat het
+  vak flitsen. Op de telefoon is er geen actiebalk; daar blijft de groene rand om het tasje.
+
 - `gifSpat` en `gifFxTeken`: druppels rood en groen, bij elke treffer en elke tik (getekend na Amir, naast de crit-ster).
 - `gifVijandTeken` (vanuit `vijandHpBalk`, dus bij elke vijand na zijn sprite): een groene waas en vier belletjes.
 - `gifBalkAf` in `vijandHpBalk`: de balk loopt langzaam leeg naar de volgende tik, het stuk dat het gif al opat ademt
   groen, en de rand is groen.
-- `gifPuntTeken`: een groene punt op elke speer die apart getekend wordt (op de rug in `rugSpeerTeken`, geworpen in
-  `javSchacht`), minder groen naarmate de treffers opraken; `gifDrupTeken` laat er een druppel van groeien en vallen.
+- Op de rug (`rugSpeerTeken`) is het staal van de speer zuurgroen, net als in de hand: `javTeken` krijgt `gifSterkte()`
+  mee en legt de groene kopie (`mkGifBeeld`) over het plaatje. `gifDrupTeken` laat aan de punt een druppel groeien en vallen.
+- **De druppel** (`GIF_DRUP`, `gifDrupTeken2`, `gifLand`, `gifSis`): om de 2,5 tot 6 s groeit er aan een vergiftigde speer
+  (in de hand of op de rug, willekeurig) een druppel aan het laagste punt van het staal, meestal een weerhaak naast de
+  schacht. Na 0,8 s valt hij recht naar beneden tot de voeten van Amir en spat daar: een plasje dat in het zand trekt, een
+  paar spatjes, een zacht gesis (ruis door een hoog filter) en een wolkje bleekgroene damp dat opstijgt en oplost. De
+  speren melden elk beeld waar hun staal zit (`gifBron`: `mkGifPunten` per plaatje, `gifPuntenOp`, voor de hand via
+  `mkGifPunt` in framepixels).
+- `gifPuntTeken`: een groene punt op de geworpen speer (`javSchacht`), minder groen naarmate de treffers opraken.
 - `gifHandTeken`: de speer in de hand zit in de sprite van Amir, dus daar weet het spel alleen bij de steek en het
-  spannen waar de punt is; dan een groene gloed en een druppel. Rechtop in de hand (stilstaan, lopen) is de punt niet groen.
+  spannen waar de punt is; dan een groene gloed en een druppel.
+- De speer in de hand van Mkuki (de losse speer, `MK_LOS`) is groenig zolang er gif op zit, ook rechtop bij stilstaan en
+  lopen: `mkSpeerNu` geeft `g` mee (`gifSterkte`: 1 zolang er gif op zit, hij vervaagt niet) en `mkSpeerTeken` legt er de groene
+  kopie overheen. `mkGifBeeld` maakt die kopie: alleen het staal (weinig kleur, niet te donker, en dan het grootste
+  aaneengesloten stuk) wordt zuurgroen met zijn eigen schaduw en glans; de schacht en het rode lint blijven zoals ze zijn
+  (gekozen uit vijf varianten, 22-11-2026). Alleen je eigen speer; een teamgenoot in Co-op ziet hem gewoon.
 
 ## Sandbox
 

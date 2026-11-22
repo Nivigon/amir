@@ -1170,6 +1170,7 @@
   .abvak.on{display:block}
   .abvak>img,.abvak>svg{position:absolute;inset:0;width:100%;height:100%;display:block}
   .abvak>img.klein{inset:12%;width:76%;height:76%;object-fit:contain}
+  .abvak>.abgif{position:absolute;inset:10%;display:flex}.abgif svg{width:100%;height:100%}   /* het gif: het flesje uit de winkel */
   .abvak::after{content:'';position:absolute;inset:0;background:conic-gradient(transparent calc(var(--p) * 360deg),rgba(12,9,18,var(--d)) 0)}
   .abvak.klaar::after{display:none}
   .abvak.dim>img,.abvak.dim>svg{filter:grayscale(.75) brightness(.6)}
@@ -24116,10 +24117,8 @@ function rugSpeerTeken(pcx, feetY, scale){
     ctx.globalAlpha = a;
     ctx.translate(tipX, tipY);
     ctx.rotate(hoek);
-    javTeken(r.blauw, kk, pfRugWind(), pfWindX);
-    gifPuntTeken(L);                                    // vergiftigd: een groene punt (zie "het gif")
+    javTeken(r.blauw, kk, pfRugWind(), pfWindX, gifSterkte());   // vergiftigd: het staal zuurgroen, en af en toe een druppel (gifDrup)
     ctx.restore();
-    if (a > 0.6) gifDrupTeken(tipX, tipY, scale, i);    // en af en toe een druppel
   }
   ctx.restore();
 }
@@ -26158,18 +26157,27 @@ function pfTel(){
 }
 // de speer, liggend getekend met de punt op (0, 0) en de schacht naar -x, zoals overal met javImg: k de schaal van
 // JAV.w naar het scherm; wind 0 tot 1 (hoe hard het vaantje waait) of 'plat' (de speer ligt), windX waar het heen waait
-function javTeken(blauw, k, wind, windX){
+// gif: 0 tot 1, het staal zuurgroen van het gif (mkGifBeeld), zoals de speer in de hand; alleen de rug-speren geven het mee
+function javTeken(blauw, k, wind, windX, gif){
+  const teken = (im, x, y, w, h) => {
+    ctx.drawImage(im, x, y, w, h);
+    if (gif > 0){
+      const a0 = ctx.globalAlpha; ctx.globalAlpha = a0 * gif; ctx.drawImage(mkGifBeeld(im), x, y, w, h); ctx.globalAlpha = a0;
+      const p = gifPuntenOp(ctx, im, x, y, w, h);          // waar de druppel kan ontstaan (gifDrup), in schermpixels
+      if (p) gifBron.lijst.push(p.pts);
+    }
+  };
   if (speerSoortId(blauw) === 'pathfinder'){
     pfLaad();
     if (imgReady(pfImg)){
       const P = PATHFINDER;
       k *= P.groot;
       pfVaanTeken(k, wind, windX);
-      ctx.drawImage(pfImg, -P.tipX * k, -P.tipY * k, P.w * k, P.h * k);
+      teken(pfImg, -P.tipX * k, -P.tipY * k, P.w * k, P.h * k);
       return;
     }
   }
-  ctx.drawImage(vaanBlauw(javImg, blauw), -JAV.tipX * k, -JAV.tipY * k, JAV.w * k, JAV.h * k);
+  teken(vaanBlauw(javImg, blauw), -JAV.tipX * k, -JAV.tipY * k, JAV.w * k, JAV.h * k);
 }
 function pfVaanTeken(k, wind, windX){
   const P = PATHFINDER, t = performance.now() / 1000;
@@ -26465,7 +26473,68 @@ function mkMaskers(sm){
   return m;
 }
 // de speer van een frame tekenen op g (in framepixels W x H); false als het plaatje nog niet binnen is
-function mkSpeerTeken(g, s, soortId, W, H, wind){
+// de speer van het gif: een kopie van het plaatje waarin alleen het staal zuurgroen is (de schacht en het lint blijven),
+// met de schaduw en glans van het staal erin; per plaatje een keer gemaakt. Staal: weinig kleur en niet te donker.
+const mkGifCache = new WeakMap(), mkGifPunten = new WeakMap();
+function mkGifBeeld(im){
+  let c = mkGifCache.get(im);
+  if (c) return c;
+  const w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
+  c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(im, 0, 0);
+  try {
+    const d = g.getImageData(0, 0, w, h), q = d.data, n = w * h, staal = new Uint8Array(n);
+    for (let j = 0, i = 0; j < n; j++, i += 4){
+      if (q[i + 3] < 40) continue;
+      const mx = Math.max(q[i], q[i + 1], q[i + 2]), mn = Math.min(q[i], q[i + 1], q[i + 2]);
+      if (mx > 45 && (mx - mn) / mx < 0.22) staal[j] = 1;
+    }
+    // alleen het grootste aaneengesloten stuk staal is de punt; losse grijze plekjes op de schacht blijven bruin
+    const groep = new Int32Array(n), rij = new Int32Array(n);
+    let beste = 0, besteN = 0, nr = 0;
+    for (let j0 = 0; j0 < n; j0++){
+      if (!staal[j0] || groep[j0]) continue;
+      nr++; let kop = 0, staart = 0; rij[staart++] = j0; groep[j0] = nr;
+      while (kop < staart){
+        const j = rij[kop++], x = j % w;
+        for (const m of [x > 0 ? j - 1 : -1, x < w - 1 ? j + 1 : -1, j - w, j + w])
+          if (m >= 0 && m < n && staal[m] && !groep[m]){ groep[m] = nr; rij[staart++] = m; }
+      }
+      if (staart > besteN){ besteN = staart; beste = nr; }
+    }
+    // de punten van het staal, voor de druppel (gifDrup): de punt (het verst van het midden) en de twee weerhaken
+    // (het hoogste en laagste pixel); waar de speer ook staat, de laagste daarvan is waar het gif afdruipt
+    let pa = null, pc = null, pd = null, ver = -1;
+    for (let j = 0; j < n; j++){
+      if (groep[j] !== beste || !beste) continue;
+      const x = j % w, y = (j - x) / w, a = (x - w / 2) ** 2 + (y - h / 2) ** 2;
+      if (a > ver){ ver = a; pa = [x, y]; }
+      if (!pc || y < pc[1]) pc = [x, y];
+      if (!pd || y > pd[1]) pd = [x, y];
+    }
+    if (pa) mkGifPunten.set(im, [pa, pc, pd]);
+    for (let j = 0, i = 0; j < n; j++, i += 4){
+      if (groep[j] !== beste || !beste){ q[i + 3] = 0; continue; }   // geen staal: doorzichtig, het origineel blijft
+      const f = 0.3 + 1.2 * (q[i] * 0.3 + q[i + 1] * 0.59 + q[i + 2] * 0.11) / 255;
+      q[i] = Math.min(255, 95 * f); q[i + 1] = Math.min(255, 225 * f); q[i + 2] = Math.min(255, 35 * f);
+    }
+    g.putImageData(d, 0, 0);
+  } catch (e){ g.clearRect(0, 0, w, h); }                // geen pixels te lezen: dan maar geen groen
+  mkGifCache.set(im, c);
+  return c;
+}
+// de punten van het staal van plaatje im, getekend op (x, y, w, h) in de assen van g: in de pixels van g (getTransform)
+let mkGifPunt = null;                                    // de speer in mijn hand, in framepixels, met .cv het frame (mkLosBeeld)
+function gifPuntenOp(g, im, x, y, w, h){
+  const P = mkGifPunten.get(im);
+  if (!P) return null;
+  const T = g.getTransform(), iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height;
+  return { pts: P.map(p => T.transformPoint(new DOMPoint(x + (p[0] + 0.5) * w / iw, y + (p[1] + 0.5) * h / ih))) };
+}
+// hoe groen de speren van het gif zijn: vol groen zolang er gif op zit; hoeveel treffers er nog zijn staat in de actiebalk (BALK, 'gif')
+function gifSterkte(){ return gifHits > 0 ? 1 : 0; }
+function mkSpeerTeken(g, s, soortId, W, H, wind, gif){
   const pf = soortId === 'pathfinder', D = MK_LOS.data;
   const bron = mkSkinLaad(SKIN.soorten.mkuki + 'bron/' + (pf ? 'pf_' : 'amirspeer_') + s.a + '.png');
   if (!imgReady(bron)) return false;
@@ -26476,6 +26545,12 @@ function mkSpeerTeken(g, s, soortId, W, H, wind){
   g.translate(s.cx * W, s.cy * H); g.rotate(s.r * Math.PI / 180);
   if (s.f) g.scale(-1, 1);
   g.drawImage(im, -w / 2, -h / 2, w, h);
+  if (gif > 0){                                          // het gif: het staal van de speer in zijn hand zuurgroen
+    const a0 = g.globalAlpha; g.globalAlpha = a0 * gif;
+    g.drawImage(mkGifBeeld(im), -w / 2, -h / 2, w, h);
+    g.globalAlpha = a0;
+    mkGifPunt = gifPuntenOp(g, im, -w / 2, -h / 2, w, h);   // waar de druppel kan ontstaan, in framepixels (zie gifDrup)
+  }
   if (pf){                                               // het vaantje: aan de knoop, omlaag in het frame, en het waait
     // zoals pfVaanTeken op de rug: hoe harder de wind (de vaart van Amir), hoe verder uit, en het wappert ertussen heen
     // en weer; het frame kijkt naar links, dus achter hem (waar het heen waait) is rechts: gespiegeld
@@ -26498,10 +26573,12 @@ let mkLosCv = null, mkSpeerCv = null, mkSpeerCv2 = null;
 // de speer in mijn hand voor MK_LOS (en voor de anderen in de stand van Co-op, sp en vw): de soort en de wind
 // voor de stand naar de anderen: alleen als er iets anders dan de gewone speer in mijn hand zit
 function mkSpeerZend(){ const n = mkSpeerNu(); return n.s ? (n.s === 'pathfinder' ? { sp: n.s, vw: +n.w.toFixed(2) } : { sp: n.s }) : {}; }
-function mkSpeerNu(){ return { s: spearFound ? speerSoortId(speerBlauw) : null, w: speerSoortId(speerBlauw) === 'pathfinder' ? pfRugWind() : 0 }; }
+function mkSpeerNu(){ return { s: spearFound ? speerSoortId(speerBlauw) : null, w: speerSoortId(speerBlauw) === 'pathfinder' ? pfRugWind() : 0,
+  g: gifSterkte() }; }   // g: hoe groen van het gif (alleen mijn eigen speer)
 // het hele frame: speer, lijf, boven, met de outfit; null als iets nog laadt (dan het gebakken frame)
 function mkLosBeeld(mk, rel, kl, speer, cv){
-  const soortId = speer ? speer.s || null : null, wind = speer ? speer.w || 0 : 0;
+  const soortId = speer ? speer.s || null : null, wind = speer ? speer.w || 0 : 0, gif = speer ? speer.g || 0 : 0;
+  if (gif > 0) mkGifPunt = null;                         // de druppel: mkSpeerTeken zet het opnieuw als er een speer in dit frame zit
   const D = MK_LOS.data, d = D && D.frames[rel];
   if (!d) { if (D === null) mkLosLaad(); return null; }
   const b = SKIN_SRC.get.call(mk).replace(/\.png$/, '');
@@ -26523,7 +26600,7 @@ function mkLosBeeld(mk, rel, kl, speer, cv){
       for (const c of [mkSpeerCv, mkSpeerCv2]) if (c.width !== W || c.height !== H){ c.width = W; c.height = H; }
       const s1 = mkSpeerCv.getContext('2d'), s2 = mkSpeerCv2.getContext('2d');
       s1.globalCompositeOperation = 'source-over'; s1.clearRect(0, 0, W, H);
-      if (!mkSpeerTeken(s1, d.s, soortId, W, H, wind)) return null;
+      if (!mkSpeerTeken(s1, d.s, soortId, W, H, wind, gif)) return null;
       s1.globalCompositeOperation = 'destination-out'; s1.drawImage(weg, 0, 0, W, H);
       s1.globalCompositeOperation = 'source-over';
       if (d.s.b) g.drawImage(mkSpeerCv, 0, 0);
@@ -26534,12 +26611,13 @@ function mkLosBeeld(mk, rel, kl, speer, cv){
         s1.globalCompositeOperation = 'destination-out'; s1.drawImage(achter, 0, 0, W, H); s1.globalCompositeOperation = 'source-over';
         voor = () => g.drawImage(mkSpeerCv, 0, 0);
       }
-    } else if (d.s.b){ if (!mkSpeerTeken(g, d.s, soortId, W, H, wind)) return null; }
-    else voor = () => mkSpeerTeken(g, d.s, soortId, W, H, wind);
+    } else if (d.s.b){ if (!mkSpeerTeken(g, d.s, soortId, W, H, wind, gif)) return null; }
+    else voor = () => mkSpeerTeken(g, d.s, soortId, W, H, wind, gif);
   }
   g.drawImage(lijf, 0, 0); lap(lijf);
   if (voor && voor() === false) return null;
   if (boven){ g.drawImage(boven, 0, 0); lap(boven); }
+  if (gif > 0 && mkGifPunt) mkGifPunt.cv = cv;
   return cv;
 }
 function mkLap(img, kl){
@@ -35961,6 +36039,14 @@ let gifBank = 0, gifHitsBank = 0;                  // net als het goud: wat je m
 const gifVijanden = [];                            // [{s, soort, baas}]: wie er nu vergiftigd is (s.gif = {t})
 const gifWacht = [];                               // treffers van deze beeldjes: pas na de treffer weet je of hij het overleefde
 const gifFx = [];                                  // de druppels bloed en gif: {x, h, vx, vh, t, life, r, groen}
+// De druppel: af en toe (GIF_DRUP.tussen) groeit er aan een vergiftigde speer een druppel, aan het laagste punt van het
+// staal (meestal een weerhaak, dus naast de schacht). Hij hangt even, valt langs de speer op de grond en spat daar: een
+// kleine groene plas, een sis en een wolkje damp. De speren melden elk beeld waar hun staal zit (gifBron), in de
+// pixels van het doek; gifFxTeken rekent dat om naar de wereld.
+const GIF_DRUP = { tussen: [2.5, 6], groei: 0.8, r: 2.6, val: 520, plas: 1.8, damp: 2.2, sis: 0.09 };   // val: de zwaartekracht van de druppel
+const gifBron = { lijst: [], voet: null };             // per beeld: per speer [punt, weerhaak, weerhaak] en de voeten van Amir
+let gifDrupKlok = 2, gifHang = null;                   // gifHang: {i, t, p} de druppel die nu groeit (i welke speer, p laatste punt)
+const gifPlas = [], gifDamp = [];                      // op de grond: de plasjes {x, h, t} en de damp {x, h, t, life, zw, r}
 // Co-op, bij de host: tijdens een treffer van een gast (mpcTrefferVanGast) zijn gif, niet dat van de host: {p, aan}.
 // Het verbruik gaat als 'gifOp' terug naar die gast, die zijn eigen speren telt
 let gifGast = null;
@@ -36009,9 +36095,29 @@ function gifSpat(s, tik){
 function gifUpdate(dt){
   for (let i = gifFx.length - 1; i >= 0; i--){        // de druppels: een boogje en weg
     const d = gifFx[i];
+    if (d.val){                                        // de druppel van de speer: vallen tot de grond, dan spatten
+      d.h += d.vh * dt; d.vh -= GIF_DRUP.val * dt;
+      if (d.h <= d.vloer){ gifFx.splice(i, 1); gifLand(d.x, d.vloer); }
+      continue;
+    }
     d.t += dt; if (d.t >= d.life){ gifFx.splice(i, 1); continue; }
     d.x += d.vx * dt; d.h += d.vh * dt; d.vh -= 900 * dt;
   }
+  for (let i = gifPlas.length - 1; i >= 0; i--) if ((gifPlas[i].t += dt) >= GIF_DRUP.plas) gifPlas.splice(i, 1);
+  for (let i = gifDamp.length - 1; i >= 0; i--){
+    const d = gifDamp[i];
+    if ((d.t += dt) >= d.life){ gifDamp.splice(i, 1); continue; }
+    d.h += (16 + 10 * (1 - d.t / d.life)) * dt;      // langzaam omhoog, en trager naarmate hij oplost
+  }
+  if (gifHang) gifHang.t += dt;
+  else if (gifHits > 0 && !dead && !paused){
+    gifDrupKlok -= dt;
+    if (gifDrupKlok <= 0){
+      gifDrupKlok = GIF_DRUP.tussen[0] + Math.random() * (GIF_DRUP.tussen[1] - GIF_DRUP.tussen[0]);
+      gifHang = { i: -1, t: 0, p: null };              // welke speer kiest gifFxTeken, die weet waar ze staan
+    }
+  }
+  if (gifHits <= 0) gifHang = null;
   while (gifWacht.length){                           // de treffers van net: wie het overleefde, is nu vergiftigd
     const w = gifWacht.shift();
     if ((w.gast == null && gifHits <= 0) || w.s.gif || !gifLeeft(w.s, w.soort)) continue;
@@ -36029,6 +36135,31 @@ function gifUpdate(dt){
     if (s.gif.baas || !gifLeeft(s, g.soort)){ s.gif = null; gifVijanden.splice(i, 1); continue; }   // een baas een keer, en wie dood is is klaar
     s.gif.t = GIF.tik;
   }
+}
+// de druppel komt op de grond: een plasje, een paar spatjes, damp en een sis
+function gifLand(x, h){
+  gifPlas.push({ x, h, t: 0 });
+  for (let i = 0; i < 4; i++)
+    gifFx.push({ x, h: h + 1, vx: (Math.random() - 0.5) * 120, vh: 60 + Math.random() * 90, t: 0,
+      life: 0.25 + Math.random() * 0.15, r: 0.9 + Math.random() * 0.7, groen: true });
+  for (let i = 0; i < 6; i++)
+    gifDamp.push({ x: x + (Math.random() - 0.5) * 14, h: h + 2 + i * 2, t: -i * 0.1, life: GIF_DRUP.damp * (0.75 + Math.random() * 0.5),
+      zw: Math.random() * 6.28, r: 7 + Math.random() * 5 });
+  gifSis();
+}
+// een zacht gesis: ruis door een hoog filter, kort aan en langzaam weg (de gedeelde versterker van het weer)
+function gifSis(){
+  if (!wantSound || typeof weerVersterker !== 'function') return;
+  const ac = weerVersterker();
+  if (!ac || !weerRuis) return;
+  const t0 = ac.currentTime + 0.01, bron = ac.createBufferSource(); bron.buffer = weerRuis;
+  const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.4;
+  f.frequency.setValueAtTime(5200, t0); f.frequency.exponentialRampToValueAtTime(3200, t0 + 0.6);
+  const g = ac.createGain();
+  g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(GIF_DRUP.sis, t0 + 0.03);
+  g.gain.exponentialRampToValueAtTime(GIF_DRUP.sis * 0.35, t0 + 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.75);
+  bron.connect(f); f.connect(g); g.connect(ac.destination);
+  bron.start(t0, Math.random() * 0.5); bron.stop(t0 + 0.8);
 }
 // een tik: een leven eraf (een baas een half), met de geraakt-reactie van zijn soort. Geeft false als het nu niet kon
 function gifTik(g){
@@ -36051,13 +36182,66 @@ function gifTik(g){
 }
 // de druppels, in de wereld (na Amir getekend, zoals de ster van een crit)
 function gifFxTeken(groundY, scale, cx){
+  gifDrupTeken2(groundY, scale, cx);
   if (!gifFx.length) return;
   ctx.save();
   for (const d of gifFx){
+    if (d.val){                                        // de vallende druppel: wat uitgerekt in de val
+      const sx = cx + (d.x - world), sy = groundY - d.h * scale, r = Math.max(1.3, d.r * scale);
+      ctx.globalAlpha = 1; ctx.fillStyle = '#86dc3e';
+      ctx.beginPath(); ctx.ellipse(sx, sy, r * 0.8, r * 1.35, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(225,255,170,0.8)'; ctx.beginPath(); ctx.arc(sx - r * 0.25, sy - r * 0.4, r * 0.3, 0, Math.PI * 2); ctx.fill();
+      continue;
+    }
     const k = 1 - d.t / d.life;
     ctx.globalAlpha = Math.min(1, k * 1.6);
     ctx.fillStyle = d.groen ? '#7fd43a' : '#8a1016';
     ctx.beginPath(); ctx.arc(cx + (d.x - world), groundY - d.h * scale, Math.max(1.2, d.r * scale), 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+// de druppel aan de speer, het plasje en de damp; daarna zijn de bronnen van dit beeld op (gifBron)
+function gifDrupTeken2(groundY, scale, cx){
+  const inv = ctx.getTransform().inverse(), naar = p => inv.transformPoint(p);   // van de pixels van het doek naar hier
+  const wereld = q => ({ x: q.x - cx + world, h: (groundY - q.y) / scale });
+  const laagste = pts => pts.slice().sort((a, b) => b.y - a.y)[0];           // waar het gif afdruipt: het laagste punt
+  const L = gifBron.lijst;
+  if (gifHang){
+    if (gifHang.i < 0 && L.length) gifHang.i = Math.floor(Math.random() * L.length);
+    if (gifHang.i >= 0 && L[gifHang.i]) gifHang.p = naar(laagste(L[gifHang.i]));
+    if (gifHang.p){
+      const r = GIF_DRUP.r * scale, k = Math.min(1, gifHang.t / GIF_DRUP.groei);
+      if (gifHang.t >= GIF_DRUP.groei){                // los: vallen tot de voeten van Amir
+        const w = wereld(gifHang.p), v = gifBron.voet ? wereld(naar(gifBron.voet)).h : 0;
+        gifFx.push({ val: true, x: w.x, h: w.h - r / scale, vh: -20, vloer: Math.min(v, w.h - 1), r: GIF_DRUP.r, groen: true, t: 0, life: 9 });
+        gifHang = null;
+      } else {                                        // groeien: eerst een bolletje, dan een peertje dat gaat hangen
+        const rr = Math.max(0.8, r * k), lang = 1 + 0.5 * k * k;
+        ctx.save(); ctx.fillStyle = '#86dc3e'; ctx.globalAlpha = 0.95;
+        ctx.beginPath(); ctx.ellipse(gifHang.p.x, gifHang.p.y + rr * lang * 0.8, rr * 0.85, rr * lang, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(225,255,170,0.8)'; ctx.beginPath(); ctx.arc(gifHang.p.x - rr * 0.25, gifHang.p.y + rr * 0.5, rr * 0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+    } else if (gifHang.t > 0.3) gifHang = null;       // geen speer te zien: dan deze keer niets
+  }
+  L.length = 0; gifBron.voet = null;
+  if (!gifPlas.length && !gifDamp.length) return;
+  ctx.save();
+  for (const p of gifPlas){                           // het plasje: spreidt even uit en trekt dan in het zand
+    const k = p.t / GIF_DRUP.plas, sx = cx + (p.x - world), sy = groundY - p.h * scale;
+    const rx = (4 + 7 * Math.min(1, k * 5)) * scale;
+    ctx.globalAlpha = 0.85 * (1 - k * k);
+    ctx.fillStyle = '#6fbf2c'; ctx.beginPath(); ctx.ellipse(sx, sy, rx, rx * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.5 * (1 - k); ctx.fillStyle = '#c8f58a';
+    ctx.beginPath(); ctx.ellipse(sx - rx * 0.2, sy - rx * 0.06, rx * 0.35, rx * 0.08, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  for (const d of gifDamp){                           // de damp: zachte, bleekgroene plukjes die opstijgen, zwaaien en oplossen
+    if (d.t < 0) continue;
+    const k = d.t / d.life, sx = cx + (d.x - world) + Math.sin(d.zw + d.t * 3) * 4 * scale, sy = groundY - d.h * scale;
+    const r = d.r * (0.6 + 1.3 * k) * scale, a = 0.6 * Math.sin(Math.PI * Math.min(1, k * 1.15));
+    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
+    g.addColorStop(0, 'rgba(190,235,150,' + a.toFixed(3) + ')'); g.addColorStop(1, 'rgba(190,235,150,0)');
+    ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
 }
@@ -36129,7 +36313,6 @@ function gifHandTeken(pcx, y, groundY, scale, lift){
   g.addColorStop(0, 'rgba(160,240,90,' + (0.7 * k).toFixed(3) + ')'); g.addColorStop(1, 'rgba(160,240,90,0)');
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, py, ah * 0.06, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
-  gifDrupTeken(x, py, scale, 3);
 }
 
 // ---- inventory: I of het tasje in de HUD, vijf plekken, het spel staat stil ----
@@ -41270,7 +41453,7 @@ function stadKalebasPlek(d){
 function resetHppotions(){
   hppotions.length = 0; hppotionFx.length = 0;
   hppotionCarry = 0; hppotionDrinkT = 0;
-  gifCarry = 0; gifHits = 0; gifVijanden.length = 0;   // het gif: niets in de inventory, schone speren (goudReset haalt de bank terug)
+  gifCarry = 0; gifHits = 0; gifVijanden.length = 0; gifHang = null; gifPlas.length = 0; gifDamp.length = 0;   // het gif: niets in de inventory, schone speren (goudReset haalt de bank terug)
   if (level && level.hppotions) for (const d of level.hppotions){
     // in de stad schalen de daken en galerijen mee met het scherm: een kalebas met een hoogte komt dan op de vloer
     // van die hoogte die het dichtst bij ligt, net als een vijand met dak (stadDakPlek), anders hangt hij in de lucht
@@ -57053,6 +57236,7 @@ function loop(now){
     const trapAlfa = stadTrapAlfa();                  // de stadstrap: Amir vervaagt bij de trap en komt bij de uitgang terug
     ctx.save(); ctx.globalAlpha *= trapAlfa;
     if (!amirWeg) amirSchaduw();                      // zijn schaduw: na de terrassen, treden en keien
+    if (gifHits > 0) gifBron.voet = ctx.getTransform().transformPoint(new DOMPoint(pcx, groundY + lift));   // waar de druppel neerkomt (gifDrup)
     if (!amirWeg) rugSpeerTeken(pcx, groundY + lift, scale);   // de reserve op zijn rug: achter zijn lijf, dus voor Amir getekend
     schildTeken(pcx, groundY + lift, scale, true);    // het schild omlaag: aan zijn arm, achter zijn lijf
     ctx.restore();
@@ -57105,6 +57289,10 @@ function loop(now){
     if (useStok){ stokSlipStap(x, y, w, h, autoFlip && facing === 1); stokSlipTeken(true, w, h, autoFlip && facing === 1); }   // de slippen van een stok achter hem
     const amirNu = hurt > 0 && amirSteen <= 0 ? amirRood(amirBeeld, Math.min(0.75, hurt * 2)) : amirBeeld;
     ctx.drawImage(amirNu, 0, 0, w, h);
+    if (gifHits > 0 && mkGifPunt && mkGifPunt.cv === amirBeeld && !amirWeg){   // de speer in zijn hand: van framepixels naar het scherm (gifDrup)
+      const T = ctx.getTransform(), W0 = amirBeeld.width, H0 = amirBeeld.height;
+      gifBron.lijst.push(mkGifPunt.pts.map(p => T.transformPoint(new DOMPoint(p.x * w / W0, p.y * h / H0))));
+    }
     if (beetKnipX === null) amirHerZet(amirNu, ctx.globalAlpha, w, h, groundY, scale, cx); else amirHer = null;   // voor lijkAchterAmir, op een eigen doek
     if (useStok) stokSlipTeken(false, w, h, autoFlip && facing === 1);   // en die van een stok ervoor
     if (gloed > 0){ ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; }
@@ -60890,6 +61078,9 @@ const BALK = [
       const p = b ? straalT / straalBurstDuur() : m ? 1 - straalT / STRAAL.moe : straalMediT > 0 ? straalMediT / STRAAL.medi : 1;
       return { zien: tribeStok() && STOK_AAN, klaar: !straalFase && straalVrijKeer > 0, p, tel: straalVrijKeer, aan: b || straalMediT > 0,
                sec: straalFase ? straalT : 0, dim: !straalFase && straalVrijKeer <= 0 };
+    } },
+  { id: 'gif', toets: '', icoon: () => '<span class="abgif">' + document.querySelector('#wkgif svg').outerHTML + '</span>', staat(){   // het gif op de speren: de treffers die nog over zijn, de taart loopt leeg (zie "het gif")
+      return { zien: gifHits > 0, klaar: gifHits >= GIF.hits, p: Math.min(1, gifHits / GIF.hits), d: 0.55, tel: gifHits };
     } },
   { id: 'kalebas', toets: 'Q', icoon: () => '<img class="klein" src="items/potions/hppotion.png" alt="">', staat(){
       return { zien: true, klaar: true, p: 1, tel: hppotionCarry, dim: hppotionCarry === 0 };
