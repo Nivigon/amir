@@ -62,7 +62,10 @@ Wat er in de inventory zit en hoeveel gif de speren nog hebben, gaat mee naar he
 - `gifPuntTeken`: een groene punt op elke speer die apart getekend wordt (op de rug in `rugSpeerTeken`, geworpen in
   `javSchacht`), minder groen naarmate de treffers opraken; `gifDrupTeken` laat er een druppel van groeien en vallen.
 - `gifHandTeken`: de speer in de hand zit in de sprite van Amir, dus daar weet het spel alleen bij de steek en het
-  spannen waar de punt is; dan een groene gloed en een druppel. Rechtop in de hand (stilstaan, lopen) is de punt niet groen.
+  spannen waar de punt is; dan een groene gloed en een druppel.
+- De speer in de hand van Mkuki (de losse speer, `MK_LOS`) is groenig zolang er gif op zit, ook rechtop bij stilstaan en
+  lopen: `mkSpeerNu` geeft `g` mee (hoe groen, minder naarmate de treffers opraken) en `mkSpeerTeken` legt er de groene
+  kopie overheen (`mkGifBeeld`). Alleen je eigen speer; een teamgenoot in Co-op ziet hem gewoon.
 
 ## Sandbox
 

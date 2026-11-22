@@ -26402,7 +26402,21 @@ function mkMaskers(sm){
   return m;
 }
 // de speer van een frame tekenen op g (in framepixels W x H); false als het plaatje nog niet binnen is
-function mkSpeerTeken(g, s, soortId, W, H, wind){
+// de speer groenig van het gif: een kopie van het plaatje met een groene waas erover (per plaatje een keer gemaakt)
+const mkGifCache = new WeakMap();
+function mkGifBeeld(im){
+  let c = mkGifCache.get(im);
+  if (c) return c;
+  const w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
+  c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.drawImage(im, 0, 0);
+  g.globalCompositeOperation = 'source-atop';
+  g.fillStyle = 'rgba(110,205,45,0.55)'; g.fillRect(0, 0, w, h);
+  mkGifCache.set(im, c);
+  return c;
+}
+function mkSpeerTeken(g, s, soortId, W, H, wind, gif){
   const pf = soortId === 'pathfinder', D = MK_LOS.data;
   const bron = mkSkinLaad(SKIN.soorten.mkuki + 'bron/' + (pf ? 'pf_' : 'amirspeer_') + s.a + '.png');
   if (!imgReady(bron)) return false;
@@ -26413,6 +26427,11 @@ function mkSpeerTeken(g, s, soortId, W, H, wind){
   g.translate(s.cx * W, s.cy * H); g.rotate(s.r * Math.PI / 180);
   if (s.f) g.scale(-1, 1);
   g.drawImage(im, -w / 2, -h / 2, w, h);
+  if (gif > 0){                                          // het gif: de speer in zijn hand groenig, minder naarmate het opraakt
+    const a0 = g.globalAlpha; g.globalAlpha = a0 * gif;
+    g.drawImage(mkGifBeeld(im), -w / 2, -h / 2, w, h);
+    g.globalAlpha = a0;
+  }
   if (pf){                                               // het vaantje: aan de knoop, omlaag in het frame, en het waait
     // zoals pfVaanTeken op de rug: hoe harder de wind (de vaart van Amir), hoe verder uit, en het wappert ertussen heen
     // en weer; het frame kijkt naar links, dus achter hem (waar het heen waait) is rechts: gespiegeld
@@ -26435,10 +26454,11 @@ let mkLosCv = null, mkSpeerCv = null, mkSpeerCv2 = null;
 // de speer in mijn hand voor MK_LOS (en voor de anderen in de stand van Co-op, sp en vw): de soort en de wind
 // voor de stand naar de anderen: alleen als er iets anders dan de gewone speer in mijn hand zit
 function mkSpeerZend(){ const n = mkSpeerNu(); return n.s ? (n.s === 'pathfinder' ? { sp: n.s, vw: +n.w.toFixed(2) } : { sp: n.s }) : {}; }
-function mkSpeerNu(){ return { s: spearFound ? speerSoortId(speerBlauw) : null, w: speerSoortId(speerBlauw) === 'pathfinder' ? pfRugWind() : 0 }; }
+function mkSpeerNu(){ return { s: spearFound ? speerSoortId(speerBlauw) : null, w: speerSoortId(speerBlauw) === 'pathfinder' ? pfRugWind() : 0,
+  g: gifHits > 0 ? 0.35 + 0.65 * gifHits / GIF.hits : 0 }; }   // g: hoe groen van het gif (alleen mijn eigen speer)
 // het hele frame: speer, lijf, boven, met de outfit; null als iets nog laadt (dan het gebakken frame)
 function mkLosBeeld(mk, rel, kl, speer, cv){
-  const soortId = speer ? speer.s || null : null, wind = speer ? speer.w || 0 : 0;
+  const soortId = speer ? speer.s || null : null, wind = speer ? speer.w || 0 : 0, gif = speer ? speer.g || 0 : 0;
   const D = MK_LOS.data, d = D && D.frames[rel];
   if (!d) { if (D === null) mkLosLaad(); return null; }
   const b = SKIN_SRC.get.call(mk).replace(/\.png$/, '');
@@ -26460,7 +26480,7 @@ function mkLosBeeld(mk, rel, kl, speer, cv){
       for (const c of [mkSpeerCv, mkSpeerCv2]) if (c.width !== W || c.height !== H){ c.width = W; c.height = H; }
       const s1 = mkSpeerCv.getContext('2d'), s2 = mkSpeerCv2.getContext('2d');
       s1.globalCompositeOperation = 'source-over'; s1.clearRect(0, 0, W, H);
-      if (!mkSpeerTeken(s1, d.s, soortId, W, H, wind)) return null;
+      if (!mkSpeerTeken(s1, d.s, soortId, W, H, wind, gif)) return null;
       s1.globalCompositeOperation = 'destination-out'; s1.drawImage(weg, 0, 0, W, H);
       s1.globalCompositeOperation = 'source-over';
       if (d.s.b) g.drawImage(mkSpeerCv, 0, 0);
@@ -26471,8 +26491,8 @@ function mkLosBeeld(mk, rel, kl, speer, cv){
         s1.globalCompositeOperation = 'destination-out'; s1.drawImage(achter, 0, 0, W, H); s1.globalCompositeOperation = 'source-over';
         voor = () => g.drawImage(mkSpeerCv, 0, 0);
       }
-    } else if (d.s.b){ if (!mkSpeerTeken(g, d.s, soortId, W, H, wind)) return null; }
-    else voor = () => mkSpeerTeken(g, d.s, soortId, W, H, wind);
+    } else if (d.s.b){ if (!mkSpeerTeken(g, d.s, soortId, W, H, wind, gif)) return null; }
+    else voor = () => mkSpeerTeken(g, d.s, soortId, W, H, wind, gif);
   }
   g.drawImage(lijf, 0, 0); lap(lijf);
   if (voor && voor() === false) return null;
