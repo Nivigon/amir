@@ -308,7 +308,7 @@ zonneschijf in de lucht), `straalUpdate`, `straalTeken`, `straalAmirTeken`, `str
 
 ## Test levels sticks
 
-Alle stoklevels staan in een eigen reeks, `STOK_LEVELS` (Test 74, 76 en 77), met een knop onder Levels (`btnStok`,
+Alle stoklevels staan in een eigen reeks, `STOK_LEVELS` (Test 74, 76, 77, 91 en 92), met een knop onder Levels (`btnStok`,
 `menuStok`, `cardsStok`). Net als de Test levels zonder tribekeuze en met alle abilities (`testReeks`). Elk heeft
 `onstKeuze`: aan het begin en na R kies je **Lives** of **Invulnerable** (`duoKeuze.onst`, in `onsterfelijk()`); dat kwam
 in de plaats van de vaste `onsterfelijk: true` van Test 74 en 76.
@@ -370,3 +370,31 @@ Te koop in de winkel van Co-op als **Lion Claw sticks** (zie `notities/multiplay
   stok achter de rug op een paar plekken onderbroken. De kop van de klauw steekt in een paar hoge frames (stapslag) net boven
   het canvas uit en wordt daar afgesneden.
 
+
+## De leeuwenvacht per broekkleur (23-11-2026, Test 92)
+
+Op verzoek: voor de stoktribe in Co-op niet alleen een andere broek maar ook een leeuwentint op de vacht, zodat spelers
+beter uit elkaar te houden zijn. Realistische leeuwenkleuren, per broek een eigen tint (`VACHT.lijst`):
+
+| broek | vacht |
+| --- | --- |
+| Purple | Tawny (de vacht zoals hij is) |
+| Fire red | Sand |
+| Orange | Ash |
+| Gold | Rust |
+| Turquoise | Ochre |
+| White | Dark brown |
+| Black | White (Timbavati, bedoeld als beloning) |
+
+Hoe: `broekLap` maakt met `kl.vacht` in hetzelfde lapje ook de vacht. `vachtMasker` zoekt per frame de vacht (licht, beige
+tot goud, niet fel: zo blijven de leren handvatten van de stokken buiten), houdt alleen grote stukken, maakt de gaten dicht
+(de vlekjes, de contour erbinnen) en neemt de rand in de schaduw mee. De kleur: tint plus `dh`, verzadiging maal `s`,
+helderheid maal `v`; hoe donkerder de pixel, hoe minder hij meekleurt (`VACHT.donker`), zodat contour en vlekjes blijven.
+Paars heeft geen broeklapje (`geenBroek`), alleen de vacht. Een kleur met vacht heeft een eigen id (`<broek>_vacht`,
+`vachtKl`), zodat de lapjes los van de gewone broek in de cache staan.
+
+Nu alleen in **Test 92: Lion pelts** (`vacht: true` naast `broekKeuze`): bij elke start en na R kies je een van de zeven
+outfits, het voorbeeld is het staande stokframe. Nog niet in Co-op. Open punten voor dat het live gaat:
+- Het masker wordt in het spel berekend, de eerste keer dat een frame getekend wordt (een paar tientallen ms per frame).
+  Voor Co-op beter vooraf bakken per frame (zoals `<frame>_zones.png` bij Mkuki) en een controleblad van alle frames.
+- Wit als beloning (vrijspelen of de winkel) is nog niet gebouwd: in de test is hij gewoon te kiezen.

@@ -7093,7 +7093,29 @@ const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TES
 // de tutorial: een reeks van een, gestart met de knop The First Hunt onder Single Player (zie btnTutorial)
 const TUT_LEVELS = [TUT_1];
 // ---- Test levels sticks: alle proefstukken met de stokken, in een eigen reeks (zoals Baboon tests, zonder tribekeuze) ----
-const STOK_LEVELS = [TEST_74, TEST_76, TEST_77, TEST_91];
+// Test 92 (op verzoek, regel 3): de leeuwenvacht per broekkleur voor de stoktribe. Kort en vlak, zoals Test 73: bij elke
+// start en na R kies je een van de zeven outfits (broek en vacht samen) en vecht je tegen drie soorten tegenstanders,
+// zodat je de vacht ziet in de slagen, het blok, de grondklap, het rennen en het sluipen.
+const TEST_92 = {
+  name: 'Test 92: Lion pelts',
+  lagen: 'tafelbergen',
+  view: 0.8, hpBalk: true, zicht: true, sneak: true, camera: true, rand: true, slangEenKlap: true, hyOmkeer: true,
+  geenSpeer: true, stokken: true, grondklap: true, nieuweRen: true,
+  broekKeuze: true, vacht: true, onstKeuze: true,   // aan het begin (en na R) kies je broek en vacht samen (BROEK, VACHT)
+  spawns: [ {x: -1100, k: 'bandiet'},
+            {x: -2300, k: 'schildman', niveau: 'makkelijk'},
+            {x: -3300, k: 'hyenas'},
+            {x: -3700, k: 'zweepman'} ],
+  gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
+  rocks: [ {x: -1700, s: 1} ],
+  props: [ {x: -400, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -1900, k: 'struik', s: 0.9, f: 1, v: 0},
+           {x: -2900, k: 'gras', s: 1.1, f: 1, v: 0}, {x: -4300, k: 'struik', s: 1.0, f: 0, v: 0} ],
+  hppotions: [ {x: -1900, y: null}, {x: -2900, y: null} ],
+  cliffs: [ {x: -5000} ],
+  ends: [ {x: -4500} ],
+  tips: [ { x: -80, t: 'Test level: lion pelts. Every start you pick trousers and a pelt colour. Fight, block, run and sneak, and look how the pelt holds up' } ]
+};
+const STOK_LEVELS = [TEST_74, TEST_76, TEST_77, TEST_91, TEST_92];
 // ---- Test levels rainforest: alle proefstukken in het regenwoud, in een eigen reeks (zoals Sticks, zonder tribekeuze) ----
 // Test 87: twee rivieren die naar je toe stromen (RIVIER_STROOM, `stroom: true`); de eerste is stil water (`stil: true`), op
 // verzoek van de opdrachtgever, omdat ook de rustige stroming te hard voelde. Op verzoek (regel 3), zelf ontworpen,
@@ -26668,6 +26690,111 @@ const BROEK = {
     { id: 'wit',   naam: 'White',     h: 40,  s: 0.18, v: 2.25 },
     { id: 'zwart', naam: 'Black',     h: 230, s: 0.25, v: 0.55 } ]
 };
+// ---- de leeuwenvacht bij de broek: per broekkleur een eigen leeuwentint voor de vacht (Test 92, level.vacht) ----
+// Alleen het oude tenue (de stokken). De vacht wordt per frame herkend (vachtMasker: beige tot goud, licht, niet fel) en
+// omgekleurd met een tintverschuiving en een factor op verzadiging en helderheid; de donkere contour en de vlekjes blijven
+// (hoe donkerder de pixel, hoe minder hij meekleurt). Paars heeft geen lapje voor de broek, alleen de vacht (Goudbruin is
+// de vacht zoals hij is). Wit (Timbavati) hoort bij zwart en is bedoeld als beloning.
+const VACHT = {
+  lijst: {
+    paars:  { naam: 'Tawny',      dh: 0,   s: 1,    v: 1 },
+    rood:   { naam: 'Sand',       dh: 4,   s: 0.55, v: 1.1 },
+    oranje: { naam: 'Ash',        dh: 0,   s: 0.22, v: 0.9 },
+    goud:   { naam: 'Rust',       dh: -8,  s: 1.55, v: 0.76 },
+    turq:   { naam: 'Ochre',      dh: 6,   s: 1.7,  v: 1 },
+    wit:    { naam: 'Dark brown', dh: -6,  s: 1.4,  v: 0.5 },
+    zwart:  { naam: 'White',      dh: 0,   s: 0.12, v: 1.18 } },
+  zaad: { v: 0.47, h0: 15, h1: 60, s: 0.56 },   // zeker vacht
+  groei: { v: 0.42, h0: 10, h1: 65, s: 0.7, r: 2 },   // de rand in de schaduw erbij
+  eiland: 0.04,                                 // een los stuk kleiner dan dit deel van het grootste is geen vacht
+  donker: [0.25, 0.5]                           // onder de eerste helderheid blijft een pixel zoals hij is, vanaf de tweede kleurt hij helemaal
+};
+const VACHT_PAARS = { id: 'paars', naam: 'Purple', geenBroek: true };
+const vachtKlCache = new Map();
+// de kleur uit de keuze met de vacht erbij: een eigen id, zodat de lapjes los van de gewone broek gecached worden
+function vachtKl(id){
+  if (!vachtKlCache.has(id)){
+    const b = id === 'paars' ? VACHT_PAARS : broekKleurVan(id), v = VACHT.lijst[id];
+    vachtKlCache.set(id, b && v ? Object.assign({}, b, { id: id + '_vacht', basis: id, vacht: v }) : null);
+  }
+  return vachtKlCache.get(id);
+}
+function broekKeuzeLijst(){ return level && level.vacht ? ['paars'].concat(BROEK.kleuren.map(k => k.id)) : BROEK.kleuren.map(k => k.id); }
+function broekKeuzeKl(id){ return level && level.vacht ? vachtKl(id) : broekKleurVan(id); }
+// welke pixels vacht zijn: zekere vacht, alleen grote stukken, gaten dicht (de vlekjes, de contour erbinnen) en een rand erbij
+function vachtMasker(p, w, h){
+  const n = w * h, Z = VACHT.zaad, G = VACHT.groei;
+  const hsv = new Float32Array(n * 3);
+  let zeker = new Uint8Array(n);
+  for (let j = 0, i = 0; j < n; j++, i += 4){
+    if (p[i + 3] < 128) continue;
+    const r = p[i] / 255, g = p[i + 1] / 255, b = p[i + 2] / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, s = mx > 0 ? d / mx : 0;
+    let t = 0;
+    if (d > 0) t = (mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+    hsv[j * 3] = t; hsv[j * 3 + 1] = s; hsv[j * 3 + 2] = mx;
+    if (mx > Z.v && t > Z.h0 && t < Z.h1 && s < Z.s) zeker[j] = 1;
+  }
+  // stukken: alleen wat groot genoeg is
+  const stukVan = new Int32Array(n).fill(-1), maten = [], stapel = [];
+  for (let j0 = 0; j0 < n; j0++){
+    if (!zeker[j0] || stukVan[j0] >= 0) continue;
+    const id = maten.length; let tal = 0;
+    stukVan[j0] = id; stapel.push(j0);
+    while (stapel.length){
+      const j = stapel.pop(); tal++;
+      const x = j % w, y = (j - x) / w;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++){
+        const xx = x + dx, yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+        const q = yy * w + xx;
+        if (zeker[q] && stukVan[q] < 0){ stukVan[q] = id; stapel.push(q); }
+      }
+    }
+    maten.push(tal);
+  }
+  const grootste = maten.length ? Math.max(...maten) : 0;
+  if (grootste < 40) return null;
+  let m = new Uint8Array(n);
+  for (let j = 0; j < n; j++) if (zeker[j] && maten[stukVan[j]] >= grootste * VACHT.eiland) m[j] = 1;
+  // dicht: twee stappen uitdijen en weer twee inkrimpen (een vierkant), dan de gaten vullen
+  const dij = (a, r, aan) => {        // aan: 1 = uitdijen, 0 = inkrimpen
+    const uit = new Uint8Array(n), rij = new Uint8Array(n);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
+      let v = aan ? 0 : 1;
+      for (let dx = -r; dx <= r; dx++){ const xx = x + dx; const q = xx < 0 || xx >= w ? (aan ? 0 : 1) : a[y * w + xx]; if (aan ? q : !q){ v = aan; break; } }
+      rij[y * w + x] = v;
+    }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
+      let v = aan ? 0 : 1;
+      for (let dy = -r; dy <= r; dy++){ const yy = y + dy; const q = yy < 0 || yy >= h ? (aan ? 0 : 1) : rij[yy * w + x]; if (aan ? q : !q){ v = aan; break; } }
+      uit[y * w + x] = v;
+    }
+    return uit;
+  };
+  m = dij(dij(m, 2, 1), 2, 0);
+  const buiten = new Uint8Array(n);
+  for (let x = 0; x < w; x++){ stapel.push(x, (h - 1) * w + x); }
+  for (let y = 0; y < h; y++){ stapel.push(y * w, y * w + w - 1); }
+  while (stapel.length){
+    const j = stapel.pop();
+    if (buiten[j] || m[j]) continue;
+    buiten[j] = 1;
+    const x = j % w;
+    if (x > 0) stapel.push(j - 1); if (x < w - 1) stapel.push(j + 1);
+    if (j >= w) stapel.push(j - w); if (j < n - w) stapel.push(j + w);
+  }
+  for (let j = 0; j < n; j++) if (!buiten[j]) m[j] = 1;
+  // de rand in de schaduw erbij
+  const rond = dij(m, G.r, 1);
+  for (let j = 0; j < n; j++){
+    if (p[j * 4 + 3] < 128){ m[j] = 0; continue; }
+    if (m[j] || !rond[j]) continue;
+    const t = hsv[j * 3], s = hsv[j * 3 + 1], v = hsv[j * 3 + 2];
+    if (v > G.v && t > G.h0 && t < G.h1 && s < G.s) m[j] = 1;
+  }
+  return { m, hsv };
+}
 const broekLapCache = new Map();                         // kleur-id -> WeakMap(plaatje -> {cv, x, y} of null)
 // na een keuze: de lapjes van kleuren die niemand draagt weg (het voorbeeld in het keuzescherm bakte ze ook)
 function broekOpruim(houd){ for (const id of [...broekLapCache.keys()]) if (!houd.includes(id)) broekLapCache.delete(id); }
@@ -26676,7 +26803,7 @@ function broekKleurVan(id){ return BROEK.kleuren.find(k => k.id === id) || MK_OU
 // uit de lobby, in een level met broekKeuze (Test 73) de broek uit dat scherm.
 function broekNu(){
   if (pvp && pvp.broek && !sandbox) return broekKleurVan(pvp.broek[pvp.mij]);   // Multiplayer: de kleur uit de lobby (mpBroek)
-  if (level && level.broekKeuze && !sandbox) return broekKleurVan(duoKeuze.broek);
+  if (level && level.broekKeuze && !sandbox) return broekKeuzeKl(duoKeuze.broek);
   return STOK_AAN ? null : MK_OUTFIT.lijst[0];
 }
 
@@ -26980,6 +27107,7 @@ function broekLap(img, kl){
     g.drawImage(img, 0, 0);
     const d = g.getImageData(0, 0, w, h), p = d.data;
     const [t0, t1] = BROEK.tint, n = w * h;
+    const vm = kl.vacht ? vachtMasker(p, w, h) : null;   // de leeuwenvacht (VACHT), van het originele plaatje
     const mk = new Float32Array(n), sv = new Float32Array(n), vv = new Float32Array(n);
     const hs = new Uint32Array(64), hv = new Uint32Array(64);   // voor de mediaan van de broek in deze frame
     let tel = 0;
@@ -26990,7 +27118,7 @@ function broekLap(img, kl){
       const s = mx > 0 ? dd / mx : 0;
       let t = 0;
       if (dd > 0) t = (mx === r ? ((gr - b) / dd + 6) % 6 : mx === gr ? (b - r) / dd + 2 : (r - gr) / dd + 4) * 60;
-      const m = Math.min(1, Math.max(0, (s - BROEK.sat) / 0.06)) * Math.min(1, Math.max(0, Math.min(t - t0, t1 - t) / 10));
+      const m = kl.geenBroek ? 0 : Math.min(1, Math.max(0, (s - BROEK.sat) / 0.06)) * Math.min(1, Math.max(0, Math.min(t - t0, t1 - t) / 10));
       mk[j] = m; sv[j] = s; vv[j] = mx;
       if (m >= 1 && p[i + 3] > 230){ hs[Math.min(63, s * 64 | 0)]++; hv[Math.min(63, mx * 64 | 0)]++; tel++; }
     }
@@ -27031,6 +27159,17 @@ function broekLap(img, kl){
     let x0 = w, y0 = h, x1 = -1, y1 = -1;
     for (let j = 0, i = 0; j < n; j++, i += 4){
       const a = p[i + 3], m = mk[j];
+      if (a && m <= 0 && vm && vm.m[j]){              // vacht: de tint verschoven, de donkere contour en vlekjes blijven
+        const V = kl.vacht, ht = vm.hsv[j * 3], hs = vm.hsv[j * 3 + 1], hv = vm.hsv[j * 3 + 2];
+        const wv = Math.min(1, Math.max(0, (hv - VACHT.donker[0]) / (VACHT.donker[1] - VACHT.donker[0])));
+        const ns = Math.min(1, hs * V.s), nv = Math.min(1, hv * V.v), hh = (((ht + V.dh) % 360) + 360) % 360 / 60;
+        const f = hh - Math.floor(hh), q1 = nv * (1 - ns), q2 = nv * (1 - ns * f), q3 = nv * (1 - ns * (1 - f));
+        const rgb = [[nv, q3, q1], [q2, nv, q1], [q1, nv, q3], [q1, q2, nv], [q3, q1, nv], [nv, q1, q2]][Math.floor(hh) % 6];
+        p[i] = p[i] * (1 - wv) + rgb[0] * 255 * wv; p[i + 1] = p[i + 1] * (1 - wv) + rgb[1] * 255 * wv; p[i + 2] = p[i + 2] * (1 - wv) + rgb[2] * 255 * wv;
+        const x = j % w, y = (j - x) / w;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+        continue;
+      }
       if (!a || m <= 0){ p[i + 3] = 0; continue; }
       // de nieuwe kleur: de tint vast, verzadiging en helderheid van het origineel (eerst naar de idle getrokken) opgeschaald
       const ns = Math.min(1, sv[j] * fs * kl.s), nv = Math.min(1, vv[j] * fv * kl.v), hh = kl.h / 60;
@@ -54024,7 +54163,7 @@ function duoKeuzeBouw(){
   toon('dkgkbereik', !!(level && level.gkKeuze)); toon('dkgkschade', !!(level && level.gkKeuze)); toon('dkgkstof', !!(level && level.gkKeuze));
   const broek = !!(level && level.broekKeuze);
   document.getElementById('dkbroekrij').style.display = broek ? '' : 'none';
-  document.getElementById('dktitel').textContent = broek ? 'Choose your trousers' : 'Instellingen';
+  document.getElementById('dktitel').textContent = broek ? (level.vacht ? 'Choose your outfit' : 'Choose your trousers') : 'Instellingen';
   document.getElementById('dkstart').textContent = broek ? 'Choose' : 'Start level';
   duoKeuzeStand();
 }
@@ -54055,7 +54194,7 @@ function duoKeuzeStart(){
   duoKeuzeEl.classList.remove('on');
   paused = false;
   try { localStorage.setItem('amir.duoKeuze', JSON.stringify(duoKeuze)); } catch (e) {}
-  if (level && level.broekKeuze) broekOpruim([duoKeuze.broek]);
+  if (level && level.broekKeuze) broekOpruim([duoKeuze.broek, duoKeuze.broek + '_vacht']);
   const f = duoKeuzeVerder; duoKeuzeVerder = null;
   duoKeuzeDoor = true;                               // de talentkeuze die hierna komt vraagt het niet nog een keer
   try { if (f) f(); } finally { duoKeuzeDoor = false; }
@@ -54072,21 +54211,27 @@ window.addEventListener('keydown', e => {
 }, true);
 
 // ---- de broekkeuze: Amir in het keuzescherm, de pijltjes wisselen de kleur en de broek kleurt zacht over ----
-const BROEK_VB = { fps: 10, over: 0.6, uit: [0.3, 0.4] };   // idle-tempo, overvloeien (s), het stuk van de frame met Amir (x, breedte)
-let broekVbBeelden = null, broekVbVan = null, broekVbT0 = 0, broekVbLoopt = false;
+const BROEK_VB = { fps: 10, over: 0.6, uit: [0.3, 0.4], uitStok: [0.38, 0.4] };   // uitStok: het stuk van het stokframe (de vacht)   // idle-tempo, overvloeien (s), het stuk van de frame met Amir (x, breedte)
+let broekVbBeelden = null, broekVbStok = null, broekVbVan = null, broekVbT0 = 0, broekVbLoopt = false;
 const broekVbA = document.createElement('canvas'), broekVbB = document.createElement('canvas');
 function broekVbLaad(){
   if (broekVbBeelden) return;
   broekVbBeelden = Array.from({ length: 20 }, (_, i) => {
     const im = new Image(); im.src = AMIR_GROOT + 'idle/idle_sp/idle_sp_' + (i < 10 ? '0' : '') + i + '.png'; return im; });
+  // met de vacht (de stokken): het staande stokframe, met de vacht goed in beeld
+  broekVbStok = new Image(); broekVbStok.src = AMIR_GROOT + 'stokken/staan/staan_00.png';
 }
 function broekWissel(stap){
-  const L = BROEK.kleuren, i = L.findIndex(k => k.id === duoKeuze.broek);
+  const L = broekKeuzeLijst(), i = L.indexOf(duoKeuze.broek);
   broekVbVan = duoKeuze.broek; broekVbT0 = performance.now();
-  duoKeuze.broek = L[(i + stap + L.length) % L.length].id;
+  duoKeuze.broek = L[(i + stap + L.length) % L.length];
   broekNaamZet();
 }
-function broekNaamZet(){ document.getElementById('dkbrnaam').textContent = broekKleurVan(duoKeuze.broek).naam; }
+function broekNaamZet(){
+  if (!broekKeuzeLijst().includes(duoKeuze.broek)) duoKeuze.broek = broekKeuzeLijst()[0];   // paars bestaat alleen met de vacht
+  const kl = broekKeuzeKl(duoKeuze.broek);
+  document.getElementById('dkbrnaam').textContent = kl && kl.vacht ? kl.naam + ' trousers, ' + kl.vacht.naam.toLowerCase() + ' pelt' : kl ? kl.naam : '';
+}
 function broekVoorbeeldStart(){
   broekVbLaad(); broekVbVan = null; broekNaamZet();
   if (broekVbLoopt) return;
@@ -54094,18 +54239,20 @@ function broekVoorbeeldStart(){
   const cv = document.getElementById('dkbrcv'), g = cv.getContext('2d');
   const stap = now => {
     if (!duoKeuzeOpen() || !(level && level.broekKeuze)){ broekVbLoopt = false; return; }
-    const img = broekVbBeelden[Math.floor(now / 1000 * BROEK_VB.fps) % broekVbBeelden.length];
+    const stok = !!level.vacht;
+    const img = stok ? broekVbStok : broekVbBeelden[Math.floor(now / 1000 * BROEK_VB.fps) % broekVbBeelden.length];
     g.clearRect(0, 0, cv.width, cv.height);
     if (imgReady(img)){
-      const iw = img.naturalWidth, ih = img.naturalHeight, sx = iw * BROEK_VB.uit[0], sw = iw * BROEK_VB.uit[1];
+      const uit = stok ? BROEK_VB.uitStok : BROEK_VB.uit;
+      const iw = img.naturalWidth, ih = img.naturalHeight, sx = iw * uit[0], sw = iw * uit[1];
       const k = Math.min(cv.width / sw, cv.height / ih), dw = sw * k, dh = ih * k, dx = (cv.width - dw) / 2, dy = cv.height - dh;
       const teken = (kl, doek, a) => {
         const b = broekBeeld(img, img, kl, doek);
         g.globalAlpha = a; g.drawImage(b, sx, 0, sw, ih, dx, dy, dw, dh); g.globalAlpha = 1;
       };
       const f = broekVbVan ? Math.min(1, (now - broekVbT0) / 1000 / BROEK_VB.over) : 1;
-      if (f < 1) teken(broekKleurVan(broekVbVan), broekVbA, 1);
-      teken(broekKleurVan(duoKeuze.broek), broekVbB, f);
+      if (f < 1) teken(broekKeuzeKl(broekVbVan), broekVbA, 1);
+      teken(broekKeuzeKl(duoKeuze.broek), broekVbB, f);
       if (f >= 1) broekVbVan = null;
     }
     requestAnimationFrame(stap);
@@ -60660,6 +60807,7 @@ function readLevel(txt){
            nieuweRen: o.nieuweRen !== false,                    // de nieuwe ren (REN_NIEUW, Test 75)
            murcKeuze: !!o.murcKeuze,                    // Murghtaan 2: bij de start levens of onaantastbaar en de extra hyena's (MURC.pin)
            broekKeuze: !!o.broekKeuze,                  // aan het begin de kleur van zijn broek (BROEK, Test 73)
+           vacht: !!o.vacht,                            // met de broek ook een leeuwentint voor de vacht (VACHT, Test 92)
            mikKeuze: !!o.mikKeuze,                      // aan het begin en na R hoe het mikken omlaag werkt (MIK, Test 71)
            rigMik: !!o.rigMik,                          // de mik-rig: vrij mikken met losse delen (RIG, Test 72)
            speerOneindig: !!o.speerOneindig,            // na elke worp meteen een nieuwe speer in de hand (Test 72)
@@ -62063,7 +62211,7 @@ function runStart(verder){ tribeKies(verder); }
 // Opnieuw, ook na game over: hetzelfde level, met je tribe en de abilities die je al had.
 function opnieuw(){
   if (pvp){ if (pvp.coop) mpCoopOpnieuw(); else pvpRematchDruk(); return; }   // PvP: R vraagt een rematch, en alleen na het duel (Co-op: na game over)
-  if (level && (level.comboKeuze || level.mikKeuze || level.murcKeuze || level.stokKeuze) && !sandbox){   // Test 68 en 71: na R eerst opnieuw kiezen (comboKeuze, mikKeuze)
+  if (level && (level.comboKeuze || level.mikKeuze || level.murcKeuze || level.stokKeuze || level.vacht) && !sandbox){   // Test 68, 71 en 92: na R eerst opnieuw kiezen (comboKeuze, mikKeuze, de vacht)
     deadEl.classList.remove('on');
     duoKeuzeToon(() => { restart(); hudToon(); cv.focus(); });
     return;
@@ -62182,6 +62330,7 @@ const SUBS = {
   'Test 71: From above': 'Sneak to the edge, stand up and aim your spear down at the enemies below',
   'Test 72: Aim rig': 'Climb the steps and try the new aiming: up and down, from every height',
   'Test 73: Trousers': 'Pick a colour for your trousers and fight three different enemies',
+  'Test 92: Lion pelts': 'Pick trousers and a matching lion pelt for the sticks, then fight',
   'Test 74: Sticks': 'Two sticks instead of the spear: strike, block and counter three elite bandits',
   'Test 75: New run': 'The new sprint: lean forward, long strides, then into a fight',
   'Test 78: Small steps': 'Low steps you walk up and down, and so do the bandits',
