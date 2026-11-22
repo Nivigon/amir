@@ -61,3 +61,11 @@ Kap-posts per frame in `bron/grok_posts.json` (kop_ren0..11). IoU kop 0,90-0,95.
   geplakt), bron in `bron/rennen_03_hersteld.png`. Het origineel in het spel heeft dit gat nog.
 - Uitvoer: `stokken/rennen/rennen_NN.png` (spelbeeld met stokken), `_zones.png`, `recolour/*_wit.png` en `*_zwart.png`.
 - Rapport: `rapport/rennen_plaat.png`, `rapport/rennen.gif` (origineel links, Tau 1 rechts).
+
+### 02:55 krassen opnieuw (Tom: "flauwe streepjes", ze moeten zoals op de tekening)
+- Nieuwe krassen naar de referentie (post 3e331009): twee lange sikkelvormige halen, licht gebogen, evenwijdig, spits
+  aan beide einden, schuin (55 graden) over de dij, goudbeige (208,162,108) met een donkere rand van gescheurde stof.
+  Lengte de helft van de dij (20 tot 29 px), dik 3,8 px, 7 px uit elkaar.
+- Tom bevestigt: zelfde fysieke been (dus in de ren wisselen ze van voor naar achter in beeld).
+- Fout gevonden en hersteld: het spelbeeld van rennen_03 werd over de gerepareerde bron geschreven; nu schrijft alles
+  naar `tau1/`, de bron opnieuw uit de Grok-reparatie gemaakt.

@@ -32,7 +32,7 @@ HULP = {1: (0, 192, 64), 2: (32, 80, 255), 3: (255, 224, 0)}
 KAART = {1: (0, 255, 0), 2: (0, 0, 255), 3: (255, 255, 0), 4: (255, 255, 255), 5: (255, 128, 0)}
 # Tau-kleuren (uit het origineel: vacht 218,180,139; broek 88,67,105; krassen in vachtkleur, iets lichter)
 TAU = {1: (218, 180, 139), 2: (88, 67, 105), 3: (226, 196, 150)}
-WIT = {1: (236, 232, 224), 2: (70, 74, 96), 3: (240, 238, 232)}          # witte leeuw, broek leisteen
+WIT = {1: (236, 232, 224), 2: (70, 74, 96), 3: (226, 222, 214)}          # witte leeuw, broek leisteen
 ZWART = {1: (48, 44, 46), 2: (40, 34, 44), 3: (214, 170, 60)}           # zwarte leeuw met goud
 VREF = {1: 0.71, 2: 0.74, 3: 0.95}
 
@@ -53,7 +53,7 @@ def pad(set_, i, echt=False):
 
 
 def uitpad(set_, i, extra=''):
-    p = pad(set_, i).replace(A, A + 'tau1/')
+    p = pad(set_, i, echt=True).replace(A, A + 'tau1/')
     return p[:-4] + extra + '.png'
 
 
@@ -422,7 +422,7 @@ def orig_zones(o):
     H, S, V = hsv(o[..., :3])
     z = np.zeros(o.shape[:2], np.uint8)
     vacht = al & (r > 110) & (g > 75) & (r - b > 30) & (S < 0.55) & (V > 0.45) & (H > 15) & (H < 45)
-    broek = al & (H > 235) & (H < 300) & (S > 0.15) & (V > 0.12)
+    broek = al & (H > 222) & (H < 305) & (S > 0.12) & (V > 0.1)
     z[vacht] = 1; z[broek] = 2
     for k in (1, 2):
         m = z == k; lab, n = nd.label(m)
@@ -460,11 +460,12 @@ def kop_plak(naam, kopzone_extra=0):
 # ---- de krassen: twee korte schuine halen op de dij van het been dichtst bij de camera ----
 # per frame de dij van dat been (heup -> knie) in pixels van het frame; met de hand afgelezen op een raster
 DIJ = json.load(open(os.path.join(HIER, 'dij.json'))) if os.path.exists(os.path.join(HIER, 'dij.json')) else {}
-KRAS = {'t': 0.5, 'hoek': 58, 'lang': 0.42, 'max': 17, 'tussen': 5.2, 'dik': 3.0}
+KRAS = {'t': 0.5, 'hoek': 55, 'lang': 0.5, 'min': 20, 'max': 29, 'tussen': 7.0, 'dik': 3.8, 'boog': 0.09}
 
 
 def krassen(set_, i, broek, k=6):
-    """Masker (H x W, float 0..1) met twee getekende krassen, binnen de broek."""
+    """Masker (H x W, float 0..1) met twee klauwkrassen zoals op de referentie (post 3e331009): lang, sikkelvormig,
+    spits aan beide einden, licht gebogen, evenwijdig, schuin over de dij. Binnen de broek."""
     from PIL import ImageDraw
     key = '%s_%d' % (set_, i)
     if key not in DIJ:
@@ -473,35 +474,33 @@ def krassen(set_, i, broek, k=6):
     H, W = broek.shape
     big = Image.new('L', (W * k, H * k), 0); d = ImageDraw.Draw(big)
     ax, ay = kx - hx, ky - hy; L = np.hypot(ax, ay); ux, uy = ax / L, ay / L
-    nx, ny = -uy, ux                                  # loodrecht op de dij
     cx, cy = hx + ax * KRAS['t'], hy + ay * KRAS['t']
-    # naar het dichtstbijzijnde diepe stuk broek (de afgelezen lijn ligt soms net in het kruis of naast de pijp)
     dt = nd.distance_transform_edt(broek)
     yy, xx = np.mgrid[0:H, 0:W]
     afst = np.hypot(xx - cx, yy - cy)
-    score = np.minimum(dt, 7) - 0.35 * afst
-    score[afst > 16] = -99
+    score = np.minimum(dt, 8) - 0.3 * afst
+    score[afst > (DIJ[key][2] if len(DIJ[key]) > 2 else 16)] = -99
     cy, cx = np.unravel_index(np.argmax(score), score.shape)
-    ln = min(KRAS['max'], L * KRAS['lang'])
+    ln = float(np.clip(L * KRAS['lang'], KRAS['min'], KRAS['max']))
     a = np.radians(KRAS['hoek'])
-    # richting van een kras: de dij-as, 38 graden gedraaid (schuin over de dij)
     dx, dy = ux * np.cos(a) - uy * np.sin(a), ux * np.sin(a) + uy * np.cos(a)
     if dy < 0:
         dx, dy = -dx, -dy
+    nx, ny = -dy, dx
     for s in (-0.5, 0.5):
-        mx, my = cx + (-dy) * s * KRAS['tussen'] + dx * s * KRAS['tussen'] * 0.35, cy + dx * s * KRAS['tussen'] + dy * s * KRAS['tussen'] * 0.35
-        pts = []
-        for t in np.linspace(-0.5, 0.5, 9):
-            w = KRAS['dik'] * (1 - (2 * abs(t)) ** 1.6) / 2   # spits aan beide einden
-            pts.append((mx + dx * t * ln, my + dy * t * ln, w))
-        poly = [((x + (-dy) * w) * k, (y + dx * w) * k) for x, y, w in pts] + \
-               [((x - (-dy) * w) * k, (y - dx * w) * k) for x, y, w in pts[::-1]]
-        d.polygon(poly, fill=255)
+        mx, my = cx + nx * s * KRAS['tussen'], cy + ny * s * KRAS['tussen']
+        boven, onder = [], []
+        for t in np.linspace(-0.5, 0.5, 21):
+            w = KRAS['dik'] * (1 - (2 * abs(t)) ** 1.8) / 2
+            bo = KRAS['boog'] * ln * (1 - (2 * t) ** 2)
+            px, py = mx + dx * t * ln + nx * bo, my + dy * t * ln + ny * bo
+            boven.append(((px + nx * w) * k, (py + ny * w) * k)); onder.append(((px - nx * w) * k, (py - ny * w) * k))
+        d.polygon(boven + onder[::-1], fill=255)
     m = np.asarray(big.resize((W, H), Image.LANCZOS)).astype(float) / 255
     return m * nd.binary_erosion(broek, iterations=1)
 
 
-TAU_KRAS = (226, 196, 150)
+TAU_KRAS = (208, 162, 108)   # goudbeige zoals op de referentie
 PALET = {'tau': TAU, 'wit': WIT, 'zwart': ZWART}
 
 
@@ -521,7 +520,7 @@ def maak(naam, set_, i):
     m = krassen(set_, i, z == 2)
     if m is not None:
         z[m > 0.5] = 3
-        Vrel[m > 0] = np.clip(V[m > 0] / VREF_ORIG[2], 0.75, 1.15)
+        Vrel[m > 0] = np.clip(V[m > 0] / VREF_ORIG[2], 0.92, 1.08)
     Vrel = np.clip(Vrel, 0, 1.3)
     uit = {}
     for pn, pal in PALET.items():
@@ -532,6 +531,9 @@ def maak(naam, set_, i):
                 continue                                  # de paarse broek blijft het origineel
             b[sel, :3] = np.array(pal[zk], float)[None] * Vrel[sel, None]
         if m is not None:
+            # een donkere rand om de krassen (de gescheurde stof), zoals op de referentie
+            rand = np.clip(nd.maximum_filter(m, size=3) - m, 0, 1) * (z == 2)
+            b[rand > 0, :3] = b[rand > 0, :3] * (1 - 0.55 * rand[rand > 0, None])
             kc = np.array(TAU_KRAS if pn == 'tau' else pal[3], float)
             kl = kc[None] * Vrel[m > 0, None]
             mm = m[m > 0, None]
