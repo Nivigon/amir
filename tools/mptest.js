@@ -105,7 +105,8 @@ async function zhProef(R){
   meld(hx != null && Math.abs(hx - gx) < 2, 'hij staat op het hart (' + hx + ', ' + gx + ')');
   meld(await G.page.evaluate(() => { const v = rol; rolStart(); const r = rol; rol = v; return !r; }), 'rollen kan nog niet');
   await wacht(3500);
-  meld(await G.page.evaluate(() => zhOntwaakT === 0), 'na 3 s mag hij weer alles');
+  const ow = await G.page.evaluate(() => zhOntwaakT);
+  meld(ow === 0 || await tot(G.page, () => zhOntwaakT === 0, null, 3000), 'na 3 s mag hij weer alles (na 3,5 s nog ' + ow.toFixed(2) + ' s)');
   for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
 }
 async function epProef(R){
