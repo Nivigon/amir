@@ -794,6 +794,9 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
   fade terug voor de toonbank. Achter de toonbank opent E niet de winkel maar het doek: een fade naar de kamer op
   `geheim.naar`, met een kist met goud en een boog terug naar voor de toonbank.
   Sandbox: **Geheime winkel** onder De stad (met een achterkamer en een kist).
+- **Binnen is het licht (22-11-2026)** (`binnenNu`): staat de camera in een kamer van `binnen` (ook de winkel van Co-op), dan
+  geldt het gewone licht in plaats van de avond of nacht van het uitzicht (`lichtNu`), is `stadNacht` 0 (zonlicht door de
+  ramen) en valt de diepe nacht van `donkerGatenNa` weg. Buiten blijft het donker.
   Proefstuk: **Stad 15: The back room** (een korte straat met twee bandieten en goud, de winkel met het geheim met
   `achterKans: 0.35`, de achterkamer met een kist van 40 goud). Een gewoon level zet het geheim aan bij het begin
   (`winkelGeheimLevel`, in `goudReset`). Let op: `readLevel` bouwt de winkel opnieuw op, en zonder de regel voor `geheim`
