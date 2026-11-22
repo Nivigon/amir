@@ -504,9 +504,8 @@ De tweede map van Co-op Survival, uitgewerkt in een mockup met de opdrachtgever 
   de pleinvloer van Nyundo op de bovenste trede (`vloer: 'plein'` op het terras, en `grondSoort` plein), een pleinwand met
   bogen achteraan en een fontein. Een fontein op een terras wordt na de terrassen getekend (`waterFonteinTeken` met
   `opTerras`), anders viel de rand van het plein over zijn voet.
-- **Het huis aan de rivier** met een galerij (401) en een deur boven. De galerij loopt 2,5 Amir uit boven de rivier
-  (`meer: [2.5, 0]`, samen 5,3 Amir): een huis breed lag hij helemaal binnen de sprong van de schildman en kon je er
-  niet tegen hem vechten. Erop: de rand van de fontein (197), dan de luifel boven
+- **Het huis aan de rivier** met een galerij (401) en een deur boven. De galerij loopt een klein stukje uit boven de rivier
+  (`meer: [0.5, 0]`, samen 3,4 Amir in plaats van 2,8), zodat er tegen de schildman net wat ruimte is. Erop: de rand van de fontein (197), dan de luifel boven
   een raam aan de rechtermuur (de rechte springdoek met `kozijn`, `h: 350`, bovenkant 378), dan de galerij. De luifel hangt
   hoog genoeg dat je er vanaf de trap onderdoor loopt; eerst hing hij op 150 en dat zag er toevallig uit, en een luifel op
   hoofdhoogte haal je vanaf de straat niet (een sprong is zo'n 190).
