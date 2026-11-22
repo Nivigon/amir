@@ -488,6 +488,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `ends` | de fakkels die het level uitspelen: `{x}` |
 | `npcs` | dorpelingen: `{x, k, f, s}` |
 | `tips` | tekst onderweg: `{x, t}` |
+| `kruipstammen` | een omgevallen stam op twee keien om onderdoor te kruipen: `{x, s}`, `x` het midden; readLevel zet er een onzichtbaar dak onder (`KRUIPSTAM`, `kruipstamDak`; alleen Test 89, zie `notities/tutorial.md`) |
 | `mentor` | de mentor van de tutorial: `{spoor, finish, prijs, win, verlies, vallen, stations: [{zeg, seg, ok, eis, nog, kijk, terug, race}]}`; zijn spoor komt uit `tools/mentor_opname.js` (alleen Test 89, zie `notities/tutorial.md`) |
 | `hinderlagen` | de hinderlaag van Co-op: `[{x, vecht, shots: [{x, h, t, poort, deur, kelder}]}]`, een lijn op `x` tot het hele team er levend is, dan de regie langs de shots en het gevecht; een spawn met `hl` en `shot` komt binnen op zijn shot (alleen de Co-op episode The Smugglers' Cellar, zie `notities/multiplayer.md`) |
 | `pijlen` | rode pijlen in de lucht die iets aanwijzen: `{x, t}`, alleen voor testlevels (Test 47) |
