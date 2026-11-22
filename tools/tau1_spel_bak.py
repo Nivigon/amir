@@ -2,7 +2,7 @@
 """Tau 1 (de jonge leeuw) voor het spel: de frames uit de productie (branch claude/tau1, karakters/amir/tau1/) naar
 karakters/amir/tau1_spel/ onder dezelfde naam als het gewone frame, voor de skin `tau1` (SKIN, Test 90).
 
-Staan, rennen en springen krijgen de krassen erin (de voorbeeldbeelden uit tau1/.../krassen/); de rol heeft nog geen
+Alle stoksets (sinds 23 nov), springen en rollen. Staan, rennen en springen krijgen de krassen erin (de voorbeeldbeelden uit tau1/.../krassen/); de rol heeft nog geen
 krassen. Ook de kleine set (klein/) op dezelfde verhouding als het gewone kleine frame, en lijst.json.
 
 Gebruik:  python3 tools/tau1_spel_bak.py PAD_NAAR_TAU1   (de map karakters/amir/tau1 van claude/tau1)
@@ -12,11 +12,13 @@ from PIL import Image
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 A = os.path.join(ROOT, 'karakters/amir/')
 UIT = os.path.join(A, 'tau1_spel/')
+STOK = {'rennen': 12, 'bukken': 12, 'sluipen': 28, 'slag': 18, 'stapslag': 28, 'slag2': 27, 'grondklap': 26,
+        'laag': 23, 'draaislag': 15, 'draaiterug': 6, 'blok': 13}
 JUMP = ['amirjump0staand', 'amirjump1hurk', 'amirjump2afzet', 'amirjump3stijgen', 'amirjump4top', 'amirjump5vallen', 'amirjump6landing']
 
 
 def main(T):
-    rel = ['stokken/staan/staan_00.png'] + ['stokken/rennen/rennen_%02d.png' % i for i in range(12)] + \
+    rel = ['stokken/staan/staan_00.png'] + ['stokken/%s/%s_%02d.png' % (s, s, i) for s, n in STOK.items() for i in range(n)] + \
           ['beweging/jump/jump/%s.png' % n for n in JUMP] + ['beweging/rol/zonder/rol_%d.png' % i for i in range(1, 29)]
     lijst = []
     for r in rel:
