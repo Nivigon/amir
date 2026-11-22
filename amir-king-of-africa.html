@@ -22256,7 +22256,7 @@ function gkNaTreffer(dt){
   const lijsten = [bandieten, schildmannen, zweepmannen, kruisbogen, kooimannen, meelmannen, hyenas, snakes, scorps];
   for (const L of lijsten) for (const s of L){
     if (s.gkH > 0 || s.gkVh){ s.gkVh = (s.gkVh || 0) - 1700 * dt; s.gkH = Math.max(0, (s.gkH || 0) + s.gkVh * dt); if (s.gkH === 0) s.gkVh = 0; }
-    if (s.gkId !== gkId || s.gkKlaar) continue;
+    if (s.gkKlaar !== false || mpcGast()) continue;   // gkKlaar false: net geraakt (gkSchadeOp). Niet op gkId: in Co-op tikt een klap van de host die van een gast anders weg. Bij de gast komt het gevolg met de stand
     s.gkKlaar = true;
     const weg = s.x < (s.gkVan ?? playerX()) ? -1 : 1, sc = gkSchaal;
     if (L === snakes || L === scorps){ s.gkVh = GK.wip * (s.gkOnder ? 1.25 : 1); s.gkH = 1; continue; }
@@ -22748,6 +22748,7 @@ function stokBlokVang(fromLeft){
   knock = fromLeft ? 140 : -140; invuln = Math.max(invuln, 0.35);
   hitstop = Math.max(hitstop, 0.06); shake = Math.max(shake, 0.12);
   stokBlok.venster = STOK.venster; stokBlok.vang++;
+  if (mpCoopAan()) pvpZend({ t: 'blokK', x: Math.round(playerX()), h: Math.round(ph) });   // Co-op: de anderen horen en zien het blok ook
   return true;
 }
 // een bandiet wiens klap op het blok landde: geen doorschuif door Amir heen, hij kaatst terug
@@ -27308,7 +27309,9 @@ function critPak(){
   if (jav) critFx(jav.x, jav.h);
   return true;
 }
-function critFx(x, h){
+function critFx(x, h, stil){
+  if (stil){ critFxLijst.push({ x, h, t: performance.now() / 1000 }); if (critFxLijst.length > 6) critFxLijst.shift(); return; }   // van een ander in Co-op: alleen de ster
+  if (pvp && pvp.host && pvp.coop) pvpZend({ t: 'crit', x: Math.round(x), h: Math.round(h) });   // Co-op: de host rekent elke treffer, ook die van een gast; de ster ook bij de anderen
   hitstop = Math.max(hitstop, 0.09); shake = Math.max(shake, 0.2);
   critFxLijst.push({ x, h, t: performance.now() / 1000 });
   if (critFxLijst.length > 6) critFxLijst.shift();
@@ -70145,7 +70148,7 @@ const pvpNu = () => performance.now() / 1000;
 // de vijandstand bevestigd heeft (vAk). Een gast heeft er een, naar de host (slot 0). Elk bericht draagt het slot van wie
 // het maakte (`p`); de host zet het zelf op wat binnenkomt (een gast kan niet voor een ander spreken) en stuurt wat de
 // andere gasten ook moeten weten door (MP_DOOR), en een bericht voor een gast (`naar`) alleen naar die. Zie notities/pvp.md.
-const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'naam', 'rek', 'symPak', 'wkklaar', 'rematch', 'gk']);
+const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'naam', 'rek', 'symPak', 'wkklaar', 'rematch', 'gk', 'blokK']);
 function pvpGasten(){ return pvp ? Object.keys(pvp.peers).map(Number).filter(p => p !== 0) : []; }
 function pvpRelay(){ return !!pvp && Object.values(pvp.peers).some(pe => pe.conn.relay); }
 function pvpPeerNieuw(conn, p){
@@ -71740,7 +71743,7 @@ function mpcHitDoor(naam){
                       fs: fcSoort || undefined, fm: fcModus() || undefined,   // zijn Full Circle: de slag en wat hij kocht
                       gi: gifHits > 0 ? 1 : undefined,             // zijn speren zijn vergiftigd (gifGast)
                       pf: (worpTref && jav && jav.blauw === 'pathfinder') ? 1 : undefined,   // zijn Pathfinder-worp: de host maakt hem prooi
-                      gk: gkRaak ? [Math.round(gkRaak.x0), Math.round(gkRaak.onderTot), gkRaak.dir, gkRaak.schade, gkRaak.knock] : undefined });   // de golf van zijn grondklap   // zijn slag: de host rekent met zijn stand, niet met die van zichzelf
+                      gk: gkRaak ? [Math.round(gkRaak.x0), Math.round(gkRaak.onderTot), gkRaak.dir, gkRaak.schade, gkRaak.knock, gkRaak.traagK] : undefined });   // de golf van zijn grondklap   // zijn slag: de host rekent met zijn stand, niet met die van zichzelf
     }
     return false;                                       // bij de gast gebeurt er niets: de host stuurt het gevolg terug
   };
@@ -71766,7 +71769,7 @@ function mpcTrefferVanGast(m){
   const eig = [atkStok, atkFrame, atkCombo, gkRaak, fcSoort];  // de slag van de gast, niet die van de host (de stokken, Full Circle, de grondklap)
   atkStok = m.st || null; atkFrame = m.sf ?? -1; atkCombo = !!m.co; stokHoutGast = m.hw || 0; prooiGast = !!m.pf;
   fcSoort = m.fs || null; mpcFcGast = m.fm || null; gifGast = { p: m.p, aan: !!m.gi };   // zijn Full Circle en zijn gif
-  gkRaak = m.gk ? { x0: m.gk[0], onderTot: m.gk[1], dir: m.gk[2], schade: m.gk[3], knock: m.gk[4] || 1 } : null;   // zijn golf: zijn schade (gkSchadeOp)
+  gkRaak = m.gk ? { x0: m.gk[0], onderTot: m.gk[1], dir: m.gk[2], schade: m.gk[3], knock: m.gk[4] || 1, traagK: m.gk[5] || 1 } : null;   // zijn golf: zijn schade (gkSchadeOp)
   let raak = false;
   try {
     if (m.f === 'enemyTakeHit'){
@@ -72470,6 +72473,8 @@ function mpCoopOntvang(m){
   if (m.t === 'blokG'){ const o = pvp.host && bandieten.find(v => v.mpId === m.id);   // een gast ving zijn klap op het stokblok
     if (o && mpcLeeft(o) && pvpAnderNu(m.p)){ mpcWisselIn(m.p); try { stokBlokGestuit(o); } finally { mpcWisselUit(); } } return true; }
   if (m.t === 'banP'){ if (pvp.host) mpcPareerVanGast(m); return true; }   // een bandiet pareerde de steek van een gast
+  if (m.t === 'crit'){ if (!pvp.host && !laadWacht) critFx(m.x, m.h, true); return true; }
+  if (m.t === 'blokK'){ if (!laadWacht){ houtRaak(STOK.toon.blok, 0.6); puffWorld(m.x, 4, 0, 0.8, m.h); } return true; }   // het stokblok van een ander
   if (m.t === 'gifOp'){ if (gifHits > 0){ gifHits--; invHud(); } return true; }   // de host zette mijn gif op een vijand: een treffer minder
   if (m.t === 'gifSpat'){ const q = mpcLijst(m.a), o = q && q.l().find(v => v.mpId === m.id); if (o && !pvp.host) gifSpat(o, !!m.tik); return true; }   // een gast gooide stof in de ogen van een vijand
   if (m.t === 'prooi'){ const q = mpcLijst(m.a), o = q && q.l().find(v => v.mpId === m.id); if (o && !pvp.host) prooiZet(o); return true; }   // de host maakte hem prooi (zie "de Pathfinder Spear")
