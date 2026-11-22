@@ -37,13 +37,14 @@ ZWART = {1: (48, 44, 46), 2: (40, 34, 44), 3: (214, 170, 60)}           # zwarte
 VREF = {1: 0.71, 2: 0.74, 3: 0.95}
 
 
+STOKSETS = ('staan', 'rennen', 'bukken', 'sluipen', 'slag', 'blok', 'draaislag', 'draaiterug', 'stapslag', 'slag2', 'laag', 'grondklap')
 HERSTEL = {('rennen', 3): '/home/claude/werk/rennen_03_fix.png'}   # rennen_03: gat in de broek gerepareerd (Grok)
 
 
 def pad(set_, i, echt=False):
     if not echt and (set_, i) in HERSTEL and os.path.exists(HERSTEL[(set_, i)]):
         return HERSTEL[(set_, i)]
-    if set_ in ('staan', 'rennen'):
+    if set_ in STOKSETS:
         return A + 'stokken/%s/%s_%02d.png' % (set_, set_, i)
     if set_ == 'jump':
         return A + 'beweging/jump/jump/%s.png' % JUMP[i]
@@ -62,7 +63,7 @@ MET_STOK = os.environ.get('MET_STOK') == '1'
 
 def bron(set_, i, invoer=False):
     """(origineel, stokmaskers, lijf zonder stokken): het lijf is wat Grok krijgt en waarop we uitlijnen."""
-    if set_ not in ('staan', 'rennen'):
+    if set_ not in STOKSETS:
         o = raster.laad(pad(set_, i))
         return o, [], o.copy()
     fr, ms, _ = stok_maskers(set_, i)
@@ -118,7 +119,7 @@ def bouw(naam, set_, i, draai=False, refgroot=520):
     px = 1050 - im.width // 2; py = 60 + (980 - im.height) // 2
     C.paste(Image.fromarray(raster.op_magenta(np.asarray(im))), (px, py))
     C.save(WERK + naam + '.png')
-    json.dump({'set': set_, 'i': i, 'draai': draai, 'metstok': MET_STOK and set_ in ('staan', 'rennen'), 's': s, 'px': px, 'py': py}, open(WERK + naam + '.json', 'w'))
+    json.dump({'set': set_, 'i': i, 'draai': draai, 'metstok': MET_STOK and set_ in STOKSETS, 's': s, 'px': px, 'py': py}, open(WERK + naam + '.json', 'w'))
 
 
 def haal(naam, sleutel, breed=None):
@@ -315,7 +316,7 @@ def afwerk(naam, voeten=False):
 
 def met_stokken(set_, i, beeld):
     """De stokken uit het originele frame er weer overheen (alleen waar ze in het origineel te zien waren)."""
-    if set_ not in ('staan', 'rennen'):
+    if set_ not in STOKSETS:
         return beeld
     fr, ms, _ = stok_maskers(set_, i)
     out = beeld.copy()
@@ -331,7 +332,7 @@ def schrijf(set_, i):
     hulp, z = d['hulp'], d['zones']
     tau = kleur(hulp, z, TAU)
     os.makedirs(os.path.dirname(uitpad(set_, i)), exist_ok=True)
-    if set_ in ('staan', 'rennen'):
+    if set_ in STOKSETS:
         lijfdir = os.path.join(os.path.dirname(uitpad(set_, i)), 'lijf')
         os.makedirs(lijfdir, exist_ok=True)
         Image.fromarray(tau).save(os.path.join(lijfdir, os.path.basename(uitpad(set_, i))))
@@ -516,6 +517,31 @@ def maak(naam, set_, i):
     voorbeeld-recolours; geeft dict met de beelden."""
     beeld, z, K = kop_plak(naam)
     o = raster.laad(pad(set_, i))
+    # het neusje dat Grok soms op de punt van de kap zet: kleine gaten midden in de kap dichtmaken
+    kap1 = (z == 1) & K
+    gat = nd.binary_fill_holes(kap1) & ~kap1
+    lab, n = nd.label(gat)
+    for g in range(1, n + 1):
+        w = lab == g
+        if w.sum() <= 90:
+            rond = nd.binary_dilation(w, iterations=2) & kap1
+            if rond.any():
+                beeld[w, :3] = np.median(beeld[rond, :3], axis=0).astype(np.uint8)
+                z[w] = 1
+    # en de omlijning van dat neusje: een klein, gedrongen donker vlekje helemaal binnen de lichte kap
+    _, _, Vk = hsv(beeld[..., :3])
+    licht = kap1 & (Vk > 0.45)
+    donker = K & (Vk <= 0.45) & (beeld[..., 3] > 0)
+    lab, n = nd.label(donker)
+    for g, sl in enumerate(nd.find_objects(lab), 1):
+        hh, ww = sl[0].stop - sl[0].start, sl[1].stop - sl[1].start
+        if hh > 14 or ww > 16:
+            continue
+        w = lab == g
+        ring = nd.binary_dilation(w, iterations=2) & ~w
+        if ring.any() and (licht[ring].mean() > 0.9):
+            beeld[w, :3] = np.median(beeld[ring & licht, :3], axis=0).astype(np.uint8)
+            z[w] = 1
     H, S, V = hsv(beeld[..., :3])
     # paarse zweem in de kap (schaduw onder de kap) naar donkerbruin
     pz = K & (z == 0) & (beeld[..., 3] > 0) & (H > 250) & (H < 335) & (S > 0.2)
@@ -553,7 +579,7 @@ def maak(naam, set_, i):
         b = np.clip(b, 0, 255).astype(np.uint8)
         uit[pn] = met_stokken(set_, i, b)
     # zones: waar een stok overheen ligt is geen zone
-    if set_ in ('staan', 'rennen'):
+    if set_ in STOKSETS:
         _, ms, _ = stok_maskers(set_, i)
         for w in ms:
             z[w] = 0

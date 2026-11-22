@@ -89,3 +89,13 @@ Geen krassen in de rol (zie TWIJFEL.md).
 - Staan 1, rennen 12, springen 7, rollen 28. Zonekaarten, recolours (wit, zwart met goud) per frame in `recolour/`.
 - Rapport: `rapport/*_plaat.png`, `*.gif`, `idle_tau_wit_zwart.png`, `TWIJFEL.md`.
 - Nog niet in het spel gezet (geen pull request, niets live).
+
+## Alle stoksets in de kap (nacht 22 op 23 nov)
+
+Vanaf de bukken-set gaat het sneller: zes kop-crops op een vel van 3x2 (`tools/tau1/kopraster.py`), een generatie
+doet zes frames tegelijk. De kap blijft in een animatie zo ook beter gelijk, want Grok tekent de zes in een keer.
+IoU per kop 0,90 tot 0,95. De prompt (`tau_kopr`) kreeg twee aanvullingen na fouten: het gezicht blijft zichtbaar
+(twee keer werden alle gezichten zwart) en de punt van de kap is glad (een vel kreeg een leeuwenneusje).
+
+- bukken (12): klaar, `rapport/bukken_plaat.png`, `bukken.gif`. Geen krassen (dij.json heeft deze set niet).
+- sluipen (28): klaar, `rapport/sluipen_plaat.png`, `sluipen.gif`. Geen krassen.
