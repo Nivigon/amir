@@ -97,8 +97,8 @@ eroverheen, afspelen op de fps van de set, per frame een vinkje "nagekeken". Ops
 (collectie `frames`, doc `<animatie>-<index>`). Opnieuw bouwen: `tools/mkuki/animeer/bouw.py` (spritebladen + D.json),
 `maak_html.py` (index.html uit de ren-speer-tool), `proef.py` (controleplaat). Bakken na Toms export: per frame het
 volle-resolutie lijf uit deze map, de speer en de maskers zoals in de tool, de vuist erbovenop; `D.bron` geeft het pad per frame.
-Speer in de tool (22-11, `speer_plaats.py`): een vaste lengte per set (5,7 x de hoofdbreedte; combo, lage zwaai, rol,
-rol/worp en stofsweep teruggezet omdat Grok hem daar te lang tekende; strike en trap als de idle). Uitgerekte speren
-(stoot) houden de kont in de achterste hand. Een eind dat in het origineel achter het lijf verdween wordt doorgetrokken
-(achter het lijf); een speer die van ons af of naar ons toe wijst krijgt een verkorte hoek `k30`..`k90` (even dik,
-korter). Rol/worp 24-33: speer uit (al geworpen). Per frame staat de keuze in `speerNoten` en onder de knoppen in de tool.
+Speer in de tool (22-11, `speer_plaats.py`, na Toms feedback "tov het origineel"): plek en lengte volgen het origineel;
+dikte, punt en lint hebben per set een vaste maat (5,7 x hoofdbreedte). Een langere speer (stoot, combo, rol) is een
+langere schacht (hoek `l110`..`l180`), een speer die van ons af wijst een kortere (`k30`..`k90`). Verdween een eind in
+het origineel achter het lijf, dan doorgetrokken (achter het lijf). Strike 2 en 3 achter het hoofd langs. Rol/worp 24-33:
+speer uit (al geworpen). Per frame staat de keuze in `speerNoten` en onder de knoppen in de tool.

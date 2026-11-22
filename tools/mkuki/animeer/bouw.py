@@ -4,7 +4,7 @@ import sys, os, json, math
 from PIL import Image
 import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from speer_plaats import plaats, set_lengte, KS, UIT as SPEER_UIT
+from speer_plaats import plaats, set_lengte, KS, LS, MAAT, UIT as SPEER_UIT, ACHTER as SPEER_ACHTER
 REPO, UIT = sys.argv[1], sys.argv[2]
 AM = os.path.join(REPO, 'karakters/amir/')
 MK = AM + 'mkuki/'
@@ -68,7 +68,9 @@ for sid, naam, fps, paden in SETS:
         elif q and q.get('lengte', 0) > 0:
             L0 = set_lengte(sid, [PL[x]['lengte'] for x in paden if x in PL])
             schaal = max(CW, CH) / 594 if max(CW, CH) > 700 else 1.0
-            L, noot = plaats(sid, q, np.asarray(org)[..., 3], L0, CW, CH, schaal)
+            L, noot = plaats(sid, q, np.asarray(org)[..., 3], L0, CW, CH, schaal, MAAT.get(sid))
+            if L and (i + 1) in SPEER_ACHTER.get(sid, ()):
+                L['behind'] = True; noot = (noot + ', ' if noot else '') + 'achter het hoofd langs zoals het origineel'
             if noot: noten[str(i + 1)] = noot
         else:
             L = None
@@ -83,15 +85,23 @@ for sid, naam, fps, paden in SETS:
     anims.append({'id': sid, 'name': naam, 'fps': fps, 'W': W, 'H': H, 'canvasW': CW, 'canvasH': CH,
                   'grond': grond, 'anchorX': CW // 2, 'cols': cols, 'vuist': heeft_v,
                   'sheet': {'f': 'f/%s.png' % sid, 'o': 'o/%s.png' % sid, 'v': ('v/%s.png' % sid) if heeft_v else None},
-                  'frames': frames, 'speerNoten': noten, 'speerL': round(lmed)})
+                  'frames': frames, 'speerNoten': noten, 'speerL': round(lmed), 'speerMaat': MAAT.get(sid, round(lmed))})
     init[sid] = ini
     print(sid, n, 'L', round(lmed), 'noten', len(noten), (CW, CH), '->', (W, H), 'cols', cols, 'speer', sum(1 for f in ini if f['L']['amirspeer']['on']), 'vuist', sum(f['v'] for f in frames))
 D = {'personage': 'Amir mkuki', 'versions': [{'id': 'basis', 'name': 'Basis'}], 'anims': anims,
-     'items': [{'id': 'amirspeer', 'name': 'Speer Amir', 'versioned': False, 'angles': [{'id': 'proj', 'name': 'werpspeer'}] + [{'id': 'k%02d' % round(k * 100), 'name': 'verkort %d%%' % round(k * 100)} for k in KS],
-                'img': {'basis': dict([('proj', {'src': 'i/amirspeer_proj.png', 'aspect': 0.1074})] + [('k%02d' % round(k * 100), {'src': 'i/amirspeer_k%02d.png' % round(k * 100), 'aspect': round(0.1074 / k, 4)}) for k in KS])}}],
+     'items': [{'id': 'amirspeer', 'name': 'Speer Amir', 'versioned': False, 'angles': [{'id': 'proj', 'name': 'werpspeer'}] + [{'id': 'k%02d' % round(k * 100), 'name': 'verkort %d%%' % round(k * 100)} for k in KS] + [{'id': 'l%03d' % round(f * 100), 'name': 'lange schacht %d%%' % round(f * 100)} for f in LS],
+                'img': {'basis': dict([('proj', {'src': 'i/amirspeer_proj.png', 'aspect': 0.1074})] + [('k%02d' % round(k * 100), {'src': 'i/amirspeer_k%02d.png' % round(k * 100), 'aspect': round(0.1074 / k, 4)}) for k in KS] + [('l%03d' % round(f * 100), {'src': 'i/amirspeer_l%03d.png' % round(f * 100), 'aspect': round(0.1074 / f, 4)}) for f in LS])}}],
      'init': init, 'angleMasks': {}, 'zones': [], 'zoneSuggest': {}, 'kop': {}, 'bron': bron}
 os.makedirs(UIT + '/i', exist_ok=True)
 SP = Image.open(sys.argv[3]).convert('RGBA'); SP.save(UIT + '/i/amirspeer_proj.png')
 for k in KS:
     SP.resize((round(SP.width * k), SP.height), Image.LANCZOS).save(UIT + '/i/amirspeer_k%02d.png' % round(k * 100))
+for f in LS:
+    # schacht tussen x 40 en 420 (van 624) uitrekken; kont, lint en punt blijven gelijk
+    a0, a1 = 40, 420; extra = round(SP.width * (f - 1))
+    n = Image.new('RGBA', (SP.width + extra, SP.height))
+    n.paste(SP.crop((0, 0, a0, SP.height)), (0, 0))
+    n.paste(SP.crop((a0, 0, a1, SP.height)).resize((a1 - a0 + extra, SP.height), Image.LANCZOS), (a0, 0))
+    n.paste(SP.crop((a1, 0, SP.width, SP.height)), (a1 + extra, 0))
+    n.save(UIT + '/i/amirspeer_l%03d.png' % round(f * 100))
 json.dump(D, open(UIT + '/D.json', 'w'), separators=(',', ':'))

@@ -13,13 +13,25 @@ import math
 import numpy as np
 
 KS = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3]
+# Langere schacht (punt, lint en dikte gelijk): voor frames waar het origineel de speer langer tekende (stoot).
+LS = [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
 # Frames waarin de speer in het origineel al weg is (na de worp); de meting vond daar armen of benen.
 UIT = {'rolworp_sp': set(range(24, 34))}
+# In het origineel loopt de speer hier achter het hoofd langs (de meting zag dat niet).
+ACHTER = {'strike_sp': {2, 3}}
 # Vaste lengte per set: speer = 5,7 x de breedte van het hoofd (zo is hij in idle, ren, springen, bukken,
 # sluipen en worp, 5,4 tot 5,8). In deze sets tekende Grok hem in het origineel te lang (combo en lage zwaai
 # 7,6 tot 8,7, rol 6,9) of wisselend; daar is hij teruggezet naar 5,7 x hoofd. Strike en trap: zelfde maat als de idle.
-L_VAST = {'strike_sp': 273, 'idle_sp_los': 274, 'trap_sp': 274, 'rol_sp': 302, 'rolworp_sp': 342,
-          'combo_sp': 262, 'sweep_sp': 544, 'stof_sp': 268}
+# Twee maten: de lengte volgt het origineel (L, vorm), de dikte, punt en het lint volgen MAAT (5,7 x hoofd).
+# Een langere of kortere speer is dus een langere of kortere schacht (hoek lNNN of kNN), niet een dikkere speer.
+L_VAST = {'strike_sp': 273, 'idle_sp_los': 274, 'trap_sp': 274}
+MAAT = {'rol_sp': 302, 'rolworp_sp': 342, 'combo_sp': 262, 'sweep_sp': 544, 'stof_sp': 268}
+VAR = sorted(KS + [1.0] + LS)
+
+
+def variant(D, maat):
+    f = min(VAR, key=lambda x: abs(x - D / maat))
+    return 'proj' if f == 1.0 else ('k%02d' % round(f * 100) if f < 1 else 'l%03d' % round(f * 100))
 
 
 def set_lengte(sid, lengtes):
@@ -56,7 +68,7 @@ def bedekt(alpha, a, b, schaal):
     return goed / tel
 
 
-def plaats(sid, q, alpha, L, CW, CH, schaal):
+def plaats(sid, q, alpha, L, CW, CH, schaal, maat=None):
     """Geeft (laag, notitie). q is de meting uit plaatsing.json."""
     T, K = np.array(q['tip'], float), np.array(q['kont'], float)
     m = float(np.linalg.norm(T - K)) or 1.0
@@ -66,19 +78,16 @@ def plaats(sid, q, alpha, L, CW, CH, schaal):
     if m >= 0.9 * L:
         ts = sorted(min(1.0, max(0.0, float(np.dot(np.array(h, float) - K, u)) / m)) for h in q.get('handen', []))
         if m > 1.1 * L:
-            # Uitgerekte speer (Grok rekte hem in de stoot): de kont blijft in de achterste hand,
-            # de punt komt op de vaste lengte; de voorste hand moet nog om de schacht zitten.
-            K2 = K.copy()
-            if ts and ts[-1] * m > 0.9 * L:
-                K2 = K + u * (ts[-1] * m - 0.9 * L)
+            # Het origineel tekent de speer hier langer (stoot): plek en lengte van het origineel, maar met
+            # een langere schacht, zodat punt, lint en dikte gelijk blijven aan de rest van de set.
+            K2, T2 = K, T
+            noot = 'langer zoals het origineel (%d%%)' % round(100 * m / L)
         elif ts:
             t = float(np.mean(ts))                   # plek van de hand langs de schacht, 0 = kont, 1 = tip
             K2 = K + u * t * m - u * t * L
         else:
             K2 = (T + K) / 2 - u * L / 2
-        T2 = K2 + u * L
-        if abs(m - L) > 0.1 * L:
-            noot = 'lengte gelijkgetrokken (%d naar %d)' % (round(m), round(L))
+        if m <= 1.1 * L: T2 = K2 + u * L
     else:
         kv, tv = verdwijnt(alpha, K, -u, schaal), verdwijnt(alpha, T, u, schaal)
         # Doortrekken mag alleen als het nieuwe stuk in het origineel echt achter het lijf zat
@@ -99,10 +108,10 @@ def plaats(sid, q, alpha, L, CW, CH, schaal):
         elif m < 0.3 * L:
             return None, 'bijna geen speer zichtbaar (%d van %d): uit' % (round(m), round(L))
         else:
-            k = min(KS, key=lambda x: abs(x - m / L))
-            hoek = 'k%02d' % round(k * 100)
-            T2, K2 = T, K; w = m
-            noot = 'verkort (wijst van ons af of naar ons toe), %d%%' % round(100 * k)
+            T2, K2 = T, K
+            noot = 'verkort (wijst van ons af of naar ons toe), %d%%' % round(100 * m / L)
+    D = float(np.linalg.norm(T2 - K2)); w = D
+    hoek = variant(D, maat or L)
     c = (T2 + K2) / 2
     rot = math.degrees(math.atan2(T2[1] - K2[1], T2[0] - K2[0]))
     laag = {'on': True, 'angle': hoek, 'cx': round(c[0] / CW, 4), 'cy': round(c[1] / CH, 4),
