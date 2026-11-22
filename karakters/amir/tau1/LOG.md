@@ -99,3 +99,5 @@ IoU per kop 0,90 tot 0,95. De prompt (`tau_kopr`) kreeg twee aanvullingen na fou
 
 - bukken (12): klaar, `rapport/bukken_plaat.png`, `bukken.gif`. Geen krassen (dij.json heeft deze set niet).
 - sluipen (28): klaar, `rapport/sluipen_plaat.png`, `sluipen.gif`. Geen krassen.
+- slag (18): klaar. Waar een stok voor het hoofd langs gaat, valt de kap er achter (de stokken zijn het origineel).
+- blok (13): klaar.
