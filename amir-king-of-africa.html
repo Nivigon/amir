@@ -21583,11 +21583,12 @@ const FC = {
   terug: { v: 750, rust: 0.6, traag: 0.6, schb: 1.6, schbRust: 0.5 },   // de kleine terugslag (de grote is COMBO.terug)
   breed: { dx: -175, y: 290, r: 185 }   // Wide Circle: een cirkel voor Amir in canvas-px van de combo (dx naar voren, y vanaf boven)
 };
+let mpcFcGast;                         // Co-op, bij de host: de Full Circle van de gast wiens treffer nu speelt (mpcTrefferVanGast)
 let fcSoort = null, fcSlagId = 0;   // tijdens de draaislag van Full Circle: 'basis', 'kracht' of 'breed'; fcSlagId telt de slagen (Wide Circle raakt elk een keer)
 // Welke Full Circle geldt nu: null als er geen is. De sandbox (de knop Combo) en Test 68 (comboKeuze) kiezen zelf
 // (fc, fc_kracht, fc_breed); elders het talent. Een Test level zonder tribe heeft alle talents tegelijk: dan Crushing Circle.
 function fcModus(){
-  if (typeof mpCoopAan === 'function' && mpCoopAan()) return mpcFcModus();   // Co-op: wat je in de winkel kocht
+  if (typeof mpCoopAan === 'function' && mpCoopAan()) return mpcFcGast !== undefined ? mpcFcGast : mpcFcModus();   // Co-op: wat je in de winkel kocht (bij de host tijdens een treffer van een gast: wat hij kocht)
   const k = sandbox ? sbComboSoort : level && level.comboKeuze ? duoKeuze.combo : null;
   if (k !== null) return k === 'fc' ? 'basis' : k === 'fc_kracht' ? 'kracht' : k === 'fc_breed' ? 'breed' : null;
   if (!tribeHeeft('full_circle')) return null;
@@ -22751,6 +22752,7 @@ function stokBlokVang(fromLeft){
 }
 // een bandiet wiens klap op het blok landde: geen doorschuif door Amir heen, hij kaatst terug
 function stokBlokGestuit(s){
+  if (mpcGast() && s.mpId != null) pvpZendAan(0, { t: 'blokG', id: s.mpId });   // Co-op: de host kaatst hem ook terug (mpCoopOntvang)
   s.lunge = 0; s.drive = true;
   s.knock = (s.x < playerX() ? -1 : 1) * STOK.blokTerug;
   banStofWolk(s.x, s.base || 0, 8, 0, 1.4);
@@ -35909,6 +35911,9 @@ let gifBank = 0, gifHitsBank = 0;                  // net als het goud: wat je m
 const gifVijanden = [];                            // [{s, soort, baas}]: wie er nu vergiftigd is (s.gif = {t})
 const gifWacht = [];                               // treffers van deze beeldjes: pas na de treffer weet je of hij het overleefde
 const gifFx = [];                                  // de druppels bloed en gif: {x, h, vx, vh, t, life, r, groen}
+// Co-op, bij de host: tijdens een treffer van een gast (mpcTrefferVanGast) zijn gif, niet dat van de host: {p, aan}.
+// Het verbruik gaat als 'gifOp' terug naar die gast, die zijn eigen speren telt
+let gifGast = null;
 function invVol(){ return hppotionCarry + gifCarry >= INV_MAX; }
 // welke soorten het gif vatten, en hoe een tik bij die soort aankomt (zijn eigen hit-functie)
 const GIF_SOORTEN = {
@@ -35930,15 +35935,16 @@ function gifLeeft(s, soort){
 // een treffer van Amir op s (vanuit de hit-functie van zijn soort, net na hits++)
 function gifRaak(s, soort){
   prooiRaak(s);                                   // een geworpen Pathfinder-speer maakt hem prooi (zie "de Pathfinder Spear")
-  if (gifTikNu || gifHits <= 0 || !s || !GIF_SOORTEN[soort]) return;
+  if (gifTikNu || !(gifGast ? gifGast.aan : gifHits > 0) || !s || !GIF_SOORTEN[soort]) return;
   if (atkFrame >= 0 && atkMes) return;            // het mes van Jackal Fang is niet vergiftigd, alleen de speren
   if (soort === 'schildman' && s.schild > 0) return;   // de speer zit in het schild, niet in hem
   gifSpat(s, false);
   if (s.gif || gifWacht.some(w => w.s === s)) return;   // al vergiftigd: de klok loopt door, het kost geen treffer
-  gifWacht.push({ s, soort });
+  gifWacht.push({ s, soort, gast: gifGast ? gifGast.p : null });
 }
 // bloed met een beetje gif eraf: bij een treffer (tik false) of bij een tik van het gif
 function gifSpat(s, tik){
+  if (pvp && pvp.host && pvp.coop && s.mpId != null){ const k = mpcVind(s); if (k) pvpZend({ t: 'gifSpat', a: k, id: s.mpId, tik: tik ? 1 : 0 }); }   // Co-op: de druppels ook bij de anderen
   const h = (s.base || 0) + CHAR_H * 0.58, kant = Math.sign(s.x - playerX()) || 1;
   const nR = tik ? GIF.spat.tikRood : GIF.spat.rood, nG = tik ? GIF.spat.tikGroen : GIF.spat.groen;
   for (let i = 0; i < nR + nG; i++){
@@ -35958,18 +35964,19 @@ function gifUpdate(dt){
   }
   while (gifWacht.length){                           // de treffers van net: wie het overleefde, is nu vergiftigd
     const w = gifWacht.shift();
-    if (gifHits <= 0 || w.s.gif || !gifLeeft(w.s, w.soort)) continue;
-    gifHits--; invHud();
+    if ((w.gast == null && gifHits <= 0) || w.s.gif || !gifLeeft(w.s, w.soort)) continue;
+    if (w.gast != null) pvpZendAan(w.gast, { t: 'gifOp' });   // het gif van een gast: hij telt zijn eigen speren
+    else { gifHits--; invHud(); }
     w.s.gif = { t: GIF.tik, baas: gifBaas(w.s, w.soort) };
     gifVijanden.push({ s: w.s, soort: w.soort });
   }
   for (let i = gifVijanden.length - 1; i >= 0; i--){
     const g = gifVijanden[i], s = g.s;
-    if (!s.gif || !gifLeeft(s, g.soort)){ delete s.gif; gifVijanden.splice(i, 1); continue; }
+    if (!s.gif || !gifLeeft(s, g.soort)){ s.gif = null; gifVijanden.splice(i, 1); continue; }   // null, geen delete: dat gaat in Co-op mee naar de anderen
     s.gif.t -= dt;
     if (s.gif.t > 0) continue;
     if (!gifTik(g)){ s.gif.t = 0.2; continue; }    // net niet te raken (in een sprong): zo meteen nog eens
-    if (s.gif.baas || !gifLeeft(s, g.soort)){ delete s.gif; gifVijanden.splice(i, 1); continue; }   // een baas een keer, en wie dood is is klaar
+    if (s.gif.baas || !gifLeeft(s, g.soort)){ s.gif = null; gifVijanden.splice(i, 1); continue; }   // een baas een keer, en wie dood is is klaar
     s.gif.t = GIF.tik;
   }
 }
@@ -47505,6 +47512,11 @@ function banPareer(s, vonkWx, vonkY){
   if (s.raz && s.raz.sch) return;                  // als schaduw (RAZ.schaduw) is hij er niet: je steekt door de lucht
   banClang(s.x);
   banVonk(vonkWx, vonkY);
+  if (mpcGast() && s.mpId != null){                 // Co-op, bij een gast: de counter beslist de host (mpcPareerVanGast), hier klank, vonk en de klik
+    pvpZendAan(0, { t: 'banP', id: s.mpId, vx: Math.round(vonkWx), vy: Math.round(vonkY) });
+    if (s.state === 'run' || s.state === 'look'){ hitstop = Math.max(hitstop, BAN_PAREER_STOP); shake = Math.max(shake, BAN_PAREER_SHAKE); }
+    return;
+  }
   if (s.state === 'run' || s.state === 'look'){    // nog niet aan het slaan: hij vangt je speer en countert direct
     banSet(s, 'slag'); s.frame = BAN_PAREER_FRAME; s.counter = true;
     s.face = s.x < playerX() ? 1 : -1;             // naar je toe
@@ -71725,6 +71737,8 @@ function mpcHitDoor(naam){
       pvpRaakLokaal(o);                                 // de gast voelt het meteen; de host stuurt de schade terug
       pvpZendAan(0, { t: 'mh', a: k, id: o.mpId, f: naam, g: a.map(v => (v == null || typeof v === 'object') ? null : v),
                       st: atkStok || undefined, sf: atkFrame, co: atkCombo ? 1 : 0, hw: stokHoutNu(),
+                      fs: fcSoort || undefined, fm: fcModus() || undefined,   // zijn Full Circle: de slag en wat hij kocht
+                      gi: gifHits > 0 ? 1 : undefined,             // zijn speren zijn vergiftigd (gifGast)
                       pf: (worpTref && jav && jav.blauw === 'pathfinder') ? 1 : undefined,   // zijn Pathfinder-worp: de host maakt hem prooi
                       gk: gkRaak ? [Math.round(gkRaak.x0), Math.round(gkRaak.onderTot), gkRaak.dir, gkRaak.schade, gkRaak.knock] : undefined });   // de golf van zijn grondklap   // zijn slag: de host rekent met zijn stand, niet met die van zichzelf
     }
@@ -71749,8 +71763,9 @@ function mpcTrefferVanGast(m){
   const q = mpcLijst(m.a); if (!q) return;
   const o = q.l().find(v => v.mpId === m.id); if (!o || !mpcLeeft(o) || !pvpAnderNu(m.p)) return;
   mpcWisselIn(m.p);
-  const eig = [atkStok, atkFrame, atkCombo, gkRaak];  // de slag van de gast, niet die van de host (de stokken, Full Circle, de grondklap)
+  const eig = [atkStok, atkFrame, atkCombo, gkRaak, fcSoort];  // de slag van de gast, niet die van de host (de stokken, Full Circle, de grondklap)
   atkStok = m.st || null; atkFrame = m.sf ?? -1; atkCombo = !!m.co; stokHoutGast = m.hw || 0; prooiGast = !!m.pf;
+  fcSoort = m.fs || null; mpcFcGast = m.fm || null; gifGast = { p: m.p, aan: !!m.gi };   // zijn Full Circle en zijn gif
   gkRaak = m.gk ? { x0: m.gk[0], onderTot: m.gk[1], dir: m.gk[2], schade: m.gk[3], knock: m.gk[4] || 1 } : null;   // zijn golf: zijn schade (gkSchadeOp)
   let raak = false;
   try {
@@ -71767,7 +71782,7 @@ function mpcTrefferVanGast(m){
       else MPC_ORIG.enemyTakeHit(o);
     } else if (MPC_ORIG[m.f]) raak = MPC_ORIG[m.f](o, ...(m.g || []));
     if (raak && atkStok && m.a === 'bandieten') stokTreffer(o, o.x, 0, undefined, 'gevolg');   // de reeks, het wankelen en de stun
-  } finally { [atkStok, atkFrame, atkCombo, gkRaak] = eig; stokHoutGast = null; prooiGast = null; mpcWisselUit(); }
+  } finally { [atkStok, atkFrame, atkCombo, gkRaak, fcSoort] = eig; stokHoutGast = null; prooiGast = null; mpcFcGast = undefined; gifGast = null; mpcWisselUit(); }
 }
 // de host krijgt stof van gast m.p in de ogen van een vijand: met de stand van die gast (hij wankelt van hem weg), en
 // alleen als die vijand bij de host ook te verblinden is (STOF_SOORTEN, mag). De blindheid gaat met de stand mee terug
@@ -71778,6 +71793,13 @@ function mpcStofVanGast(m){
   if (!S || !S.mag(o)) return;
   mpcWisselIn(m.p);
   try { stofRaak(o, S); } finally { mpcWisselUit(); }
+}
+// de host: een bandiet pareerde de steek van gast m.p. De counter gaat naar die gast; de freeze en schok waren bij hem
+function mpcPareerVanGast(m){
+  const o = bandieten.find(v => v.mpId === m.id); if (!o || !mpcLeeft(o) || !pvpAnderNu(m.p)) return;
+  const hs = hitstop, sh = shake;
+  mpcWisselIn(m.p);
+  try { banPareer(o, m.vx, m.vy); } finally { hitstop = hs; shake = sh; mpcWisselUit(); }
 }
 // de tonnen: een treffer van de gast gaat naar de host, die telt; de host stuurt elke treffer terug, voor het beeld
 const mpcTonRaakOrig = tonRaak;
@@ -71883,6 +71905,7 @@ function mpcStandLees(m){
   for (const q of MPC_LIJSTEN){
     const rij = m.l[q.k]; if (!rij) continue;
     if (q.k === 'goudapen') for (const r of rij) if (r[1]) for (const k of MPC_GAAP_TIJD) if (r[1][k] > 0) r[1][k] += off;
+    for (const r of rij) if (r[1] && r[1].fcOpenTot > 0) r[1].fcOpenTot += off;   // open voor Full Circle: ook in bavKlok
     const had = new Map(); for (const o of q.l()) if (o.mpId != null) had.set(o.mpId, o);
     const nieuw = [];
     for (const [id, d] of rij){
@@ -72443,7 +72466,12 @@ function mpCoopOntvang(m){
   if (m.t === 'v'){ if (!pvp.host) pvpNetIn(pvpNetVan(0), 'v', m, mpcStandLees); return true; }   // in de speelbuffer (zie "de netcode")
   if (m.t === 'hb') return true;
   if (m.t === 'mh'){ if (pvp.host) mpcTrefferVanGast(m); return true; }
-  if (m.t === 'stofR'){ if (pvp.host) mpcStofVanGast(m); return true; }   // een gast gooide stof in de ogen van een vijand
+  if (m.t === 'stofR'){ if (pvp.host) mpcStofVanGast(m); return true; }
+  if (m.t === 'blokG'){ const o = pvp.host && bandieten.find(v => v.mpId === m.id);   // een gast ving zijn klap op het stokblok
+    if (o && mpcLeeft(o) && pvpAnderNu(m.p)){ mpcWisselIn(m.p); try { stokBlokGestuit(o); } finally { mpcWisselUit(); } } return true; }
+  if (m.t === 'banP'){ if (pvp.host) mpcPareerVanGast(m); return true; }   // een bandiet pareerde de steek van een gast
+  if (m.t === 'gifOp'){ if (gifHits > 0){ gifHits--; invHud(); } return true; }   // de host zette mijn gif op een vijand: een treffer minder
+  if (m.t === 'gifSpat'){ const q = mpcLijst(m.a), o = q && q.l().find(v => v.mpId === m.id); if (o && !pvp.host) gifSpat(o, !!m.tik); return true; }   // een gast gooide stof in de ogen van een vijand
   if (m.t === 'prooi'){ const q = mpcLijst(m.a), o = q && q.l().find(v => v.mpId === m.id); if (o && !pvp.host) prooiZet(o); return true; }   // de host maakte hem prooi (zie "de Pathfinder Spear")
   if (m.t === 'gk'){ if (!laadWacht) gkKlapBeeld(m.x, m.x2, m.d, nowScale(), m.b * nowScale(), m.v); return true; }   // de grondklap van een ander: alleen beeld en geluid
   if (m.t === 'au2'){ if (!laadWacht) mpcHurtOrig(!!m.l, m.s || 1); return true; }
