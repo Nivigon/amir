@@ -473,3 +473,8 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
   de bredere knieen, maar de arm reikt nu verder.
 - sweep_10: NIET vervangen. `f675b74f` (`mk_nk_sw10`) gaf een arm ver naar rechts, maar maar een arm zichtbaar en hij kwam
   hoger en verschoven te staan (0,35). Het huidige frame (twee armen) blijft beter.
+### Combo, prioriteit B
+- combo_02: VERVANGEN, post `0c415682` 0,59 (was 0,65), `mk_nk_cb02`: rug, bredere stand zoals het origineel. Lagere IoU
+  komt van de armen (iets anders boven het hoofd), de stand klopt nu.
+- combo_06: VERVANGEN, post `1863b647` 0,79 (was 0,76), `mk_nk_cb06`: bovenste vuist hoger, boven het hoofd.
+- combo_07: NIET vervangen. Het beeld van 06 op 07 (0,61) zette de vuisten niet op de plek van het origineel.

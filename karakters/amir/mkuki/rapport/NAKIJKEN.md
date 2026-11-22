@@ -26,9 +26,9 @@ Prioriteit: **A** = zichtbaar fout, eerst doen. **B** = wijkt af, verbeteren als
 | B (af 22-11, Grok 4d54af81, met de hand geplaatst) | aanval/lowsweep/sweep_13.png | trap hoger, standbeen rechter; met de hand geplaatst | zijtrap zoals origineel; overgang 12 naar 13 controleren |
 | B (af 22-11, Grok af377795) | aanval/lowsweep/sweep_9.png | romp te rechtop | bijna plat voorover |
 | B (af 22-11, Grok 2a49d175) | aanval/lowsweep/sweep_6.png | linkerarm korter | arm verder |
-| B | aanval/combo/combo_06.png | bovenste vuist te laag | vuist hoog boven het hoofd |
-| B | aanval/combo/combo_07.png | bovenste vuist te laag | idem |
-| B | aanval/combo/combo_02.png | voeten smaller | bredere stand |
+| B (af 22-11, Grok 1863b647) | aanval/combo/combo_06.png | bovenste vuist te laag | vuist hoog boven het hoofd |
+| B (niet vervangen, het beeld van 06 paste niet; LOG 22-11) | aanval/combo/combo_07.png | bovenste vuist te laag | idem |
+| B (af 22-11, Grok 0c415682) | aanval/combo/combo_02.png | voeten smaller | bredere stand |
 | B | speerworp/speerworp_15.png | achterarm te gestrekt | zoals origineel |
 | B | speerworp/speerworp_16.png en speerworp_17.png | voorste arm reikt minder ver | verder naar voren |
 | B | speerworp/speerworp_12.png | voorste hand een vuist | open hand |
