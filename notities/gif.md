@@ -65,6 +65,12 @@ Wat er in de inventory zit en hoeveel gif de speren nog hebben, gaat mee naar he
   groen, en de rand is groen.
 - Op de rug (`rugSpeerTeken`) is het staal van de speer zuurgroen, net als in de hand: `javTeken` krijgt `gifSterkte()`
   mee en legt de groene kopie (`mkGifBeeld`) over het plaatje. `gifDrupTeken` laat aan de punt een druppel groeien en vallen.
+- **De druppel** (`GIF_DRUP`, `gifDrupTeken2`, `gifLand`, `gifSis`): om de 2,5 tot 6 s groeit er aan een vergiftigde speer
+  (in de hand of op de rug, willekeurig) een druppel aan het laagste punt van het staal, meestal een weerhaak naast de
+  schacht. Na 0,8 s valt hij recht naar beneden tot de voeten van Amir en spat daar: een plasje dat in het zand trekt, een
+  paar spatjes, een zacht gesis (ruis door een hoog filter) en een wolkje bleekgroene damp dat opstijgt en oplost. De
+  speren melden elk beeld waar hun staal zit (`gifBron`: `mkGifPunten` per plaatje, `gifPuntenOp`, voor de hand via
+  `mkGifPunt` in framepixels).
 - `gifPuntTeken`: een groene punt op de geworpen speer (`javSchacht`), minder groen naarmate de treffers opraken.
 - `gifHandTeken`: de speer in de hand zit in de sprite van Amir, dus daar weet het spel alleen bij de steek en het
   spannen waar de punt is; dan een groene gloed en een druppel.
