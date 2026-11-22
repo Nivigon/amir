@@ -103,6 +103,12 @@ de dop, de greep en de kop houden hun vorm en het hout ertussen rekt mee, want d
 een schacht twee keer zo dik en dan leek hij korter dan de gewone; het vaantje is los,
 in vier standen (stil, licht wiegen, wind, harde wind).
 
+De rand (22-11-2026): verkleind in het spel viel de schacht weg tegen het zand, want de Grok-plaat had een dunne,
+half doorzichtige bovenlijn en geen glimlijn of schaduw. `pathfinder_speer.py` (`rand`) legt er nu de rand van de gewone
+speer op: een dekkende donkere lijn om het hele silhouet (`RAND_LIJN`), boven een lichte glimlijn (`RAND_GLIM`) en onder een
+zachte schaduw (`RAND_SCHADUW`), dezelfde waarden als in `speer_projectiel.png`. De punt wordt gemeten zonder die schaduw,
+dus `PATHFINDER` bleef gelijk.
+
 - **De soort.** `SPEER_SOORTEN.pathfinder`, in het veld van het vaantje (`speerBlauw`, `rugSperen[].blauw`, `jav.blauw`,
   `losseSperen[].blauw`). Je koopt er een per speerplek (`koop.pathfinder` telt, `pfAantal`; in de sandbox de knop: een).
   `pfStap` maakt elk beeld zoveel gewone speren die je draagt Pathfinder-speren als je er bezit min wat er al is (`pfTel`:

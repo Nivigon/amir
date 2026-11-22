@@ -33,6 +33,28 @@ KNOOP = (985, 119)     # waar het vaantje aan de speer hangt, in px van bron/spe
 # speer even lang is als de gewone; zo is hij even lang en even slank, zonder dat de kralen of de kop vervormen.
 DOP, GREEP, KOP = (0, 75), (385, 722), 968
 
+# De rand van de gewone speer (speer_projectiel.png), zodat hij verkleind in het spel even goed loskomt van de grond:
+# een harde donkere lijn om het hele silhouet, boven langs een lichte glimlijn en onder een zachte schaduw.
+RAND_LIJN = (34, 26, 22)            # de omlijning, dekkend (de gewone: 37,33,33 boven en 30,20,14 onder)
+RAND_GLIM = (186, 183, 183, 78)     # de glimlijn erboven, half doorzichtig (zo staat hij in de gewone)
+RAND_SCHADUW = (0, 0, 0, 140)       # de schaduw eronder
+
+def rand(im):
+    a = np.array(im).astype(np.int32)
+    m = a[..., 3] > 128
+    p = np.pad(m, 1)
+    binnen = p[:-2, 1:-1] & p[2:, 1:-1] & p[1:-1, :-2] & p[1:-1, 2:]
+    lijn = m & ~binnen
+    uit = np.zeros_like(a)
+    uit[m] = a[m]; uit[m, 3] = 255
+    uit[lijn, :3] = RAND_LIJN
+    for x in range(a.shape[1]):
+        ys = np.where(m[:, x])[0]
+        if not len(ys): continue
+        if ys[0] > 0: uit[ys[0] - 1, x] = RAND_GLIM
+        if ys[-1] + 1 < a.shape[0]: uit[ys[-1] + 1, x] = RAND_SCHADUW
+    return Image.fromarray(uit.astype(np.uint8), 'RGBA')
+
 sp = Image.open(os.path.join(BRON, 'speer.png')).convert('RGBA')
 sp = sp.crop(sp.getbbox())
 a0 = np.array(sp)[..., 3] > 128
@@ -49,8 +71,9 @@ w1 = round(hout * h1 / (h1 + h2)); w2 = hout - w1
 delen = [vast[0], stuk(DOP[1], GREEP[0], w1), vast[1], stuk(GREEP[1], KOP, w2), vast[2]]
 jav = Image.new('RGBA', (JAV_W, H)); x = 0
 for im in delen: jav.alpha_composite(im, (x, 0)); x += im.width
+a = np.array(jav)[..., 3] > 128                 # de punt meten zonder de schaduwrand eronder
+jav = rand(jav)
 jav.save(os.path.join(MAP, 'jav.png'))
-a = np.array(jav)[..., 3] > 128
 tip_y = float(np.where(a[:, JAV_W - 3])[0].mean())
 kop_x = JAV_W - vast[2].width            # waar de kop begint in jav.png
 knoop = (kop_x + (KNOOP[0] - KOP) * s, KNOOP[1] * s)
