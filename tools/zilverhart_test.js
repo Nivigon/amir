@@ -29,11 +29,15 @@ const srv = http.createServer((q, r) => {
   await schiet();
   for (let ronde = 0; ronde < 2; ronde++){
     await page.keyboard.press('g');
-    for (let i = 0; i < 30; i++){ await page.waitForTimeout(i >= 14 && i <= 20 ? 60 : 220); if (ronde === 0) await schiet(); }
+    for (let i = 0; i < 34; i++){ await page.waitForTimeout(i >= 19 && i <= 25 ? 60 : 220); if (ronde === 0) await schiet(); }
     console.log('ronde', ronde, await page.evaluate(() => ({ lijst: zhLijst.length, dummy: zhDummy && { dood: zhDummy.dood, x: Math.round(zhDummy.x) } })));
     await page.waitForTimeout(6500);
     console.log('na het omvallen', await page.evaluate(() => ({ dood: zhDummy.dood })));
   }
+  await page.keyboard.press('Escape'); await page.waitForTimeout(600);
+  await page.evaluate(() => { const b = document.getElementById('pzzhbtn'); if (b) b.click(); });
+  await page.waitForTimeout(400); await schiet();
+  console.log('paneel:', await page.evaluate(() => getComputedStyle(document.getElementById('pzzhbtn')).display + ' ' + document.getElementById('pzzh').className));
   console.log(fouten.size ? [...fouten].join('\n') : 'geen fouten in de console');
   await browser.close(); srv.close();
 });

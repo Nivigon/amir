@@ -888,3 +888,9 @@ Op verzoek van de opdrachtgever: een revive-item voor de stokspeler (de speerspe
 - **Test 91: Silver Pride** (in Test levels sticks): een oefenteamgenoot in de kleuren van de mentor ligt voor je, G speelt het af, het hart
   is daar onbeperkt en na `ZH.dummyStaat` s valt hij weer om. Proef: `node tools/zilverhart_test.js [map]` en
   `node tools/mptest.js --zilverhart --stokken host`.
+
+**Bijgesteld (23-11-2026):** de bol is weg; nu een cirkel zilverwit licht vanuit het midden van het hart, naar buiten zwakker,
+die met de slag opzwelt (`ZH.licht`, `ZH.lichtA`, `ZH.slagA`). Het hart klopt 4,3 s; het geluid volgt die duur via de
+`playbackRate` (`zhPulsSpeel`, `ZH_PULS_BRON`). De brul is standaard uit (`ZH.brulVol` 0), de klap blijft. Alles is af te
+stellen in Test 91 onder Pauze, Instellingen, **Silver Pride: tune** (`ZH_SCHUIF`, `zhPaneelBouw`, `zhKnopToon`); de browser
+onthoudt de stand (`ZH_SLEUTEL`). Ben je tevreden, neem de getallen dan over in `ZH`.
