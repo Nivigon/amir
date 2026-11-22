@@ -33,8 +33,59 @@ KNOOP = (985, 119)     # waar het vaantje aan de speer hangt, in px van bron/spe
 # speer even lang is als de gewone; zo is hij even lang en even slank, zonder dat de kralen of de kop vervormen.
 DOP, GREEP, KOP = (0, 75), (385, 722), 968
 
+# De rand van de gewone speer (speer_projectiel.png), zodat hij verkleind in het spel even goed loskomt van de grond:
+# een harde donkere lijn om het hele silhouet, boven langs een lichte glimlijn en onder een zachte schaduw.
+RAND_LIJN = (34, 26, 22)            # de omlijning, dekkend (de gewone: 37,33,33 boven en 30,20,14 onder)
+RAND_GLIM = (186, 183, 183, 78)     # de glimlijn erboven, half doorzichtig (zo staat hij in de gewone)
+RAND_SCHADUW = (0, 0, 0, 140)       # de schaduw eronder
+
+def rand(im):
+    a = np.array(im).astype(np.int32)
+    m = a[..., 3] > 128
+    p = np.pad(m, 1)
+    binnen = p[:-2, 1:-1] & p[2:, 1:-1] & p[1:-1, :-2] & p[1:-1, 2:]
+    lijn = m & ~binnen
+    uit = np.zeros_like(a)
+    uit[m] = a[m]; uit[m, 3] = 255
+    uit[lijn, :3] = RAND_LIJN
+    for x in range(a.shape[1]):
+        ys = np.where(m[:, x])[0]
+        if not len(ys): continue
+        if ys[0] > 0: uit[ys[0] - 1, x] = RAND_GLIM
+        if ys[-1] + 1 < a.shape[0]: uit[ys[-1] + 1, x] = RAND_SCHADUW
+    return Image.fromarray(uit.astype(np.uint8), 'RGBA')
+
 sp = Image.open(os.path.join(BRON, 'speer.png')).convert('RGBA')
 sp = sp.crop(sp.getbbox())
+
+# De kleuren (22-11-2026, op verzoek): een schacht van ivoor, een creme punt en een helemaal rode greep in plaats van
+# de rood-witte kralen. Per stuk wordt de bron omgekleurd met zijn eigen licht en schaduw, de donkere omlijning blijft.
+IVOOR = (214, 188, 146)      # de schacht: licht essenhout (A1)
+CREME = (246, 234, 204)      # het blad van de punt
+ROOD = (168, 32, 30)         # de greep
+BLAD = 1058                  # waar het blad begint, in px van bron/speer.png (na het dwarsstuk en de huls)
+
+def kleur(a, x0, x1, doel, glad=False):
+    d = a[:, x0:x1].astype(float)
+    m = d[..., 3] > 128
+    lum = d[..., :3].mean(-1)
+    ref = np.median(lum[m])
+    r = np.clip(lum / ref, 0.45, 1.25)
+    if glad:                 # een gladde ronde greep: licht van boven, donker naar onder, de kralen vallen weg
+        ys = np.where(m.any(1))[0]; t = (np.arange(len(lum)) - ys[0]) / max(1, ys[-1] - ys[0])
+        r = np.repeat((0.6 + 0.55 * np.exp(-((t - 0.32) / 0.3) ** 2))[:, None], lum.shape[1], 1)
+    rand = m & (d[..., :3].mean(-1) < ref * 0.35)        # de omlijning houdt zijn donker
+    if glad: rand[:] = False                             # de greep: ook de lijntjes tussen de kralen weg (rand() legt de buitenlijn)
+    for c in range(3):
+        k = d[..., c]; k[m & ~rand] = np.clip(doel[c] * r, 0, 255)[m & ~rand]
+    a[:, x0:x1] = d.astype(np.uint8)
+
+_a = np.array(sp)
+kleur(_a, 75, 385, IVOOR)
+kleur(_a, 722, 968, IVOOR)
+kleur(_a, 385, 722, ROOD, glad=True)
+kleur(_a, BLAD, _a.shape[1], CREME)
+sp = Image.fromarray(_a)
 a0 = np.array(sp)[..., 3] > 128
 dik = int(a0[:, (GREEP[1] + KOP) // 2].sum())        # de dikte van de schacht in de bron
 s = SCHACHT / dik
@@ -42,17 +93,30 @@ H = round(sp.height * s)
 def stuk(x0, x1, w=None):
     im = sp.crop((x0, 0, x1, sp.height))
     return im.resize((w or max(1, round((x1 - x0) * s)), H), Image.LANCZOS)
-vast = [stuk(*DOP), stuk(*GREEP), stuk(KOP, sp.width)]
-hout = JAV_W - sum(im.width for im in vast)
-h1 = GREEP[0] - DOP[1]; h2 = KOP - GREEP[1]
-w1 = round(hout * h1 / (h1 + h2)); w2 = hout - w1
-delen = [vast[0], stuk(DOP[1], GREEP[0], w1), vast[1], stuk(GREEP[1], KOP, w2), vast[2]]
-jav = Image.new('RGBA', (JAV_W, H)); x = 0
-for im in delen: jav.alpha_composite(im, (x, 0)); x += im.width
+def bouw(totaal):
+    """De speer op een lengte: dop, greep en kop vast, het hout rekt mee. Is hij te kort voor de greep (de korte
+    lengtes van de hand-set, een speer in verkorting), dan krimpt de greep mee en blijft er wat hout over."""
+    vast = [stuk(*DOP), stuk(*GREEP), stuk(KOP, sp.width)]
+    rest = totaal - vast[0].width - vast[2].width
+    if rest < vast[1].width + 2 * HOUT_MIN:
+        g = max(0, round((rest - 2 * HOUT_MIN) * 0.5))
+        vast[1] = stuk(*GREEP, w=g) if g > 0 else None
+    hout = rest - (vast[1].width if vast[1] else 0)
+    h1 = GREEP[0] - DOP[1]; h2 = KOP - GREEP[1]
+    w1 = round(hout * h1 / (h1 + h2)); w2 = hout - w1
+    delen = [vast[0], stuk(DOP[1], GREEP[0], max(1, w1)), vast[1], stuk(GREEP[1], KOP, max(1, w2)), vast[2]]
+    im = Image.new('RGBA', (totaal, H)); x = 0
+    for d in delen:
+        if d is None: continue
+        im.alpha_composite(d, (x, 0)); x += d.width
+    return im, totaal - vast[2].width
+
+HOUT_MIN = 12          # zoveel hout houdt elke kant van de greep minstens, in px van jav.png
+jav, kop_x = bouw(JAV_W)
+a = np.array(jav)[..., 3] > 128                 # de punt meten zonder de schaduwrand eronder
+jav = rand(jav)
 jav.save(os.path.join(MAP, 'jav.png'))
-a = np.array(jav)[..., 3] > 128
 tip_y = float(np.where(a[:, JAV_W - 3])[0].mean())
-kop_x = JAV_W - vast[2].width            # waar de kop begint in jav.png
 knoop = (kop_x + (KNOOP[0] - KOP) * s, KNOOP[1] * s)
 k = VAAN_S
 
@@ -65,5 +129,7 @@ for i, kn in enumerate(knopen):
     f.save(os.path.join(MAP, 'vaantje_%d.png' % (i + 1)))
     vaan.append([round(kn['knoop'][0] * s, 1), round(kn['knoop'][1] * s, 1)])
 
+# In Amirs handen (de Mkuki-skin) komt de speer uit karakters/amir/mkuki_spel/bron/pf_<hoek>.png, die
+# tools/mkuki_spel_los.py (pathfinder()) uit deze jav.png maakt: na een nieuwe jav.png dat ook opnieuw draaien.
 print('PATHFINDER = { w: %d, h: %d, tipX: %d, tipY: %.1f, knoop: [%.1f, %.1f], vaanK: %d, vaan: %s }'
       % (jav.width, jav.height, JAV_W - 1, tip_y, knoop[0], knoop[1], VAAN_K, json.dumps(vaan)))

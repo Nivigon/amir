@@ -103,6 +103,24 @@ de dop, de greep en de kop houden hun vorm en het hout ertussen rekt mee, want d
 een schacht twee keer zo dik en dan leek hij korter dan de gewone; het vaantje is los,
 in vier standen (stil, licht wiegen, wind, harde wind).
 
+De rand (22-11-2026): verkleind in het spel viel de schacht weg tegen het zand, want de Grok-plaat had een dunne,
+half doorzichtige bovenlijn en geen glimlijn of schaduw. `pathfinder_speer.py` (`rand`) legt er nu de rand van de gewone
+speer op: een dekkende donkere lijn om het hele silhouet (`RAND_LIJN`), boven een lichte glimlijn (`RAND_GLIM`) en onder een
+zachte schaduw (`RAND_SCHADUW`), dezelfde waarden als in `speer_projectiel.png`. De punt wordt gemeten zonder die schaduw,
+dus `PATHFINDER` bleef gelijk.
+
+De kleuren (22-11-2026, op verzoek): ook met de rand bleef hij in de vlucht op een gewone speer lijken (bruine schacht,
+rood vlekje bij de kop). `pathfinder_speer.py` (`kleur`) kleurt de bron nu per stuk om met zijn eigen licht en schaduw: de
+schacht licht essenhout (`IVOOR`, variant A1: eerst was hij ivoor, maar dat oogde als bot, als iets kostbaars), het blad creme (`CREME`, vanaf `BLAD`) en de greep effen rood (`ROOD`, een gladde ronding in plaats
+van de rood-witte kralen). Dop, dwarsstuk, bandje en vaantje blijven zoals ze waren. Hij wordt ook een fractie groter getekend dan de gewone
+speer (`PATHFINDER.groot`, 1,06, in `javTeken`, vanaf de punt, met het vaantje mee): je ziet het nauwelijks, maar het helpt.
+
+**In de hand**: de Mkuki-skin tekent de speer los in zijn handen (`MK_LOS`, `mkLosBeeld`, zie de outfits in
+`notities/multiplayer.md`), per soort; de Pathfinder komt daar uit `karakters/amir/mkuki_spel/bron/pf_<hoek>.png`, die
+`pathfinder()` in `tools/mkuki_spel_los.py` uit `jav.png` maakt. Na een nieuwe `jav.png` dus ook die opnieuw (de maten in
+`los.json` blijven gelijk zolang de vorm van `jav.png` niet verandert, alleen de kleur). De grotere maat (`groot`) geldt
+alleen buiten de hand: in de hand volgt hij de plaatsing uit de animeer tool.
+
 - **De soort.** `SPEER_SOORTEN.pathfinder`, in het veld van het vaantje (`speerBlauw`, `rugSperen[].blauw`, `jav.blauw`,
   `losseSperen[].blauw`). Je koopt er een per speerplek (`koop.pathfinder` telt, `pfAantal`; in de sandbox de knop: een).
   `pfStap` maakt elk beeld zoveel gewone speren die je draagt Pathfinder-speren als je er bezit min wat er al is (`pfTel`:
@@ -110,7 +128,7 @@ in vier standen (stil, licht wiegen, wind, harde wind).
   hand zit kiest de speervolgorde (zie `notities/speer-inventory.md`).
 - **Het beeld.** `javTeken(soort, k, wind, windX)` vervangt overal het tekenen van `javImg`: op de rug, in de worp (zonder
   de draai-frames), liggend, in een wand, in een oefendoel, het baken en de losse speren van een teamgenoot. In Amirs handen
-  zit nog de gewone speer in zijn sprites, tot de speer los over de animaties komt (daar wordt aan gewerkt).
+  zat eerst de gewone speer; nu tekent de Mkuki-skin hem los, zie "In de hand" hieronder.
 - **Het vaantje.** `pfVaanTeken` hangt het aan het knoopje (`PATHFINDER.knoop`) en draait het altijd naar beneden in de
   wereld (de inverse van de transformatie), en spiegelt het als het de andere kant op moet waaien. De sterkte: in de vlucht
   1, vallend 0,6, vast 0,15, op de rug de vaart van Amir (`pfV`, `PATHFINDER.wind`), liggend plat langs de schacht.

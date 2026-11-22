@@ -601,7 +601,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **De stokken van Amir** (`karakters/amir/stokken/`, uit `bron/lijf/` en `bron/stok_grok.jpg`) → `tools/stok_bak.py` (zet de regels die het print in `STOK`: de canvasmaat en `slip`), daarna `gen-klein.py` en `gen-offline-manifest.py`; `gen-klein.py` schrijft ook andere kleine plaatjes opnieuw, zet die terug
 - **Tau, de leeuwenkop van de zonnestraal** (`karakters/amir/tau/`, uit de Grok-clip in `bron/`) → `tools/tau_leeuw.py`, daarna `gen-offline-manifest.py`; een ander aantal frames of een andere maat gaat in `TAU`
 - **Oude speer** (`design/speer/oud/`, uit de gewone speer) → `tools/oude_speer.py`, daarna `gen-offline-manifest.py`
-- **Pathfinder Spear** (`design/speer/pathfinder/`, uit de Grok-platen in `bron/`) → `tools/pathfinder_speer.py` (zet de regel die het print in `PATHFINDER`), daarna `gen-offline-manifest.py`
+- **Pathfinder Spear** (`design/speer/pathfinder/`, uit de Grok-platen in `bron/`) → `tools/pathfinder_speer.py` (zet de regel die het print in `PATHFINDER`), daarna de Pathfinder in Amirs hand (`karakters/amir/mkuki_spel/bron/pf_<hoek>.png`) met `pathfinder()` uit `tools/mkuki_spel_los.py`, en `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`
 - **Winterversies** → `tools/sneeuw.py`, `sneeuw_bg.py`, `sneeuw_dorp.py`, `winter_art.py`
 
