@@ -2,6 +2,9 @@
 python3 bouw.py <repo> <uitmap> <ren.html>"""
 import sys, os, json, math
 from PIL import Image
+import numpy as np
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from speer_plaats import plaats, set_lengte, KS, UIT as SPEER_UIT
 REPO, UIT = sys.argv[1], sys.argv[2]
 AM = os.path.join(REPO, 'karakters/amir/')
 MK = AM + 'mkuki/'
@@ -44,9 +47,9 @@ for sid, naam, fps, paden in SETS:
     n = len(paden); cols = max(1, min(n, math.ceil(math.sqrt(n * H / W))))
     rows = math.ceil(n / cols)
     vel = {k: Image.new('RGBA', (cols * W, rows * H)) for k in 'fov'}
-    heeft_v = False; grond = 0; frames = []; ini = []
+    heeft_v = False; grond = 0; frames = []; ini = []; noten = {}
     lengtes = [PL[p]['lengte'] for p in paden if p in PL]
-    lmed = sorted(lengtes)[len(lengtes) // 2] if lengtes else 274
+    lmed = set_lengte(sid, lengtes) if lengtes else 274
     for i, p in enumerate(paden):
         x, y = (i % cols) * W, (i // cols) * H
         lijf = Image.open(MK + p).convert('RGBA'); assert lijf.size == (CW, CH), (p, lijf.size)
@@ -60,12 +63,16 @@ for sid, naam, fps, paden in SETS:
             heeft_v = True; vel['v'].paste(Image.open(vp).convert('RGBA').resize((W, H), Image.LANCZOS), (x, y))
         frames.append({'i': i, 'orig': os.path.basename(p)[:-4], 'ms': round(1000 / fps), 'v': hv})
         q = PL.get(p)
-        if q:
-            (tx, ty), (kx, ky) = q['tip'], q['kont']
-            L = {'on': True, 'angle': 'proj', 'cx': round((tx + kx) / 2 / CW, 4), 'cy': round((ty + ky) / 2 / CH, 4),
-                 'w': round(q['lengte'] / CW, 4), 'rot': round(math.degrees(math.atan2(ty - ky, tx - kx)), 1),
-                 'flip': False, 'behind': bool(q.get('achter')), 'op': 1, 'locked': False}
+        if q and (i + 1) in SPEER_UIT.get(sid, ()):
+            L = None; noten[str(i + 1)] = 'speer is hier al weg (na de worp): uit'
+        elif q and q.get('lengte', 0) > 0:
+            L0 = set_lengte(sid, [PL[x]['lengte'] for x in paden if x in PL])
+            schaal = max(CW, CH) / 594 if max(CW, CH) > 700 else 1.0
+            L, noot = plaats(sid, q, np.asarray(org)[..., 3], L0, CW, CH, schaal)
+            if noot: noten[str(i + 1)] = noot
         else:
+            L = None
+        if L is None:
             L = {'on': False, 'angle': 'proj', 'cx': 0.5, 'cy': 0.45, 'w': round(lmed / CW, 4), 'rot': -90,
                  'flip': False, 'behind': False, 'op': 1, 'locked': False}
         ini.append({'L': {'amirspeer': L}, 'body': {'basis': []}, 'im': {}})
@@ -76,11 +83,15 @@ for sid, naam, fps, paden in SETS:
     anims.append({'id': sid, 'name': naam, 'fps': fps, 'W': W, 'H': H, 'canvasW': CW, 'canvasH': CH,
                   'grond': grond, 'anchorX': CW // 2, 'cols': cols, 'vuist': heeft_v,
                   'sheet': {'f': 'f/%s.png' % sid, 'o': 'o/%s.png' % sid, 'v': ('v/%s.png' % sid) if heeft_v else None},
-                  'frames': frames})
+                  'frames': frames, 'speerNoten': noten, 'speerL': round(lmed)})
     init[sid] = ini
-    print(sid, n, (CW, CH), '->', (W, H), 'cols', cols, 'speer', sum(1 for f in ini if f['L']['amirspeer']['on']), 'vuist', sum(f['v'] for f in frames))
+    print(sid, n, 'L', round(lmed), 'noten', len(noten), (CW, CH), '->', (W, H), 'cols', cols, 'speer', sum(1 for f in ini if f['L']['amirspeer']['on']), 'vuist', sum(f['v'] for f in frames))
 D = {'personage': 'Amir mkuki', 'versions': [{'id': 'basis', 'name': 'Basis'}], 'anims': anims,
-     'items': [{'id': 'amirspeer', 'name': 'Speer Amir', 'versioned': False, 'angles': [{'id': 'proj', 'name': 'werpspeer'}],
-                'img': {'basis': {'proj': {'src': 'i/amirspeer_proj.png', 'aspect': 0.1074}}}}],
+     'items': [{'id': 'amirspeer', 'name': 'Speer Amir', 'versioned': False, 'angles': [{'id': 'proj', 'name': 'werpspeer'}] + [{'id': 'k%02d' % round(k * 100), 'name': 'verkort %d%%' % round(k * 100)} for k in KS],
+                'img': {'basis': dict([('proj', {'src': 'i/amirspeer_proj.png', 'aspect': 0.1074})] + [('k%02d' % round(k * 100), {'src': 'i/amirspeer_k%02d.png' % round(k * 100), 'aspect': round(0.1074 / k, 4)}) for k in KS])}}],
      'init': init, 'angleMasks': {}, 'zones': [], 'zoneSuggest': {}, 'kop': {}, 'bron': bron}
+os.makedirs(UIT + '/i', exist_ok=True)
+SP = Image.open(sys.argv[3]).convert('RGBA'); SP.save(UIT + '/i/amirspeer_proj.png')
+for k in KS:
+    SP.resize((round(SP.width * k), SP.height), Image.LANCZOS).save(UIT + '/i/amirspeer_k%02d.png' % round(k * 100))
 json.dump(D, open(UIT + '/D.json', 'w'), separators=(',', ':'))

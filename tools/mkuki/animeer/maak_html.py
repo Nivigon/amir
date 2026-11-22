@@ -113,7 +113,8 @@ R("  onSeg(el('animseg'),anim);onSeg(el('verseg'),ver);", "  if(el('animsel').va
 R("  el('fnum').textContent=(cf+1)+' / '+a.frames.length+'  bron '+f.orig;",
   """  el('fnum').textContent=(cf+1)+' / '+a.frames.length+'  '+f.orig+(a.twijfel.includes(cf+1)?'  ⚠ twijfel':'')+(fr.ok?'  ✓':'');
   el('fok').checked=!!fr.ok;{const k=S.frames[anim].filter(q=>q.ok).length;el('okinfo').textContent=k+' van '+a.frames.length+' nagekeken'}
-  el('twijfel').innerHTML=a.twijfel.length?'<b>Nakijken (TWIJFEL.md):</b> frame '+a.twijfel.join(', ')+'. '+a.twijfelTekst:'Geen twijfelgevallen genoteerd in TWIJFEL.md.';""")
+  {const sn=(a.speerNoten||{})[cf+1];el('twijfel').innerHTML=(a.twijfel.length?'<b>Nakijken (TWIJFEL.md):</b> frame '+a.twijfel.join(', ')+'. '+a.twijfelTekst:'Geen twijfelgevallen genoteerd in TWIJFEL.md.')
+    +'<br><b>Speer:</b> vaste lengte '+a.speerL+' px in deze set'+(sn?'. Dit frame: '+sn+'.':'.')}""")
 import re
 _m=re.search(r"  el\('animnote'\)\.textContent=a\.zacht\?[^\n]*", J); assert _m
 J=J.replace(_m.group(0), "  el('animnote').textContent=a.fps+' fps, canvas '+a.canvasW+'×'+a.canvasH+(a.vuist?'':', geen vuistlaag in deze set')+'.';")
