@@ -18,7 +18,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage as nd
 HIER = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HIER)
+sys.path.insert(0, HIER); sys.path.insert(0, os.path.join(os.path.dirname(HIER)))
 ROOT = os.path.dirname(os.path.dirname(HIER))
 import raster, uitlijn
 from stokweg import stok_maskers
@@ -26,7 +26,7 @@ from stokweg import stok_maskers
 A = os.path.join(ROOT, 'karakters/amir/')
 JUMP = ['amirjump0staand', 'amirjump1hurk', 'amirjump2afzet', 'amirjump3stijgen', 'amirjump4top', 'amirjump5vallen', 'amirjump6landing']
 WERK = '/home/claude/werk/'
-REF = WERK + 'een/ref_hulp_mag.png'
+REF = WERK + 'een/ref_anker_mag.png'
 REF_RAW = WERK + 'een/ref_hulp_raw.png'
 HULP = {1: (0, 192, 64), 2: (32, 80, 255), 3: (255, 224, 0)}
 KAART = {1: (0, 255, 0), 2: (0, 0, 255), 3: (255, 255, 0), 4: (255, 255, 255), 5: (255, 128, 0)}
@@ -37,7 +37,12 @@ ZWART = {1: (48, 44, 46), 2: (40, 34, 44), 3: (214, 170, 60)}           # zwarte
 VREF = {1: 0.71, 2: 0.74, 3: 0.95}
 
 
-def pad(set_, i):
+HERSTEL = {('rennen', 3): '/home/claude/werk/rennen_03_fix.png'}   # rennen_03: gat in de broek gerepareerd (Grok)
+
+
+def pad(set_, i, echt=False):
+    if not echt and (set_, i) in HERSTEL and os.path.exists(HERSTEL[(set_, i)]):
+        return HERSTEL[(set_, i)]
     if set_ in ('staan', 'rennen'):
         return A + 'stokken/%s/%s_%02d.png' % (set_, set_, i)
     if set_ == 'jump':
@@ -52,12 +57,17 @@ def uitpad(set_, i, extra=''):
     return p[:-4] + extra + '.png'
 
 
-def bron(set_, i):
+MET_STOK = os.environ.get('MET_STOK') == '1'
+
+
+def bron(set_, i, invoer=False):
     """(origineel, stokmaskers, lijf zonder stokken): het lijf is wat Grok krijgt en waarop we uitlijnen."""
     if set_ not in ('staan', 'rennen'):
         o = raster.laad(pad(set_, i))
         return o, [], o.copy()
     fr, ms, _ = stok_maskers(set_, i)
+    if invoer and MET_STOK:
+        return fr, ms, fr.copy()
     if set_ == 'staan':
         # het echte lijf zonder stokken uit de Animeer tool (594x301, anker 297, grond 297) op het spelcanvas
         l = raster.laad(A + 'stokken/bron/lijf/staan_00.png')
@@ -80,17 +90,22 @@ def bron(set_, i):
         kern = np.isin(lab, [k + 1 for k in range(n) if sz[k] > 0.02 * sz.max()])
     lijf = lijf & nd.binary_dilation(kern, iterations=2)
     # gaten waar de stok over het lijf liep dichten met de dichtstbijzijnde lijfkleur
-    dicht = nd.binary_closing(lijf, structure=np.ones((3, 3)), iterations=6) & weg & ~lijf
+    dicht = nd.binary_closing(lijf, structure=np.ones((3, 3)), iterations=11) & weg & ~lijf
     out = np.zeros_like(b)
     out[lijf] = b[lijf]
     if dicht.any():
         _, (iy, ix) = nd.distance_transform_edt(~lijf, return_indices=True)
         out[dicht] = b[iy[dicht], ix[dicht]]; out[dicht, 3] = 255
+    vol = out[..., 3] > 100
+    gat = nd.binary_fill_holes(vol) & ~vol
+    if gat.any():
+        _, (iy, ix) = nd.distance_transform_edt(~vol, return_indices=True)
+        out[gat] = out[iy[gat], ix[gat]]; out[gat, 3] = 255
     return fr, ms, out
 
 
 def bouw(naam, set_, i, draai=False, refgroot=520):
-    _, _, a = bron(set_, i)
+    _, _, a = bron(set_, i, invoer=True)
     if draai:
         a = a[::-1, ::-1].copy()
     ref = Image.open(REF); s = refgroot / ref.height; ref = ref.resize((int(ref.width * s), refgroot), Image.LANCZOS)
@@ -103,7 +118,7 @@ def bouw(naam, set_, i, draai=False, refgroot=520):
     px = 1050 - im.width // 2; py = 60 + (980 - im.height) // 2
     C.paste(Image.fromarray(raster.op_magenta(np.asarray(im))), (px, py))
     C.save(WERK + naam + '.png')
-    json.dump({'set': set_, 'i': i, 'draai': draai, 's': s, 'px': px, 'py': py}, open(WERK + naam + '.json', 'w'))
+    json.dump({'set': set_, 'i': i, 'draai': draai, 'metstok': MET_STOK and set_ in ('staan', 'rennen'), 's': s, 'px': px, 'py': py}, open(WERK + naam + '.json', 'w'))
 
 
 def haal(naam, sleutel, breed=None):
@@ -125,7 +140,9 @@ def terug(naam, bereik=40, schaal=(0.88, 1.12, 13)):
     kand = [i + 1 for i in np.argsort(-sz)[:3] if sz[i] > 0.15 * sz.max()]
     cm = nd.center_of_mass(al, lab, kand)
     kand = [kid for kid, (cy, cx) in zip(kand, cm) if not (cx < 0.25 * al.shape[1] and cy < 0.5 * al.shape[0])] or kand
-    _, _, o = bron(m['set'], m['i'])
+    fo, _, o = bron(m['set'], m['i'])
+    if m.get('metstok'):
+        o = fo
     if m['draai']:
         o = o[::-1, ::-1].copy()
     H, W = o.shape[:2]
@@ -225,6 +242,10 @@ def kleur(a, z, pal):
         # wat geen zone naast zich heeft: grijs maken
         m = zoom & (bz == 0)
         out[m, :3] = V[m, None] * 255 * 0.5
+    # paarse zweem (magenta-spill van Grok, vooral in de schaduw onder de kap) naar donker bruin
+    pz = (z == 0) & (a[..., 3] > 0) & (H > 250) & (H < 335) & (S > 0.2)
+    if pz.any():
+        out[pz, :3] = np.array([0.55, 0.36, 0.30])[None] * (V[pz, None] * 255)
     return out.astype(np.uint8)
 
 
@@ -248,6 +269,24 @@ def afwerk(naam, voeten=False):
     rand = (out[..., 3] > 0) & ~nd.binary_erosion(out[..., 3] > 128, iterations=2)
     paars = rand & (H > 285) & (H < 335) & (S > 0.25)
     out[paars, 3] = 0
+    if m.get('metstok'):
+        # de stokken die Grok overtekende weg (de originele komen er in schrijf weer overheen)
+        import stok_variant as sv
+        fr, ms, lijf = bron(m['set'], m['i'])
+        alle = np.zeros(out.shape[:2], bool)
+        for w in ms:
+            alle |= w
+        band = nd.binary_dilation(alle, iterations=7)
+        S2 = sv.stokkleur(out.astype(int))
+        kern = nd.binary_erosion(lijf[..., 3] > 100, iterations=3)
+        weg = band & S2 & ~kern
+        out[weg] = 0
+        # de vuisten uit het origineel: binnen de band, waar het origineel lijf (geen stok) is en Grok een hand tekende
+        r_, g_, b_ = [fr[..., c].astype(int) for c in range(3)]
+        oker = alle & (r_ > 95) & (g_ > 55) & (g_ < 120) & (b_ < 60) & (r_ - b_ > 60)
+        bij = nd.binary_dilation(oker, iterations=12)
+        hand = bij & (fr[..., 3] > 100) & ~alle & (out[..., 3] > 0)
+        out[hand] = fr[hand]
     if voeten:
         # onder de laagste broekrij per kolom het originele lijf (voeten)
         z = zones(out, m['draai'])
@@ -317,3 +356,203 @@ if __name__ == '__main__':
         afwerk(sys.argv[2], voeten='--voeten' in sys.argv)
     elif c == 'schrijf':
         schrijf(sys.argv[2], int(sys.argv[3]))
+
+
+# ---- de kap los: alleen kop en schouders naar Grok, de kap eruit knippen en op het origineel zetten ----
+def bouw_kop(naam, set_, i, box, refgroot=420):
+    o = raster.laad(pad(set_, i))
+    x0, y0, x1, y1 = box
+    c = o[y0:y1, x0:x1]
+    s = min(940 / c.shape[0], 1000 / c.shape[1])
+    im = Image.fromarray(c).resize((int(c.shape[1] * s), int(c.shape[0] * s)), Image.LANCZOS)
+    ref = Image.open(REF); r = refgroot / ref.height; ref = ref.resize((int(ref.width * r), refgroot), Image.LANCZOS)
+    C = Image.new('RGB', (1650, 1100), (255, 0, 255))
+    C.paste(ref, (20, 20))
+    px = 1100 - im.width // 2; py = 80 + (940 - im.height) // 2
+    C.paste(Image.fromarray(raster.op_magenta(np.asarray(im))), (px, py))
+    C.save(WERK + naam + '.png')
+    json.dump({'set': set_, 'i': i, 'box': box, 's': s, 'px': px, 'py': py, 'w': im.width, 'h': im.height, 'kop': True},
+              open(WERK + naam + '.json', 'w'))
+
+
+def terug_kop(naam, bereik=30):
+    """Grok-uitvoer (1650 breed) terug naar het crop-vak van het origineel, uitgelijnd op IoU (schaal en schuif)."""
+    m = json.load(open(WERK + naam + '.json'))
+    g = np.asarray(Image.open(WERK + naam + '_grok.png').convert('RGB'))
+    g = np.asarray(Image.fromarray(g).resize((1650, round(g.shape[0] * 1650 / g.shape[1])), Image.LANCZOS))
+    k = raster.key(g)
+    o = raster.laad(pad(m['set'], m['i']))
+    x0, y0, x1, y1 = m['box']
+    oc = o[y0:y1, x0:x1]
+    best = None
+    for f in np.linspace(0.94, 1.06, 7):
+        s = m['s'] * f
+        # vak in Grok rond de plek van het crop, ruim
+        gx0, gy0 = int(m['px'] - 60), int(m['py'] - 60)
+        gx1, gy1 = int(m['px'] + m['w'] + 60), int(m['py'] + m['h'] + 60)
+        st = k[max(0, gy0):gy1, max(0, gx0):gx1]
+        kl = np.asarray(Image.fromarray(st).resize((round(st.shape[1] / s), round(st.shape[0] / s)), Image.LANCZOS))
+        # kl op een doek in crop-coordinaten: linksboven van st hoort bij crop (gx0-px)/s
+        ox, oy = round((max(0, gx0) - m['px']) / s), round((max(0, gy0) - m['py']) / s)
+        doek = np.zeros_like(oc)
+        H, W = oc.shape[:2]
+        for yy in range(kl.shape[0]):
+            ty = yy + oy
+            if 0 <= ty < H:
+                xs_ = np.arange(kl.shape[1]) + ox
+                ok = (xs_ >= 0) & (xs_ < W)
+                doek[ty, xs_[ok]] = kl[yy, ok]
+        b, dx, dy, v = uitlijn.lijn_uit(doek, oc, bereik)
+        if best is None or v > best[3]:
+            best = (b, dx, dy, v, f)
+    b, dx, dy, v, f = best
+    vol = np.zeros_like(o); vol[y0:y1, x0:x1] = b
+    np.save(WERK + naam + '.npy', vol)
+    print(naam, 'kop IoU', round(v, 3), 'dx', dx, 'dy', dy, 'f', round(f, 3))
+    return vol
+
+
+VREF_ORIG = {1: 0.85, 2: 0.41}      # V van de vacht en de broek in de originele frames (gemeten op staan_00)
+
+
+def orig_zones(o):
+    """Vacht (beige) en broek (paars) in een origineel frame."""
+    r, g, b = [o[..., c].astype(int) for c in range(3)]
+    al = o[..., 3] > 40
+    H, S, V = hsv(o[..., :3])
+    z = np.zeros(o.shape[:2], np.uint8)
+    vacht = al & (r > 110) & (g > 75) & (r - b > 30) & (S < 0.55) & (V > 0.45) & (H > 15) & (H < 45)
+    broek = al & (H > 235) & (H < 300) & (S > 0.15) & (V > 0.12)
+    z[vacht] = 1; z[broek] = 2
+    for k in (1, 2):
+        m = z == k; lab, n = nd.label(m)
+        if n:
+            sz = nd.sum(m, lab, range(1, n + 1))
+            z[np.isin(lab, [i + 1 for i in range(n) if sz[i] < 6])] = 0
+    return z
+
+
+def kop_plak(naam, kopzone_extra=0):
+    """Het origineel met de kap uit de Grok-kop erop. Geeft (beeld in Tau-look zonder krassen, zones)."""
+    m = json.load(open(WERK + naam + '.json'))
+    vol = np.load(WERK + naam + '.npy')
+    o = raster.laad(pad(m['set'], m['i']))
+    zk = zones(vol)
+    kap = (zk == 1) | (zk == 4) | (zk == 5)
+    lab, n = nd.label(kap)
+    if n:
+        sz = nd.sum(kap, lab, range(1, n + 1))
+        kap = np.isin(lab, [i + 1 for i in range(n) if sz[i] > 0.05 * sz.max()])
+    from skimage.morphology import convex_hull_image
+    K = convex_hull_image(kap) | nd.binary_dilation(kap, iterations=1 + kopzone_extra)
+    K &= ~nd.binary_dilation(zones(vol) == 2, iterations=2)      # Grok-broek (blauw) nooit: daar blijft het origineel
+    out = o.copy()
+    out[K] = vol[K]
+    z = orig_zones(o)
+    z[K] = 0
+    zk2 = zones(vol)
+    z[K & (zk2 > 0)] = zk2[K & (zk2 > 0)]
+    # randjes: wat in K van het origineel overbleef buiten het Grok-silhouet weg
+    out[K & (vol[..., 3] < 30)] = 0
+    return out, z, K
+
+
+# ---- de krassen: twee korte schuine halen op de dij van het been dichtst bij de camera ----
+# per frame de dij van dat been (heup -> knie) in pixels van het frame; met de hand afgelezen op een raster
+DIJ = json.load(open(os.path.join(HIER, 'dij.json'))) if os.path.exists(os.path.join(HIER, 'dij.json')) else {}
+KRAS = {'t': 0.5, 'hoek': 58, 'lang': 0.42, 'max': 17, 'tussen': 5.2, 'dik': 3.0}
+
+
+def krassen(set_, i, broek, k=6):
+    """Masker (H x W, float 0..1) met twee getekende krassen, binnen de broek."""
+    from PIL import ImageDraw
+    key = '%s_%d' % (set_, i)
+    if key not in DIJ:
+        return None
+    (hx, hy), (kx, ky) = DIJ[key][:2]
+    H, W = broek.shape
+    big = Image.new('L', (W * k, H * k), 0); d = ImageDraw.Draw(big)
+    ax, ay = kx - hx, ky - hy; L = np.hypot(ax, ay); ux, uy = ax / L, ay / L
+    nx, ny = -uy, ux                                  # loodrecht op de dij
+    cx, cy = hx + ax * KRAS['t'], hy + ay * KRAS['t']
+    # naar het dichtstbijzijnde diepe stuk broek (de afgelezen lijn ligt soms net in het kruis of naast de pijp)
+    dt = nd.distance_transform_edt(broek)
+    yy, xx = np.mgrid[0:H, 0:W]
+    afst = np.hypot(xx - cx, yy - cy)
+    score = np.minimum(dt, 7) - 0.35 * afst
+    score[afst > 16] = -99
+    cy, cx = np.unravel_index(np.argmax(score), score.shape)
+    ln = min(KRAS['max'], L * KRAS['lang'])
+    a = np.radians(KRAS['hoek'])
+    # richting van een kras: de dij-as, 38 graden gedraaid (schuin over de dij)
+    dx, dy = ux * np.cos(a) - uy * np.sin(a), ux * np.sin(a) + uy * np.cos(a)
+    if dy < 0:
+        dx, dy = -dx, -dy
+    for s in (-0.5, 0.5):
+        mx, my = cx + (-dy) * s * KRAS['tussen'] + dx * s * KRAS['tussen'] * 0.35, cy + dx * s * KRAS['tussen'] + dy * s * KRAS['tussen'] * 0.35
+        pts = []
+        for t in np.linspace(-0.5, 0.5, 9):
+            w = KRAS['dik'] * (1 - (2 * abs(t)) ** 1.6) / 2   # spits aan beide einden
+            pts.append((mx + dx * t * ln, my + dy * t * ln, w))
+        poly = [((x + (-dy) * w) * k, (y + dx * w) * k) for x, y, w in pts] + \
+               [((x - (-dy) * w) * k, (y - dx * w) * k) for x, y, w in pts[::-1]]
+        d.polygon(poly, fill=255)
+    m = np.asarray(big.resize((W, H), Image.LANCZOS)).astype(float) / 255
+    return m * nd.binary_erosion(broek, iterations=1)
+
+
+TAU_KRAS = (226, 196, 150)
+PALET = {'tau': TAU, 'wit': WIT, 'zwart': ZWART}
+
+
+def maak(naam, set_, i):
+    """Eindframe: origineel + kap (Grok) + krassen (getekend) + stokken (origineel). Schrijft spelbeeld, zones en
+    voorbeeld-recolours; geeft dict met de beelden."""
+    beeld, z, K = kop_plak(naam)
+    o = raster.laad(pad(set_, i))
+    H, S, V = hsv(beeld[..., :3])
+    # paarse zweem in de kap (schaduw onder de kap) naar donkerbruin
+    pz = K & (z == 0) & (beeld[..., 3] > 0) & (H > 250) & (H < 335) & (S > 0.2)
+    beeld[pz, :3] = (np.array([0.55, 0.36, 0.30])[None] * (V[pz, None] * 255)).astype(np.uint8)
+    Vrel = np.zeros(z.shape)
+    Vrel[(z == 1) & K] = V[(z == 1) & K] / VREF[1]
+    Vrel[(z == 1) & ~K] = V[(z == 1) & ~K] / VREF_ORIG[1]
+    Vrel[z == 2] = V[z == 2] / VREF_ORIG[2]
+    m = krassen(set_, i, z == 2)
+    if m is not None:
+        z[m > 0.5] = 3
+        Vrel[m > 0] = np.clip(V[m > 0] / VREF_ORIG[2], 0.75, 1.15)
+    Vrel = np.clip(Vrel, 0, 1.3)
+    uit = {}
+    for pn, pal in PALET.items():
+        b = beeld.copy().astype(float)
+        for zk in (1, 2):
+            sel = (z == zk) & (K if (pn == 'tau' and zk == 1) else True)
+            if pn == 'tau' and zk == 2:
+                continue                                  # de paarse broek blijft het origineel
+            b[sel, :3] = np.array(pal[zk], float)[None] * Vrel[sel, None]
+        if m is not None:
+            kc = np.array(TAU_KRAS if pn == 'tau' else pal[3], float)
+            kl = kc[None] * Vrel[m > 0, None]
+            mm = m[m > 0, None]
+            b[m > 0, :3] = b[m > 0, :3] * (1 - mm) + kl * mm
+        b = np.clip(b, 0, 255).astype(np.uint8)
+        uit[pn] = met_stokken(set_, i, b)
+    # zones: waar een stok overheen ligt is geen zone
+    if set_ in ('staan', 'rennen'):
+        _, ms, _ = stok_maskers(set_, i)
+        for w in ms:
+            z[w] = 0
+    zk = np.zeros(z.shape + (4,), np.uint8); zk[..., 3] = uit['tau'][..., 3]
+    for k_, c in KAART.items():
+        zk[z == k_, :3] = c
+    uit['zones'] = zk
+    p = uitpad(set_, i)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    Image.fromarray(uit['tau']).save(p)
+    Image.fromarray(zk).save(uitpad(set_, i, '_zones'))
+    vd = os.path.join(os.path.dirname(p), 'recolour')
+    os.makedirs(vd, exist_ok=True)
+    for pn in ('wit', 'zwart'):
+        Image.fromarray(uit[pn]).save(os.path.join(vd, os.path.basename(uitpad(set_, i, '_' + pn))))
+    return uit

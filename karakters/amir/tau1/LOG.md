@@ -32,3 +32,32 @@ Tau-kleuren: vacht (218,180,139) en broek (88,67,105) gemeten in het origineel; 
   Post `fc5af9c9-712c-485f-8261-2d08a8f5a970`, IoU 0,93. Kap met tanden, amber ogen, twee krassen op het rechterbeen in
   beeld (het been met de voet naar ons toe, het dichtst bij de camera). Krassen iets langer en steiler dan in de
   referentie, maar netjes twee en op de goede plek: goedgekeurd.
+
+## Andere aanpak (02:30): alleen de kap uit Grok, de rest blijft het origineel
+- Eerst de ren hetzelfde als het anker geprobeerd (hele figuur aankleden). Afgekeurd: Grok kan de guard met stokken
+  niet vasthouden tijdens een ren (vuist omhoog in plaats van voor de borst, post `783b36b5`; met de stokken in de invoer
+  haalde hij de stokken zelf weg en ging pompen, post `c7665909`, krassen op het verkeerde been). IoU 0,52-0,70.
+- Wat wel werkt: Tau 1 verandert alleen het hoofd (de kap) en voegt krassen toe; vacht en paarse broek blijven zoals ze
+  zijn. Dus per frame alleen kop en schouders (crop 200x200 van het echte frame, stokken erin) naar Grok met prompt
+  `tau_kop` ("Change ONLY his head: he now wears a hood ..."). Grok houdt dan alles op zijn plek (IoU op het crop
+  0,90-0,95). Uit dat beeld knip ik alleen de kap (convex omhulsel van groen + tanden + ogen, nooit Grok-broek) en zet
+  die op het originele frame (`tau.py kop_plak`). Daarna de originele stokken er weer overheen.
+- De krassen teken ik zelf (`tau.py krassen`, maten in `KRAS`): twee korte schuine halen, spits aan beide kanten, op de
+  dij van het been dichtst bij de camera. De dij per frame (heup naar knie) staat in `tools/tau1/dij.json`, afgelezen op
+  een raster en daarna automatisch naar het diepste stuk broek in de buurt geschoven. Grok zette ze telkens op het
+  voorste been; zo staan ze gegarandeerd op hetzelfde fysieke been (zijn linkerbeen, dat naar de camera wijst).
+- Welk been dichtst bij de camera is in de ren: de 12 frames zijn een hele cyclus (frame k en k+6 zelfde houding, benen
+  gewisseld). Het verre been heeft de roodbruine voet (frame 1, 3). Daaruit: 11, 0, 1 achterste been; 2, 3 het
+  opgetrokken been; 4 de knie naar voren; 5, 6, 7 het voorste been; 8, 9 het standbeen; 10 het afzetbeen. Let op: in
+  het origineel is de schaduw van de benen in de tweede helft niet consistent (Grok-ren), dus in 6-11 is het
+  gekraste been soms het donkerdere. Zie TWIJFEL.md.
+- Staan opnieuw op dezelfde manier (kap uit het anker `fc5af9c9`, krassen getekend), zodat staan en rennen dezelfde
+  krassen hebben. De vacht van staan komt wel uit Grok (zonder de oogvlekjes), omdat de kap daar uit de vacht groeit.
+
+### Rennen (klaar, 12)
+Kap-posts per frame in `bron/grok_posts.json` (kop_ren0..11). IoU kop 0,90-0,95.
+- rennen_03: het origineel heeft een gat in de broek (bovenaan de linkerdij in beeld, met een harde trap in de
+  omtrek; Tom zag het). Gerepareerd met Grok (post `fbf44475-96a7-4918-8d10-db489ea9bb94`, alleen dat stuk erin
+  geplakt), bron in `bron/rennen_03_hersteld.png`. Het origineel in het spel heeft dit gat nog.
+- Uitvoer: `stokken/rennen/rennen_NN.png` (spelbeeld met stokken), `_zones.png`, `recolour/*_wit.png` en `*_zwart.png`.
+- Rapport: `rapport/rennen_plaat.png`, `rapport/rennen.gif` (origineel links, Tau 1 rechts).
