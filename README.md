@@ -877,6 +877,11 @@ In **Test 73: Trousers** kies je voor het begin de kleur van Amirs broek: Fire r
 Daarna sta je tegenover drie verschillende tegenstanders: een bandiet, een schildbandiet en een zweepman. De keuze blijft
 bewaard, en via het pauzemenu kies je opnieuw.
 
+In **Test 91: Lion pelts** (onder Test levels sticks) kies je bij elke start, en na R, een outfit voor Amir met de stokken:
+een broek en een leeuwenvacht die erbij hoort (Purple met de gewone vacht, Fire red met Sand, Orange met Ash, Gold met Rust,
+Turquoise met Ochre, White met Dark brown en Black met een witte vacht). Daarna vecht je tegen een bandiet, een schildbandiet,
+hyena's en een zweepman, zodat je de vacht in elke beweging ziet.
+
 De proefstukken met de stokken staan onder **Test levels sticks**. Voor het begin (en na R) kies je daar bij **Amir** of je
 levens hebt (**Lives**) of niet dood kunt (**Invulnerable**).
 
