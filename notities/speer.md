@@ -98,7 +98,9 @@ Nu alleen in de sandbox, knop **Sprint grab** onder Speerworp (`sbSprintGreep`),
 Gevraagd (22-11-2026): een lichte upgrade van de speer voor de winkel van Co-op, naar een groep binnen de speerstam
 (Mkuki) die meerdere krijgers dragen. Het werd de vleugelspeer met een houten schacht, een rood-witte kralengrip, een
 rood bandje om de binding en een rood vaantje dat meewaait. De art komt uit Grok (`design/speer/pathfinder/bron/`), door
-`tools/pathfinder_speer.py` op de lengte van `speer_projectiel.png` gezet (dezelfde schaal, 624 px); het vaantje is los,
+`tools/pathfinder_speer.py` op de lengte en dikte van `speer_projectiel.png` gezet (624 px lang, schacht 17 px tegen 15):
+de dop, de greep en de kop houden hun vorm en het hout ertussen rekt mee, want de bron op een schaal geschaald gaf
+een schacht twee keer zo dik en dan leek hij korter dan de gewone; het vaantje is los,
 in vier standen (stil, licht wiegen, wind, harde wind).
 
 - **De soort.** `SPEER_SOORTEN.pathfinder`, in het veld van het vaantje (`speerBlauw`, `rugSperen[].blauw`, `jav.blauw`,
