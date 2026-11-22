@@ -820,8 +820,10 @@ niet met `STOK_AAN` of in een level met `broekKeuze` of een eigen `skin`).
   (`_sm.png`, rood weg en groen achter) met hun zonekaarten, en `los.json` met per frame de speer uit de Mkuki animeer tool
   (hoek, midden, breedte, draaiing, spiegelen, achter). `mkLosBeeld` tekent speer achter, lijf, speer voor, boven.
   De speer is per soort: de gewone (`bron/amirspeer_<hoek>.png`) met het lint via `speerKleur`, of de Pathfinder
-  (`bron/pf_<hoek>.png`) met zijn vaantje recht omlaag aan de knoop. Mijn eigen Amir draagt de soort uit `speerBlauw`,
-  een teamgenoot de gewone (die soort gaat nog niet over de lijn). Zolang iets laadt het gebakken frame. Stel je de speer
+  (`bron/pf_<hoek>.png`) met zijn vaantje recht omlaag aan de knoop. Mijn eigen Amir draagt de soort uit `speerBlauw`
+  (`mkSpeerNu`); een teamgenoot de soort uit zijn stand (`sp`, en `vw` de wind voor het vaantje, `mkSpeerZend`, alleen
+  als het niet de gewone is). Het vaantje waait in de hand net als op de rug (`pfRugWind`): stil wiegt het, rennend
+  waait het naar achteren. Zolang iets laadt het gebakken frame. Stel je de speer
   bij in de tool, draai dan met de export `mkuki_spel_bak.py`, `mkuki_spel_zones.py` en `mkuki_spel_los.py`.
 - **Testen.** `node tools/outfittest.js map`: elke outfit in idle, ren en stoot naast het oude tenue, de losse speer
   tegen het gebakken frame (alleen randjes van de schacht mogen verschillen) en elke speersoort in zijn hand, en de sandbox.
