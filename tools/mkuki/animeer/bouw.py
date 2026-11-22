@@ -4,7 +4,7 @@ import sys, os, json, math
 from PIL import Image
 import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from speer_plaats import plaats, set_lengte, KS, LS, MAAT, UIT as SPEER_UIT, ACHTER as SPEER_ACHTER
+from speer_plaats import vuist_snap, plaats, set_lengte, KS, LS, MAAT, UIT as SPEER_UIT, ACHTER as SPEER_ACHTER, NIET_SNAP
 REPO, UIT = sys.argv[1], sys.argv[2]
 AM = os.path.join(REPO, 'karakters/amir/')
 MK = AM + 'mkuki/'
@@ -69,8 +69,10 @@ for sid, naam, fps, paden in SETS:
             L0 = set_lengte(sid, [PL[x]['lengte'] for x in paden if x in PL])
             schaal = max(CW, CH) / 594 if max(CW, CH) > 700 else 1.0
             L, noot = plaats(sid, q, np.asarray(org)[..., 3], L0, CW, CH, schaal, MAAT.get(sid))
+            L, sn = (L, '') if sid in NIET_SNAP else vuist_snap(L, q, np.asarray(lijf)[..., 3], CW, CH, L0 / 273)
+            if sn: noot = (noot + ', ' if noot else '') + sn
             if L and (i + 1) in SPEER_ACHTER.get(sid, ()):
-                L['behind'] = True; noot = (noot + ', ' if noot else '') + 'achter het hoofd langs zoals het origineel'
+                L['behind'] = True; noot = (noot + ', ' if noot else '') + 'achter het hoofd langs'
             if noot: noten[str(i + 1)] = noot
         else:
             L = None

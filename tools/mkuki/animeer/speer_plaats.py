@@ -18,7 +18,9 @@ LS = [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
 # Frames waarin de speer in het origineel al weg is (na de worp); de meting vond daar armen of benen.
 UIT = {'rolworp_sp': set(range(24, 34))}
 # In het origineel loopt de speer hier achter het hoofd langs (de meting zag dat niet).
-ACHTER = {'strike_sp': {2, 3}}
+ACHTER = {'strike_sp': {2, 3}, 'rolworp_sp': set(range(16, 24))}  # rol/worp 16-23: Mkuki-vuist lager, speer achter het hoofd
+# Hier vindt het vuistzoeken het hoofd in plaats van de hand (de hand zit achter het hoofd): niet schuiven.
+NIET_SNAP = {'worp_sp'}
 # Vaste lengte per set: speer = 5,7 x de breedte van het hoofd (zo is hij in idle, ren, springen, bukken,
 # sluipen en worp, 5,4 tot 5,8). In deze sets tekende Grok hem in het origineel te lang (combo en lage zwaai
 # 7,6 tot 8,7, rol 6,9) of wisselend; daar is hij teruggezet naar 5,7 x hoofd. Strike en trap: zelfde maat als de idle.
@@ -117,3 +119,37 @@ def plaats(sid, q, alpha, L, CW, CH, schaal, maat=None):
     laag = {'on': True, 'angle': hoek, 'cx': round(c[0] / CW, 4), 'cy': round(c[1] / CH, 4),
             'w': round(w / CW, 4), 'rot': round(rot, 1), 'flip': False, 'behind': achter, 'op': 1, 'locked': False}
     return laag, noot
+
+
+def vuist_snap(laag, q, mk_alpha, CW, CH, schaal):
+    """Grok zette de hand soms ergens anders dan in het origineel (bv. rol/worp 16-23: de geheven vuist lager).
+    Ligt een gemeten hand niet op het Mkuki-lijf, dan schuiven we de speer dwars op zijn as tot hij door de
+    dichtstbijzijnde Mkuki-vuist loopt. Geeft (laag, notitie of '')."""
+    if not laag or not laag['on'] or not q.get('handen'):
+        return laag, ''
+    H, W = mk_alpha.shape
+    R = int(45 * schaal); r = max(2, int(4 * schaal))
+    rot = math.radians(laag['rot']); u = np.array([math.cos(rot), math.sin(rot)]); n = np.array([-u[1], u[0]])
+    c = np.array([laag['cx'] * CW, laag['cy'] * CH])
+    yy, xx = np.mgrid[0:H, 0:W]
+    verschuif = []
+    for hx, hy in q['handen']:
+        x, y = int(hx), int(hy)
+        if mk_alpha[max(0, y - r):y + r + 1, max(0, x - r):x + r + 1].max() >= 100:
+            continue
+        d2 = (xx - hx) ** 2 + (yy - hy) ** 2
+        vol = (mk_alpha > 100) & (d2 <= R * R)
+        if not vol.any():
+            continue
+        k = np.argmin(np.where(vol, d2, 1e12)); py, px = divmod(k, W)
+        buurt = vol & ((xx - px) ** 2 + (yy - py) ** 2 <= (12 * schaal) ** 2)
+        fx, fy = xx[buurt].mean(), yy[buurt].mean()
+        verschuif.append(float(np.dot(np.array([fx, fy]) - c, n)))
+    if not verschuif:
+        return laag, ''
+    s = float(np.mean(verschuif))
+    if abs(s) < 3 * schaal:
+        return laag, ''
+    c2 = c + n * s
+    laag = dict(laag, cx=round(c2[0] / CW, 4), cy=round(c2[1] / CH, 4))
+    return laag, 'door de Mkuki-vuist geschoven (%d px)' % round(abs(s))

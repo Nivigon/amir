@@ -100,5 +100,7 @@ volle-resolutie lijf uit deze map, de speer en de maskers zoals in de tool, de v
 Speer in de tool (22-11, `speer_plaats.py`, na Toms feedback "tov het origineel"): plek en lengte volgen het origineel;
 dikte, punt en lint hebben per set een vaste maat (5,7 x hoofdbreedte). Een langere speer (stoot, combo, rol) is een
 langere schacht (hoek `l110`..`l180`), een speer die van ons af wijst een kortere (`k30`..`k90`). Verdween een eind in
-het origineel achter het lijf, dan doorgetrokken (achter het lijf). Strike 2 en 3 achter het hoofd langs. Rol/worp 24-33:
+het origineel achter het lijf, dan doorgetrokken (achter het lijf). Strike 2 en 3 achter het hoofd langs. Zette Grok de hand ergens anders dan het origineel, dan schuift de speer
+dwars door de dichtstbijzijnde Mkuki-vuist (`vuist_snap`: bukken 10-12, rol 19, strike 9, rol/worp 5 en 16-23; rol/worp
+16-23 ook achter het hoofd, want daar zit de geheven vuist lager). Niet bij de worp (vindt daar het hoofd). Rol/worp 24-33:
 speer uit (al geworpen). Per frame staat de keuze in `speerNoten` en onder de knoppen in de tool.
