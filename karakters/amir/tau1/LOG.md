@@ -107,3 +107,6 @@ IoU per kop 0,90 tot 0,95. De prompt (`tau_kopr`) kreeg twee aanvullingen na fou
 - stapslag (28): klaar. Een Grok-vel kwam twee keer terug als alleen de upload (geen generatie); de prompt in het bewerkingsveld van de post geven werkte wel.
 - slag2 (27): klaar.
 - laag (23): klaar.
+- grondklap (26): klaar. Grondklap 17 haalde IoU 0,80 (de stok voor het hoofd beweegt in Grok), de kap zelf zit goed.
+
+Alle stoksets zijn nu in de kap: 196 frames in 33 Grok-generaties.
