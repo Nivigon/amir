@@ -146,3 +146,32 @@ opbolt (`rand`, `randOp`, `randB`) en vervaagt. `mistTeken` tekent de mist dan i
 de dikte van `mistDekking(wx)`. Zonder mist doet `mistStoot` niets. Wie stoot: de hangende stam (een kant 0,6, plat 1
 over de hele lengte), een landing van Amir harder dan een gewone sprong (tot 0,7), en de grondklap (0,85, het gat rolt
 met de golf mee naar voren via `vx`). Bij een herstart is de mist weer heel.
+
+## De holle stam (HOLSTAM)
+
+Een omgevallen holle boom in het regenwoud (Test 91, sandbox Terrein, Holle stam). Gemaakt in Grok in Toms Chrome; de
+lessen en alle afgekeurde versies staan in de projectnotitie `claude/holle_stam_overdracht.md`.
+
+- **Platen** (`design/regenwoud/holstam/`): `schil.png` (de buitenkant, Grok-post 6af92838, wit weggeknipt, de witte zoom
+  eraf) en `binnen.png` (de doorsnede, post 320f8104, al in het silhouet van de schil geschaald en op 55%). De Grok-bron
+  staat in `bron/`. Beide 2031x576 en precies op elkaar: dezelfde knippen gelden voor allebei.
+- **Lengte**: `holstamBak` knipt de plaat in drie stukken (`bron.L`, `bron.R`): linkerkop, middenstuk (`n` keer, ook een
+  deel), rechterkop, met een overloop van `ov` bronpixels. Per stam een keer gebakken op bronmaat (`q._bak`), plus de
+  dichte rand: per kolom alleen het bovenste 16% en onderste 10% van de schil.
+- **Grootte**: `HOLSTAM.hoog` (2,25 Amir) maal `s`. Bij s 1 ligt het plafond binnen op 357 en de bovenkant op 373
+  (sprite-eenheden), dus bovenop kom je alleen vanaf iets hogers (de sprong haalt ruim 200). Bij s 0,45 is het plafond
+  160: alleen gebukt erdoor, net als de kruipstam.
+- **Ligging**: de looplijn binnen (`bron.vloer`) valt op de grond, de onderkant zakt erdoor en wordt op `bron.knip`
+  afgeknipt, met een zachte schaduw op de snede: hij ligt half naar voren in het mos (Tom koos de helft tussen "in het mos"
+  en "helemaal naar voren").
+- **Botsing**: `holstamDak` geeft een onzichtbare zwevende laag (look 'geen', zoals `kruipstamDak`). readLevel zet hem
+  erbij, de sandbox zelf (met `holstam: true`, zodat Weg hem weer vindt). Vijanden blijven op de grond (vloerBij kijkt pas
+  naar een zwever vanaf 140 onder de bovenkant).
+- **Lagen**: `holstamAchter` (na `hstamTeken`) tekent de binnenkant achter de personages, en de schil als Amir bovenop
+  staat; `holstamVoor` (na `kzaalVoor`, dus voor Amir en de vijanden) tekent anders de schil. Loopt Amir erin
+  (`holstamBinnen`, in de eerste 7% vanaf een opening loopt het op), dan vervaagt de schil tot 22% en blijft de rand dicht.
+- **Vuurvliegjes** (`vlieg: true`): binnen 0,62 donker in plaats van 0,48, en twaalf stipjes (`holstamVliegStap`) die
+  zweven en knipperen. Een steek (`holstamUpdate`, op atkFrame), de lage zwaai (`holstamZwaai`, een keer per sweepId) of
+  een vijand die sterft (`vijandDood`) roept `holstamSchrik` aan: hooguit vier in de buurt flitsen op, schieten weg met
+  een zigzag en sterke demping, blijven binnen de stam en vliegen dan door de dichtstbijzijnde opening naar buiten (omhoog
+  of opzij). Na 4 tot 6,5 s komen ze rustig door een opening terug naar hun plek. Geen sporen: losse stipjes.
