@@ -731,6 +731,14 @@
     background:rgba(52,34,20,.96);border:2px solid #8a6a44;box-shadow:0 10px 40px rgba(0,0,0,.5);text-align:center;max-width:90vw}
   #invui strong{font-size:30px;font-weight:800}
   #invvakken{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  #invsperen{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  #invsperen:empty{display:none}
+  .invspeer{width:150px;height:64px;padding:4px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    border-radius:8px;border:2px solid #6b5034;background:rgba(0,0,0,.28);cursor:pointer;color:#f2e8d5;font:inherit}
+  .invspeer img{width:130px;height:auto;max-height:26px;display:block;object-fit:contain}
+  .invspeer small{font-size:11px;color:rgba(242,232,213,.75)}
+  .invspeer.hand{border-color:#a8743e}
+  .invspeer.kies{border-color:#f2c75a;box-shadow:0 0 0 2px rgba(242,199,90,.35)}
   .invvak{width:64px;height:64px;padding:4px;display:flex;align-items:center;justify-content:center;
     border-radius:8px;border:2px solid #6b5034;background:rgba(0,0,0,.28);cursor:pointer}
   .invvak.leeg{cursor:default;opacity:.5}
@@ -2653,6 +2661,7 @@
   <div id="invui">
     <div class="invdoos">
       <strong>Inventory</strong>
+      <div id="invsperen"></div>
       <div id="invvakken"></div>
       <div id="invinfo">
         <span id="invnaam">Kies een vak</span>
@@ -17077,6 +17086,7 @@ function losTrek(){
   eigenSpeerNeer();
   losseSperen.splice(losseSperen.indexOf(sp), 1);
   spearFound = true; spear = true; speerBlauw = sp.blauw; setSpearLabel();
+  speerOrdeVuil = true;                              // ligt er een betere op je rug, dan die in je hand
   puffDust(5);
   flashHint(oudHint(sp.blauw, 'gepakt') || 'Speer gepakt! Spatie om te stoten');
   return true;
@@ -23535,6 +23545,7 @@ function rugVol(){ return rugSperen.length >= RUG_MAX; }
 function rugErbij(blauw){
   if (!rugAan() || rugVol()) return false;
   rugSperen.push({ blauw: blauw || false });
+  speerOrdeVuil = true;                              // past de nieuwe beter in je hand (de speervolgorde)
   return true;
 }
 // je eigen gegooide speer die ergens in de wereld ligt als losse speer neerleggen, ook als je hand
@@ -23556,6 +23567,7 @@ function losVloer(x, h){
 function rugTrekKlaar(){
   rugTrekT = 0;
   if (spear || spearFound || !rugSperen.length) return;   // je hebt alweer een speer in de hand
+  rugSort();                                        // de beste van je rug (de speervolgorde)
   const r = rugSperen.shift();
   spearFound = true; spear = true; speerBlauw = r.blauw; setSpearLabel();
   // een al neergekomen gegooide speer wordt nu een losse speer: je hand is weer vol, dus je raapt hem
@@ -23570,9 +23582,62 @@ function rugTrekKlaar(){
 }
 function rugUpdate(dt){
   if (rugTrekT > 0){ rugTrekT = Math.max(0, rugTrekT - dt); if (rugTrekT <= 0) rugTrekKlaar(); }
+  if (speerOrdeVuil) speerSorteer();                  // na oprapen, kopen of een nieuwe volgorde: de beste in je hand
   // Een losse speer raap je met E op als je erbij staat (toggleSpear -> losTrek), niet vanzelf: is je
   // hand leeg dan gaat hij in de hand, is die vol dan op de rug (rugErbij). Geen oprapen onder het lopen.
 }
+// ---- de speervolgorde: welke speer in je hand zit, en de wisselknop Z (zie notities/speer-inventory.md) ----
+// Elke speer draagt zijn soort in het veld van het vaantje (speerBlauw, rugSperen[].blauw, jav.blauw, losseSperen[].blauw).
+// De speler zet in de inventory (I) de soorten in een volgorde (speerVolgorde, bovenaan = in de hand). Het spel houdt de
+// rug op die volgorde en zet vanzelf de beste in je hand: na oprapen, kopen, een nieuwe Pathfinder of een nieuwe
+// volgorde (speerOrdeVuil, in rugUpdate), niet midden in een steek, worp of trek. Na een worp trekt hij de beste van zijn
+// rug (rugSort in rugTrekKlaar en de tweede speer). Z wisselt zelf: de speer in je hand gaat achteraan op je rug en de
+// voorste van je rug komt in je hand, zodat je kiest welke je gooit; dat houdt tot de volgende keer dat je iets opraapt.
+// Een soort die niet in de lijst staat komt achteraan; gelijke soorten houden hun plek.
+const SPEER_WISSEL = { stof: 3 };
+let speerVolgorde = ['pathfinder', 'standaard', 'geel', 'blauw', 'oud'];
+let speerOrdeVuil = false;
+function speerSoortVan(blauw){ return oudSoort(blauw) ? 'oud' : (speerSoortId(blauw) || 'standaard'); }
+function speerRang(blauw){ const i = speerVolgorde.indexOf(speerSoortVan(blauw)); return i < 0 ? speerVolgorde.length : i; }
+function speerNaam(blauw){ const s = SPEER_SOORTEN[speerSoortId(blauw) || 'standaard']; return (s && s.en) || 'Spear'; }
+function rugSort(){ rugSperen.sort((a, b) => speerRang(a.blauw) - speerRang(b.blauw)); }
+// mag de speer in de hand nu wisselen: hij moet er zijn, en Amir is niet bezig met een steek, worp, zwaai of trek
+function speerWisselMag(){
+  return spearFound && !dead && !thr && atkFrame < 0 && swFrame < 0 && rugTrekT <= 0 && !stofA;
+}
+function speerSorteer(){
+  if (!rugAan() || !rugSperen.length){ speerOrdeVuil = false; return; }
+  rugSort();
+  if (!spearFound){ speerOrdeVuil = false; return; }   // lege hand: rugTrekKlaar pakt straks de beste
+  if (speerRang(rugSperen[0].blauw) >= speerRang(speerBlauw)){ speerOrdeVuil = false; return; }
+  if (!speerWisselMag()) return;                       // later nog eens, als hij klaar is
+  speerOrdeVuil = false;
+  speerHandWissel(0, true);
+}
+// de speer in je hand ruilen met die op plek i van je rug; vanzelf (de volgorde) gaat de oude hand op zijn plek in de
+// volgorde, met Z achteraan
+function speerHandWissel(i, vanzelf){
+  const r = rugSperen.splice(i, 1)[0], oud = speerBlauw;
+  speerBlauw = r.blauw;
+  rugSperen.push({ blauw: oud });
+  if (vanzelf) rugSort();
+  setSpearLabel(); puffDust(SPEER_WISSEL.stof);
+  flashHint(speerNaam(speerBlauw) + ' in your hand');
+}
+// de wisselknop Z: de volgende speer van je rug in je hand
+function speerWissel(){
+  if (!rugAan() || !rugSperen.length || !spearFound){ if (spearFound && rugAan()) flashHint('No other spear on your back'); return; }
+  if (!speerWisselMag()) return;
+  speerOrdeVuil = false;
+  speerHandWissel(0, false);
+}
+// in de inventory: deze soort bovenaan de volgorde
+function speerVoorop(blauw){
+  const s = speerSoortVan(blauw);
+  speerVolgorde = [s].concat(speerVolgorde.filter(x => x !== s));
+  speerOrdeVuil = true; speerSorteer();
+}
+
 // ---- de tweede speer: vlak na een worp meteen een tweede (Second Spear en Tumbling Spear, Mkuki) ----
 // Druk F nog eens binnen DUBBEL.venster na het loslaten en Amir grijpt over zijn schouder een speer van zijn rug en
 // gooit hem meteen, vlak en zonder opspannen: de worpanimatie vanaf DUBBEL.vanFrame, elk frame tot het loslaten
@@ -23661,6 +23726,7 @@ function dubbelStart(perfect){
   if (rolW){ const k = rolW.kant; rolWorpEind(); facing = k; }   // uit de rol-worp: de nazwaai gaat over in de tweede
   if (!spear){                                                   // over de schouder: zonder de beat van RUG.trek
     rugTrekT = 0;
+    rugSort();                                                   // de beste van je rug (de speervolgorde)
     const r = rugSperen.shift();
     spear = true; spearFound = true; speerBlauw = r.blauw; setSpearLabel();
   }
@@ -25339,17 +25405,18 @@ let speerBlauw = false;
 // staat-laag draagt nu nog de boolean speerBlauw; een derde speer draagt straks een soort-string, en
 // de tekenlaag hieronder spreekt die al.
 const SPEER_SOORTEN = {
-  standaard: { naam: 'Speer' },                          // het rode lint, geen bewerking
-  blauw:     { naam: 'Skeletspeer', vaan: SKELET.vaan }, // alleen het vaantje, blauw (de speer uit een skelet)
+  // en: de naam die de speler ziet (de inventory, de wisselknop); naam is de oude Nederlandse
+  standaard: { naam: 'Speer', en: 'Spear' },              // het rode lint, geen bewerking
+  blauw:     { naam: 'Skeletspeer', en: 'Skeleton spear', vaan: SKELET.vaan }, // alleen het vaantje, blauw (de speer uit een skelet)
   // de oude speer (zie "de oude speer"): het cijfer is hoe vaak hij nog kan. Liggend en in de grond eigen art
   // (OUDE_SPEER.beeld), in Amirs handen alleen het lint, vaal bruin (vaan met dof)
-  oud3:      { naam: 'Oude speer', vaan: 26, dof: 0.6, oud: 3 },
-  oud2:      { naam: 'Oude speer', vaan: 26, dof: 0.6, oud: 2 },
-  oud1:      { naam: 'Oude speer', vaan: 26, dof: 0.6, oud: 1 },
-  geel:      { naam: 'Gekochte speer', vaan: 48 },         // alleen het vaantje, geel: gekocht in de winkel, de enige die te verkopen is
+  oud3:      { naam: 'Oude speer', en: 'Old spear', vaan: 26, dof: 0.6, oud: 3 },
+  oud2:      { naam: 'Oude speer', en: 'Old spear', vaan: 26, dof: 0.6, oud: 2 },
+  oud1:      { naam: 'Oude speer', en: 'Old spear', vaan: 26, dof: 0.6, oud: 1 },
+  geel:      { naam: 'Gekochte speer', en: 'Bought spear', vaan: 48 },         // alleen het vaantje, geel: gekocht in de winkel, de enige die te verkopen is
   // de Pathfinder Spear (zie "de Pathfinder Spear"): liggend, geworpen en op de rug eigen art met een los vaantje
   // (javTeken); in Amirs handen nog de gewone speer, tot de speer los over de animaties komt
-  pathfinder: { naam: 'Pathfinder Spear', pathfinder: true }
+  pathfinder: { naam: 'Pathfinder Spear', en: 'Pathfinder Spear', pathfinder: true }
 };
 // Een gekochte speer draagt de soort 'geel' (de vlag blauw op de speer), alleen die is in de winkel te verkopen.
 const speerMaskCache = new WeakMap();                    // plaatje -> {lint, w, h} of null (geen lint gevonden)
@@ -25390,8 +25457,9 @@ function speerSoortId(v){ return typeof v === 'string' ? v : v ? 'blauw' : null;
 
 // ---- de Pathfinder Spear: de speer uit de winkel van Co-op, met het rode vaantje en de prooi ----
 // Te koop in de winkel van Co-op (MPC_WINKEL, 'pathfinder'), in de sandbox de knop Pathfinder Spear (sbPathfinder).
-// Heb je hem, dan zijn al je speren Pathfinder-speren: de soort 'pathfinder' in het veld van het vaantje (speerBlauw,
-// rugSperen[].blauw, jav.blauw, losseSperen[].blauw), gezet in pfStap. Je ziet hem op de rug, in de worp, liggend en in
+// Je koopt er een per speerplek (pfAantal); elke keer wordt een gewone speer die je draagt een Pathfinder: de soort
+// 'pathfinder' in het veld van het vaantje (speerBlauw, rugSperen[].blauw, jav.blauw, losseSperen[].blauw), gezet in
+// pfStap. Welke in je hand zit kiest de speervolgorde (speerSorteer, de inventory, Z). Je ziet hem op de rug, in de worp, liggend en in
 // een wand of oefendoel (javTeken in plaats van javImg); in Amirs handen zit de gewone speer nog in zijn sprites. De art
 // komt uit tools/pathfinder_speer.py: jav.png even lang als javImg (dezelfde schaal), en het vaantje los in vier
 // standen (stil, licht wiegen, wind, harde wind). Het vaantje hangt aan een knoopje onder het rode bandje en wijst
@@ -25416,10 +25484,25 @@ let sbPathfinder = false;                          // de sandboxknop
 let prooiGast = null;                              // tijdens een treffer van een gast (mpcTrefferVanGast): was het zijn Pathfinder-worp
 const prooiLijst = [];                             // wie er nu gemarkeerd is
 let pfVorigX = null, pfV = 0, pfWindX = 1;         // de vaart van Amir, voor het vaantje op zijn rug
-function pfNu(){
-  if (sandbox) return sbPathfinder;
-  const K = pvp && pvp.coop && pvp.coop.koop;
-  return !!(K && K.pathfinder) && !stokAan();
+// hoeveel Pathfinder-speren je bezit: in Co-op koop je er een per keer (koop.pathfinder telt, oud: true is 1), in de
+// sandbox de knop. Je bezit ze ook als ze ergens liggen: een kwijtgeraakte (in een rivier, weg na een revive) komt terug
+// op de eerstvolgende gewone speer die je draagt (pfStap). Zie de speervolgorde (notities/speer-inventory.md)
+function pfAantal(){
+  if (stokAan()) return 0;
+  if (sandbox) return sbPathfinder ? 1 : 0;
+  const K = pvp && pvp.coop && pvp.coop.koop, n = K && K.pathfinder;
+  return n === true ? 1 : (n || 0);
+}
+function pfNu(){ return pfAantal() > 0; }
+// hoeveel Pathfinder-speren er nu zijn: in je hand, op je rug, in de lucht en als losse speer op de grond
+function pfTel(){
+  const is = b => b === 'pathfinder';
+  let n = (spearFound && is(speerBlauw)) ? 1 : 0;
+  for (const r of rugSperen) if (is(r.blauw)) n++;
+  if (jav && is(jav.blauw)) n++;
+  if (jav2 && is(jav2.blauw)) n++;
+  for (const l of losseSperen) if (l.soort === 'eigen' && is(l.blauw)) n++;
+  return n;
 }
 // de speer, liggend getekend met de punt op (0, 0) en de schacht naar -x, zoals overal met javImg: k de schaal van
 // JAV.w naar het scherm; wind 0 tot 1 (hoe hard het vaantje waait) of 'plat' (de speer ligt), windX waar het heen waait
@@ -25457,12 +25540,16 @@ function pfVaanTeken(k, wind, windX){
   ctx.drawImage(img, -kn[0] * fk, -kn[1] * fk, img.naturalWidth * fk, img.naturalHeight * fk);
   ctx.restore();
 }
-// elk beeld: je speren worden Pathfinder-speren (of weer gewoon), de vaart van Amir en de klok van de prooi
+// elk beeld: zoveel gewone speren worden Pathfinder-speren als je er bezit (of weer gewoon), de vaart van Amir en de
+// klok van de prooi. Een gewone speer wordt het pas als je hem draagt (rug eerst); daarna kiest de speervolgorde
+// welke in je hand zit (speerSorteer)
 function pfStap(dt){
-  if (pfNu()){
+  const pfN = pfAantal();
+  if (pfN > 0){
     pfLaad();
-    if (!speerBlauw) speerBlauw = 'pathfinder';
-    for (const r of rugSperen) if (!r.blauw) r.blauw = 'pathfinder';
+    let heb = pfTel();
+    for (const r of rugSperen) if (heb < pfN && !r.blauw){ r.blauw = 'pathfinder'; heb++; speerOrdeVuil = true; }
+    if (heb < pfN && spearFound && !speerBlauw){ speerBlauw = 'pathfinder'; heb++; speerOrdeVuil = true; }
   } else if (speerBlauw === 'pathfinder' || rugSperen.some(r => r.blauw === 'pathfinder')){
     if (speerBlauw === 'pathfinder') speerBlauw = false;
     for (const r of rugSperen) if (r.blauw === 'pathfinder') r.blauw = false;
@@ -26606,6 +26693,7 @@ addEventListener('keydown', e => {
   if (e.key === 'q' || e.key === 'Q'){ drinkHppotion(); return; }
   if (e.key === 'i' || e.key === 'I'){ if (!e.repeat) invUIOpen(); return; }   // de inventory (zie "inventory")
   if (e.key === 'v' || e.key === 'V'){ if (!e.repeat) rolStart(); return; }   // de rol
+  if ((e.key === 'z' || e.key === 'Z') && !STOK_AAN){ if (!e.repeat) speerWissel(); return; }   // de wisselknop: de volgende speer van je rug in je hand (zie "de speervolgorde")
   if ((e.key === 'c' || e.key === 'C') && level && level.rolTenue && !sandbox){ if (!e.repeat) rolStart(level.rolTenue); return; }   // de rol in het tenue (Test 85)
   if ((e.key === 'x' || e.key === 'X') && duwAan()){ if (!e.repeat) duwStart(); return; }   // de duw: de draaislag als ability (DUW)
   if ((e.key === 't' || e.key === 'T') && (sandbox || (level && level.rolWorpProef))){ if (!e.repeat) rolDoelZet(); return; }   // een oefendoel neerzetten
@@ -35046,9 +35134,64 @@ const INV_DING = {
       + (gifHits > 0 ? ' Je speren hebben nog ' + gifHits + ' treffers gif; opnieuw smeren zet ze weer op ' + GIF.hits + '.' : '') },
 };
 let invUIAan = false, invKeus = -1;
+// de speren in de inventory (zie "de speervolgorde"): bovenaan een rij met de speer in je hand en die op je rug, in die
+// volgorde; klik er een voor wat hij is en Hold first (die soort bovenaan de volgorde, speerVoorop)
+let invSpeer = -1;                                   // de gekozen speer: 0 de hand, 1 en verder de rug
+const INV_SPEER_UITLEG = {
+  standaard: 'A plain spear. Stab with space, hold F to throw it.',
+  geel: 'A spear you bought in the shop. It is yours for this level.',
+  blauw: 'A spear you pulled from a skeleton, with its blue rag.',
+  oud: 'An old splinted spear: it breaks after a few more uses.'
+};
+function invSperenLijst(){
+  if (STOK_AAN) return [];
+  const l = [];
+  if (spearFound) l.push({ blauw: speerBlauw, hand: true });
+  if (rugAan()) for (const r of rugSperen) l.push({ blauw: r.blauw, hand: false });
+  return l;
+}
+function invSpeerImg(blauw){
+  try {
+    if (speerSoortId(blauw) === 'pathfinder'){ pfLaad(); if (imgReady(pfImg)) return pfImg.src; }
+    const k = speerKleur(javImg, speerSoortId(blauw));
+    return k && k.toDataURL ? k.toDataURL() : javImg.src;
+  } catch (e){ return javImg.src; }
+}
+function invSperenToon(){
+  const el = document.getElementById('invsperen'), l = invSperenLijst();
+  if (invSpeer >= l.length) invSpeer = -1;
+  el.innerHTML = '';
+  l.forEach((sp, i) => {
+    const b = document.createElement('button');
+    b.className = 'invspeer' + (sp.hand ? ' hand' : '') + (i === invSpeer ? ' kies' : '');
+    b.title = speerNaam(sp.blauw);
+    b.innerHTML = '<img src="' + invSpeerImg(sp.blauw) + '" alt=""><small>' + (sp.hand ? 'In your hand' : 'On your back' + (l.length > 2 ? ' ' + i : '')) + '</small>';
+    b.onclick = () => { invSpeer = i; invKeus = -1; invUIToon(); };
+    el.appendChild(b);
+  });
+  return l;
+}
+// het zijpaneel voor een gekozen speer
+function invSpeerInfo(l){
+  const sp = l[invSpeer], soort = speerSoortVan(sp.blauw), pf = soort === 'pathfinder';
+  const q = pf ? MPC_WINKEL.find(w => w.k === 'pathfinder') : null;
+  document.getElementById('invnaam').textContent = speerNaam(sp.blauw);
+  document.getElementById('invsfeer').textContent = q ? '\u201C' + q.sfeer + '\u201D' : '';
+  document.getElementById('invbron').textContent = q ? q.bron : '';
+  const plek = speerVolgorde.indexOf(soort);
+  document.getElementById('invuitleg').textContent = (pf ? 'Thrown, it marks prey for ' + PROOI.duur + ' s: it is '
+      + Math.round(PROOI.traag * 100) + '% slower, and every hit on it, also from your team, does half a life extra.'
+      : INV_SPEER_UITLEG[soort] || INV_SPEER_UITLEG.standaard)
+    + (plek === 0 ? ' This kind goes in your hand first.' : ' Hold first puts this kind in your hand.')
+    + (rugAan() && l.length > 1 ? ' Z swaps your hand with the next spear on your back.' : '');
+  const knop = document.getElementById('invgebruik');
+  knop.classList.toggle('weg', plek === 0 && sp.hand);
+  knop.textContent = 'Hold first';
+}
 function invLijst(){ return Array(hppotionCarry).fill('kalebas').concat(Array(gifCarry).fill('gif')); }
 function invHud(){ invKnopEl.classList.toggle('gif', gifHits > 0); if (invUIAan) invUIToon(); }
 function invUIToon(){
+  const sperenL = invSperenToon();
   const lijst = invLijst(), vak = document.getElementById('invvakken');
   if (invKeus >= lijst.length) invKeus = -1;
   vak.innerHTML = '';
@@ -35056,7 +35199,7 @@ function invUIToon(){
     const soort = lijst[i], b = document.createElement('button');
     b.className = 'invvak' + (soort ? '' : ' leeg') + (i === invKeus ? ' kies' : '');
     b.title = soort ? INV_DING[soort].naam : 'Leeg';
-    if (soort){ b.innerHTML = INV_DING[soort].img(); b.onclick = () => { invKeus = i; invUIToon(); }; }
+    if (soort){ b.innerHTML = INV_DING[soort].img(); b.onclick = () => { invKeus = i; invSpeer = -1; invUIToon(); }; }
     vak.appendChild(b);
   }
   const ding = invKeus >= 0 ? INV_DING[lijst[invKeus]] : null, knop = document.getElementById('invgebruik');
@@ -35067,10 +35210,11 @@ function invUIToon(){
     : (gifHits > 0 ? 'Je speren hebben nog ' + gifHits + ' treffers gif.' : 'Klik op iets in je inventory voor wat het doet.');
   knop.classList.toggle('weg', !ding);
   if (ding) knop.textContent = ding.knop;
+  if (!ding && invSpeer >= 0) invSpeerInfo(sperenL);
 }
 function invUIOpen(){
   if (!running || paused || dead || won) return;
-  paused = true; invUIAan = true; invKeus = -1;
+  paused = true; invUIAan = true; invKeus = -1; invSpeer = -1;
   for (const k in keys) keys[k] = false;          // geen toets blijft 'ingedrukt' hangen
   atkKeyHeld = false;
   invUIToon(); invUIEl.classList.add('on');
@@ -35087,6 +35231,16 @@ function gifSmeer(){
   return true;
 }
 document.getElementById('invgebruik').onclick = () => {
+  if (invKeus < 0 && invSpeer >= 0){                   // een speer: zijn soort bovenaan de volgorde
+    const sp = invSperenLijst()[invSpeer];
+    if (sp){
+      speerVoorop(sp.blauw);
+      invSpeer = 0; invUIToon();
+      document.getElementById('invuitleg').textContent = speerNaam(sp.blauw) + ' goes in your hand first now.'
+        + (speerOrdeVuil ? ' You take it as soon as you are free.' : '');
+    }
+    return;
+  }
   const soort = invLijst()[invKeus], knop = document.getElementById('invgebruik');
   let ok = false;
   if (soort === 'kalebas'){ const voor = hppotionCarry; drinkHppotion(true); ok = hppotionCarry < voor; }
@@ -68005,7 +68159,7 @@ document.getElementById('sbwinkel').onclick = () => { cv.focus(); winkelUIOpen()
 document.getElementById('sbpathfinder').onclick = e => {
   sbPathfinder = !sbPathfinder; pfStap(0);
   e.target.textContent = 'Pathfinder Spear: ' + (sbPathfinder ? 'aan' : 'uit');
-  flashHint(sbPathfinder ? 'Pathfinder Spear: een worp maakt een vijand 3 s prooi' : 'Weer de gewone speer'); cv.focus();
+  flashHint(sbPathfinder ? 'Pathfinder Spear: een van je speren is nu een Pathfinder (I voor de volgorde, Z wisselt)' : 'Weer de gewone speer'); cv.focus();
 };
 document.getElementById('sbrugvul').onclick = () => {
   if (!rugAan()){ flashHint('Zet eerst de rug aan'); cv.focus(); return; }
@@ -70142,7 +70296,7 @@ const MPC_WINKEL = [
   { k: 'kracht',  naam: 'Full Circle: more damage', prijs: 50, uitleg: '1.5 damage and a big knockback', eis: 'fc', speer: true },
   { k: 'rond',    naam: 'Full Circle: all around',  prijs: 50, uitleg: 'The spin hits everyone around you, also behind you', eis: 'fc', speer: true },
   { k: 'slot',    naam: 'Extra spear slot',         prijs: 45, uitleg: 'A second spare spear on your back', speer: true },
-  { k: 'pathfinder', naam: 'Pathfinder Spear',      prijs: 40, uitleg: 'Your thrown spears mark prey for 3 s: it is 20% slower, and every hit on it, also from your team, does half a life extra', speer: true,
+  { k: 'pathfinder', naam: 'Pathfinder Spear',      prijs: 40, uitleg: 'One of your spears becomes a Pathfinder Spear. Thrown, it marks prey for 3 s: it is 20% slower, and every hit on it, also from your team, does half a life extra. One per spear slot', speer: true,
     sfeer: 'The Pathfinder Spear is not easily earned. Those who carry it walk first, so the others may walk home.', bron: 'Elder Mwangi of the Mkuki' },   // PROOI, zie "de Pathfinder Spear"
   { k: 'hout',    naam: 'Hardwood sticks',          prijs: 40, uitleg: 'Your strikes hit harder: 0.75 of a life instead of 0.5', stok: true },   // STOK.schadeHout
   { k: 'klauw',   naam: 'Lion Claw sticks',         prijs: 80, uitleg: 'White bone sticks with a lion claw: your strikes tear for a full life', eis: 'hout', sluit: 'goud', stok: true },   // STOK.schadeKlauw, STOK.skins.klauw
@@ -71899,14 +72053,17 @@ function mpcWinkelKlaar(){
 // de prijslijst: wat het nu kost (een extra leven wordt duurder), en waarom het niet kan (null: het kan)
 // een item met trappen (prijs is een lijst: Extra life, Gris-gris) telt in koop hoe vaak je het kocht
 function mpcWinkelPrijs(q){ return Array.isArray(q.prijs) ? q.prijs[Math.min(pvp.coop.koop[q.k] || 0, q.prijs.length - 1)] : q.prijs; }
-function mpcWinkelHeb(q){ const K = pvp.coop.koop; return Array.isArray(q.prijs) ? (K[q.k] || 0) >= q.prijs.length : (q.k in K) && !!K[q.k]; }
+function mpcWinkelHeb(q){
+  if (q.k === 'pathfinder') return pfAantal() >= 1 + RUG_MAX;   // een per speerplek (de hand en de rug), meer mag
+  const K = pvp.coop.koop; return Array.isArray(q.prijs) ? (K[q.k] || 0) >= q.prijs.length : (q.k in K) && !!K[q.k]; }
 // de speerspullen (speer: true) ziet een stokspeler niet, en Hardwood sticks (stok: true) alleen hij
 function mpcWinkelVoorMij(q){ return stokAan() ? !q.speer : !q.stok; }
 function mpcWinkelNiet(q){
   const C = pvp.coop, K = C.koop, handVol = spear || spearFound || rugTrekT > 0;
   let r = null;
   if (!mpcWinkelVoorMij(q)) r = 'Not for your weapon.';
-  else if (mpcWinkelHeb(q)) r = Array.isArray(q.prijs) ? 'Sold out: you bought all three.' : 'You already have this.';
+  else if (mpcWinkelHeb(q)) r = q.k === 'pathfinder' ? 'All your spear slots already hold a Pathfinder Spear.'
+                             : Array.isArray(q.prijs) ? 'Sold out: you bought all three.' : 'You already have this.';
   else if (q.eis && !K[q.eis]) r = 'Buy ' + MPC_WINKEL.find(w => w.k === q.eis).naam + ' first.';
   else if (q.sluit && K[q.sluit]) r = 'You chose ' + MPC_WINKEL.find(w => w.k === q.sluit).naam + '.';   // een keuze: het een of het ander
   else if (q.k === 'kalebas' && lives >= levensStart()) r = 'Your lives are full.';
@@ -71926,8 +72083,12 @@ function mpcWinkelKoop(q, aan){
   else if (q.k === 'gif'){ gifCarry++; invHud(); tekst = 'Poison in your bag. Press I to smear it on your spears.'; }
   else if (q.k === 'leven'){ K.leven++; pvp.levens++; lives++; drawLives(); }
   else if (q.k === 'amulet'){ K.amulet++; tekst = 'Bought: ' + q.naam + '. ' + Math.round(grisGrisKans() * 100) + '% chance a hit costs you no life.'; }
+  else if (q.k === 'pathfinder'){   // een Pathfinder erbij: hij komt op een gewone speer die je draagt (pfStap)
+    K.pathfinder = pfAantal() + 1; pfLaad(); pfStap(0);
+    tekst = 'Bought: Pathfinder Spear (' + K.pathfinder + '). It replaces one of your plain spears. Press I to choose which spear you hold first, Z to swap.';
+  }
   else if (q.k === 'geef'){ pvpZendAan(aan, { t: 'geef', n: MPC.geef }); tekst = 'You gave ' + (pvp.spelers.length > 2 ? mpSpelerNoem(aan, true) : 'your teammate') + ' ' + MPC.geef + ' gold.'; }
-  else { K[q.k] = true; if (q.k === 'slot'){ RUG_MAX++; setSpearLabel(); } if (STOK.skins[q.k]) stokSkinLaad(q.k); if (q.k === 'pathfinder'){ pfLaad(); pfStap(0); } }
+  else { K[q.k] = true; if (q.k === 'slot'){ RUG_MAX++; setSpearLabel(); } if (STOK.skins[q.k]) stokSkinLaad(q.k); }
   playHppotionPickupSound();
   mpCoopHud(); mpcWinkelToon();
   document.getElementById('wkuitleg').textContent = tekst;

@@ -164,7 +164,7 @@ de lobby staat dan in het staande stokframe.
   80 goud na Hardwood). Slaat als Hardwood (0,75), en een stokslag op het schild van de schildbandiet haalt met kans
   `STOK.goudSchild` (0,5) een stand extra af (`hitSchildman`, met de crit-ster). `stokHoutNu` geeft 3. De stokken uit
   `STOK.skins.goud` (zwart met het gouden leeuwenkopje), en de kwast van gouden manen hangt als slip aan de knoop.
-- **De Pathfinder Spear (22-11-2026):** een speerartikel (`speer: true`, 40 goud, `koop.pathfinder`), zie "de Pathfinder
+- **De Pathfinder Spear (22-11-2026):** een speerartikel (`speer: true`, 40 goud, een per speerplek, `koop.pathfinder` telt hoeveel, `mpcWinkelHeb` is uitverkocht bij 1 + `RUG_MAX`), zie "de Pathfinder
   Spear" in `notities/speer.md`. De host markeert: een treffer van een gast draagt `pf` in `mh` (zijn worp met een
   Pathfinder-speer), `mpcTrefferVanGast` zet dan `prooiGast`, en `prooiRaak` stuurt `{t: 'prooi', a, id}` naar de anderen.
   Alleen de host vertraagt (`prooiTraag` doet niets bij een gast: daar komen de plekken van de host).
