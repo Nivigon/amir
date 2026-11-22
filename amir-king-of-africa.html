@@ -3719,6 +3719,66 @@ function zetBron(img, pad, opFout){
 // Zonder zetBron telt een plaatje als groot.
 const bronW = im => im.naturalWidth * (im._bron || 1), bronH = im => im.naturalHeight * (im._bron || 1);
 
+// ---- skin: Amir een heel level in een ander tenue (Test 88, Mkuki) ----
+// Met `skin: 'mkuki'` in een level krijgt elk plaatje van Amir waarvan de skin een versie heeft die versie: dezelfde naam,
+// dezelfde canvasmaat, alleen een andere map (SKIN.soorten). Wat de skin niet heeft (de oude ren, de sluipaanval, de
+// executie, de stokken) blijft het gewone tenue. Zo hoeft geen enkele animatie iets te weten van de skin: we vangen het zetten
+// van img.src op en onthouden welk plaatje van Amir is (SKIN.imgs), en bij een levelwissel zetten we die allemaal om (skinZet).
+// De frames zijn gebakken met tools/mkuki_spel_bak.py (lijf uit claude/mkuki, speer en vuist zoals de Mkuki animeer tool ze zet).
+const SKIN = { soorten: { mkuki: 'karakters/amir/mkuki_spel/' }, lijst: {}, imgs: new Set(), aan: null };
+const SKIN_BASIS = ['karakters/amir/', 'amir runc/amir_sprites/design/amir/'];
+const SKIN_SRC = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+function skinRel(v){                                // het pad van een Amir-plaatje zonder map, of null
+  if (typeof v !== 'string') return null;
+  let p = v; try { p = decodeURI(v); } catch (_){}
+  if (p.indexOf('klein/') === 0) p = p.slice(6);
+  for (const b of SKIN_BASIS) if (p.indexOf(b) === 0){
+    const r = p.slice(b.length);
+    for (const k in SKIN.soorten) if (('karakters/amir/' + r).indexOf(SKIN.soorten[k]) === 0) return null;
+    return r;
+  }
+  return null;
+}
+function skinPad(v, r){                             // het pad in de skin die aan staat, of null
+  const L = SKIN.aan && SKIN.lijst[SKIN.aan];
+  if (!L || !L.has(r)) return null;
+  let p = v; try { p = decodeURI(v); } catch (_){}
+  return (p.indexOf('klein/') === 0 ? 'klein/' : '') + SKIN.soorten[SKIN.aan] + r;
+}
+Object.defineProperty(HTMLImageElement.prototype, 'src', {
+  configurable: true, enumerable: SKIN_SRC.enumerable,
+  get(){ return SKIN_SRC.get.call(this); },
+  set(v){
+    const r = skinRel(v);
+    if (r){ this._skinOrig = v; this._skinRel = r; SKIN.imgs.add(this); const s = skinPad(v, r); if (s) v = s; }
+    else if (this._skinRel){ SKIN.imgs.delete(this); this._skinRel = null; }
+    SKIN_SRC.set.call(this, v);
+  }
+});
+function skinWissel(){                              // elk bekend Amir-plaatje naar de skin die aan staat (of terug)
+  for (const im of SKIN.imgs){
+    const s = skinPad(im._skinOrig, im._skinRel) || im._skinOrig;
+    if (decodeURI(SKIN_SRC.get.call(im)).endsWith(decodeURI(s))) continue;
+    SKIN_SRC.set.call(im, s);
+    try {                                           // wat van het oude plaatje gemaakt was (schaduw, licht, kleur)
+      amirSilCache.delete(im); plichtCache.delete(im); speerMaskCache.delete(im); scaleCache.delete(im);
+      for (const m of broekLapCache.values()) m.delete(im);
+      for (const m of speerKopie.values()) m.delete(im);
+    } catch (_){}
+  }
+}
+function skinZet(soort){
+  soort = soort && SKIN.soorten[soort] ? soort : null;
+  if (soort && !SKIN.lijst[soort]){
+    SKIN.lijst[soort] = new Set();                  // eerst leeg, tot lijst.json binnen is
+    fetch(SKIN.soorten[soort] + 'lijst.json').then(r => r.json()).then(a => {
+      SKIN.lijst[soort] = new Set(a); if (SKIN.aan === soort) skinWissel();
+    }).catch(e => console.warn('skin ' + soort + ': geen lijst', e));
+  }
+  if (SKIN.aan === soort) return;
+  SKIN.aan = soort; skinWissel();
+}
+
 // Amir: de sprites staan los op schijf (scheelt een hoop in de grootte van dit bestand)
 // nieuwe indeling: karakters/amir/{idle, aanval/{lowsweep,speerstrike}, beweging/{bukken,jump,run}}
 // de oude paden blijven als reserve staan, dus beide mappenstructuren werken
@@ -6829,7 +6889,32 @@ const TEST_86 = {
   ends: [ {x: -5100} ],
   tips: [ { x: -60, t: 'Test level: the cellar. Walk down the stairs. Watch the lattice doors: if you see eyes behind one, someone is waiting' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45, TEST_46, TEST_47, TEST_48, TEST_49, TEST_50, TEST_51, TEST_52, TEST_53, TEST_54, TEST_55, TEST_56, TEST_57, TEST_58, TEST_59, TEST_60, TEST_61, TEST_62, TEST_63, TEST_64, TEST_65, TEST_66, TEST_67, TEST_68, TEST_69, TEST_70, TEST_71, TEST_72, TEST_73, TEST_75, TEST_78, TEST_79, TEST_80, TEST_85, TEST_86];
+// Test 88: Mkuki, de basisskin van de speer-tribe (SKIN, `skin: 'mkuki'`). Op verzoek, zelf ontworpen: een kort stuk
+// savanne om elke Mkuki-animatie te zien. Rennen en springen op een kei, opstapjes (de trap-pose), een lage zwever om
+// gebukt onder door te sluipen, een zandslang voor de steek en de lage zwaai, en aan het eind een bandiet voor de
+// stofveeg (stof: true), de draaislag en de worp. De frames zijn gebakken uit de Mkuki animeer tool (tools/mkuki_spel_bak.py)
+const TEST_88 = {
+  name: 'Test 88: Mkuki',
+  lagen: 'tafelbergen',
+  view: 0.8, hpBalk: true, zicht: true, sneak: true, camera: true, rand: true, slangEenKlap: true, hyOmkeer: true, dakRand: true,
+  speerInHand: true, stof: true,
+  skin: 'mkuki',
+  spawns: [ {x: -2350, k: 'groen'}, {x: -3900, k: 'bandiet'} ],
+  rocks: [ {x: -700, s: 1} ],
+  terraces: [ {r: -1150, l: -1650, h: 28, grond: true, opstap: true},
+              {r: -1250, l: -1550, h: 56, grond: true, opstap: true} ],
+  zwevers: [ {r: -1850, l: -2150, h: 330, onder: 190} ],
+  gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
+  props: [ {x: -400, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2700, k: 'struik', s: 0.9, f: 1, v: 0},
+           {x: -3300, k: 'gras', s: 1.1, f: 1, v: 0} ],
+  cliffs: [ {x: -4900} ],
+  ends: [ {x: -4400} ],
+  tips: [ { x: -80, t: 'Test level: the Mkuki outfit. Run, jump, crouch, roll and attack to see every animation' },
+          { x: -1100, t: 'Walk up and down the steps' },
+          { x: -1800, t: 'Crouch and sneak under the ledge' },
+          { x: -3500, t: 'A bandit: try the dust sweep (hold crouch and F), the spin and the throw' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45, TEST_46, TEST_47, TEST_48, TEST_49, TEST_50, TEST_51, TEST_52, TEST_53, TEST_54, TEST_55, TEST_56, TEST_57, TEST_58, TEST_59, TEST_60, TEST_61, TEST_62, TEST_63, TEST_64, TEST_65, TEST_66, TEST_67, TEST_68, TEST_69, TEST_70, TEST_71, TEST_72, TEST_73, TEST_75, TEST_78, TEST_79, TEST_80, TEST_85, TEST_86, TEST_88];
 // ---- Test levels sticks: alle proefstukken met de stokken, in een eigen reeks (zoals Baboon tests, zonder tribekeuze) ----
 const STOK_LEVELS = [TEST_74, TEST_76, TEST_77];
 // ---- Test levels rainforest: alle proefstukken in het regenwoud, in een eigen reeks (zoals Sticks, zonder tribekeuze) ----
@@ -59267,6 +59352,7 @@ function readLevel(txt){
 
            rolWorpProef: !!o.rolWorpProef,              // Test 60: oefendoelen, speren genoeg, en de rol-worp in de instellingen
            rolTenue: typeof o.rolTenue === 'string' ? o.rolTenue : null,   // Test 85: C rolt in dat tenue (ROL_TENUE)
+           skin: typeof o.skin === 'string' ? o.skin : null,   // Test 88: Amir het hele level in een ander tenue (SKIN)
            talentKeuze: !!o.talentKeuze,                // aan het begin kies je zelf de talents (Test 14)
            comboKeuze: !!o.comboKeuze,                  // aan het begin en na R de derde slag als terugslag of schade (Test 68)
            stokken: !!o.stokken,                        // de stokken in plaats van de speer (STOK, Test 74)
@@ -59355,6 +59441,7 @@ function laadLevel(lv){
   if (lv.winter) loadWinter();                     // de winterplaatjes pas ophalen als ze nodig zijn
   slangLaadLevel(lv); scpLaadLevel(lv); hyLaadLevel(lv); panLaadLevel(lv);
   rolTenueLaadLevel(lv);                           // de rol in een ander tenue (Test 85)
+  skinZet(lv.skin);                                // Amir het hele level in een ander tenue (SKIN, Test 88)
   npcLaadLevel(lv); dorpLaadLevel(lv);
   banLaadLevel(lv);                                // de bandiet-frames als dit level ze gebruikt
   kooiLaadLevel(lv);                               // de kooiman-frames als dit level hem gebruikt
@@ -59454,6 +59541,7 @@ function setLevel(i, list, licht){
   laadNieuw();                                     // een nieuwe lijst van wat dit level gebruikt (zie laadVrij)
   bloedRand.length = 0;                            // het bloed op hout van het vorige level (zie BLOED_RAND)
   levelLaadLater = !!licht;
+  skinZet(level.skin);                             // Amir in het tenue van dit level (SKIN), of terug in het gewone
   if (!licht) laadLevel(level);                    // de plaatjes die dit level nodig heeft en die niet elk level heeft
   document.getElementById('lvname').textContent = level.name;
   zetMuziek();                                     // elk level brengt zijn eigen deuntje mee
@@ -60798,6 +60886,7 @@ const SUBS = {
   'Test 83: Log ramp': 'Cut one vine and walk up the tilted log',
   'Test 84: Stairs': 'Stop on a step with one foot higher than the other, going up and going down',
   'Test 87: Rivers': 'Two rivers flowing towards you, a calm one and a fast one, as the weather turns',
+  'Test 88: Mkuki': 'Amir in the Mkuki outfit of the spear tribe, every animation in one short walk',
   'Test 85: Roll outfit': 'V rolls in the normal outfit, C in the monk outfit, and he keeps what he rolled in',
   'Test 86: The cellar': 'A torch-lit cellar: a wooden stair, lattice doors with eyes behind them, and a cage that opens',
   'Test 76: Ground slam': 'Sticks from the air: slam into the ground and send a wave forward',
@@ -65182,6 +65271,7 @@ if (window.ResizeObserver){
 const sandboxEl = document.getElementById('sandbox');
 let sbFromRight = true, savedLevel = null;
 function startSandbox(arena, gates){
+  skinZet(null);                                        // de sandbox in het gewone tenue (SKIN)
   sbArena = arena === true;                             // Arena modus: golven vijanden, met levens
   straalLijst = []; straalWis();                            // geen zonnestralen uit een vorig potje (de knop Zonnestraal zet er een)
   if (sbRenNieuw) renNieuwLaad();                       // de nieuwe ren (standaard, zie REN_NIEUW)
