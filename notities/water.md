@@ -39,6 +39,20 @@ avond kleurt de lichtlaag het water mee, net als de rest van de wereld.
 | `bron` | een kom met een straal (`hoog` in Amir) en een kroon van druppels | 0,5 |
 | `fontein` | decor voor de stad: een geschilderde plaat van leem met het water erin (zie hieronder) | 0 |
 
+## De rivier die naar je toe stroomt (`stroom: true`)
+
+`RIVIER_STROOM`, `waterStroomPlanten`, in `waterRivierTeken` en `waterVoorTeken`
+
+Een rivier met `stroom: true` valt niet over de lip maar loopt door naar de camera, tot onder uit beeld, zoals `voor`;
+alleen blijft hij voorbij de lip zo breed als de lip, recht tussen de wanden van de grond (`voor` wordt naar voren breder,
+en dat botst met de rechte wand ernaast). Onder de lip (en de brug) een zachte schaduw, zodat het water eronder vandaan
+komt. Op elke naad tussen water en wand staan oeverplanten voor Amir langs: donkere, onscherpe struiken en gras (de plaatjes
+van de voorgrond, in het regenwoud in de kleur van de silhouetten), vast aan de rivier, zodat ze de naad afdekken waar de
+camera ook staat. Hun hoogte volgt de wand onder de lip die in beeld is, zodat de brug vrij blijft. Rustig zonder `val`,
+snel met `val: true`. Proefstuk: **Test 87: Rivers** (in de reeks Test levels rainforest), een rustige en een snelle, met
+brug, terwijl het weer van droog naar onweer gaat. Op verzoek van de opdrachtgever (22-11-2026), na schetsen van de val, de
+ingesneden oever, de rivier van opzij, de grond ervoor en het water als strook onderin.
+
 ## De fontein (`k: 'fontein'`)
 
 `WATER.soort.fontein`, `fonteinLaad`, `waterFonteinTeken`, `waterPlats`, `waterFonteinSlag`, `waterFonteinPlons`, `waterStraal`, `sbfontein`

@@ -9,7 +9,7 @@ dit bestand, doe de eerste stap die nog open staat, en werk daarna de stand hier
 | stap | wat | stand |
 | --- | --- | --- |
 | 1 | regen in het regenwoud: de kleur van het water | **klaar** (22-11-2026): de kleur loopt mee met het weer, zie "Kleur met het weer" in `notities/water.md`. De gloed van de zon is niet gebouwd; de opdrachtgever koos voor de gewone kleur die met het weer omslaat |
-| 1b | de rivier naar de camera laten stromen in plaats van vallen (`voor: true`) | **open**: de opdrachtgever vond dat de val te veel op een waterval lijkt; `voor: true` bestaat al als proef |
+| 1b | de rivier naar de camera laten stromen in plaats van vallen | **klaar** (22-11-2026): `stroom: true`, recht tussen de wanden met oeverplanten over de naad, in Test 87 (zie `notities/water.md`) |
 | 2 | plassen die vollopen en spetteren (lawaai voor sneak) | wacht op 1 |
 | 3 | de rivier in het regenwoud: bruin, schuim, drijfhout, wortels | wacht op 1 |
 | 4 | de rivier zwelt aan bij zware regen (waden, stam als brug, drijfhout dat duwt) | wacht op 3; nieuwe mechaniek, eerst sandbox |
