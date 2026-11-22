@@ -53,6 +53,21 @@ def main():
             print('BESTAAND', p)
             origs.append(Image.fromarray(raster.laad(os.path.join(REPO, p)))); mks.append(Image.open(al).convert('RGBA'))
             continue
+        if k is None and os.path.exists(al):
+            # Frame staat al in de repo en is in deze chat niet opnieuw gemaakt: bestaand beeld (met speer en
+            # vuistlaag) alleen voor het rapport gebruiken; plaatsing.json blijft voor dit frame ongemoeid.
+            print('BESTAAND', p)
+            o = raster.laad(os.path.join(REPO, p))
+            comp = Image.open(al).convert('RGBA')
+            hs = '_ns' not in os.path.basename(p) and setnaam.find('_ns') < 0
+            if hs and not (override(os.path.join(REPO, p)) or {}).get('geen'):
+                info = meet_pad(os.path.join(REPO, p), o)
+                comp.alpha_composite(Image.fromarray(speerlaag(o, info)))
+                vf = al[:-4] + '_vuist.png'
+                if os.path.exists(vf):
+                    comp.alpha_composite(Image.open(vf).convert('RGBA'))
+            origs.append(Image.fromarray(o)); mks.append(comp)
+            continue
         if k is None:
             print('ONTBREEKT', p); continue
         lijf, vuist = k

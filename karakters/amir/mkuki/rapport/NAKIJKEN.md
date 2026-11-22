@@ -13,9 +13,9 @@ Prioriteit: **A** = zichtbaar fout, eerst doen. **B** = wijkt af, verbeteren als
 | --- | --- | --- | --- |
 | A | beweging/run/nieuw/ren_sp_4.png | noodgreep: benen uit het origineel geplakt, vuist rafelig, voeten rood-paars | gekruiste benen (kruismoment van de ren); Grok tekende steeds een wandelpas. Mogelijk al gedaan in de chat over de rencyclus: eerst nakijken |
 | A | beweging/run/nieuw/ren_sp_10.png | idem | idem |
-| A | beweging/rol/worp/worp_12.png | romp te rechtop, borst naar ons | profiel links, leunt voorover in een lange uitstap |
-| A | beweging/rol/worp/worp_27.png | borst naar ons | draait al met de rug naar ons, arm ver naar voren-onder |
-| A | beweging/rol/worp/worp_26.png | beeld van 24/25 hergebruikt | buigt naar links, arm in een boog over het hoofd |
+| A (niet gelukt, 3x rechtop met borst naar ons; zie LOG 22-11) | beweging/rol/worp/worp_12.png | romp te rechtop, borst naar ons | profiel links, leunt voorover in een lange uitstap |
+| A (af 22-11, Grok 17ac79af) | beweging/rol/worp/worp_27.png | borst naar ons | draait al met de rug naar ons, arm ver naar voren-onder |
+| A (af 22-11, Grok 8dcea7bc) | beweging/rol/worp/worp_26.png | beeld van 24/25 hergebruikt | buigt naar links, arm in een boog over het hoofd |
 | A | aanval/lowsweep/sweep_8.png | beide handen op de grond | voorste arm horizontaal naar links, driekwart rug |
 | A | aanval/stofsweep/stof_07.png | te hoog | diep op de hurken |
 | A | aanval/stofsweep/stof_08.png | te hoog | diep op de hurken |

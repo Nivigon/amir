@@ -424,3 +424,17 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
   28 0dd729b1 0,50 mk_rw27b (rug naar ons, klopt)
   29-33 c209f6ea 0,62..0,70 mk_rw30b (rug, arm omhoog achter, vastgehouden)
 - Export rolworp_sp, 12 fps.
+
+## 22-11-2026, 02:00 nakijken (rapport/NAKIJKEN.md), nieuwe chat
+- Werkmap opnieuw opgebouwd; `ref_hulp.png` uit post `d0bb0d1c` met een zoomtegel van het hele beeld (0,6) en `raster.key`.
+- Prompts: basis `mk_nk_basis` (= mk_rw12 tot aan FACING), per frame `mk_nk_<set><n>` met FACING/BODY/FEET/ARMS.
+- `export.py`: een frame dat in deze chat niet opnieuw is gemaakt komt nu uit de repo in het rapport (met speer en
+  vuistlaag), in plaats van te ontbreken; plaatsing.json blijft voor dat frame ongemoeid.
+- Rol/worp 24-33 hebben geen speer (worp is los), maar hadden speerplaatsingen en bij 29 en 33 een vuistlaag van een valse
+  meting. `"geen": true` in overrides.json voor 24-33, vuistlagen en plaatsingen daarvan weg.
+### Rol/worp
+- worp_27: VERVANGEN, post `17ac79af` 0,73 (was 0,58), `mk_nk_rw27`: rug naar ons, voorste arm ver naar links. Klopt.
+- worp_26: VERVANGEN, post `8dcea7bc` 0,76 (was 0,59), `mk_nk_rw26`: arm in een boog over het hoofd naar links. Klopt.
+- worp_12: NIET vervangen. Drie pogingen (`33a243ed`, `1c0188db` 0,45, `5da87ce3`; mk_nk_rw12, rw12b, rw12c, ook met
+  "pure side view", "only one eye", "torso 45 degrees"): Grok zet de romp steeds rechtop met de borst naar ons, de stoot
+  naar links. Niet beter dan het huidige frame.
