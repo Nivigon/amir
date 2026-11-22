@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// De opname van de mentor (Test 89, The First Hunt): speelt het level met Amir en legt per beeld vast welk plaatje
+// De opname van de mentor (The First Hunt, TUT_1): speelt het level met Amir en legt per beeld vast welk plaatje
 // waar stond. Daaruit tekent het spel de mentor (zie "tutorial: de mentor" in de HTML en notities/tutorial.md).
 //
 // Per stuk (seg) staat hieronder een rij opdrachten: lopen tot een x, springen, kruipen, rollen, omdraaien en wachten.
@@ -129,13 +129,13 @@ function opname([START, SEGS]){
     }, 0);
   });
   await page.goto(url);
-  await page.waitForFunction(() => typeof setLevel === 'function' && typeof TEST_LEVELS !== 'undefined');
+  await page.waitForFunction(() => typeof setLevel === 'function' && typeof TUT_LEVELS !== 'undefined');
   await page.waitForTimeout(1500);
   await page.evaluate(() => {
-    const i = TEST_LEVELS.findIndex(l => l.name.includes('First Hunt'));
-    const def = TEST_LEVELS[i];
+    const i = TUT_LEVELS.findIndex(l => l.name.includes('First Hunt'));
+    const def = TUT_LEVELS[i];
     def._mentor = def.mentor; delete def.mentor;            // opnemen zonder mentor in beeld
-    setLevel(i, TEST_LEVELS); beginPlay('medium');
+    setLevel(i, TUT_LEVELS); beginPlay('medium');
   });
   await page.waitForTimeout(800);
   await page.evaluate(opname, [START, SEGS]);

@@ -250,6 +250,14 @@ de lobby staat dan in het staande stokframe.
 
 Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
 
+**Afspraak (22-11-2026): een status of animatie op een vijand is op elk scherm te zien.** Wat een speler een vijand aandoet
+(stof in de ogen, een stun, gif, prooi, wankelen, opwippen, de draaislag) moet bij iedereen hetzelfde staan. De regel: zet
+een status altijd bij de host, als veld op de vijand, en laat de stand (`mpcStandZend`) hem naar de rest brengen. Een gast
+zet niets op zijn eigen kopie: hij stuurt een bericht naar de host (zoals `mh` voor een treffer en `stofR` voor het stof,
+`mpcStofVanGast`) en speelt lokaal alleen beeld en geluid af. En een klok die zo'n status laat aflopen hoort niet achter een
+vlag van de host zelf (zijn wapen, zijn level): de stun van de stokken telde eerst alleen af als de host ook stokken had,
+en dan bleef een bandiet van een gast voor altijd staan. Een nieuw veld begint niet met `mp` of `_`, want die gaan niet mee.
+
 - **De host denkt, de gast tekent.** De update-functies van de vijanden (`updateSnakes`, `updateBandieten` en de rest, met
   `updateGoudapen` en `updateFosforSlangen`) zijn omwikkeld met `mpcUpdate`. Bij de gast doen ze niets. Bij de host splitst
   de wikkel de lijst in wie achter de host aan zit en wie achter de gast (`mpcDoel`: de dichtstbijzijnde levende Amir, met
@@ -306,7 +314,10 @@ Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
   dood-scherm komt niet, en de camera volgt de ander (`mpCoopCam`, in de hoofdlus de eerste keus van de camera, met `camVast`
   uit: anders zette de meekijkende camera hem elk beeld terug op het lijk en schudde het beeld). Pijl links en rechts (ook de
   stick op een telefoon) wisselen tussen je eigen lichaam en elke levende teamgenoot (`mpcKijkStap`, `mpcKijkNu`,
-  `pvp.coop.kijk`); zonder keuze de dichtstbijzijnde, en onder de banner staat naar wie je kijkt (`#mpkijk`). Na `MPC.reviveNa`
+  `pvp.coop.kijk`); zonder keuze de dichtstbijzijnde, en onder de banner staat naar wie je kijkt (`#mpkijk`). Staat de teamgenoot ver weg of in een
+  andere kamer (een huis of de winkel in, die liggen ver van de straat), dan schuift de camera niet door de lege wereld maar
+  gaat het beeld even op zwart en staat hij daarna bij hem (`MPC_KIJK_FADE`, `mpcKijkCam`, `mpcKijkFadeTeken`); in een huis klemt
+  de camera op de kamer van de teamgenoot, niet op die van het lijk. Na `MPC.reviveNa`
   zet de host een revive-ton (drie treffers, "REVIVE" erop, `mpCoopTeken`) bij de levende; breekt hij, dan valt het symbool
   (`sym`), en wie het aanraakt (`mpcSymboolStap`) laat de ander naast zich opstaan met 1 leven (`symPak`, `mpcOpstaan`).
   Allebei dood: `mpcEinde`.
@@ -504,7 +515,9 @@ De tweede map van Co-op Survival, uitgewerkt in een mockup met de opdrachtgever 
   de pleinvloer van Nyundo op de bovenste trede (`vloer: 'plein'` op het terras, en `grondSoort` plein), een pleinwand met
   bogen achteraan en een fontein. Een fontein op een terras wordt na de terrassen getekend (`waterFonteinTeken` met
   `opTerras`), anders viel de rand van het plein over zijn voet.
-- **Het huis aan de rivier** met een galerij (401) en een deur boven. Erop: de rand van de fontein (197), dan de luifel boven
+- **Het huis aan de rivier** met een galerij (401) en een deur boven. De galerij loopt een plank uit boven de rivier
+  (`meer: [0.3, 0]`, samen 3,1 Amir in plaats van 2,8): staat de schildman voor je, dan rol je net langs hem en sta je
+  achter hem nog op de galerij (de rol stopt op de rand, `ROL.rand`). Erop: de rand van de fontein (197), dan de luifel boven
   een raam aan de rechtermuur (de rechte springdoek met `kozijn`, `h: 350`, bovenkant 378), dan de galerij. De luifel hangt
   hoog genoeg dat je er vanaf de trap onderdoor loopt; eerst hing hij op 150 en dat zag er toevallig uit, en een luifel op
   hoofdhoogte haal je vanaf de straat niet (een sprong is zo'n 190).
@@ -663,7 +676,8 @@ zijn, of ze kunnen door die freeze niet verder tot de andere speler levend en bi
 - **De lijn.** Op `x` staat een onzichtbare muur (`hinderKlem`, na `aanvKlem` in de lus): niemand komt er voorbij tot de
   hinderlaag open is. Wie er alleen staat krijgt een hint: wachten op het team, of eerst de dode teamgenoot reviven.
 - **Het begin.** De host (`hinderHostStap`, in `mpEpHostStap`) begint pas als iedereen leeft en binnen `MPC_HL.verzamel`
-  (650) van de lijn staat (`hinderAllenBij`), en stuurt `hl`. Bij iedereen dan de regie (`hinderStart`): zwarte balken
+  (650) van de lijn staat (`hinderAllenBij`), en stuurt `hl`. Wie in een huis staat telt niet als bij de lijn, en zolang
+  het team in de winkel is begint er niets: de winkelkamer ligt op -20000, ver links van elke lijn, en telde eerst als erbij. Bij iedereen dan de regie (`hinderStart`): zwarte balken
   (`#hlbalken`), Amir staat vast (`hinderVast` in `amirVast`) en niets raakt hem (in `hurtPlayer` en `godMode`).
 - **De regie** (`hinderStap`, in `mpCoopStap`, op echte tijd): na `MPC_HL.aanloop` per shot `MPC_HL.shot` seconden. De
   camera glijdt naar het shot (`hinderCamX`, een tak voor die van een dode in de lus; zonder `x` kijkt hij naar de deur,
@@ -693,6 +707,12 @@ zijn, of ze kunnen door die freeze niet verder tot de andere speler levend en bi
 - **Testen:** `node tools/mptest.js --hl` speelt nu elke hinderlaag van Ambush 2 tot en met 6 na: bij FIGHT! staat geen
   vijand binnen 200 px van een speler, en na 6 s staat elke vijand binnen bereik van de lijn. `HL_LV=3,6` beperkt tot die
   levels (`HL_LV=x` slaat ze over), `HL_DEUR=1` print waar de deuren echt staan.
+- **De lijn houdt ook de vijanden tegen, en je ziet hem (22-11-2026).** Gevraagd: "met stun hit met stokken sloeg ik de
+  ambush vijand buiten de onzichtbare barriere, die ik ook zichtbaar wil". `hinderKlem` klemde alleen de spelers; een terugslag
+  (de stun-counter, de draaislag) sloeg een vijand voorbij de lijn, waar niemand meer bij kon, en dan bleef de lijn dicht tot het
+  vangnet. Nu zet de host in het gevecht elke levende vijand die links van `hinderGrens` komt terug op de lijn (zijn spawns
+  liggen er allemaal rechts van). En de lijn is te zien: dezelfde lichtzuil als het leiband, maar rood (`HINDER_ZUIL`,
+  `hinderZuilX`, in `leibandTeken`), voor en tijdens het gevecht, niet in de regie, binnen of als je dood ligt.
 - **Het leiband** (`leibandKlem`, alleen in de Co-op episodes; in Co-op Survival, ook Ishmul en Co-op solo, loop je vrij, op verzoek van de opdrachtgever): een levende speler komt niet verder dan `MPC_LEIBAND.max`
   (1200, was 1000) van een levende teamgenoot; wie al verder weg was (na een revive of een val) mag alleen dichterbij. Niet in een
   huis, de winkel of de regie. Een hint: "Stay close to your teammate".
