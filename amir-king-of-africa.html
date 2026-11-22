@@ -19626,7 +19626,7 @@ function bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, valRaak
   let geraakt = false;
   if (attacking && !swingUsed && steekLive()){
     const dxv = steekDX() * scale, tipX = pcx + (facing === 1 ? -dxv : dxv), tipY = y + steekY() * scale, re = steekR() * scale;
-    if (steekOver(tipX, re, pcx, lijf) && tipY + re > lijf.t && tipY - re < lijf.b){ swingUsed = true; geraakt = true; }
+    if (steekOver(tipX, re, pcx, lijf) && steekOverY(tipY, re, lijf)){ swingUsed = true; geraakt = true; }
   }
   if (!geraakt && javRaakt(lijf)){ javHitEnemy(); geraakt = true; }
   if (!geraakt && hitBy(swbox, lijf)) geraakt = true;
@@ -20580,7 +20580,7 @@ function goudapenTeken(o){
     if (inLucht && jav && jav.state === 'vlucht' && !jav.hit && javRaakt(box)){ dood = true; doorSpeer = true; }
     if (!dood && attacking && !swingUsed && steekLive()){
       const dxv = steekDX() * scale, tipX = pcx + (facing === 1 ? -dxv : dxv), tipY = y + steekY() * scale, re = steekR() * scale;
-      if (steekOver(tipX, re, pcx, box) && tipY + re > box.t && tipY - re < box.b){ swingUsed = true; dood = true; }
+      if (steekOver(tipX, re, pcx, box) && steekOverY(tipY, re, box)){ swingUsed = true; dood = true; }
     }
     if (!dood && m.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'goudaap'), box)){ m.sweptId = sweepId; dood = true; }
     if (dood) gaapDood(m, doorSpeer);
@@ -21569,7 +21569,7 @@ const FC = {
   bereik: 300,                // tot zo ver voor Amir (sprite-eenheden, zoals COMBO.stap) moet de open vijand staan
   openT: 0.9,                 // zo lang (s) is een vijand open na een slag die mis ging
   terug: { v: 750, rust: 0.6, traag: 0.6, schb: 1.6, schbRust: 0.5 },   // de kleine terugslag (de grote is COMBO.terug)
-  breed: { dx: -175, y: 290, r: 185 }   // Wide Circle: een cirkel voor Amir in canvas-px van de combo (dx naar voren, y vanaf boven)
+  breed: { dx: -175, y: 290, r: 185, ry: 150 }   // Wide Circle: een zone voor Amir in canvas-px van de combo (dx naar voren, y vanaf boven); ry: de halve hoogte, plat, zodat hij niet raakt wat ver boven of onder Amir staat
 };
 let fcSoort = null, fcSlagId = 0;   // tijdens de draaislag van Full Circle: 'basis', 'kracht' of 'breed'; fcSlagId telt de slagen (Wide Circle raakt elk een keer)
 // Welke Full Circle geldt nu: null als er geen is. De sandbox (de knop Combo) en Test 68 (comboKeuze) kiezen zelf
@@ -22921,6 +22921,10 @@ function steekY(){ if (atkStok) return stokPunt()[1] * stokMaat(atkStok); return
 function steekR(){ if (atkStok) return STOK.reik[atkStok] || 40; return fcRondNu() ? MPC.rond.r : fcBreedNu() ? FC.breed.r : atkCombo ? COMBO.reik : atkMes ? (mesWaarde('reik') || 34) : 40; }
 // het raakvak van de punt in x: de punt met zijn reik, en met de stokken (STOK.heel) de hele stok erbij, van Amirs midden
 // (pcx) tot voorbij de punt. Alleen naar voren: achter Amir raakt het niets
+// het raakvak in y: de punt met zijn reik, behalve bij Wide Circle en rondom. Die raken in de breedte ver (r), maar in de
+// hoogte alleen Amirs eigen niveau (ry: van zijn voeten tot iets boven zijn hoofd), niet een vijand op een galerij of dak
+function steekRY(){ return fcRondNu() ? MPC.rond.ry : fcBreedNu() ? FC.breed.ry : steekR(); }
+function steekOverY(tipY, reach, box){ const ry = fcBreedNu() && !atkStok ? reach * steekRY() / steekR() : reach; return tipY + ry > box.t && tipY - ry < box.b; }
 function steekVakX(tipX, reach, pcx, stok){
   if (!((stok === undefined ? atkStok : stok) && STOK.heel)) return [tipX - reach, tipX + reach];
   return tipX < pcx ? [tipX - reach, pcx] : [pcx, tipX + reach];
@@ -30554,7 +30558,7 @@ function waterFonteinSlag(tipX, tipY, reach, swbox, sweepId, groundY, scale, cx)
   for (let i = 0; i < lijst.length; i++){
     const o = lijst[i]; if (o.k !== 'fontein') continue;
     for (const v of waterFonteinVakken(o, groundY, scale, cx)){
-      const steek = tipX != null && tipX + reach > v.l && tipX - reach < v.r && tipY + reach > v.t && tipY - reach < v.b;
+      const steek = tipX != null && tipX + reach > v.l && tipX - reach < v.r && steekOverY(tipY, reach, v);
       const zwaai = swbox && o._zwaai !== sweepId && v.r > swbox.l && v.l < swbox.r && v.b > swbox.t && v.t < swbox.b;
       if (!steek && !zwaai) continue;
       if (zwaai) o._zwaai = sweepId;
@@ -54026,7 +54030,7 @@ function drawFosforSlangen(o){
       const tipX = pcx + (facing === 1 ? -dxv : dxv);
       const tipY = y + steekY() * scale;
       const reach = steekR() * scale;
-      if (steekOver(tipX, reach, pcx, sbox) && tipY + reach > sbox.t && tipY - reach < sbox.b){
+      if (steekOver(tipX, reach, pcx, sbox) && steekOverY(tipY, reach, sbox)){
         if (atkMes){ if (mesAfweer(s, 'fosfor')) swingUsed = true; continue; }   // het mes weert af
         if (slagEen(s)) stokRaakKlap(fosforRaak(s, world + (tipX - cx))); continue;
       }
@@ -57204,7 +57208,7 @@ function loop(now){
         const tipY = y + steekY() * scale;
         const reach = steekR() * scale;
         if (steekOver(tipX, reach, pcx, sbox) &&
-            tipY + reach > sbox.t && tipY - reach < sbox.b){
+            steekOverY(tipY, reach, sbox)){
           if (atkMes){ if (mesAfweer(s, 'slang')) swingUsed = true; }   // het mes weert af, het doodt niet
           else {
           const hp0 = s.hp;
@@ -57375,7 +57379,7 @@ function loop(now){
         const tipY = y + steekY() * scale;
         const reach = steekR() * scale;
         if (steekOver(tipX, reach, pcx, kbox) &&
-            tipY + reach > kbox.t && tipY - reach < kbox.b){
+            steekOverY(tipY, reach, kbox)){
           if (atkMes){ if (mesAfweer(s, 'schorpioen')) swingUsed = true; }   // het mes weert af
           else {
           if (slagEen(s) && stokRaakKlap(enemyTakeHit(s))){
@@ -57500,7 +57504,7 @@ function loop(now){
           const tipX = pcx + (facing === 1 ? -dxv : dxv);
           const tipY = y + steekY() * scale;
           const reach = steekR() * scale;
-          if (steekOver(tipX, reach, pcx, nbox) && tipY + reach > nbox.t && tipY - reach < nbox.b
+          if (steekOver(tipX, reach, pcx, nbox) && steekOverY(tipY, reach, nbox)
               && s.inv <= 0 && (s.state === 'land' || s.state === 'rest')){   // alleen in zijn herstel
             swingUsed = true; hitPanther(s); continue;
           }
@@ -57599,7 +57603,7 @@ function loop(now){
           const tipX = pcx + (facing === 1 ? -dxv : dxv);
           const tipY = y + steekY() * scale;
           const reach = steekR() * scale;
-          if (steekOver(tipX, reach, pcx, nbox) && tipY + reach > nbox.t && tipY - reach < nbox.b){
+          if (steekOver(tipX, reach, pcx, nbox) && steekOverY(tipY, reach, nbox)){
             if (atkMes){ if (mesAfweer(s, 'hyena')) swingUsed = true; continue; }   // het mes weert af
             if (slagEen(s)) stokRaakKlap(hitHyena(s)); continue;
           }
@@ -57705,7 +57709,7 @@ function loop(now){
           const tipX = pcx + (facing === 1 ? -dxv : dxv);
           const tipY = y + steekY() * scale;
           const reach = steekR() * scale;
-          const inBox = steekOver(tipX, reach, pcx, nbox) && tipY + reach > nbox.t && tipY - reach < nbox.b;
+          const inBox = steekOver(tipX, reach, pcx, nbox) && steekOverY(tipY, reach, nbox);
           if (inBox && raak){
             if (atkMes){ if (mesAfweer(s, 'kooiman')) swingUsed = true; continue; }
             if (slagEen(s)) stokRaakKlap(hitKooiman(s)); continue;
@@ -57776,7 +57780,7 @@ function loop(now){
           const tipX = pcx + (facing === 1 ? -dxv : dxv);
           const tipY = y + steekY() * scale;
           const reach = steekR() * scale;
-          if (steekOver(tipX, reach, pcx, nbox) && tipY + reach > nbox.t && tipY - reach < nbox.b){
+          if (steekOver(tipX, reach, pcx, nbox) && steekOverY(tipY, reach, nbox)){
             if (atkMes){ if (mesAfweer(s, 'meelman')) swingUsed = true; continue; }   // het mes weert af
             if (slagEen(s)) stokRaakKlap(hitMeelman(s)); continue;
           }
@@ -57878,7 +57882,7 @@ function loop(now){
           const tipX = pcx + (facing === 1 ? -dxv : dxv);
           const tipY = y + steekY() * scale;
           const reach = steekR() * scale;
-          if (steekOver(tipX, reach, pcx, nbox) && tipY + reach > nbox.t && tipY - reach < nbox.b){
+          if (steekOver(tipX, reach, pcx, nbox) && steekOverY(tipY, reach, nbox)){
             if (slagEen(s)) stokRaakKlap(hitKruisboog(s, 'steek')); continue;   // geen verweer: ook het mes raakt hem gewoon
           }
         }
@@ -58030,7 +58034,7 @@ function loop(now){
             const tipX = pcx + (facing === 1 ? -dxv : dxv);
             const tipY = y + steekY() * scale;
             const reach = steekR() * scale;
-            if (steekOver(tipX, reach, pcx, nbox) && tipY + reach > nbox.t && tipY - reach < nbox.b){
+            if (steekOver(tipX, reach, pcx, nbox) && steekOverY(tipY, reach, nbox)){
               const front = bodyX + s.face * BAN_LIJF.half * bS;    // de kant van zijn lijf naar jou toe: daar zit zijn dekking
               const vonkX = s.face === 1 ? Math.max(tipX, front) : Math.min(tipX, front);
               banPareer(s, s.x + (vonkX - bodyX), tipY);            // clang, vonk op het snijpunt, en zijn snelle counter
@@ -58052,7 +58056,7 @@ function loop(now){
           const tipX = pcx + (facing === 1 ? -dxv : dxv);
           const tipY = y + steekY() * scale;
           const reach = steekR() * scale;
-          if (steekOver(tipX, reach, pcx, nbox) && tipY + reach > nbox.t && tipY - reach < nbox.b){
+          if (steekOver(tipX, reach, pcx, nbox) && steekOverY(tipY, reach, nbox)){
             if (atkMes){ if (mesAfweer(s, 'bandiet')) swingUsed = true; continue; }   // het mes weert af
             if (s.bloed) bloedTref(s, bodyX, voeten, bS, face, tipX, tipY);           // bloed: de snee komt op de speerpunt
             if (slagEen(s)){ const rb = hitBandiet(s); if (atkStok && (rb || mpcGast())) stokTreffer(s, s.x, tipY, tipX, rb ? undefined : 'gevoel'); } continue;   // de duw en Wide Circle raken ze allemaal (een keer per slag, duwId en fcSlag); de stokken: klap en stun (STOK)
@@ -58120,7 +58124,7 @@ function loop(now){
           const tipX = pcx + (facing === 1 ? -dxv : dxv);
           const tipY = y + steekY() * scale;
           const reach = steekR() * scale;
-          if (steekOver(tipX, reach, pcx, nbox) && tipY + reach > nbox.t && tipY - reach < nbox.b){
+          if (steekOver(tipX, reach, pcx, nbox) && steekOverY(tipY, reach, nbox)){
             if (atkMes){ swingUsed = true; s.flash = Math.max(s.flash || 0, 0.2); continue; }   // het mes breekt geen schild en doodt niets
             if (slagEen(s)) hitSchildman(s, 'steek'); continue;   // de duw en Wide Circle raken ze allemaal (duwId, fcSlag)
           }
@@ -58169,7 +58173,7 @@ function loop(now){
         if (attacking && !swingUsed && steekLive() && steekRaakt('zweepman')){
           const dxv = steekDX() * scale, tipX = pcx + (facing === 1 ? -dxv : dxv), tipY = y + steekY() * scale, reach = steekR() * scale;
           const sch = nbox.schacht || (atkStok && STOK.heel && steekVoor(tipX, pcx, nbox)), lo = sch ? Math.min(tipX, pcx) : tipX, hi = sch ? Math.max(tipX, pcx) : tipX;   // met de stokken ook de hele stok (STOK.heel)   // uithijgen: punt of schacht
-          if (hi + reach > nbox.l && lo - reach < nbox.r && tipY + reach > nbox.t && tipY - reach < nbox.b){
+          if (hi + reach > nbox.l && lo - reach < nbox.r && steekOverY(tipY, reach, nbox)){
             if (atkMes){ swingUsed = true; s.flash = Math.max(s.flash || 0, 0.2); continue; } if (slagEen(s)) stokRaakKlap(hitZweepman(s)); continue;
           }
         }
@@ -58209,7 +58213,7 @@ function loop(now){
         if (s.inv <= 0){
           if (attacking && !swingUsed && steekLive() && steekRaakt('brutus')){
             const dxv = steekDX() * scale, tipX = pcx + (facing === 1 ? -dxv : dxv), tipY = y + steekY() * scale, reach = steekR() * scale;
-            if (steekOver(tipX, reach, pcx, nbox) && tipY + reach > nbox.t && tipY - reach < nbox.b){ swingUsed = true; if (atkMes) s.flash = Math.max(s.flash, 0.2); else hitBrutus(s); }
+            if (steekOver(tipX, reach, pcx, nbox) && steekOverY(tipY, reach, nbox)){ swingUsed = true; if (atkMes) s.flash = Math.max(s.flash, 0.2); else hitBrutus(s); }
           }
           if (s.inv <= 0 && javRaakt(nbox)){ javHitEnemy(); hitBrutus(s); }
           if (s.inv <= 0 && s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'brutus'), nbox)){ s.sweptId = sweepId; hitBrutus(s); }
@@ -58252,7 +58256,7 @@ function loop(now){
         if (s.inv <= 0){
           if (attacking && !swingUsed && steekLive() && steekRaakt('hyena')){
             const dxv = steekDX() * scale, tipX = pcx + (facing === 1 ? -dxv : dxv), tipY = y + steekY() * scale, reach = steekR() * scale;
-            if (steekOver(tipX, reach, pcx, nbox) && tipY + reach > nbox.t && tipY - reach < nbox.b){ swingUsed = true; if (atkMes) s.flash = Math.max(s.flash, 0.2); else hitMurg(s); }
+            if (steekOver(tipX, reach, pcx, nbox) && steekOverY(tipY, reach, nbox)){ swingUsed = true; if (atkMes) s.flash = Math.max(s.flash, 0.2); else hitMurg(s); }
           }
           if (s.inv <= 0 && javRaakt(nbox)){ javHitEnemy(); hitMurg(s); }
           if (s.inv <= 0 && s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'hyena'), nbox)){ s.sweptId = sweepId; hitMurg(s); }
@@ -58349,7 +58353,7 @@ function loop(now){
         // maar nog steeds alleen aan de kant waar hij heen steekt
         const spL = Math.min(pcx, tipX) - reach, spR = Math.max(pcx, tipX) + reach;
         for (const w of wielen){
-          if (spR > w.box.l && spL < w.box.r && tipY + reach > w.box.t && tipY - reach < w.box.b){
+          if (spR > w.box.l && spL < w.box.r && steekOverY(tipY, reach, w.box)){
             swingUsed = true;
             if (w.modus) takelWielSlag(tk, w.modus); else takelSlag(tk, w.dir);
             wielSplinters(w.x, terrainH(w.x) + 0.45 * CHAR_H + w.off, pWorld < w.x ? -1 : 1, 10 + (Math.random() * 4 | 0));
@@ -58384,7 +58388,7 @@ function loop(now){
         const tipY = y + steekY() * scale;
         const reach = steekR() * scale;
         if (tipX + reach > tbox.l && tipX - reach < tbox.r &&
-            tipY + reach > tbox.t && tipY - reach < tbox.b){
+            steekOverY(tipY, reach, tbox)){
           swingUsed = true;                           // deze stoot is nu op
           if (atkMes && ((t.mesTik = (t.mesTik || 0) + 1) % (mesWaarde('doornbos') || 1)) !== 0){
             puffWorld(world + (Math.max(tbox.l, Math.min(tbox.r, tipX)) - cx), 2, 0, 0.5, t.base);   // het mes kapt trager
@@ -58423,7 +58427,7 @@ function loop(now){
         if (attacking && !swingUsed && !comboX && steekLive()){
           const dxv = steekDX() * scale, tipX = pcx + (facing === 1 ? -dxv : dxv), tipY = y + steekY() * scale, reach = steekR() * scale;
           const l = Math.min(pcx, tipX), r = Math.max(pcx, tipX);   // de hele schacht (of de stokken) door de liaan, niet alleen de punt: van dichtbij snijdt hij ook
-          if (r + reach > tb.l && l - reach < tb.r && tipY + reach > tb.t && tipY - reach < tb.b){ swingUsed = true; hstamKnap(st, v.i, 'steek', (groundY - Math.max(tb.t, Math.min(tb.b, tipY))) / scale); break; }
+          if (r + reach > tb.l && l - reach < tb.r && steekOverY(tipY, reach, tb)){ swingUsed = true; hstamKnap(st, v.i, 'steek', (groundY - Math.max(tb.t, Math.min(tb.b, tipY))) / scale); break; }
         }
         if ((javBox && jav && !jav.hit && jav.state === 'vlucht' && hitBy(javBox, tb)) ||
             (jav2Box && jav2 && !jav2.hit && jav2.state === 'vlucht' && hitBy(jav2Box, tb))){
@@ -71259,7 +71263,7 @@ const MPC = {
   elite: { hp: 5 },         // de elite-garde in Co-op: vijf levens en altijd een dolk die hij eerst werpt
   // de economie (stuk 3): het goud van een kill gedeeld, ieder zoveel; per overleefde ronde ieder rondeGoud; geef: Give 5 gold
   killGoud: { dier: 1, mens: 2, zwaar: 3 }, rondeGoud: 5, geef: 5,
-  rond: { dx: 0, y: 290, r: 330 }   // Full Circle rondom (alleen hier te koop): een cirkel om Amir heen, net als FC.breed in canvas-px van de combo
+  rond: { dx: 0, y: 290, r: 330, ry: 150 }   // ry: de halve hoogte (plat, zoals FC.breed). Full Circle rondom (alleen hier te koop): een cirkel om Amir heen, net als FC.breed in canvas-px van de combo
 };
 // de winkelkamer van Co-op: de strook (r tot l) en de toonbank; de spelers komen binnen bij de deurkant
 const MPC_WINKEL_KAMER = { r: -20000, l: -21700, toonbank: -21250, plek: [-20300, -20480, -20660] };   // per slot

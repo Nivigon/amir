@@ -24,6 +24,9 @@ duw zonder schade. Nu is het een talent van Mkuki dat je verdient door een openi
   - **Wide Circle** (`fc_breed`): de raakzone wordt een cirkel voor Amir (`FC.breed`, in `steekDX`/`steekY`/`steekR`) en
     `slagEen` laat `swingUsed` uit, zodat hij elke vijand daarin een keer raakt (`s.fcSlag`, zoals `duwId` bij de duw).
     Alleen naar voren: de animatie slaat voor hem neer. Kleine terugslag.
+    In de hoogte is de zone plat (`FC.breed.ry`, in `steekOverY`): breed voor Amir, maar alleen op zijn eigen niveau, van
+    zijn voeten tot iets boven zijn hoofd. Als cirkel raakte hij een vijand op een galerij of dak ver boven hem. Rondom
+    uit de winkel van Co-op (`MPC.rond.ry`) net zo.
 - Een Test level zonder tribe heeft alle talents: daar geldt Crushing Circle. De oude reeks van drie steken is overal uit
   (`comboKetenKan` alleen in de sandbox en Test 68).
 - **Uitproberen:** Test 68 kiest aan het begin en na R (Full Circle, Crushing Circle, Wide Circle, Drie steken, Duw op X;
