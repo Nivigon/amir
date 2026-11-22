@@ -695,10 +695,9 @@
   .wkcoopknop.heb{opacity:.7}
   .wkcoopknop.heb em{color:#a8c98a}
   .wkcoopknop.shake{animation:hppshake .38s ease}
-  .wkcoopknop.kies{outline:2px solid #f6d77a;outline-offset:-2px}
+  .wkcoopknop.kies,#winkelui .wkkol > button.kies{outline:2px solid #f6d77a;outline-offset:-2px}
   /* het zijpaneel van de winkel (Co-op): naam, sfeertekst met de bron schuin eronder, wat het doet, Buy */
-  #wkinfo{display:none}
-  #winkelui.coop #wkinfo{display:flex;flex-direction:column;gap:6px;width:220px;padding:10px 12px;border-radius:10px;background:rgba(0,0,0,.22);border:1px solid rgba(242,232,213,.18);text-align:left}
+  #winkelui #wkinfo{display:flex;flex-direction:column;gap:6px;width:220px;padding:10px 12px;border-radius:10px;background:rgba(0,0,0,.22);border:1px solid rgba(242,232,213,.18);text-align:left}
   #wkinfonaam{font-size:17px}
   #wkinfosfeer,#invsfeer{font-size:13px;line-height:1.35;color:rgba(242,232,213,.9)}
   #wkinfobron,#invbron{font-size:12px;font-style:italic;color:#d9b77a;margin-top:-3px}
@@ -721,7 +720,7 @@
     #winkelui.coop #wkcoop{grid-template-columns:repeat(3,minmax(110px,160px));gap:4px}
     .wkcoopknop{padding:4px 6px;gap:1px}
     .wkcoopknop small{display:none}
-    #winkelui.coop #wkinfo{width:160px;padding:6px 8px;gap:3px}
+    #winkelui #wkinfo{width:160px;padding:6px 8px;gap:3px}
     #wkinfosfeer,#wkinfobron{display:none}
   }
   /* de inventory (I of het tasje): vijf vakken, het spel staat stil (zie "inventory") */
@@ -34600,8 +34599,8 @@ function winkelUIToon(){
   document.getElementById('wkspeerprijs').textContent = winkelPrijs(GOUD.speer);
   document.getElementById('wkgifprijs').textContent = winkelPrijs(GOUD.gif);
   document.getElementById('wkuitleg').textContent = g
-    ? 'Je hebt ' + goud + ' goud. Je inventory heeft ' + INV_MAX + ' plekken.'
-    : 'Klik op wat je wilt: per klik krijg je er een.';
+    ? 'Je hebt ' + goud + ' goud. Je inventory heeft ' + INV_MAX + ' plekken. Dubbelklik of Kopen koopt.'
+    : 'Klik op iets voor wat het is; dubbelklik of Kopen koopt het.';
   document.getElementById('wkkalebas').classList.toggle('duur', invVol() || (g && goud < GOUD.kalebas));
   document.getElementById('wkspeer').classList.toggle('duur', !!winkelSpeerNiet() || (g && goud < GOUD.speer));
   document.getElementById('wkgif').classList.toggle('duur', invVol() || (g && goud < GOUD.gif));
@@ -34615,6 +34614,7 @@ function winkelUIToon(){
   terug.classList.toggle('weg', !g || !winkelTerug);
   if (winkelTerug) terug.textContent = 'Terugkopen: ' + WK_NAAM[winkelTerug.soort] + ' (' + winkelTerug.prijs + ')';
   winkelTasToon();
+  wkInfoToon();
 }
 function winkelSchud(id, tekst){
   const knop = document.getElementById(id);
@@ -34664,7 +34664,7 @@ function winkelUIOpen(){
   if (!running || paused) return;
   // in de Co-op episode loopt het spel door: de host denkt voor de vijanden, en zijn pauze zou ze ook bij de anderen
   // stilzetten, die nog op straat kunnen vechten. Amir staat binnen, ver van de straat, en de toetsen doen niets
-  paused = !(typeof mpCoopAan === 'function' && mpCoopAan() && pvp.coop.ep); winkelUIAan = true; winkelTerug = null;
+  paused = !(typeof mpCoopAan === 'function' && mpCoopAan() && pvp.coop.ep); winkelUIAan = true; winkelTerug = null; wkKeus = null;
   for (const k in keys) keys[k] = false;          // geen toets blijft 'ingedrukt' hangen
   atkKeyHeld = false;
   winkelUIToon(); winkelUIEl.classList.add('on');
@@ -34676,6 +34676,7 @@ function winkelUIDicht(){
 }
 // betalen: met reden (een tekst) kan het niet en schudt de knop; anders gaat het goud eraf. Geeft terug of het lukte
 function winkelBetaal(knopId, prijs, reden){
+  if (document.activeElement && document.activeElement.id === 'wkinfokoop') knopId = 'wkinfokoop';   // via Kopen in het zijpaneel: die knop schudt
   if (!reden && goudAan() && goud < prijs) reden = 'Te weinig goud: je hebt ' + goud + ', dit kost ' + prijs + '.';
   if (reden){
     const knop = document.getElementById(knopId);
@@ -34687,13 +34688,14 @@ function winkelBetaal(knopId, prijs, reden){
   return true;
 }
 const INV_VOL_TEKST = 'Je inventory is vol (' + HPPOTION_MAX + ' plekken). Meer past er niet.';
-document.getElementById('wkkalebas').onclick = () => {
+const wkKoop = {};                                  // de aankopen in de winkel buiten Co-op (een klik kiest, zie wkInfoToon)
+wkKoop.kalebas = () => {
   if (!winkelBetaal('wkkalebas', GOUD.kalebas, invVol() ? winkelVolTekst() : null)) return;
   hppotionCarry++;
   hppotionHud(); hppotionHudAnim('pulse'); playHppotionPickupSound();
   winkelUIToon();
 };
-document.getElementById('wkspeer').onclick = () => {
+wkKoop.speer = () => {
   if (!winkelBetaal('wkspeer', GOUD.speer, winkelSpeerNiet())) return;
   rugErbij('geel');                                 // een gekochte speer heeft een geel vaantje: alleen die is weer te verkopen
   if (!spear && !spearFound && rugTrekT <= 0) rugTrekKlaar();   // je hand was leeg: hij gaat meteen in de hand
@@ -34701,12 +34703,46 @@ document.getElementById('wkspeer').onclick = () => {
   winkelUIToon();
   document.getElementById('wkuitleg').textContent = 'Een nieuwe speer, voor dit level.';
 };
-document.getElementById('wkgif').onclick = () => {
+wkKoop.gif = () => {
   if (!winkelBetaal('wkgif', GOUD.gif, invVol() ? winkelVolTekst() : null)) return;
   gifCarry++; invHud(); playHppotionPickupSound();
   winkelUIToon();
   document.getElementById('wkuitleg').textContent = 'Gif in je inventory. Druk op I om het op je speren te smeren.';
 };
+// het zijpaneel van de winkel buiten Co-op: een klik op de kalebas, de speer of het gif toont wat het is (met de
+// sfeertekst, schuin de bron eronder) en Kopen; een dubbelklik koopt meteen, net als in Co-op (mpcInfoToon)
+const WK_INFO = {
+  kalebas: { naam: 'Kalebas', prijs: () => GOUD.kalebas,
+    uitleg: () => 'Een slok geeft een leven terug. Neemt een plek in je tas; drinken doe je met Q.' },
+  speer: { naam: 'Speer', prijs: () => GOUD.speer,
+    uitleg: () => 'Een speer erbij, in je hand of op je rug, alleen voor dit level. Hij heeft een geel vaantje: alleen een gekochte speer kun je weer verkopen.' },
+  gif: { naam: 'Gif', prijs: () => GOUD.gif, ding: 'gif', uitleg: () => INV_DING.gif.uitleg() },   // de sfeertekst uit INV_DING (dat staat verderop)
+};
+let wkKeus = null;                                   // de gekozen soort in de winkel buiten Co-op
+function wkInfoToon(){
+  if (typeof mpCoopAan === 'function' && mpCoopAan()) return;   // Co-op heeft zijn eigen (mpcInfoToon)
+  const zet = (id, s) => { document.getElementById(id).textContent = s || ''; };
+  for (const k in WK_INFO) document.getElementById('wk' + k).classList.toggle('kies', k === wkKeus);
+  const d = WK_INFO[wkKeus], koop = document.getElementById('wkinfokoop');
+  if (!d){
+    zet('wkinfonaam', 'Kies iets'); zet('wkinfosfeer'); zet('wkinfobron'); zet('wkinfouitleg', 'Klik op iets voor wat het doet. Dubbelklik koopt het meteen.');
+    koop.classList.add('weg'); return;
+  }
+  zet('wkinfonaam', d.naam);
+  const sfeer = d.ding ? INV_DING[d.ding].sfeer : d.sfeer, bron = d.ding ? INV_DING[d.ding].bron : d.bron;
+  zet('wkinfosfeer', sfeer ? '\u201C' + sfeer + '\u201D' : '');
+  zet('wkinfobron', bron || '');
+  zet('wkinfouitleg', d.uitleg());
+  koop.classList.remove('weg');
+  koop.classList.toggle('duur', document.getElementById('wk' + wkKeus).classList.contains('duur'));
+  koop.textContent = 'Kopen, ' + winkelPrijs(d.prijs());
+  koop.onclick = () => wkKoop[wkKeus]();
+}
+for (const k in WK_INFO){
+  const b = document.getElementById('wk' + k);
+  b.onclick = () => { wkKeus = k; wkInfoToon(); };
+  b.ondblclick = () => wkKoop[k]();
+}
 document.getElementById('wkdicht').onclick = winkelUIDicht;
 document.getElementById('wkklaar').onclick = () => mpcKlaarDruk();
 for (const soort of ['kalebas', 'speer', 'gif']) document.getElementById('wkv' + soort).onclick = () => winkelVerkoop(soort);
