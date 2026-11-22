@@ -438,3 +438,20 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
 - worp_12: NIET vervangen. Drie pogingen (`33a243ed`, `1c0188db` 0,45, `5da87ce3`; mk_nk_rw12, rw12b, rw12c, ook met
   "pure side view", "only one eye", "torso 45 degrees"): Grok zet de romp steeds rechtop met de borst naar ons, de stoot
   naar links. Niet beter dan het huidige frame.
+### Lage zwaai
+- sweep_8: VERVANGEN, post `ae7d9ae6` 0,55 (was 0,60), `mk_nk_sw8`: driekwart rug, een arm horizontaal naar links, een hand
+  op de grond, been ver naar rechts. Lagere IoU door een iets hoger hoofd, maar de houding klopt nu (eerst twee handen op de grond).
+### Stofsweep
+- stof_07 en stof_08: NIET vervangen. Op dezelfde schaal naast het origineel staat het hoofd van Mkuki al even hoog als in
+  het origineel; Grok maakt de hurk niet dieper zonder de figuur te verkleinen. stof_08: `52874da5` (ogen dicht, halve hurk),
+  `f6a4dd37` 0,67 (zelfde hoogte als nu), `f3090ed6` (rechter); stof_07: `cb2433f7` 0,55 (lager, maar 10% kleiner geplaatst).
+  Prompts `mk_nk_st07`, `mk_nk_st08`, `mk_nk_st08b`, `mk_nk_st08c`.
+### Ren met speer (kruisframes)
+- Niet eerder gedaan in de rencyclus-chat (REN_WISSEL.md raakte 4 en 10 niet aan).
+- ren_sp_4: VERVANGEN, post `10138fbb` 0,61, `mk_nk_ren4` (benen kruisen, beide voeten achter de heup, geen wandelpas).
+  Schoon, geen geplakte benen of rafelige vuist meer. Borst iets meer naar ons dan in het origineel.
+- ren_sp_10: VERVANGEN, post `0a0007d5` 0,53, `mk_nk_ren4`: compacte afzet, voorste voet iets verder naar voren dan in het
+  origineel, maar schoon. `6f568575` met `mk_nk_ren10` (benen dicht bij elkaar) gaf twee rechte benen, afgekeurd.
+- Let op: de verre-been-correctie van REN_WISSEL.md (wissel.py) is niet over de nieuwe 4 en 10 gehaald; beide benen zijn
+  even licht. In de kruisframes valt dat weinig op.
+- export.py haalt nu een oude vuistlaag weg als een nieuw frame geen vuist heeft.

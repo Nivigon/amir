@@ -90,6 +90,10 @@ def main():
             if vuist[..., 3].any():
                 Image.fromarray(vk).save(b + '_vuist.png')
                 Image.fromarray(kleur.kaart_png(vz, vuist[..., 3] > 40)).save(b + '_vuist_zones.png')
+            else:
+                # nieuw frame zonder vuist: een oude vuistlaag van het vorige frame zou op de verkeerde plek zweven
+                for f in (b + '_vuist.png', b + '_vuist_zones.png'):
+                    if os.path.exists(f): os.remove(f)
             pl['frames'][rel] = {k2: info[k2] for k2 in ('tip', 'kont', 'hoek', 'lengte', 'handen')}
             pl['frames'][rel]['achter'] = False
             comp.alpha_composite(Image.fromarray(speerlaag(o, info)))
