@@ -13,6 +13,11 @@ wel plek zijn. `winkelBetaal` doet het betalen en het schudden.
   dit level: `restart` begint toch met een volle rug. Een speer die ergens op de grond ligt, telt niet als vol.
 - **Gif.** Een plek in de inventory (`gifCarry`).
 
+**Het zijpaneel (22-11-2026):** een klik op de kalebas, de speer of het gif kiest het (gouden rand) en toont in
+`#wkinfo` de naam, de sfeertekst met de bron schuin eronder (alleen het gif heeft er een, uit `INV_DING.gif`), de uitleg
+(`WK_INFO`) en **Kopen**; een dubbelklik koopt meteen (`wkKoop`, `wkKeus`, `wkInfoToon`). Hetzelfde paneel als in Co-op
+(`mpcInfoToon`).
+
 ## De inventory
 
 `INV_MAX` (= `HPPOTION_MAX`, nu 5) plekken. Een plek per ding: eerst de kalebassen (`hppotionCarry`), dan het gif
