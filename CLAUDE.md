@@ -306,6 +306,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | Amir zegt er iets van als hij geraakt wordt | `SFX_RAAK`, `playRaak()` | notities/geluid.md |
 | Amir zegt iets als een vijand sterft | `SFX_RUST`, `vijandDood(baas)`, `DOOD_KANS` | notities/geluid.md |
 | stap voor stap leren spelen | `tutorial` | notities/wegwijzers.md |
+| de tutorial The First Hunt: een mentor (omgekleurde Amir, opgenomen spoor) die voordoet en wacht, een tekstwolk met toetsen, een fade terug na een val en een race (Test 89) | `MENTOR`, `mentorUpdate`, `mentorTeken`, `mentorWolkTeken`, `mentorVal`, `mentorOpname` | notities/tutorial.md |
 | gaten in de grond | `gaps`, `grondDoorlopen` | notities/wegwijzers.md |
 | zuil: een smalle strook grond tussen twee ravijnen | `ZUIL`, `zuilBij`, `zuilWand` | notities/zuil.md |
 | zuil met een hoogte: hoger of lager dan de grond | `ZUIL_HOOG`, `zuilLijst`, `zuilBasis` | notities/zuil.md |
@@ -487,6 +488,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `ends` | de fakkels die het level uitspelen: `{x}` |
 | `npcs` | dorpelingen: `{x, k, f, s}` |
 | `tips` | tekst onderweg: `{x, t}` |
+| `mentor` | de mentor van de tutorial: `{spoor, finish, prijs, win, verlies, vallen, stations: [{zeg, seg, ok, eis, nog, kijk, terug, race}]}`; zijn spoor komt uit `tools/mentor_opname.js` (alleen Test 89, zie `notities/tutorial.md`) |
 | `hinderlagen` | de hinderlaag van Co-op: `[{x, vecht, shots: [{x, h, t, poort, deur, kelder}]}]`, een lijn op `x` tot het hele team er levend is, dan de regie langs de shots en het gevecht; een spawn met `hl` en `shot` komt binnen op zijn shot (alleen de Co-op episode The Smugglers' Cellar, zie `notities/multiplayer.md`) |
 | `pijlen` | rode pijlen in de lucht die iets aanwijzen: `{x, t}`, alleen voor testlevels (Test 47) |
 
