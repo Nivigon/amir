@@ -815,5 +815,18 @@ niet met `STOK_AAN` of in een level met `broekKeuze` of een eigen `skin`).
 - **De lobby.** `mpBroekLijst`: met de speer de outfits (`MP_OUTFIT`, bewaard in `amir.mpoutfit`, standaard mk1, mk3, mk4
   per slot), met de stokken de broeken (`MP_BROEK_OUD`, `amir.mpbroek`). Wisselt je wapen, dan zet `mpBroekPas` je keuze
   om. Het bericht blijft `{t: 'broek', id}`. `MP_NAAM.kleur` heeft per outfit zijn opvallendste kleur (`stip`).
-- **Testen.** `node tools/outfittest.js map`: elke outfit in idle, ren en stoot naast het oude tenue, en de sandbox.
+  `mpLobbyOpen` zet een level-skin uit (`skinZet(null)`): het menu houdt het laatst geladen level vast, en had dat een
+  eigen skin (Test 90, Tau), dan gaf `mkSkinVan` niets en stond Amir in de lobby in het oude tenue in plaats van in zijn outfit.
+- **De losse speer (MK_LOS, 22-11-2026).** De speer zit niet meer in het frame: `tools/mkuki_spel_los.py` bakt per frame
+  het lijf zonder speer (`_lijf.png`), wat over de speer komt (voor-masker en vuist, `_boven.png`), de maskers van de speer
+  (`_sm.png`, rood weg en groen achter) met hun zonekaarten, en `los.json` met per frame de speer uit de Mkuki animeer tool
+  (hoek, midden, breedte, draaiing, spiegelen, achter). `mkLosBeeld` tekent speer achter, lijf, speer voor, boven.
+  De speer is per soort: de gewone (`bron/amirspeer_<hoek>.png`) met het lint via `speerKleur`, of de Pathfinder
+  (`bron/pf_<hoek>.png`) met zijn vaantje recht omlaag aan de knoop. Mijn eigen Amir draagt de soort uit `speerBlauw`
+  (`mkSpeerNu`); een teamgenoot de soort uit zijn stand (`sp`, en `vw` de wind voor het vaantje, `mkSpeerZend`, alleen
+  als het niet de gewone is). Het vaantje waait in de hand net als op de rug (`pfRugWind`): stil wiegt het, rennend
+  waait het naar achteren. Zolang iets laadt het gebakken frame. Stel je de speer
+  bij in de tool, draai dan met de export `mkuki_spel_bak.py`, `mkuki_spel_zones.py` en `mkuki_spel_los.py`.
+- **Testen.** `node tools/outfittest.js map`: elke outfit in idle, ren en stoot naast het oude tenue, de losse speer
+  tegen het gebakken frame (alleen randjes van de schacht mogen verschillen) en elke speersoort in zijn hand, en de sandbox.
   `node tools/mptest.js --proef --stokken gast2`: twee spelers Mkuki, een met de stokken.

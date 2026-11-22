@@ -3725,8 +3725,7 @@ const bronW = im => im.naturalWidth * (im._bron || 1), bronH = im => im.naturalH
 // executie, de stokken) blijft het gewone tenue. Zo hoeft geen enkele animatie iets te weten van de skin: we vangen het zetten
 // van img.src op en onthouden welk plaatje van Amir is (SKIN.imgs), en bij een levelwissel zetten we die allemaal om (skinZet).
 // De frames zijn gebakken met tools/mkuki_spel_bak.py (lijf uit claude/mkuki, speer en vuist zoals de Mkuki animeer tool ze zet).
-// mkuki_pf: dezelfde Mkuki-frames met de Pathfinder Spear in de hand (tools/mkuki_pathfinder_bak.py), alleen via broekBeeld
-const SKIN = { soorten: { mkuki: 'karakters/amir/mkuki_spel/', mkuki_pf: 'karakters/amir/mkuki_pf/', tau1: 'karakters/amir/tau1_spel/' }, lijst: {}, imgs: new Set(), aan: null };
+const SKIN = { soorten: { mkuki: 'karakters/amir/mkuki_spel/', tau1: 'karakters/amir/tau1_spel/' }, lijst: {}, imgs: new Set(), aan: null };
 const SKIN_BASIS = ['karakters/amir/', 'amir runc/amir_sprites/design/amir/'];
 const SKIN_SRC = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
 function skinRel(v){                                // het pad van een Amir-plaatje zonder map, of null
@@ -25731,7 +25730,7 @@ function mentorKleur(im){
   const w = im.naturalWidth, h = im.naturalHeight, K = MENTOR.huid;
   c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d', { willReadFrequently: true });
-  g.drawImage(broekBeeld(im, im, broekKleurVan(MENTOR.broek), document.createElement('canvas'), false), 0, 0);
+  g.drawImage(broekBeeld(im, im, broekKleurVan(MENTOR.broek), document.createElement('canvas')), 0, 0);
   const d = g.getImageData(0, 0, w, h), p = d.data;
   for (let i = 0; i < p.length; i += 4){
     if (p[i + 3] < 8) continue;
@@ -25942,7 +25941,7 @@ const SPEER_SOORTEN = {
   oud1:      { naam: 'Oude speer', en: 'Old spear', vaan: 26, dof: 0.6, oud: 1 },
   geel:      { naam: 'Gekochte speer', en: 'Bought spear', vaan: 48 },         // alleen het vaantje, geel: gekocht in de winkel, de enige die te verkopen is
   // de Pathfinder Spear (zie "de Pathfinder Spear"): liggend, geworpen en op de rug eigen art met een los vaantje
-  // (javTeken); in Amirs handen het frame uit de Mkuki-set met de Pathfinder (mkuki_pf, pfInHand, broekBeeld)
+  // (javTeken); in Amirs handen los als Mkuki (MK_LOS, bron/pf_<hoek>.png)
   pathfinder: { naam: 'Pathfinder Spear', en: 'Pathfinder Spear', pathfinder: true }
 };
 // Een gekochte speer draagt de soort 'geel' (de vlag blauw op de speer), alleen die is in de winkel te verkopen.
@@ -25987,7 +25986,7 @@ function speerSoortId(v){ return typeof v === 'string' ? v : v ? 'blauw' : null;
 // Je koopt er een per speerplek (pfAantal); elke keer wordt een gewone speer die je draagt een Pathfinder: de soort
 // 'pathfinder' in het veld van het vaantje (speerBlauw, rugSperen[].blauw, jav.blauw, losseSperen[].blauw), gezet in
 // pfStap. Welke in je hand zit kiest de speervolgorde (speerSorteer, de inventory, Z). Je ziet hem op de rug, in de worp, liggend en in
-// een wand of oefendoel (javTeken in plaats van javImg); in Amirs handen het frame uit mkuki_pf (pfInHand, broekBeeld). De art
+// een wand of oefendoel (javTeken in plaats van javImg); in Amirs handen tekent de Mkuki-skin hem los (MK_LOS). De art
 // komt uit tools/pathfinder_speer.py: jav.png even lang als javImg (dezelfde schaal), en het vaantje los in vier
 // standen (stil, licht wiegen, wind, harde wind). Het vaantje hangt aan een knoopje onder het rode bandje en wijst
 // altijd naar beneden in de wereld, ook als de speer draait (pfVaanTeken leest de transformatie terug), en waait mee:
@@ -26282,7 +26281,7 @@ function mkSkinLaad(p){
 // het frame uit de skin bij een oud frame van Amir (of null: niet in de skin, of een level met een eigen skin)
 function mkSkinVan(img, soort){
   if (SKIN.aan || !img || !img._skinRel) return null;
-  if (!mkVoorgeladen[soort]) mkSkinVoorladen(soort);
+  if (!mkVoorgeladen) mkSkinVoorladen();
   const L = skinLijstLaad(soort);
   if (!L.has(img._skinRel)) return null;
   let p = img._skinOrig; try { p = decodeURI(p); } catch (_){}
@@ -26290,18 +26289,134 @@ function mkSkinVan(img, soort){
   return imgReady(im) ? im : null;
 }
 // alvast alle frames van de skin laden, zodat Amir niet even in het oude tenue staat (een keer per sessie)
-// (per skin: de Pathfinder-set pas als iemand hem in de hand heeft)
-const mkVoorgeladen = {};
-function mkSkinVoorladen(soort = 'mkuki'){
-  if (mkVoorgeladen[soort]) return;
-  mkVoorgeladen[soort] = true;
-  const doe = () => { const L = SKIN.lijst[soort]; if (!L || !L.size) return setTimeout(doe, 300);
-    for (const r of L) mkSkinLaad(KLEIN + SKIN.soorten[soort] + r); };
-  skinLijstLaad(soort); doe();
+let mkVoorgeladen = false;
+function mkSkinVoorladen(){
+  if (mkVoorgeladen) return;
+  mkVoorgeladen = true;
+  const doe = () => { const L = SKIN.lijst.mkuki; if (!L || !L.size || !MK_LOS.data) return setTimeout(doe, 300);
+    const F = MK_LOS.data.frames, b = KLEIN + SKIN.soorten.mkuki;
+    for (const r of L){
+      mkSkinLaad(b + r);
+      const d = F[r]; if (!d) continue;
+      const s = b + r.replace(/\.png$/, '');
+      mkSkinLaad(s + '_lijf.png'); if (d.b) mkSkinLaad(s + '_boven.png'); if (d.m) mkSkinLaad(s + '_sm.png');
+    }
+    for (const h in MK_LOS.data.hoeken) mkSkinLaad(SKIN.soorten.mkuki + 'bron/amirspeer_' + h + '.png');
+  };
+  skinLijstLaad('mkuki'); mkLosLaad(); doe();
 }
-// De Pathfinder Spear in Amirs handen: alleen als hij er een bezit (gekocht in de winkel van Co-op, of de sandboxknop)
-// en het de speer in zijn hand is. Dan tekent broekBeeld het frame uit mkuki_pf in plaats van mkuki_spel.
-function pfInHand(){ return !!(spear && spearFound && speerBlauw === 'pathfinder' && pfAantal() > 0); }
+
+// ---- de losse speer van Mkuki (MK_LOS): lijf, speer en vuist apart, zodat elke speersoort in zijn handen kan ----
+// tools/mkuki_spel_los.py bakt per frame van de skin het lijf zonder speer (_lijf.png), wat over de speer heen komt (het
+// voor-masker van het lijf en de vuist, _boven.png) en de maskers van de speer (_sm.png: rood weg, groen achter het
+// lijf), met hun zonekaarten, en in los.json per frame de speer zoals de Mkuki animeer tool hem zet: hoek (de gewone of
+// een langere of verkorte schacht), midden en breedte als deel van het canvas, draaiing, spiegelen, achter het lijf.
+// broekBeeld tekent dan: speer achter, lijf, speer voor, boven, met de outfitkleuren op lijf en boven. De speer is het
+// plaatje van zijn soort: de gewone (bron/amirspeer_<hoek>.png, met het lint in de kleur van de soort, speerKleur) of
+// de Pathfinder (bron/pf_<hoek>.png, de schacht rekt mee zoals in de tool) met zijn vaantje recht omlaag aan de knoop.
+// Mijn eigen Amir draagt de soort in zijn hand (speerBlauw); een teamgenoot de gewone. Zolang iets nog laadt: het
+// gebakken frame met de speer erin.
+const MK_LOS = { data: null };
+function mkLosLaad(){
+  if (MK_LOS.data !== null) return;
+  MK_LOS.data = false;
+  fetch(SKIN.soorten.mkuki + 'los.json').then(r => r.json()).then(d => { MK_LOS.data = d; })
+    .catch(e => { console.warn('mkuki los.json', e); MK_LOS.data = null; });
+}
+const mkMaskCache = new WeakMap();                       // _sm.png -> [weg, achter] als doeken met alleen alfa
+function mkMaskers(sm){
+  let m = mkMaskCache.get(sm);
+  if (m) return m;
+  const w = sm.naturalWidth, h = sm.naturalHeight, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(sm, 0, 0);
+  const d = g.getImageData(0, 0, w, h).data;
+  m = [0, 1].map(k => {
+    const o = document.createElement('canvas'); o.width = w; o.height = h;
+    const og = o.getContext('2d'), od = og.createImageData(w, h);
+    for (let i = 0; i < d.length; i += 4){ od.data[i + 3] = d[i + k]; }
+    og.putImageData(od, 0, 0); return o;
+  });
+  mkMaskCache.set(sm, m);
+  return m;
+}
+// de speer van een frame tekenen op g (in framepixels W x H); false als het plaatje nog niet binnen is
+function mkSpeerTeken(g, s, soortId, W, H, wind){
+  const pf = soortId === 'pathfinder', D = MK_LOS.data;
+  const bron = mkSkinLaad(SKIN.soorten.mkuki + 'bron/' + (pf ? 'pf_' : 'amirspeer_') + s.a + '.png');
+  if (!imgReady(bron)) return false;
+  const im = pf ? bron : speerKleur(bron, soortId);
+  const w = s.w * W, h = w * (pf ? D.pf[s.a].asp : D.hoeken[s.a].asp);
+  g.save();
+  g.globalAlpha *= s.op == null ? 1 : s.op;
+  g.translate(s.cx * W, s.cy * H); g.rotate(s.r * Math.PI / 180);
+  if (s.f) g.scale(-1, 1);
+  g.drawImage(im, -w / 2, -h / 2, w, h);
+  if (pf){                                               // het vaantje: aan de knoop, omlaag in het frame, en het waait
+    // zoals pfVaanTeken op de rug: hoe harder de wind (de vaart van Amir), hoe verder uit, en het wappert ertussen heen
+    // en weer; het frame kijkt naar links, dus achter hem (waar het heen waait) is rechts: gespiegeld
+    const t = performance.now() / 1000, wd = Math.max(0, Math.min(1, wind || 0));
+    const st = Math.max(0, Math.min(3, wd * 3 + (wd < 0.15 ? 0.35 + 0.45 * Math.sin(t * 1.7) : 0.6 * Math.sin(t * (5 + 7 * wd)))));
+    const i = Math.round(st), v = pfVaan[i];
+    if (v && imgReady(v)){
+      const kx = -w / 2 + D.pf[s.a].kx * w, ky = -h / 2 + D.pf[s.a].ky * h;
+      const p = g.getTransform().transformPoint(new DOMPoint(kx, ky));
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.translate(p.x, p.y); g.rotate((1 - wd) * 0.07 * Math.sin(t * 2.3)); g.scale(-1, 1);
+      const fk = w / bron.naturalWidth / PATHFINDER.vaanK, kn = PATHFINDER.vaan[i];
+      g.drawImage(v, -kn[0] * fk, -kn[1] * fk, v.naturalWidth * fk, v.naturalHeight * fk);
+    }
+  }
+  g.restore();
+  return true;
+}
+let mkLosCv = null, mkSpeerCv = null, mkSpeerCv2 = null;
+// de speer in mijn hand voor MK_LOS (en voor de anderen in de stand van Co-op, sp en vw): de soort en de wind
+// voor de stand naar de anderen: alleen als er iets anders dan de gewone speer in mijn hand zit
+function mkSpeerZend(){ const n = mkSpeerNu(); return n.s ? (n.s === 'pathfinder' ? { sp: n.s, vw: +n.w.toFixed(2) } : { sp: n.s }) : {}; }
+function mkSpeerNu(){ return { s: spearFound ? speerSoortId(speerBlauw) : null, w: speerSoortId(speerBlauw) === 'pathfinder' ? pfRugWind() : 0 }; }
+// het hele frame: speer, lijf, boven, met de outfit; null als iets nog laadt (dan het gebakken frame)
+function mkLosBeeld(mk, rel, kl, speer, cv){
+  const soortId = speer ? speer.s || null : null, wind = speer ? speer.w || 0 : 0;
+  const D = MK_LOS.data, d = D && D.frames[rel];
+  if (!d) { if (D === null) mkLosLaad(); return null; }
+  const b = SKIN_SRC.get.call(mk).replace(/\.png$/, '');
+  const lijf = mkSkinLaad(b + '_lijf.png'), boven = d.b ? mkSkinLaad(b + '_boven.png') : null, sm = d.m ? mkSkinLaad(b + '_sm.png') : null;
+  if (!imgReady(lijf) || (boven && !imgReady(boven)) || (sm && !imgReady(sm))) return null;
+  if (d.s && soortId === 'pathfinder') pfLaad();
+  const W = lijf.naturalWidth, H = lijf.naturalHeight;
+  if (!cv){ if (!mkLosCv) mkLosCv = document.createElement('canvas'); cv = mkLosCv; }
+  if (cv.width !== W || cv.height !== H){ cv.width = W; cv.height = H; }
+  const g = cv.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+  g.clearRect(0, 0, W, H);
+  const lap = (im, x) => { if (!kl.zones) return; const l = mkLap(im, kl); if (l) g.drawImage(l.cv, l.x, l.y); };
+  let voor = null;                                       // wat van de speer na het lijf komt
+  if (d.s){
+    if (sm){                                             // met maskers: eerst op een eigen doek, weg eraf, dan splitsen
+      const [weg, achter] = mkMaskers(sm);
+      if (!mkSpeerCv){ mkSpeerCv = document.createElement('canvas'); mkSpeerCv2 = document.createElement('canvas'); }
+      for (const c of [mkSpeerCv, mkSpeerCv2]) if (c.width !== W || c.height !== H){ c.width = W; c.height = H; }
+      const s1 = mkSpeerCv.getContext('2d'), s2 = mkSpeerCv2.getContext('2d');
+      s1.globalCompositeOperation = 'source-over'; s1.clearRect(0, 0, W, H);
+      if (!mkSpeerTeken(s1, d.s, soortId, W, H, wind)) return null;
+      s1.globalCompositeOperation = 'destination-out'; s1.drawImage(weg, 0, 0, W, H);
+      s1.globalCompositeOperation = 'source-over';
+      if (d.s.b) g.drawImage(mkSpeerCv, 0, 0);
+      else {
+        s2.globalCompositeOperation = 'source-over'; s2.clearRect(0, 0, W, H); s2.drawImage(mkSpeerCv, 0, 0);
+        s2.globalCompositeOperation = 'destination-in'; s2.drawImage(achter, 0, 0, W, H); s2.globalCompositeOperation = 'source-over';
+        g.drawImage(mkSpeerCv2, 0, 0);                   // het achter-stuk
+        s1.globalCompositeOperation = 'destination-out'; s1.drawImage(achter, 0, 0, W, H); s1.globalCompositeOperation = 'source-over';
+        voor = () => g.drawImage(mkSpeerCv, 0, 0);
+      }
+    } else if (d.s.b){ if (!mkSpeerTeken(g, d.s, soortId, W, H, wind)) return null; }
+    else voor = () => mkSpeerTeken(g, d.s, soortId, W, H, wind);
+  }
+  g.drawImage(lijf, 0, 0); lap(lijf);
+  if (voor && voor() === false) return null;
+  if (boven){ g.drawImage(boven, 0, 0); lap(boven); }
+  return cv;
+}
 function mkLap(img, kl){
   let cache = mkLapCache.get(kl.id);
   if (!cache){ cache = new WeakMap(); mkLapCache.set(kl.id, cache); }
@@ -26427,13 +26542,15 @@ function broekLap(img, kl){
 let broekCv = null;
 // Alleen een echt plaatje krijgt een lapje: een doek dat elk beeld anders is (rigCv van de mik-rig) zou het lapje
 // van zijn eerste stand houden. De rig kleurt daarom zijn losse delen (rigLaag) en zijn doek gaat er hier langs.
-// pf: de Pathfinder Spear in de hand (pfInHand voor mijn Amir, g.pf voor een teamgenoot): het frame uit mkuki_pf
-function broekBeeld(basis, img, kl = broekNu(), cv = null, pf = pfInHand()){
+function broekBeeld(basis, img, kl = broekNu(), cv = null, speer = null){
   if (!kl || !img || !(img instanceof HTMLImageElement)) return basis;
   if (kl.skin){                                         // een outfit van Mkuki (MK_OUTFIT): het frame uit de skin
-    const mk = (pf && kl.skin === 'mkuki' && mkSkinVan(img, 'mkuki_pf')) || mkSkinVan(img, kl.skin);
+    const mk = mkSkinVan(img, kl.skin);
     if (!mk) return basis;                              // niet in de skin (of nog niet geladen): het oude tenue
-    basis = basis === img ? mk : vaanBlauw(mk);         // het lint van de speer in de kleur van de speersoort, net als het oude
+    // de losse speer (MK_LOS): de soort in zijn hand en de wind voor het vaantje (speer: mkSpeerNu, of van een teamgenoot)
+    const los = mkLosBeeld(mk, img._skinRel, kl, speer, cv);
+    if (los) return los;
+    basis = basis === img ? mk : vaanBlauw(mk);         // nog aan het laden: het gebakken frame, het lint in de kleur van de soort
     img = mk;
     if (!kl.zones) return basis;
   }
@@ -53338,7 +53455,7 @@ function broekVoorbeeldStart(){
       const iw = img.naturalWidth, ih = img.naturalHeight, sx = iw * BROEK_VB.uit[0], sw = iw * BROEK_VB.uit[1];
       const k = Math.min(cv.width / sw, cv.height / ih), dw = sw * k, dh = ih * k, dx = (cv.width - dw) / 2, dy = cv.height - dh;
       const teken = (kl, doek, a) => {
-        const b = broekBeeld(img, img, kl, doek, false);
+        const b = broekBeeld(img, img, kl, doek);
         g.globalAlpha = a; g.drawImage(b, sx, 0, sw, ih, dx, dy, dw, dh); g.globalAlpha = 1;
       };
       const f = broekVbVan ? Math.min(1, (now - broekVbT0) / 1000 / BROEK_VB.over) : 1;
@@ -56803,14 +56920,14 @@ function loop(now){
     sgDuikZet(w, h, groundY + lift - y);              // de sprintgreep: even voorover naar de speer (SPRINTGREEP)
     const gloedW = woedeGloed(), gloedZ = straalGloed(), gloed = Math.max(gloedW, gloedZ), zonKl = gloedZ > gloedW;   // de zonnestraal (STRAAL): goud in plaats van oranje
     if (gloed > 0){                                   // de woede: een warme gloed die als een vlam om zijn rand likt
-      const beeld = amirSteen > 0 ? fosforKopie(img, 'steen') : broekBeeld(vaanBlauw(img), img);
+      const beeld = amirSteen > 0 ? fosforKopie(img, 'steen') : broekBeeld(vaanBlauw(img), img, undefined, null, mkSpeerNu());
       ctx.shadowColor = (zonKl ? 'rgba(255,196,40,' : 'rgba(255,120,30,') + (0.9 * gloed).toFixed(3) + ')';   // eerst ruim en diep oranje
       ctx.shadowBlur = CHAR_H * scale * (0.07 + 0.04 * gloed) * DPR;          // shadowBlur rekent in canvaspixels
       ctx.drawImage(beeld, 0, 0, w, h);
       ctx.shadowColor = (zonKl ? 'rgba(255,244,190,' : 'rgba(255,196,90,') + gloed.toFixed(3) + ')';           // dan een smal, lichter randje
       ctx.shadowBlur = CHAR_H * scale * 0.022 * DPR;
     }
-    const amirBeeld = amirSteen > 0 ? fosforKopie(img, 'steen') : broekBeeld(vaanBlauw(img), img);   // door de fosforslang versteend; anders met de broekkleur (BROEK)
+    const amirBeeld = amirSteen > 0 ? fosforKopie(img, 'steen') : broekBeeld(vaanBlauw(img), img, undefined, null, mkSpeerNu());   // door de fosforslang versteend; anders met de broekkleur (BROEK)
     if (useRolW && ROL_WORP.smear > 0 && Math.abs(rwF - ROL_WORP.los) <= 1){
       // de smear: rond het loslaten een paar vage kopieen achter hem, zodat de worp snel oogt. Het beeld kijkt naar
       // links (ook gespiegeld, want de spiegeling zit al in de transformatie), dus achter hem is +x
@@ -70295,6 +70412,8 @@ function mpWijzig(f){
 function mpLobbyOpen(){
   if (!pvp) return;
   pvp.fase = 'lobby'; pvp.klaar = false; pvp.klaarVan = {};
+  skinZet(null);                                    // het menu houdt het laatste level vast; had dat een eigen skin (Test 90),
+                                                    // dan toonde de lobby het oude tenue in plaats van de outfits (mkSkinVan)
   pvpEl('menuPvp').classList.add('lobby');
   pvpEl('start').classList.add('mplobby');          // je eigen Amir naast de lobby (mpBroek)
   pvpStatus('');
@@ -70888,8 +71007,7 @@ function pvpBron(img){
 function pvpVang(img, x, y, w, h, fl, pcx, voet, scale){
   const im = pvpBron(img);
   if (!im) return;                                   // een gebakken doek zonder bron: het vorige beeld blijft staan
-  pvp.mijn = { im, dx: (x - pcx) / scale, dy: (y - voet) / scale, dw: w / scale, dh: h / scale, fl: fl ? 1 : 0, a: +ctx.globalAlpha.toFixed(2),
-    pf: pfInHand() ? 1 : 0 };   // de Pathfinder in mijn hand, zodat de ander hem ook ziet (broekBeeld)
+  pvp.mijn = { im, dx: (x - pcx) / scale, dy: (y - voet) / scale, dw: w / scale, dh: h / scale, fl: fl ? 1 : 0, a: +ctx.globalAlpha.toFixed(2) };
 }
 // elk beeld (in de spelstap, met echte tijd): de stand doorsturen, de andere Amir laten bijschuiven, de dood melden
 function pvpStap(rdt){
@@ -70921,7 +71039,7 @@ function pvpStap(rdt){
     const j = jav && jav.state !== 'weg' ? { x: Math.round(jav.x), h: Math.round(jav.h), sa: +jav.sa.toFixed(3), dir: jav.dir, st: jav.state, t: +(jav.t || 0).toFixed(2), b: jav.blauw || 0, n: pvp.jn } : null;
     pvpZendSnel(Object.assign({ t: 's', q: ++pvp.qs, tm: +pvpNu().toFixed(3), ak: pvp.coop && !pvp.host && pvp.nets[0] ? pvp.nets[0].v.q : undefined, x: Math.round(playerX()), h: Math.round(ph), f: facing, hu: +hurt.toFixed(2),
       sf: atkFrame, ss: atkStok || undefined, sl: steekLive() && !atkMes ? 1 : 0, sn: pvp.sn, sw: swFrame, wn: pvp.wn, j, l: lives, d: dead ? 1 : 0,
-      iv: invuln > 0 ? 1 : 0, du: +duckT.toFixed(2), ds: +duckShare.toFixed(2) }, pvp.mijn));   // iv, du en ds: de stand voor de vijanden van Co-op (mpcGastStand)
+      iv: invuln > 0 ? 1 : 0, du: +duckT.toFixed(2), ds: +duckShare.toFixed(2), ...mkSpeerZend() }, pvp.mijn));   // iv, du en ds: de stand voor de vijanden van Co-op (mpcGastStand)
   }
   if (pvp.coop) mpcVriesWacht(rdt);                 // Co-op: een freeze die niet afloopt laat Amir niet voorgoed staan
   if (pvp.coop) mpCoopStap(rdt, rdt);                // Co-op: de rondes, de deuren en de vijanden
@@ -70987,7 +71105,8 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
     if (pvp.coop && g.d) mpcLig(w, h, -g.dy * scale);  // Co-op: mijn teamgenoot ligt dood
     // zijn broekkleur uit de lobby, op een eigen doek per slot: het gedeelde doek van broekBeeld is ook het beeld van mijn
     // Amir (amirHer), en lijkAchterAmir tekende dat later opnieuw, dus dan stond zijn beeld in zijn kleur op mijn plek
-    const kb = broekBeeld(im, im, broekKleurVan(pvp.broek[p]), pvpBroekCv[p] || (pvpBroekCv[p] = document.createElement('canvas')), !!g.pf);   // pf: zijn Pathfinder in de hand
+    const kb = broekBeeld(im, im, broekKleurVan(pvp.broek[p]), pvpBroekCv[p] || (pvpBroekCv[p] = document.createElement('canvas')),
+                         { s: typeof g.sp === 'string' && SPEER_SOORTEN[g.sp] ? g.sp : null, w: +g.vw || 0 });   // zijn speersoort en het vaantje (MK_LOS)
     ctx.drawImage(g.hu > 0 ? amirRood(kb, Math.min(0.75, g.hu * 2)) : kb, 0, 0, w, h);
     ctx.restore();
   }
