@@ -43,6 +43,7 @@ for i, l in enumerate(h):
       <div class="row">
         <div class="ctrl"><label for="origop">Doorzicht origineel <span class="val" id="origopval">50%</span></label><input type="range" id="origop" min="10" max="100" step="1" value="50"></div>
         <label class="chk"><input type="checkbox" id="showvuist" checked> Vuist over de speer</label>
+        <label class="chk"><input type="checkbox" id="pfspeer"> Pathfinder Spear tonen</label>
       </div>
       <div class="row">
         <label class="chk lock"><input type="checkbox" id="fok"> Frame nagekeken</label>
@@ -50,6 +51,7 @@ for i, l in enumerate(h):
         <button class="ghost" id="nextopen">Naar volgende open frame</button>
       </div>
       <p class="hint" id="twijfel"></p>
+      <p class="hint">Pathfinder Spear: alleen om te kijken. Plek, lengte en maskers blijven gelijk; het vaantje hangt stil naar beneden (in het spel waait het).</p>
       <p class="hint">Toets O wisselt het origineel (uit, ernaast, eroverheen). Het origineel heeft de speer nog in het beeld, dus je ziet meteen waar hij zat.</p>
     </div>'''
         break
@@ -128,3 +130,21 @@ R("const wrap=el('stagewrap');let zoom=1,panMode=false;","const wrap=el('stagewr
 R("boot();\n</script>", "animLabels();\nboot().then(animLabels);\n</script>")
 open(uit, 'w').write(J)
 print('ok', len(J))
+
+# Pathfinder: ander plaatje voor de speer en het vaantje eraan (na het schrijven nog eens bewerken)
+J = open(uit).read()
+def R2(old, new):
+    global J
+    assert J.count(old) == 1, old
+    J = J.replace(old, new)
+R2("function itemImg(id,angle){const it=IT[id];", "function itemImg(id,angle){const it=IT[id];if(id==='amirspeer'&&D.pf&&pfAan()&&D.pf.img[angle])return {e:D.pf.img[angle],fb:false};")
+R2("function preload(){const s=A().sheet;", "function pfAan(){const c=document.getElementById('pfspeer');return !!(c&&c.checked)}\nfunction preload(){const s=A().sheet;if(D.pf){Object.values(D.pf.img).forEach(e=>img(e.src));img(D.pf.vaan.src)}")
+R2("const full=cv(id+'_full'),fx=full.getContext('2d');fx.save();fx.globalAlpha=L.op;setup(fx);fx.drawImage(im,-g.w/2,-g.h/2,g.w,g.h);fx.restore();",
+   """const full=cv(id+'_full'),fx=full.getContext('2d');fx.save();fx.globalAlpha=L.op;setup(fx);fx.drawImage(im,-g.w/2,-g.h/2,g.w,g.h);fx.restore();
+  if(g.e.kx!=null){const V=D.pf.vaan,vi=img(V.src);if(ready(vi)){   // het vaantje hangt recht naar beneden, los van de hoek van de speer
+    let lx=-g.w/2+g.e.kx*g.w,ly=-g.h/2+g.e.ky*g.h;if(L.flip)lx=-lx;const a=L.rot*Math.PI/180;
+    const px=g.px+lx*Math.cos(a)-ly*Math.sin(a),py=g.py+lx*Math.sin(a)+ly*Math.cos(a),fk=g.w/g.e.wpx/V.k;
+    fx.save();fx.globalAlpha=L.op;fx.drawImage(vi,px-V.kn[0]*fk,py-V.kn[1]*fk,vi.naturalWidth*fk,vi.naturalHeight*fk);fx.restore()}}""")
+R2("el('showvuist').onchange=()=>schedule();", "el('showvuist').onchange=()=>schedule();\ntry{el('pfspeer').checked=localStorage.getItem('mkuki-pf')==='1'}catch(_){}\nel('pfspeer').onchange=e=>{try{localStorage.setItem('mkuki-pf',e.target.checked?'1':'0')}catch(_){}preload();schedule()};")
+open(uit, 'w').write(J)
+print('pf ok')

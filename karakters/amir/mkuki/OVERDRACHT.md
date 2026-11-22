@@ -91,7 +91,7 @@ Klopt een punt niet: afkeuren, ook bij een goede IoU. In de prompt de houding ui
 FACING-zin aanbieden heeft geen zin. Twijfel in TWIJFEL.md.
 
 ## Animeer tool Mkuki (22-11-2026)
-Link: https://claude.ai/artifact/YWjQcguwX6WLz4zrcKc7xw (slug ff32008b-a716-4d9f-96b0-29565184a8bc). Alle sets als eigen
+Link: https://claude.ai/artifact/YWjQcguwX6WLz4zrcKc7xw (slug ff32008b-a716-4d9f-96b0-29565184a8bc). Vinkje "Pathfinder Spear tonen": de nieuwe speer (design/speer/pathfinder/ op main, `bouw.py ... <map met jav.png en vaantje_1.png>`) als kijkoptie. Alle sets als eigen
 animatie, lijf zonder speer, speer `amirspeer` (proj) uit `plaatsing.json`, vuistlaag bovenop, origineel ernaast of
 eroverheen, afspelen op de fps van de set, per frame een vinkje "nagekeken". Opslag in de db van de tool
 (collectie `frames`, doc `<animatie>-<index>`). Opnieuw bouwen: `tools/mkuki/animeer/bouw.py` (spritebladen + D.json),

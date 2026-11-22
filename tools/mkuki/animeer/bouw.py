@@ -106,4 +106,28 @@ for f in LS:
     n.paste(SP.crop((a0, 0, a1, SP.height)).resize((a1 - a0 + extra, SP.height), Image.LANCZOS), (a0, 0))
     n.paste(SP.crop((a1, 0, SP.width, SP.height)), (a1 + extra, 0))
     n.save(UIT + '/i/amirspeer_l%03d.png' % round(f * 100))
+# De Pathfinder Spear (design/speer/pathfinder/ op main) als tweede uiterlijk: dezelfde hoeken, alleen een ander plaatje.
+# Hout tussen dop en greep (x 30..225) en tussen greep en kop (345..500) rekt mee bij de lange schacht.
+PFDIR = sys.argv[4] if len(sys.argv) > 4 else None
+if PFDIR:
+    PF = Image.open(PFDIR + '/jav.png').convert('RGBA'); KN = (509.9, 41.3)
+    def pf_lang(f):
+        extra = round(PF.width * (f - 1)); e1 = round(extra * 195 / 350); e2 = extra - e1
+        n = Image.new('RGBA', (PF.width + extra, PF.height))
+        n.paste(PF.crop((0, 0, 30, PF.height)), (0, 0))
+        n.paste(PF.crop((30, 0, 225, PF.height)).resize((195 + e1, PF.height), Image.LANCZOS), (30, 0))
+        n.paste(PF.crop((225, 0, 345, PF.height)), (225 + e1, 0))
+        n.paste(PF.crop((345, 0, 500, PF.height)).resize((155 + e2, PF.height), Image.LANCZOS), (345 + e1, 0))
+        n.paste(PF.crop((500, 0, PF.width, PF.height)), (500 + extra, 0))
+        return n, KN[0] + extra
+    pfimg = {}
+    for hid, f in [('proj', 1.0)] + [('k%02d' % round(k * 100), k) for k in KS] + [('l%03d' % round(f * 100), f) for f in LS]:
+        if f > 1: im, kx = pf_lang(f)
+        elif f < 1: im = PF.resize((round(PF.width * f), PF.height), Image.LANCZOS); kx = KN[0] * f
+        else: im, kx = PF, KN[0]
+        im.save(UIT + '/i/pf_%s.png' % hid)
+        pfimg[hid] = {'src': 'i/pf_%s.png' % hid, 'aspect': round(PF.height / im.width, 4), 'kx': round(kx / im.width, 4),
+                      'ky': round(KN[1] / PF.height, 4), 'wpx': im.width}
+    Image.open(PFDIR + '/vaantje_1.png').save(UIT + '/i/pf_vaantje_1.png')
+    D['pf'] = {'img': pfimg, 'vaan': {'src': 'i/pf_vaantje_1.png', 'kn': [23.7, 4.3], 'k': 2}}
 json.dump(D, open(UIT + '/D.json', 'w'), separators=(',', ':'))
