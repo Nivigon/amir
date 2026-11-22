@@ -250,6 +250,14 @@ de lobby staat dan in het staande stokframe.
 
 Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
 
+**Afspraak (22-11-2026): een status of animatie op een vijand is op elk scherm te zien.** Wat een speler een vijand aandoet
+(stof in de ogen, een stun, gif, prooi, wankelen, opwippen, de draaislag) moet bij iedereen hetzelfde staan. De regel: zet
+een status altijd bij de host, als veld op de vijand, en laat de stand (`mpcStandZend`) hem naar de rest brengen. Een gast
+zet niets op zijn eigen kopie: hij stuurt een bericht naar de host (zoals `mh` voor een treffer en `stofR` voor het stof,
+`mpcStofVanGast`) en speelt lokaal alleen beeld en geluid af. En een klok die zo'n status laat aflopen hoort niet achter een
+vlag van de host zelf (zijn wapen, zijn level): de stun van de stokken telde eerst alleen af als de host ook stokken had,
+en dan bleef een bandiet van een gast voor altijd staan. Een nieuw veld begint niet met `mp` of `_`, want die gaan niet mee.
+
 - **De host denkt, de gast tekent.** De update-functies van de vijanden (`updateSnakes`, `updateBandieten` en de rest, met
   `updateGoudapen` en `updateFosforSlangen`) zijn omwikkeld met `mpcUpdate`. Bij de gast doen ze niets. Bij de host splitst
   de wikkel de lijst in wie achter de host aan zit en wie achter de gast (`mpcDoel`: de dichtstbijzijnde levende Amir, met
