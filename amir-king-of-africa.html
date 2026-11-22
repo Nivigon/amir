@@ -2183,6 +2183,7 @@
         <button data-sbwater="poel">Poel</button>
         <button data-sbwater="plas">Plas</button>
         <button id="sbspetter" class="on">Spetter nieuw</button>
+        <button id="sbwaterweer" class="on" title="In het regenwoud kleurt het water mee met het weer: droog het gewone blauw, met regen en onweer donker grijsgroen (WATER.weer). Zet Tijd van de dag op Regenwoud en het weer op Regen of Onweer">Waterkleur: weer</button>
       </div>
       <div class="row">
         <label>Zuil</label>
@@ -28423,6 +28424,12 @@ function drawWaterStrips(groundY){
 const WATER = {
   palet: { diep: [52, 92, 110], midden: [80, 128, 144], ondiep: [112, 160, 168], glans: [226, 246, 244],
            schuim: [236, 244, 238], nat: [70, 44, 26] },
+  // het water kleurt mee met het weer (waterWeerKleur): droog het palet hierboven, in de regen loopt het naar `storm`,
+  // donker grijsgroen en troebel. Hoe ver: regen keer `regen` plus onweer keer `onweer` (samen hooguit 1). Alleen in
+  // een uitzicht met biome regenwoud (waterWeerAan); in de sandbox de knop Waterkleur: weer
+  weer: { storm: { diep: [30, 38, 34], midden: [56, 66, 58], ondiep: [92, 100, 88], glans: [214, 222, 216],
+                   schuim: [220, 222, 214], nat: [50, 34, 20] },
+          regen: 0.7, onweer: 0.3 },
   lucht: 0.35,                 // zoveel van de horizonkleur ligt er op de verre kant van het water
   rimpel: { a: 0.42, b: 0.30, v: [10, 4], vb: [-7, 3] },   // twee lagen: dekking en schuifsnelheid (px per s)
   glinster: { dicht: 1 / 2600, a: 0.9 },                 // een glinster per zoveel vierkante pixel
@@ -28448,6 +28455,22 @@ const WATER = {
   rug: 52, lip: 56,            // de grond in beeld: de verre rand en de voorste lip, in eenheden van de grondtegel vanaf de looplijn
   geluid: { val: 0.32, rivier: 0.2, bron: 0.14, fontein: 0.16, ver: 520, hz: 750 }
 };
+// ---- het water kleurt mee met het weer: van het gewone palet naar de stormkleur (WATER.weer) ----
+const WATER_BASIS = JSON.parse(JSON.stringify(WATER.palet));
+let waterStormT = 0;                                // hoe ver het palet nu naar de storm is (0 tot 1), in stapjes van 0,02
+let sbWaterWeer = true;                             // sandbox: de knop Waterkleur
+function waterWeerAan(){
+  if (sceneCfg().biome !== 'regenwoud') return false;
+  return sandbox ? sbWaterWeer : !!level && level.waterWeer !== false;
+}
+function waterWeerKleur(){
+  const N = weerNu, Ww = WATER.weer;
+  const doel = waterWeerAan() && N ? Math.min(1, (N.regen || 0) * Ww.regen + (N.onweer || 0) * Ww.onweer) : 0;
+  const t = Math.round(doel * 50) / 50;             // weerNu loopt al zacht op en af; hier alleen afronden
+  if (t === waterStormT) return;
+  waterStormT = t;
+  for (const k in WATER_BASIS) WATER.palet[k] = waterMeng(WATER_BASIS[k], Ww.storm[k] || WATER_BASIS[k], t);
+}
 function waterenLijst(){ return (level && Array.isArray(level.wateren)) ? level.wateren : []; }
 let waterKlok = 0;                                  // speltijd, zodat het water in de pauze stilstaat
 function waterRgb(c, a){ return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (a === undefined ? 1 : a) + ')'; }
@@ -28521,9 +28544,12 @@ function brugTeken(groundY, scale, cx){
   }
 }
 // ---- de textuur: rimpels, eenmaal getekend en daarna alleen verschoven ----
+// de texturen hebben de kleur van het palet erin; met het weer (waterWeerKleur) per stapje van 0,1 een eigen set
+const waterTexSets = {};
 let waterTex = null;
 function waterTextuur(){
-  if (waterTex) return waterTex;
+  const sleutel = Math.round(waterStormT * 10);
+  if (waterTexSets[sleutel]) return (waterTex = waterTexSets[sleutel]);
   const maak = (w, h, n, kleur, lang, dik, staand) => {
     const c = document.createElement('canvas'); c.width = w; c.height = h;
     const g = c.getContext('2d');
@@ -28547,6 +28573,7 @@ function waterTextuur(){
     val: maak(96, 256, 46, P.glans, [14, 46], [1, 2.6], true),
     valDonker: maak(96, 256, 30, P.diep, [16, 50], [1.4, 3], true)
   };
+  waterTexSets[sleutel] = waterTex;
   return waterTex;
 }
 // een textuurlaag over het pad, geschoven met (ox, oy)
@@ -29013,6 +29040,7 @@ function waterStraal(x, yB, hoog, bw, i, v){
 // ---- de stap: klok, druppels, regenringen, Amir onder de val en het geluid ----
 let waterValNat = 0;
 function waterStap(dt){
+  waterWeerKleur();
   const lijst = waterenLijst();
   if (!lijst.length){ waterDruppels.length = 0; waterRingen.length = 0; waterPlonzen.length = 0; waterGeluid(0); return; }
   waterKlok += dt;
@@ -65523,6 +65551,12 @@ function sbWater(k){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-sbwater]').forEach(b => b.onclick = () => sbWater(b.dataset.sbwater));
+document.getElementById('sbwaterweer').onclick = e => {
+  sbWaterWeer = !sbWaterWeer;
+  e.target.classList.toggle('on', sbWaterWeer);
+  e.target.textContent = sbWaterWeer ? 'Waterkleur: weer' : 'Waterkleur: vast';
+  cv.focus();
+};
 document.getElementById('sbspetter').onclick = e => {
   SPETTER.nieuw = !SPETTER.nieuw;
   e.target.classList.toggle('on', SPETTER.nieuw);

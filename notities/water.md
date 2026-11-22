@@ -18,6 +18,13 @@ bij de rest. Er zijn geen plaatjes: alles wordt getekend.
 4. **Rand**: een natte donkere rand om de oever, een schaduwrand onder de verre oever, en een gebroken schuimlijn.
 5. **Regen**: bij `weerNu.regen` komen er ringen op elk water (`waterRingen`).
 
+**Kleur met het weer** (`WATER.weer`, `waterWeerKleur`, `waterWeerAan`): in een uitzicht met biome regenwoud loopt het
+palet mee met het weer, van het gewone blauw (droog) naar `WATER.weer.storm`, donker grijsgroen en troebel. Hoe ver:
+`weerNu.regen` keer `regen` (0,7) plus `weerNu.onweer` keer `onweer` (0,3), dus zacht mee met het weer zelf. Het
+gewone palet staat bewaard in `WATER_BASIS`; de texturen (`waterTextuur`) hebben per stapje van 0,1 een eigen set.
+Een level zet het uit met `waterWeer: false`; buiten het regenwoud (Ishmul, de stad, de savanne) blijft alles blauw.
+In de sandbox de knop **Waterkleur: weer** onder Water (Tijd van de dag op Regenwoud, het weer op Regen of Onweer).
+
 Het palet komt uit de oude poel (`WATER.palet`): diep, midden, ondiep, glans, schuim en nat zand. 's Nachts en in de
 avond kleurt de lichtlaag het water mee, net als de rest van de wereld.
 
