@@ -11131,7 +11131,13 @@ function updateCamera(dt, scale){
   const klimLift = (level && level.hoogUitzicht) ? 0 : H * 0.10;
   const vz = viewZoom();   // de wereldlaag (en Amir) wordt met viewZoom getekend, dus de verticale tilt moet dat ook, anders zakt Amir op een uitgezoomd level (view < 1) weg naarmate hij hoger komt
   const klimt = hasClimb() || stadAan();             // in de stad klim je op galerijen en daken: de camera klimt mee
-  const target = ((klimt ? Math.max(0, camFloor * scale * vz - klimLift) : 0) + camDiep * scale * vz)
+  let vloer = camFloor;
+  const mentH = mentorCamH();                        // de tutorial: de mentor ook in beeld, dus de laagste vloer van de twee
+  if (mentH !== null){
+    const pv = scale * vz, ruimte = (H * (0.82 - MENTOR.cam.rand) - CHAR_H * pv) / pv;   // zo hoog boven de grondlijn past een heel lijf nog
+    vloer = Math.max(Math.min(camFloor, mentH), Math.max(camFloor, mentH) - ruimte);
+  }
+  const target = ((klimt ? Math.max(0, vloer * scale * vz - klimLift) : 0) + camDiep * scale * vz)
                  + bavKijk(scale) - straatPadZak(scale, vz);   // bij een pad van een knooppunt zakt hij iets: je ziet het pad
   if (bavKijkNu){ camY = target; bavKijkNu = false; }
   const trapY = stadTrapCamY(target);                // de stadstrap: de camera glijdt mee naar de hoogte van de uitgang
@@ -25642,6 +25648,7 @@ const MENTOR = {
   fps: 30,                                       // beelden per seconde van het spoor
   race: { tempo: 0.92, aftel: 0.8 },             // de race: het spoor iets trager dan opgenomen, en de tellen van het aftellen
   val: { uit: 0.25, in: 0.45, zeg: 2.4 },        // terug na een val: zwart, open, en zo lang zijn grap
+  cam: { marge: 0.3, rand: 0.08 },               // de camera houdt hem in beeld: zoveel van de halve breedte vrij aan de rand, en zoveel van H boven het hoofd
   wolk: { max: 380, font: 19, pad: 14, rand: '#e8b04f', vul: 'rgba(22,15,10,0.92)', tekst: '#fbf2df', naam: 'HUNTER' }
 };
 let mentor = null;                               // de stand in een level met `mentor` (zie mentorReset)
@@ -25681,6 +25688,21 @@ function mentorFrame(){
 }
 function mentorX(){ const f = mentorFrame(); return f ? f[0] : 0; }
 function mentorSpeel(seg, tempo){ mentor.seg = seg; mentor.f = 0; mentor.tempo = tempo || 1; mentor.fase = 'demo'; mentor.t = 0; }
+// De camera houdt de mentor in beeld zolang hij voordoet, uitlegt of wacht (niet in de race: daar kijk je naar je eigen
+// pad). Blijft de speler staan, dan zag hij hem anders van het terras springen en uit beeld rennen. Horizontaal schuift het
+// midden alleen zover als nodig is (mentorCamKlem, in de meekijkende camera), in de hoogte telt de laagste van de twee
+// vloeren, zolang de hoogste nog in beeld past (mentorCamH, in updateCamera).
+function mentorCamAan(){
+  if (!mentorAan() || dead) return false;
+  const m = mentor;
+  return !m.race && (m.fase === 'demo' || m.fase === 'wacht' || m.fase === 'ok') && !!mentorStation();
+}
+function mentorCamKlem(d){
+  if (!mentorCamAan()) return d;
+  const half = W / 2 / viewZoom(), ruim = half * (1 - MENTOR.cam.marge), mx = mentorX();
+  return Math.min(mx + ruim, Math.max(mx - ruim, d));
+}
+function mentorCamH(){ return mentorCamAan() && mentor.camH != null ? mentor.camH : null; }
 function mentorZeg(tekst, duur){ mentor.faal = tekst; mentor.faalT = duur || 2.2; }
 function mentorUpdate(dt){
   if (!mentorAan() || !running || paused) return;
@@ -25693,6 +25715,8 @@ function mentorUpdate(dt){
     m.warm = i + 1;
   }
   m.t += dt;
+  const fc = mentorFrame();                                 // zijn vloer voor de camera: op de grond zijn hoogte, in de lucht de laagste
+  if (fc) m.camH = fc[8] || m.camH == null ? fc[1] : Math.min(m.camH, fc[1]);
   if (m.faalT > 0) m.faalT -= dt;
   if (m.valT > 0) m.valT -= dt;
   if (m.uitslagT > 0) m.uitslagT -= dt;
@@ -56426,7 +56450,7 @@ function loop(now){
     if (camEase === null) camEase = pWorld;
     camEase += (exeCamDoel() - camEase) * Math.min(1, realDt * EXE.cam);
   } else if (camCfg()){                          // vooruitkijken: de camera staat camVoor voor Amir uit
-    const d = pWorld + camVoor;
+    const d = mentorCamKlem(pWorld + camVoor);   // de tutorial: de mentor blijft in beeld
     if (camVast || camEase === null) { camEase = d; camVast = true; }
     else { camEase += (d - camEase) * Math.min(1, dt * 3); if (Math.abs(d - camEase) < 2) camVast = true; }
   } else if (randAan() && randCam() < pWorld){   // de rand zonder meekijkende camera: de camera blijft binnen de grens

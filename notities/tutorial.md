@@ -19,6 +19,12 @@ bij hem zonder het gedaan te hebben, dan zegt hij `nog`. Dan "goed zo" (`ok`, me
 volgende voor. Voorbij hem lopen kan niet: zolang hij uitlegt, voordoet of aftelt houdt hij de speler `MENTOR.voor` achter
 zich (niet in de race en niet bij het slot).
 
+De camera houdt hem in beeld zolang hij voordoet, uitlegt of wacht (niet in de race en niet bij het slot): horizontaal
+schuift het midden alleen zover als nodig is tot hij binnen `MENTOR.cam.marge` van de rand staat (`mentorCamKlem`, in de
+meekijkende camera), en in de hoogte kijkt de camera naar de laagste vloer van de twee, zolang de hoogste nog in beeld past
+(`mentorCamH`, in `updateCamera`). Zo zie je hem ook van het hoge terras springen en onder de stam door kruipen als je
+boven blijft staan.
+
 Hij wordt getekend vlak voor Amir (na de lichtkaart), in dezelfde stand van de camera; eerder in het beeld stond hij op
 een hogere laag te zweven.
 
