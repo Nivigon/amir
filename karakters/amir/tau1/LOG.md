@@ -106,3 +106,4 @@ IoU per kop 0,90 tot 0,95. De prompt (`tau_kopr`) kreeg twee aanvullingen na fou
   achterkant van de kap, geen ogen. Draaiterug 2 (halverwege de draai) houdt het profiel met de tanden.
 - stapslag (28): klaar. Een Grok-vel kwam twee keer terug als alleen de upload (geen generatie); de prompt in het bewerkingsveld van de post geven werkte wel.
 - slag2 (27): klaar.
+- laag (23): klaar.
