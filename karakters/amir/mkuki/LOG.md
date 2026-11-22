@@ -392,3 +392,35 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
   13 e447bac4 0,61 mk_st12
   14 7ca7714b 0,64 mk_st12
 - Export stof_sp, 12 fps (metadata.json van het origineel noemt 24 fps met ticks; de plaatsing volgt de frames).
+
+## Rol/worp (af, 33 van 33)
+- Origineel: `beweging/rol/worp/worp_1..33`, speer in 1-23. Speeroverrides voor 12-15 (de speer kruist het lijf).
+- Draaiing en voeten (Tom, 22-11: ook letten op welke voet voor/achter en waar de handen zitten): 1-5 profiel links,
+  hurk, voeten verspringend, vuist bij de enkels/knieen; 6-8 opkomen, achterste voet omhoog achter hem; 9-11 knie voor
+  omhoog; 12-14 uitstap naar links, borst half naar ons; 15-23 diepe uitval, werphouding vastgehouden (een Grok-beeld);
+  24-26 arm recht omhoog; 27 arm ver naar voren-onder; 28 driekwart rug; 29-33 rug, arm omhoog achter (een Grok-beeld).
+- Prompts: `mk_rw1b` (FEET-zin), `mk_rw2`, `mk_rw4`, `mk_rw5`/`mk_rw5b`, `mk_rw7a`, `mk_rw8`, `mk_rw9`, `mk_rw12`,
+  `mk_rw14`, `mk_rw19`, `mk_rw24`, `mk_rw28`, `mk_rw27b`, `mk_rw30b`.
+- Posts:
+  1 15dee20c 0,57 mk_rw1b (vuist bij de enkels, voeten verspringend); afgekeurd 746c2623 en 0a3c8ca9 (rechtop, handen naar voren op de grond, voeten naast elkaar; Tom)
+  2 16e8b404 0,75 mk_rw2
+  3 4d550327 0,76 mk_rw2
+  4 fbfc4ecd 0,78 mk_rw4
+  5 8198a958 0,59 mk_rw5b (laag, vuisten bij de knieen; voeten minder ver uit elkaar dan origineel); afgekeurd 6a48cdeb (te rechtop)
+  6 dd7f48c4 0,70 mk_rw5
+  7 881fe5a0 0,73 mk_rw7a
+  8 f8436c73 0,69 mk_rw8 (achterste voet omhoog achter hem); afgekeurd 7c8e884c (knie voor omhoog, hoort bij 9)
+  9 0e9f6377 0,66 mk_rw9
+  10 7c8e884c 0,60 mk_rw9 (Grok-beeld van de eerste poging op 8 hergebruikt)
+  11 8243e505 0,61 mk_rw9
+  12 ab7ad7a3 0,57 mk_rw12 (romp rechter en borst meer naar ons dan origineel; 7e280a73 met mk_rw12b gaf hetzelfde, 0,50)
+  13 6ca081b5 0,67 mk_rw12
+  14 67faf846 0,71 mk_rw14
+  15-23 41581998 0,64..0,55 mk_rw19 (een Grok-beeld voor de hele vastgehouden werphouding; achterste vuist iets lager dan origineel); eerst 67faf846 geprobeerd, 0,51..0,44
+  24 743c84de 0,56 mk_rw24 (voorste arm lager dan origineel)
+  25 743c84de 0,68 mk_rw24
+  26 743c84de 0,59 mk_rw24 (origineel buigt al naar links over het hoofd; Grok-beeld van 24/25)
+  27 54c7aa0e 0,58 mk_rw28 (arm ver naar voren klopt, maar borst iets naar ons; origineel draait al met de rug)
+  28 0dd729b1 0,50 mk_rw27b (rug naar ons, klopt)
+  29-33 c209f6ea 0,62..0,70 mk_rw30b (rug, arm omhoog achter, vastgehouden)
+- Export rolworp_sp, 12 fps.

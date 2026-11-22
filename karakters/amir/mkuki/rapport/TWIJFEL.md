@@ -117,3 +117,13 @@ de andere sets van voor 17:51.
 - 07 en 08: Grok houdt hem hoger dan het origineel (dat zit diep op de hurken); IoU 0,67 en 0,71.
 - 10-13: in het origineel ligt de speer schuin achter zijn rug en zie je de vuisten niet; Grok zet de vuisten zichtbaar
   voor het gezicht. Met de speer erop even kijken of dat klopt.
+
+## Rol/worp
+- 1: afgekeurd door Tom (rechtop, handen naar voren, voeten naast elkaar) en opnieuw gedaan; nu vuist bij de enkels en
+  voeten verspringend.
+- 5: hoogte klopt, voeten staan dichter bij elkaar dan in het origineel.
+- 12: romp rechter en borst meer naar ons dan het origineel (twee pogingen gaven hetzelfde).
+- 15-23 en 29-33: per groep een en hetzelfde Grok-beeld (het origineel houdt daar de houding vast); bij 15-23 zit de
+  achterste vuist iets lager dan in het origineel.
+- 24: voorste arm lager dan het origineel. 26: Grok-beeld van 24/25, het origineel buigt al naar links.
+- 27: arm klopt, maar de borst staat nog naar ons waar het origineel al met de rug draait.

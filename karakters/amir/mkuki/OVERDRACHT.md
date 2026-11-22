@@ -7,12 +7,17 @@ sluipen met speer (22), rol met speer (28), trap (2), ren zonder speer (12), spr
 
 1. (af)
 2. (af)
-3. Aanvallen: speerstrike 10 (af), speerworp 20 (af), lowsweep 18 (af), combo 15 (af), stofsweep 14 (af), rol/worp 33 (volgende), stofsweep 14, rol/worp 33. De sluipaanval niet.
+3. Aanvallen: speerstrike 10 (af), speerworp 20 (af), lowsweep 18 (af), combo 15 (af), stofsweep 14 (af), rol/worp 33 (af). De sluipaanval niet.
 4. Eindrapport in `rapport/`: overzichtsplaten en GIFs (export.py maakt die per set), TWIJFEL.md bijwerken
    (draaiende speerframes, rol 17 tot 22, en alles wat handwerk vraagt). GEEN recolours (Tom: "van mij hoef je
    overigens nog niet te recoloren").
 
 Paden staan in `notities/mkuki.md` (het plan). Zoek een pad op met `ls` als het niet klopt.
+
+## Ook letten op voeten en handen (Tom, 22-11 00:39)
+Naast de draaiing: staan de voeten naast elkaar of verspringend (welke voor, welke achter, plat of op de bal), en waar
+zitten de handen precies (bij de enkels, voor de knieen, op de grond). Grok maakt van een gehurkte houding graag een
+rechtop zittende met beide handen naar voren op de grond en de voeten naast elkaar; dat zeggen in FEET en ARMS.
 
 ## Werkwijze per set
 
