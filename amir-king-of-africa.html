@@ -2271,6 +2271,7 @@
         <button data-sbwater="poel">Poel</button>
         <button data-sbwater="plas">Plas</button>
         <button id="sbspetter" class="on">Spetter nieuw</button>
+        <button id="sbwaterweer" class="on" title="In het regenwoud kleurt het water mee met het weer: droog het gewone blauw, met regen en onweer donker grijsgroen (WATER.weer). Zet Tijd van de dag op Regenwoud en het weer op Regen of Onweer">Waterkleur: weer</button>
       </div>
       <div class="row">
         <label>Zuil</label>
@@ -3717,6 +3718,61 @@ function zetBron(img, pad, opFout){
 // klein/ op precies dezelfde maat en plek komt als het origineel, of het nu de helft of een kwart is.
 // Zonder zetBron telt een plaatje als groot.
 const bronW = im => im.naturalWidth * (im._bron || 1), bronH = im => im.naturalHeight * (im._bron || 1);
+
+// ---- skin: Amir een heel level in een ander tenue (Test 88, Mkuki) ----
+// Met `skin: 'mkuki'` in een level krijgt elk plaatje van Amir waarvan de skin een versie heeft die versie: dezelfde naam,
+// dezelfde canvasmaat, alleen een andere map (SKIN.soorten). Wat de skin niet heeft (de oude ren, de sluipaanval, de
+// executie, de stokken) blijft het gewone tenue. Zo hoeft geen enkele animatie iets te weten van de skin: we vangen het zetten
+// van img.src op en onthouden welk plaatje van Amir is (SKIN.imgs), en bij een levelwissel zetten we die allemaal om (skinZet).
+// De frames zijn gebakken met tools/mkuki_spel_bak.py (lijf uit claude/mkuki, speer en vuist zoals de Mkuki animeer tool ze zet).
+const SKIN = { soorten: { mkuki: 'karakters/amir/mkuki_spel/', tau1: 'karakters/amir/tau1_spel/' }, lijst: {}, imgs: new Set(), aan: null };
+const SKIN_BASIS = ['karakters/amir/', 'amir runc/amir_sprites/design/amir/'];
+const SKIN_SRC = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+function skinRel(v){                                // het pad van een Amir-plaatje zonder map, of null
+  if (typeof v !== 'string') return null;
+  let p = v; try { p = decodeURI(v); } catch (_){}
+  if (p.indexOf('klein/') === 0) p = p.slice(6);
+  for (const b of SKIN_BASIS) if (p.indexOf(b) === 0){
+    const r = p.slice(b.length);
+    for (const k in SKIN.soorten) if (('karakters/amir/' + r).indexOf(SKIN.soorten[k]) === 0) return null;
+    return r;
+  }
+  return null;
+}
+function skinPad(v, r){                             // het pad in de skin die aan staat, of null
+  const L = SKIN.aan && SKIN.lijst[SKIN.aan];
+  if (!L || !L.has(r)) return null;
+  let p = v; try { p = decodeURI(v); } catch (_){}
+  return (p.indexOf('klein/') === 0 ? 'klein/' : '') + SKIN.soorten[SKIN.aan] + r;
+}
+Object.defineProperty(HTMLImageElement.prototype, 'src', {
+  configurable: true, enumerable: SKIN_SRC.enumerable,
+  get(){ return SKIN_SRC.get.call(this); },
+  set(v){
+    const r = skinRel(v);
+    if (r){ this._skinOrig = v; this._skinRel = r; SKIN.imgs.add(this); const s = skinPad(v, r); if (s) v = s; }
+    else if (this._skinRel){ SKIN.imgs.delete(this); this._skinRel = null; }
+    SKIN_SRC.set.call(this, v);
+  }
+});
+function skinWissel(){                              // elk bekend Amir-plaatje naar de skin die aan staat (of terug)
+  for (const im of SKIN.imgs){
+    const s = skinPad(im._skinOrig, im._skinRel) || im._skinOrig;
+    if (decodeURI(SKIN_SRC.get.call(im)).endsWith(decodeURI(s))) continue;
+    SKIN_SRC.set.call(im, s);
+    try {                                           // wat van het oude plaatje gemaakt was (schaduw, licht, kleur)
+      amirSilCache.delete(im); plichtCache.delete(im); speerMaskCache.delete(im); scaleCache.delete(im);
+      for (const m of broekLapCache.values()) m.delete(im);
+      for (const m of speerKopie.values()) m.delete(im);
+    } catch (_){}
+  }
+}
+function skinZet(soort){
+  soort = soort && SKIN.soorten[soort] ? soort : null;
+  if (soort) skinLijstLaad(soort);                  // eerst leeg, tot lijst.json binnen is (staat bij MK_OUTFIT)
+  if (SKIN.aan === soort) return;
+  SKIN.aan = soort; skinWissel();
+}
 
 // Amir: de sprites staan los op schijf (scheelt een hoop in de grootte van dit bestand)
 // nieuwe indeling: karakters/amir/{idle, aanval/{lowsweep,speerstrike}, beweging/{bukken,jump,run}}
@@ -6828,11 +6884,124 @@ const TEST_86 = {
   ends: [ {x: -5100} ],
   tips: [ { x: -60, t: 'Test level: the cellar. Walk down the stairs. Watch the lattice doors: if you see eyes behind one, someone is waiting' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45, TEST_46, TEST_47, TEST_48, TEST_49, TEST_50, TEST_51, TEST_52, TEST_53, TEST_54, TEST_55, TEST_56, TEST_57, TEST_58, TEST_59, TEST_60, TEST_61, TEST_62, TEST_63, TEST_64, TEST_65, TEST_66, TEST_67, TEST_68, TEST_69, TEST_70, TEST_71, TEST_72, TEST_73, TEST_75, TEST_78, TEST_79, TEST_80, TEST_85, TEST_86];
+// Test 88: Mkuki, de basisskin van de speer-tribe (SKIN, `skin: 'mkuki'`). Op verzoek, zelf ontworpen: een kort stuk
+// savanne om elke Mkuki-animatie te zien. Rennen en springen op een kei, opstapjes (de trap-pose), een lage zwever om
+// gebukt onder door te sluipen, een zandslang voor de steek en de lage zwaai, en aan het eind een bandiet voor de
+// stofveeg (stof: true), de draaislag en de worp. De frames zijn gebakken uit de Mkuki animeer tool (tools/mkuki_spel_bak.py)
+const TEST_88 = {
+  name: 'Test 88: Mkuki',
+  lagen: 'tafelbergen',
+  view: 0.8, hpBalk: true, zicht: true, sneak: true, camera: true, rand: true, slangEenKlap: true, hyOmkeer: true, dakRand: true,
+  speerInHand: true, stof: true,
+  skin: 'mkuki',
+  spawns: [ {x: -2350, k: 'groen'}, {x: -3900, k: 'bandiet'} ],
+  rocks: [ {x: -700, s: 1} ],
+  terraces: [ {r: -1150, l: -1650, h: 28, grond: true, opstap: true},
+              {r: -1250, l: -1550, h: 56, grond: true, opstap: true} ],
+  zwevers: [ {r: -1850, l: -2150, h: 330, onder: 190} ],
+  gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
+  props: [ {x: -400, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2700, k: 'struik', s: 0.9, f: 1, v: 0},
+           {x: -3300, k: 'gras', s: 1.1, f: 1, v: 0} ],
+  cliffs: [ {x: -4900} ],
+  ends: [ {x: -4400} ],
+  tips: [ { x: -80, t: 'Test level: the Mkuki outfit. Run, jump, crouch, roll and attack to see every animation' },
+          { x: -1100, t: 'Walk up and down the steps' },
+          { x: -1800, t: 'Crouch and sneak under the ledge' },
+          { x: -3500, t: 'A bandit: try the dust sweep (hold crouch and F), the spin and the throw' } ]
+};
+// Test 89: The First Hunt, de bewegingstutorial (op verzoek, regel 3; ontwerp in notities/tutorial.md). Savanne bij
+// zonsopkomst aan de rand van het dorp, zonder speer en zonder vijanden. Een andere jager (de mentor, MENTOR) doet elk
+// stuk eerst voor en wacht: een kei, omhoog over twee lagen, kruipen onder een rotsrichel, rollen, een sprintsprong over
+// een ravijn, en dan de race naar de top. Een val in het ravijn kost niets: een fade en je staat weer bij het begin.
+const TEST_89 = {
+  name: 'Test 89: The First Hunt',
+  lagen: 'thuis',
+  view: 0.8, hpBalk: true, zicht: true, sneak: true, camera: true, rand: true, slangEenKlap: true, hyOmkeer: true,
+  vredig: true, geenSpeer: true, rugMax: 0,
+  village: [ {id: 'hut_round_arch', x: 230, depth: 0.55, flip: false}, {id: 'well', x: -60, depth: 0.25, flip: true},
+             {id: 'hut_rect_porch', x: -330, depth: 0.85, flip: false} ],
+  rocks: [ {x: -820, s: 1.0}, {x: -5350, s: 0.9} ],
+  terraces: [ {r: -1450, l: -2650, h: 110, grond: true},
+              {r: -6900, l: -8500, h: 110, grond: true}, {r: -7350, l: -8500, h: 220, grond: true},
+              {r: -7800, l: -8500, h: 320, grond: true} ],
+  zwevers: [ {r: -1750, l: -2000, h: 290, onder: 200}, {r: -2100, l: -2450, h: 450, onder: 360},
+             // twee lage rotsdaken: alleen kruipend kom je eronder door
+             {r: -2950, l: -3400, h: 430, onder: 160, look: 'rots'}, {r: -6250, l: -6550, h: 430, onder: 160, look: 'rots'} ],
+  gaps: [ {x: -4520, w: 400}, {x: -5850, w: 220} ],
+  ledges: [], npcs: [], water: [], thickets: [], spawns: [],
+  props: [ {x: 120, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -520, k: 'struik', s: 0.9, f: 1, v: 0},
+           {x: -1100, k: 'tree', s: 1.1, f: 0, v: 1}, {x: -1300, k: 'gras', s: 1.2, f: 1, v: 0},
+           {x: -2800, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -3700, k: 'struik', s: 1.0, f: 0, v: 0},
+           {x: -4000, k: 'tree', s: 1.2, f: 1, v: 1}, {x: -4950, k: 'gras', s: 1.1, f: 0, v: 0},
+           {x: -6700, k: 'struik', s: 0.9, f: 1, v: 0}, {x: -8150, k: 'tree', s: 1.0, f: 0, v: 1} ],
+  hppotions: [],
+  cliffs: [ {x: -8900} ],
+  ends: [ {x: -8450} ],
+  mentor: {
+    spoor: 'design/tutorial/mentor_spoor.json',
+    finish: -7950, prijs: {x: -8050, h: 320},
+    win: 'Fast! Who taught you that?', verlies: 'Not bad, little one. Not bad.',
+    vallen: ['Again, little one.', 'The ground is down there. Try again.', 'Ha! Up you get.'],
+    stations: [
+      { zeg: 'Morning, little one. Your first hunt! Come here. [LEFT]', seg: 0, ok: 'Good. Keep up!', kijk: false },
+      { zeg: 'Now you. Jump over the rock! [UP]', seg: 1, ok: 'Nice jump.', terug: -620 },
+      { zeg: 'Up here! Jump from ledge to ledge. [UP]', seg: 2, ok: 'Good eyes.', terug: -1300 },
+      { zeg: 'Too low to stand. Hold [DOWN] and crawl. [LEFT]', seg: 3, ok: 'Like a lion in the grass.', terug: -2700 },
+      { zeg: 'Roll! Press [V] while you run.', eis: 'rol', nog: 'Roll first! Press [V].', seg: 4, ok: 'Quick!', terug: -3700, kijk: 'Watch closely.' },
+      { zeg: 'Hold [SHIFT] to sprint, then [UP] to leap!', ok: 'You flew!', terug: -4150 },
+      { zeg: 'Now, a race to the top! Ready?', race: true, seg: 5, ok: 'Ready...', terug: -4950 },
+      { zeg: 'Rest now. Tomorrow we hunt for real. The torches are yours.', terug: -7800 }
+    ]
+  },
+  tips: []
+};
+// Test 90: Tau 1, de jonge leeuw (SKIN, `skin: 'tau1'`): de stokken-Amir met de leeuwenkap met tanden en twee klauwkrassen
+// op de dij. Op verzoek, zelf ontworpen: een kort stuk savanne met de stokken. Staan, rennen, springen (een kei) en rollen
+// hebben de kap; de rest (slaan, blokken, bukken) is nog het gewone tenue. De frames: tools/tau1_spel_bak.py uit claude/tau1
+const TEST_90 = {
+  name: 'Test 90: Young Lion',
+  lagen: 'tafelbergen',
+  view: 0.8, hpBalk: true, zicht: true, sneak: true, camera: true, rand: true, slangEenKlap: true, hyOmkeer: true, dakRand: true,
+  geenSpeer: true, stokken: true, nieuweRen: true, onsterfelijk: true,
+  skin: 'tau1',
+  spawns: [ {x: -3300, k: 'bandiet'} ],
+  rocks: [ {x: -900, s: 1.0}, {x: -1700, s: 1.1} ],
+  gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
+  props: [ {x: -400, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2400, k: 'struik', s: 0.9, f: 1, v: 0},
+           {x: -3900, k: 'gras', s: 1.1, f: 1, v: 0} ],
+  cliffs: [ {x: -4700} ],
+  ends: [ {x: -4200} ],
+  tips: [ { x: -80, t: 'Test level: Tau, the young lion. Stand, run, jump over the rocks and roll (V) to see the lion hood' },
+          { x: -2600, t: 'A bandit ahead. You cannot die here' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45, TEST_46, TEST_47, TEST_48, TEST_49, TEST_50, TEST_51, TEST_52, TEST_53, TEST_54, TEST_55, TEST_56, TEST_57, TEST_58, TEST_59, TEST_60, TEST_61, TEST_62, TEST_63, TEST_64, TEST_65, TEST_66, TEST_67, TEST_68, TEST_69, TEST_70, TEST_71, TEST_72, TEST_73, TEST_75, TEST_78, TEST_79, TEST_80, TEST_85, TEST_86, TEST_88, TEST_89, TEST_90];
 // ---- Test levels sticks: alle proefstukken met de stokken, in een eigen reeks (zoals Baboon tests, zonder tribekeuze) ----
 const STOK_LEVELS = [TEST_74, TEST_76, TEST_77];
 // ---- Test levels rainforest: alle proefstukken in het regenwoud, in een eigen reeks (zoals Sticks, zonder tribekeuze) ----
-const RW_LEVELS = [TEST_81, TEST_82, TEST_83, TEST_84];
+// Test 87: twee rivieren die naar je toe stromen (RIVIER_STROOM, `stroom: true`); de eerste is stil water (`stil: true`), op
+// verzoek van de opdrachtgever, omdat ook de rustige stroming te hard voelde. Op verzoek (regel 3), zelf ontworpen,
+// in het regenwoud zonder vijanden (vredig), om het water rustig te bekijken. Eerst een brede, rustige rivier met een brug,
+// zoals in Ishmul, in droog weer (het gewone blauw); dan slaat het om naar regen en komt een smallere rivier die hard
+// stroomt (val: true), ook met een brug, in het onweer, zodat je het water van kleur ziet verschieten (WATER.weer).
+// Zonder brug waad je erdoor; hier gaan beide met een brug, en tussendoor is er droge grond om omlaag te kijken
+const TEST_87 = {
+  name: 'Test 87: Rivers',
+  lagen: 'regenwoud',
+  view: 0.8, hpBalk: true, zicht: true, sneak: true, camera: true, rand: true, slangEenKlap: true, hyOmkeer: true,
+  speerInHand: true, vredig: true,
+  weer: [ {x: -100, soort: 'droog', sterkte: 1}, {x: -2300, soort: 'regen', sterkte: 0.8},
+          {x: -2900, soort: 'onweer', sterkte: 1} ],
+  wateren: [ {k: 'rivier', x: -1400, w: 1100, brug: true, achter: 0.9, stroom: true, stil: true},
+             {k: 'rivier', x: -3500, w: 760, brug: true, achter: 0.9, stroom: true, val: true} ],
+  spawns: [],
+  rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
+  voorgrond: false,
+  cliffs: [ {x: -5600} ],
+  ends: [ {x: -5100} ],
+  tips: [ { x: -80, t: 'Test level: rivers. A calm river first, then rain and a fast one' },
+          { x: -2700, t: 'A storm is coming: watch the water turn darker' } ]
+};
+const RW_LEVELS = [TEST_81, TEST_82, TEST_83, TEST_84, TEST_87];
 // ---- Episode Test levels stad: de Sahelstad, stuk voor stuk ----
 // Proefstukken in de stad (zie "de stad"), los van de echte episodes (regel 1 geldt niet). Het is een episode, dus met
 // de tribekeuze aan het begin; het eerste level was Test 59.
@@ -25417,6 +25586,298 @@ function checkTips(){                            // uitleg onderweg (het veld tu
   }
 }
 
+// ---- tutorial: de mentor en zijn tekstwolk (level.mentor, zie notities/tutorial.md) ----
+// Een andere jager loopt voor Amir uit: een omgekleurde Amir (donkerder huid, een andere broek) die elke beweging
+// eerst voordoet, zich omdraait en wacht tot de speler het nadoet. Zijn bewegingen zijn opgenomen uit het echte spel
+// (tools/mentor_opname.js speelt het level met Amir en legt per beeld vast welk plaatje waar stond), dus hij springt,
+// kruipt en rolt met precies dezelfde frames. Het spoor staat in design/tutorial/mentor_spoor.json: per stuk (seg) een
+// rij beelden [x, h, beeld, dx, dy, dw, dh, spiegel, opDeGrond], en vanaf `lus` de idle waarin hij wacht.
+// Het level zegt per station wat hij zegt (`zeg`, met toetsen als [UP]), wat de speler moet doen (`eis`) en welk stuk
+// hij daarna afspeelt (`seg`). Valt de speler in een gat, dan zet een korte fade hem terug op `terug` van dat station.
+const MENTOR = {
+  broek: 'turq',                                 // de broekkleur uit BROEK.kleuren
+  huid: { van: 345, tot: 38, maxV: 0.66, minS: 0.16, keer: 0.7, sat: 1.08 },   // de huid: deze tinten, niet te licht (het lint), donkerder
+  bij: 230,                                      // zo dicht (wereld-px) moet de speler bij hem zijn voor hij verder gaat
+  okDuur: 1.5,                                   // zo lang blijft het "goed zo" staan voor hij voordoet
+  kijkDuur: 1.3,                                 // en zo lang "Watch." aan het begin van het voordoen
+  fps: 30,                                       // beelden per seconde van het spoor
+  race: { tempo: 0.9, aftel: 0.8 },             // de race: het spoor iets trager dan opgenomen, en de tellen van het aftellen
+  val: { uit: 0.25, in: 0.45, zeg: 2.4 },        // terug na een val: zwart, open, en zo lang zijn grap
+  wolk: { max: 380, font: 19, pad: 14, rand: '#e8b04f', vul: 'rgba(22,15,10,0.92)', tekst: '#fbf2df', naam: 'HUNTER' }
+};
+let mentor = null;                               // de stand in een level met `mentor` (zie mentorReset)
+let mentorOpname = null;                         // de opname (tools/mentor_opname.js) zet hier een functie neer
+const mentorSporen = {};                         // pad -> het geladen spoor (of 'laden')
+function mentorAan(){ return !!(mentor && mentor.spoor && level && level.mentor && !sandbox); }
+function mentorReset(){
+  mentor = null;
+  const M = level && level.mentor;
+  if (!M || sandbox) return;
+  mentor = { def: M, spoor: null, i: 0, fase: 'wacht', t: 0, seg: -1, f: 0, eis: {}, ok: '', okT: 0, val: 0, valT: 0,
+             faal: '', faalT: 0, race: null, wolkT: 0, wolkTekst: '', beeld: null };
+  const s = mentorSporen[M.spoor];
+  hintEl.classList.add('gone');                  // de toetsen leert de mentor je, niet de balk bovenin
+  if (s && s !== 'laden'){ mentor.spoor = s; return; }
+  if (s === 'laden') return;
+  mentorSporen[M.spoor] = 'laden';
+  fetch(M.spoor).then(r => r.json()).then(j => {
+    mentorSporen[M.spoor] = j;
+    for (const src of j.beelden) mentorPlaat(src);   // de plaatjes alvast halen
+    if (mentor && mentor.def === M) mentor.spoor = j;
+  }).catch(() => { delete mentorSporen[M.spoor]; });
+}
+function mentorEvent(naam){ if (mentorAan()) mentor.eis[naam] = true; }   // rolStart en zo melden wat de speler deed
+function mentorStation(){ return mentor.def.stations[mentor.i] || null; }
+// het beeld waar hij nu staat: in een stuk, of (wachtend) in de lus van het laatste stuk
+function mentorFrame(){
+  const S = mentor.spoor;
+  if (mentor.seg >= 0){
+    const sg = S.segs[mentor.seg];
+    return sg.f[Math.min(sg.f.length - 1, Math.floor(mentor.f))];
+  }
+  const sg = S.segs[mentor.rust != null ? mentor.rust : 0];
+  if (mentor.rust == null) return S.start.f[Math.floor(mentor.t * MENTOR.fps) % S.start.f.length];
+  const lus = sg.f.length - sg.lus;
+  return sg.f[sg.lus + Math.floor(mentor.t * MENTOR.fps) % Math.max(1, lus)];
+}
+function mentorX(){ const f = mentorFrame(); return f ? f[0] : 0; }
+function mentorSpeel(seg, tempo){ mentor.seg = seg; mentor.f = 0; mentor.tempo = tempo || 1; mentor.fase = 'demo'; mentor.t = 0; }
+function mentorZeg(tekst, duur){ mentor.faal = tekst; mentor.faalT = duur || 2.2; }
+function mentorUpdate(dt){
+  if (!mentorAan() || !running || paused) return;
+  const m = mentor, st = mentorStation();
+  // de omgekleurde beelden alvast maken, twee per beeld, zodat het voordoen niet hapert
+  for (let n = 0, i = m.warm || 0; n < 2 && i < m.spoor.beelden.length; i++){
+    const im = mentorPlaat(m.spoor.beelden[i]);
+    if (!im) break;
+    if (!mentorKleuren.has(im)){ mentorKleur(im); n++; }
+    m.warm = i + 1;
+  }
+  m.t += dt;
+  if (m.faalT > 0) m.faalT -= dt;
+  if (m.valT > 0) m.valT -= dt;
+  if (m.uitslagT > 0) m.uitslagT -= dt;
+  if (m.fase === 'demo' || m.fase === 'race'){
+    const sg = m.spoor.segs[m.seg];
+    m.f += dt * MENTOR.fps * m.tempo;
+    if (m.race && m.race.go > 0) m.race.go -= dt;
+    if (m.race && m.race.uit == null){                      // de race: wie is er het eerst
+      const fin = m.def.finish;
+      if (world <= fin){ m.race.uit = 'win'; mentorRaceUit(true); }
+      else if (mentorFrame()[0] <= fin){ m.race.uit = 'verlies'; mentorRaceUit(false); }
+    }
+    if (m.f >= sg.lus){                                     // aangekomen: omgedraaid, nu wacht hij
+      m.rust = m.seg; m.seg = -1; m.t = 0;
+      m.i++; m.fase = m.race && m.race.uit == null ? 'race' : 'wacht'; m.eis = {};
+    }
+    return;
+  }
+  if (m.fase === 'race'){                                   // hij staat al boven, de speler rent nog
+    if (world <= m.def.finish && m.race.uit == null){ m.race.uit = 'verlies'; mentorRaceUit(false); }
+    if (m.race.uit != null) m.fase = 'wacht';
+    return;
+  }
+  if (m.fase === 'aftel'){
+    m.race.t += dt;
+    if (m.race.t >= MENTOR.race.aftel * 3){ mentorSpeel(st.seg, MENTOR.race.tempo); m.fase = 'race'; m.race.go = 0.9; }
+    return;
+  }
+  if (m.race && m.race.go > 0) m.race.go -= dt;
+  if (m.fase === 'ok'){
+    m.okT -= dt;
+    if (m.okT <= 0){
+      if (st && st.race){ m.race = { t: 0, uit: null, go: 0 }; m.fase = 'aftel'; }
+      else if (st && st.seg != null) mentorSpeel(st.seg);
+      else if (m.i < m.def.stations.length - 1){ m.i++; m.fase = 'wacht'; m.eis = {}; m.t = 0; }   // niets voor te doen: meteen het volgende
+      else m.fase = 'klaar';
+    }
+    return;
+  }
+  if (m.fase !== 'wacht' || !st) return;
+  // wacht tot de speler bij hem is (op de grond) en gedaan heeft wat het station vraagt
+  const dicht = Math.abs(world - mentorX()) < (st.bij || MENTOR.bij) && onGround && !dead;
+  const gedaan = !st.eis || m.eis[st.eis];
+  if (dicht && gedaan && (st.seg != null || st.ok)){ m.ok = st.ok || ''; m.okT = m.ok ? MENTOR.okDuur : 0.01; m.fase = 'ok'; }
+  else if (dicht && !gedaan && st.nog && m.faalT <= 0) mentorZeg(st.nog, 2.6);   // bij hem, maar het trucje nog niet gedaan
+}
+function mentorRaceUit(win){
+  const d = mentor.def;
+  mentor.uitslag = win ? d.win : d.verlies; mentor.uitslagT = 3.6;
+  if (win && d.prijs) spawnHppotion(d.prijs.x, d.prijs.h || 0);
+}
+// een val in een gat: niet dood, maar een korte fade terug naar het begin van dit station
+function mentorVal(){
+  if (!mentorAan() || dead) return false;
+  const S = mentor.def.stations, st = (mentor.fase === 'wacht' || mentor.fase === 'ok' ? S[mentor.i] : S[mentor.i + 1]) || S[mentor.i];
+  const terug = st && st.terug != null ? st.terug : mentorX() + 200;
+  world = terug; ph = Math.max(0, terrainH(world)); pvh = 0; onGround = true; fell = false; jump = null; coyote = 0;
+  hurt = 0; invuln = 0.8;
+  mentor.valT = MENTOR.val.uit + MENTOR.val.in;
+  const grappen = mentor.def.vallen || ['Again, little one.'];
+  mentorZeg(grappen[Math.floor(Math.random() * grappen.length)], MENTOR.val.zeg);
+  return true;
+}
+// ---- het beeld van de mentor: zijn eigen kleuren, een keer per plaatje ----
+const mentorBeelden = {}, mentorKleuren = new Map();
+function mentorPlaat(src){
+  let im = mentorBeelden[src];
+  if (!im){ im = new Image(); im.src = src; mentorBeelden[src] = im; }
+  return imgReady(im) ? im : null;
+}
+function mentorKleur(im){
+  let c = mentorKleuren.get(im);
+  if (c) return c;
+  const w = im.naturalWidth, h = im.naturalHeight, K = MENTOR.huid;
+  c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(broekBeeld(im, im, broekKleurVan(MENTOR.broek), document.createElement('canvas')), 0, 0);
+  const d = g.getImageData(0, 0, w, h), p = d.data;
+  for (let i = 0; i < p.length; i += 4){
+    if (p[i + 3] < 8) continue;
+    const r = p[i] / 255, gg = p[i + 1] / 255, b = p[i + 2] / 255;
+    const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), dl = mx - mn;
+    if (mx > K.maxV || mx < 0.06 || dl / mx < K.minS) continue;
+    let hu = mx === r ? 60 * (((gg - b) / dl) % 6) : mx === gg ? 60 * ((b - r) / dl + 2) : 60 * ((r - gg) / dl + 4);
+    if (hu < 0) hu += 360;
+    if (!(hu >= K.van || hu <= K.tot)) continue;
+    // de huid: donkerder, net iets voller; in het donker minder, zodat de contour niet dichtloopt
+    const k = K.keer + (1 - K.keer) * Math.max(0, (0.18 - mx) / 0.18);
+    const s2 = Math.min(1, (dl / mx) * K.sat), v2 = mx * k, c2 = v2 * s2, x2 = c2 * (1 - Math.abs((hu / 60) % 2 - 1)), m2 = v2 - c2;
+    const [r2, g2, b2] = hu < 60 ? [c2, x2, 0] : hu < 120 ? [x2, c2, 0] : hu < 180 ? [0, c2, x2] : hu < 240 ? [0, x2, c2] : hu < 300 ? [x2, 0, c2] : [c2, 0, x2];
+    p[i] = (r2 + m2) * 255; p[i + 1] = (g2 + m2) * 255; p[i + 2] = (b2 + m2) * 255;
+  }
+  g.putImageData(d, 0, 0);
+  mentorKleuren.set(im, c);
+  return c;
+}
+// voor Amir getekend, zodat de speler voor hem langs loopt
+function mentorTeken(groundY, scale, cx){
+  mentor && (mentor.wolkPlek = null);
+  if (!mentorAan()) return;
+  const f = mentorFrame();
+  if (!f) return;
+  const [x, h, bi, dx, dy, dw, dh, fl, grond] = f;
+  const sx = cx + (x - world), voet = groundY - h * scale;
+  if (sx < -400 || sx > W / Math.max(0.3, viewZoom()) + 400) { mentor.wolkPlek = null; return; }
+  if (grond){                                               // een zachte schaduw onder zijn voeten
+    ctx.save(); ctx.globalAlpha = 0.28; ctx.fillStyle = '#1a0f08';
+    ctx.beginPath(); ctx.ellipse(sx, voet, CHAR_H * scale * 0.26, CHAR_H * scale * 0.045, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  const im = mentorPlaat(mentor.spoor.beelden[bi]);
+  if (im){
+    const w = dw * scale, hh = dh * scale;
+    ctx.save();
+    ctx.translate(sx + dx * scale, voet + dy * scale);
+    if (fl){ ctx.translate(w, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(mentorKleur(im), 0, 0, w, hh);
+    ctx.restore();
+  }
+  // waar de wolk aan hangt: boven zijn hoofd, in schermpixels (de wolk zelf komt na alles, in mentorWolkTeken)
+  const p = ctx.getTransform().transformPoint(new DOMPoint(sx, voet - CHAR_H * scale * 1.08));
+  mentor.wolkPlek = { x: p.x / DPR, y: p.y / DPR };
+}
+// ---- de tekstwolk: wat hij zegt, met de toetsen als knopjes erin ----
+const MENTOR_TOETS = { LEFT: '←', RIGHT: '→', UP: '↑', DOWN: '↓', SHIFT: 'Shift', SPACE: 'Space', V: 'V', E: 'E' };
+function mentorTekstNu(){
+  const m = mentor, st = mentorStation();
+  if (m.faalT > 0) return m.faal;
+  if (m.uitslagT > 0) return m.uitslag;
+  if (m.fase === 'ok') return m.ok;
+  if (m.fase === 'aftel'){ const n = 3 - Math.floor(m.race.t / MENTOR.race.aftel); return n > 0 ? String(n) + '...' : 'Go!'; }
+  if (m.race && m.race.go > 0) return 'Go!';
+  if (m.fase === 'demo') return m.t < MENTOR.kijkDuur && m.def.stations[m.i] && m.def.stations[m.i].kijk !== false ? (m.def.stations[m.i].kijk || 'Watch.') : '';
+  if (m.fase === 'race') return '';
+  return st ? st.zeg : '';
+}
+// woorden en toetsen in regels, binnen de breedte
+function mentorWolkRegels(tekst, max, fs){
+  const delen = [];
+  tekst.split(/(\[[A-Z]+\])/).forEach(s => {
+    if (!s) return;
+    const t = s.match(/^\[([A-Z]+)\]$/);
+    if (t && MENTOR_TOETS[t[1]]) delen.push({ toets: MENTOR_TOETS[t[1]] });
+    else s.split(/(\s+)/).forEach(w => { if (w) delen.push({ w }); });
+  });
+  ctx.font = '700 ' + fs + 'px Archivo, "Helvetica Neue", Arial, sans-serif';
+  const breed = d => d.toets ? ctx.measureText(d.toets).width + fs * 0.9 : ctx.measureText(d.w).width;
+  const regels = [[]]; let x = 0;
+  for (const d of delen){
+    const b = breed(d), spatie = d.w && /^\s+$/.test(d.w);
+    if (spatie){ if (x > 0){ regels[regels.length - 1].push({ w: ' ', b }); x += b; } continue; }
+    if (x + b > max && x > 0){ const r = regels[regels.length - 1]; while (r.length && r[r.length - 1].w === ' '){ x -= r.pop().b; } regels.push([]); x = 0; }
+    regels[regels.length - 1].push(Object.assign({ b }, d)); x += b;
+  }
+  return regels.map(r => { while (r.length && r[r.length - 1].w === ' ') r.pop(); return { delen: r, b: r.reduce((s, d) => s + d.b, 0) }; });
+}
+function mentorWolkTeken(){
+  if (!mentorAan()) return;
+  const m = mentor;
+  // de fade na een val, over het hele beeld
+  if (m.valT > 0){
+    const V = MENTOR.val, t = V.uit + V.in - m.valT, a = t < V.uit ? 1 : Math.max(0, 1 - (t - V.uit) / V.in);
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = 'rgba(0,0,0,' + a + ')'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.restore();
+  }
+  const tekst = mentorTekstNu();
+  if (tekst !== m.wolkTekst){ m.wolkTekst = tekst; m.wolkT = 0; }
+  m.wolkT += 1 / 60;
+  if (!tekst || !m.wolkPlek) return;
+  const C = MENTOR.wolk, k = Math.max(0.75, Math.min(1.25, H / 720));
+  const fs = Math.round(C.font * k), pad = C.pad * k, lh = fs * 1.45;
+  const regels = mentorWolkRegels(tekst, C.max * k, fs);
+  const bw = Math.max(...regels.map(r => r.b)) + pad * 2, bh = regels.length * lh + pad * 2 + fs * 0.55;
+  const staart = 14 * k;
+  let x = m.wolkPlek.x - bw / 2, y = m.wolkPlek.y - bh - staart;
+  x = Math.max(10, Math.min(W - bw - 10, x)); y = Math.max(10, y);
+  const pop = Math.min(1, m.wolkT / 0.14), sch = 0.82 + 0.18 * (1 - Math.pow(1 - pop, 3));
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, m.wolkT / 0.1);
+  const ax = Math.max(x + 18 * k, Math.min(x + bw - 18 * k, m.wolkPlek.x));
+  ctx.translate(ax, y + bh); ctx.scale(sch, sch); ctx.translate(-ax, -(y + bh));
+  // de wolk met het staartje naar zijn hoofd
+  const r = 12 * k;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.lineTo(x + bw - r, y); ctx.quadraticCurveTo(x + bw, y, x + bw, y + r);
+  ctx.lineTo(x + bw, y + bh - r); ctx.quadraticCurveTo(x + bw, y + bh, x + bw - r, y + bh);
+  ctx.lineTo(ax + 10 * k, y + bh); ctx.lineTo(ax, y + bh + staart); ctx.lineTo(ax - 10 * k, y + bh);
+  ctx.lineTo(x + r, y + bh); ctx.quadraticCurveTo(x, y + bh, x, y + bh - r);
+  ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+  ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 10 * k; ctx.shadowOffsetY = 3 * k;
+  ctx.fillStyle = C.vul; ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.lineWidth = 2.5 * k; ctx.strokeStyle = C.rand; ctx.stroke();
+  // het naambordje en de tekst
+  ctx.font = '700 ' + Math.round(fs * 0.55) + 'px Archivo, "Helvetica Neue", Arial, sans-serif';
+  ctx.fillStyle = C.rand; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+  if (ctx.letterSpacing !== undefined) ctx.letterSpacing = (fs * 0.12) + 'px';
+  ctx.fillText(C.naam, x + pad, y + pad * 0.75);
+  if (ctx.letterSpacing !== undefined) ctx.letterSpacing = '0px';
+  ctx.font = '700 ' + fs + 'px Archivo, "Helvetica Neue", Arial, sans-serif';
+  ctx.textBaseline = 'middle';
+  regels.forEach((rg, i) => {
+    let tx = x + (bw - rg.b) / 2;
+    const ty = y + pad + fs * 0.55 + lh * (i + 0.5);
+    for (const d of rg.delen){
+      if (d.toets){                                         // een toets: een licht knopje met een donkere rand
+        const kw = d.b - fs * 0.25, kh = fs * 1.25, kx = tx + fs * 0.12, ky = ty - kh / 2;
+        const pulse = 0.85 + 0.15 * Math.sin(m.t * 6);
+        ctx.fillStyle = 'rgba(0,0,0,0.5)'; mentorRond(kx, ky + 3 * k, kw, kh, 6 * k); ctx.fill();
+        ctx.fillStyle = 'rgba(251,242,223,' + pulse + ')'; mentorRond(kx, ky, kw, kh, 6 * k); ctx.fill();
+        ctx.lineWidth = 1.5 * k; ctx.strokeStyle = C.rand; ctx.stroke();
+        ctx.fillStyle = '#2a1a0e'; ctx.textAlign = 'center';
+        ctx.fillText(d.toets, kx + kw / 2, ty + 1);
+        ctx.textAlign = 'left';
+      } else { ctx.fillStyle = C.tekst; ctx.fillText(d.w, tx, ty); }
+      tx += d.b;
+    }
+  });
+  ctx.restore();
+}
+function mentorRond(x, y, w, h, r){
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
 const keys = Object.create(null);
 const MOVE = new Set(['ArrowLeft','ArrowRight','a','d','A','D']);
 let spear = false;
@@ -25768,10 +26229,111 @@ const BROEK = {
 const broekLapCache = new Map();                         // kleur-id -> WeakMap(plaatje -> {cv, x, y} of null)
 // na een keuze: de lapjes van kleuren die niemand draagt weg (het voorbeeld in het keuzescherm bakte ze ook)
 function broekOpruim(houd){ for (const id of [...broekLapCache.keys()]) if (!houd.includes(id)) broekLapCache.delete(id); }
-function broekKleurVan(id){ return BROEK.kleuren.find(k => k.id === id) || null; }
+function broekKleurVan(id){ return BROEK.kleuren.find(k => k.id === id) || MK_OUTFIT.lijst.find(k => k.id === id) || null; }
+// Amir met de speer is Mkuki, in Outfit 1 (MK_OUTFIT); met de stokken het oude tenue (geen lapje). In Multiplayer de keuze
+// uit de lobby, in een level met broekKeuze (Test 73) de broek uit dat scherm.
 function broekNu(){
   if (pvp && pvp.broek && !sandbox) return broekKleurVan(pvp.broek[pvp.mij]);   // Multiplayer: de kleur uit de lobby (mpBroek)
-  return level && level.broekKeuze && !sandbox ? broekKleurVan(duoKeuze.broek) : null;
+  if (level && level.broekKeuze && !sandbox) return broekKleurVan(duoKeuze.broek);
+  return STOK_AAN ? null : MK_OUTFIT.lijst[0];
+}
+
+// ---- de outfits van Mkuki: Amir met de speer in de Mkuki-skin, zes kleurstellingen (MK_OUTFIT) ----
+// Een outfit is een "broekkleur" met skin: 'mkuki'. broekBeeld tekent dan in plaats van het oude frame het frame uit de
+// Mkuki-skin (karakters/amir/mkuki_spel/, zelfde naam en canvas, gebakken met tools/mkuki_spel_bak.py) en kleurt de kleding
+// om met de zonekaart ernaast (<frame>_zones.png, tools/mkuki_spel_zones.py): per zone de doelkleur maal de helderheid van
+// het frame gedeeld door die van de Mkuki-kleur (vref), zodat licht en schaduw blijven. Outfit 1 is Mkuki zelf (geen lapje).
+// Per tekening en per speler, dus in Co-op kan de een Mkuki zijn en de ander met de stokken het oude tenue. Wat de skin niet
+// heeft (de oude ren, de sluipaanval, de executie, de stokken) blijft het oude tenue. Een level met `skin` (SKIN) gaat voor.
+// De namen zijn neutraal (Outfit 1 tot 6), zodat een naam niet bepaalt wat iemand kiest.
+const MK_OUTFIT = {
+  // zones 1 tot 6 in de kaart: broek, schort, riem, schuine band, kralen, armbanden
+  kaart: [[0, 0, 255], [255, 255, 0], [255, 0, 0], [0, 255, 0], [0, 255, 255], [255, 128, 0]],
+  vref: [60, 185, 88, 78, 138, 200].map(v => v / 255),   // de helderheid van de Mkuki-kleur per zone (zo is de skin gebakken)
+  lijst: [
+    { id: 'mk1', naam: 'Outfit 1', skin: 'mkuki', stip: '#b98c62', zones: null },
+    { id: 'mk2', naam: 'Outfit 2', skin: 'mkuki', stip: '#f0ece0',
+      zones: [[70, 46, 32], [185, 140, 98], [236, 230, 214], [236, 230, 214], [240, 236, 224], [196, 120, 70]] },
+    { id: 'mk3', naam: 'Outfit 3', skin: 'mkuki', stip: '#c8302a',
+      zones: [[222, 208, 180], [240, 236, 226], [172, 36, 32], [172, 36, 32], [190, 36, 32], [196, 120, 70]] },
+    { id: 'mk4', naam: 'Outfit 4', skin: 'mkuki', stip: '#c48c28',
+      zones: [[36, 32, 30], [196, 140, 40], [120, 30, 26], [120, 30, 26], [240, 236, 226], [214, 170, 58]] },
+    { id: 'mk5', naam: 'Outfit 5', skin: 'mkuki', stip: '#e6c34a',
+      zones: [[244, 242, 236], [222, 212, 186], [214, 170, 58], [214, 170, 58], [214, 170, 58], [214, 170, 58]] },
+    { id: 'mk6', naam: 'Outfit 6', skin: 'mkuki', stip: '#8c1c2a',
+      zones: [[96, 24, 32], [112, 26, 36], [214, 170, 58], [214, 170, 58], [214, 170, 58], [214, 170, 58]] } ]
+};
+const mkSkinBeeld = new Map();                            // pad in de skin -> Image
+const mkLapCache = new Map();                             // outfit-id -> WeakMap(skinframe -> {cv, x, y} of null)
+function skinLijstLaad(soort){
+  if (SKIN.lijst[soort]) return SKIN.lijst[soort];
+  SKIN.lijst[soort] = new Set();                          // eerst leeg, tot lijst.json binnen is
+  fetch(SKIN.soorten[soort] + 'lijst.json').then(r => r.json()).then(a => {
+    SKIN.lijst[soort] = new Set(a); if (SKIN.aan === soort) skinWissel();
+  }).catch(e => console.warn('skin ' + soort + ': geen lijst', e));
+  return SKIN.lijst[soort];
+}
+function mkSkinLaad(p){
+  let im = mkSkinBeeld.get(p);
+  if (!im){ im = new Image(); im.decoding = 'async'; im.src = p; mkSkinBeeld.set(p, im); }
+  return im;
+}
+// het frame uit de skin bij een oud frame van Amir (of null: niet in de skin, of een level met een eigen skin)
+function mkSkinVan(img, soort){
+  if (SKIN.aan || !img || !img._skinRel) return null;
+  if (!mkVoorgeladen) mkSkinVoorladen();
+  const L = skinLijstLaad(soort);
+  if (!L.has(img._skinRel)) return null;
+  let p = img._skinOrig; try { p = decodeURI(p); } catch (_){}
+  const im = mkSkinLaad((p.indexOf('klein/') === 0 ? 'klein/' : '') + SKIN.soorten[soort] + img._skinRel);
+  return imgReady(im) ? im : null;
+}
+// alvast alle frames van de skin laden, zodat Amir niet even in het oude tenue staat (een keer per sessie)
+let mkVoorgeladen = false;
+function mkSkinVoorladen(){
+  if (mkVoorgeladen) return;
+  mkVoorgeladen = true;
+  const doe = () => { const L = SKIN.lijst.mkuki; if (!L || !L.size) return setTimeout(doe, 300);
+    for (const r of L) mkSkinLaad(KLEIN + SKIN.soorten.mkuki + r); };
+  skinLijstLaad('mkuki'); doe();
+}
+function mkLap(img, kl){
+  let cache = mkLapCache.get(kl.id);
+  if (!cache){ cache = new WeakMap(); mkLapCache.set(kl.id, cache); }
+  let lap = cache.get(img);
+  if (lap !== undefined) return lap;
+  const zi = mkSkinLaad(SKIN_SRC.get.call(img).replace(/\.png$/, '_zones.png'));
+  if (!imgReady(zi)) return null;                         // nog niet binnen: even zonder kleur, de volgende keer wel
+  lap = null;
+  try {
+    const w = img.naturalWidth, h = img.naturalHeight;
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(zi, 0, 0, w, h);
+    const z = g.getImageData(0, 0, w, h).data;
+    g.clearRect(0, 0, w, h); g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, w, h), p = d.data, K = MK_OUTFIT.kaart;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let j = 0, i = 0; j < w * h; j++, i += 4){
+      let k = -1;
+      if (z[i + 3] > 128 && p[i + 3]) for (let q = 0; q < 6; q++){
+        if (Math.abs(z[i] - K[q][0]) < 40 && Math.abs(z[i + 1] - K[q][1]) < 40 && Math.abs(z[i + 2] - K[q][2]) < 40){ k = q; break; }
+      }
+      if (k < 0){ p[i + 3] = 0; continue; }
+      const f = Math.min(1.45, Math.max(0.15, Math.max(p[i], p[i + 1], p[i + 2]) / 255 / MK_OUTFIT.vref[k])), c2 = kl.zones[k];
+      p[i] = Math.min(255, c2[0] * f); p[i + 1] = Math.min(255, c2[1] * f); p[i + 2] = Math.min(255, c2[2] * f);
+      const x = j % w, y = (j - x) / w;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    if (x1 >= 0){
+      g.putImageData(d, 0, 0);
+      const cv = document.createElement('canvas'); cv.width = x1 - x0 + 1; cv.height = y1 - y0 + 1;
+      cv.getContext('2d').drawImage(c, x0, y0, cv.width, cv.height, 0, 0, cv.width, cv.height);
+      lap = { cv, x: x0, y: y0 };
+    }
+  } catch (e){ lap = null; }
+  cache.set(img, lap);
+  return lap;
 }
 function broekLap(img, kl){
   let cache = broekLapCache.get(kl.id);
@@ -25861,8 +26423,16 @@ let broekCv = null;
 // Alleen een echt plaatje krijgt een lapje: een doek dat elk beeld anders is (rigCv van de mik-rig) zou het lapje
 // van zijn eerste stand houden. De rig kleurt daarom zijn losse delen (rigLaag) en zijn doek gaat er hier langs.
 function broekBeeld(basis, img, kl = broekNu(), cv = null){
-  if (!kl || !img || !(img instanceof HTMLImageElement) || !imgReady(img)) return basis;
-  const lap = broekLap(img, kl);
+  if (!kl || !img || !(img instanceof HTMLImageElement)) return basis;
+  if (kl.skin){                                         // een outfit van Mkuki (MK_OUTFIT): het frame uit de skin
+    const mk = mkSkinVan(img, kl.skin);
+    if (!mk) return basis;                              // niet in de skin (of nog niet geladen): het oude tenue
+    basis = basis === img ? mk : vaanBlauw(mk);         // het lint van de speer in de kleur van de speersoort, net als het oude
+    img = mk;
+    if (!kl.zones) return basis;
+  }
+  if (!imgReady(img)) return basis;
+  const lap = kl.skin ? mkLap(img, kl) : broekLap(img, kl);
   if (!lap) return basis;
   const bw = basis.naturalWidth || basis.width, bh = basis.naturalHeight || basis.height;
   if (!cv){ if (!broekCv) broekCv = document.createElement('canvas'); cv = broekCv; }
@@ -26310,6 +26880,7 @@ function rolStart(tenue){
   const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
   const right = keys['ArrowRight'] || keys['d'] || keys['D'];
   const kant = left && !right ? -1 : right && !left ? 1 : facing;
+  mentorEvent('rol');                              // de tutorial: hij rolde
   facing = kant;
   rol = { t: 0, kant, met: !!spear && !STOK_AAN, gat: false, stofF: -1 };
   if (level && level.rolTenue){                    // Test 85: C rolt in het tenue, V in het gewone; dat blijft hij dragen
@@ -29155,6 +29726,12 @@ function dkVgTeken(groundY, scale){
 const WATER = {
   palet: { diep: [52, 92, 110], midden: [80, 128, 144], ondiep: [112, 160, 168], glans: [226, 246, 244],
            schuim: [236, 244, 238], nat: [70, 44, 26] },
+  // het water kleurt mee met het weer (waterWeerKleur): droog het palet hierboven, in de regen loopt het naar `storm`,
+  // donker grijsgroen en troebel. Hoe ver: regen keer `regen` plus onweer keer `onweer` (samen hooguit 1). Alleen in
+  // een uitzicht met biome regenwoud (waterWeerAan); in de sandbox de knop Waterkleur: weer
+  weer: { storm: { diep: [30, 38, 34], midden: [56, 66, 58], ondiep: [92, 100, 88], glans: [214, 222, 216],
+                   schuim: [220, 222, 214], nat: [50, 34, 20] },
+          regen: 0.7, onweer: 0.3 },
   lucht: 0.35,                 // zoveel van de horizonkleur ligt er op de verre kant van het water
   rimpel: { a: 0.42, b: 0.30, v: [10, 4], vb: [-7, 3] },   // twee lagen: dekking en schuifsnelheid (px per s)
   glinster: { dicht: 1 / 2600, a: 0.9 },                 // een glinster per zoveel vierkante pixel
@@ -29180,6 +29757,22 @@ const WATER = {
   rug: 52, lip: 56,            // de grond in beeld: de verre rand en de voorste lip, in eenheden van de grondtegel vanaf de looplijn
   geluid: { val: 0.32, rivier: 0.2, bron: 0.14, fontein: 0.16, ver: 520, hz: 750 }
 };
+// ---- het water kleurt mee met het weer: van het gewone palet naar de stormkleur (WATER.weer) ----
+const WATER_BASIS = JSON.parse(JSON.stringify(WATER.palet));
+let waterStormT = 0;                                // hoe ver het palet nu naar de storm is (0 tot 1), in stapjes van 0,02
+let sbWaterWeer = true;                             // sandbox: de knop Waterkleur
+function waterWeerAan(){
+  if (sceneCfg().biome !== 'regenwoud') return false;
+  return sandbox ? sbWaterWeer : !!level && level.waterWeer !== false;
+}
+function waterWeerKleur(){
+  const N = weerNu, Ww = WATER.weer;
+  const doel = waterWeerAan() && N ? Math.min(1, (N.regen || 0) * Ww.regen + (N.onweer || 0) * Ww.onweer) : 0;
+  const t = Math.round(doel * 50) / 50;             // weerNu loopt al zacht op en af; hier alleen afronden
+  if (t === waterStormT) return;
+  waterStormT = t;
+  for (const k in WATER_BASIS) WATER.palet[k] = waterMeng(WATER_BASIS[k], Ww.storm[k] || WATER_BASIS[k], t);
+}
 function waterenLijst(){ return (level && Array.isArray(level.wateren)) ? level.wateren : []; }
 let waterKlok = 0;                                  // speltijd, zodat het water in de pauze stilstaat
 function waterRgb(c, a){ return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (a === undefined ? 1 : a) + ')'; }
@@ -29253,9 +29846,12 @@ function brugTeken(groundY, scale, cx){
   }
 }
 // ---- de textuur: rimpels, eenmaal getekend en daarna alleen verschoven ----
+// de texturen hebben de kleur van het palet erin; met het weer (waterWeerKleur) per stapje van 0,1 een eigen set
+const waterTexSets = {};
 let waterTex = null;
 function waterTextuur(){
-  if (waterTex) return waterTex;
+  const sleutel = Math.round(waterStormT * 10);
+  if (waterTexSets[sleutel]) return (waterTex = waterTexSets[sleutel]);
   const maak = (w, h, n, kleur, lang, dik, staand) => {
     const c = document.createElement('canvas'); c.width = w; c.height = h;
     const g = c.getContext('2d');
@@ -29279,6 +29875,7 @@ function waterTextuur(){
     val: maak(96, 256, 46, P.glans, [14, 46], [1, 2.6], true),
     valDonker: maak(96, 256, 30, P.diep, [16, 50], [1.4, 3], true)
   };
+  waterTexSets[sleutel] = waterTex;
   return waterTex;
 }
 // een textuurlaag over het pad, geschoven met (ox, oy)
@@ -29482,30 +30079,102 @@ function waterRingenVan(i, cx, cy, rx, ry){
   for (const r of waterRingen) if (r.o === i) uit.push({ sx: cx + r.u * rx, sy: cy + r.v * ry, t: r.t, duur: r.duur });
   return uit;
 }
+// ---- de rivier die naar je toe stroomt (`stroom: true`): recht tussen de wanden, met oeverplanten ervoor ----
+// De grond heeft vooraan een rechte wand; een rivier die daar naar de camera doorloopt botst met die wand. Daarom
+// blijft hij zo breed als de lip, en staan er op elke naad tussen water en wand oeverplanten: donkere, onscherpe
+// struiken en gras (de plaatjes van de voorgrond), vast aan de rivier, zodat ze de naad afdekken waar de camera ook staat.
+// Rustig of snel zoals elke rivier: zonder `val` traag (vRustig), met `val: true` snel (v).
+const RIVIER_STROOM = {
+  schaduw: 34, schaduwA: 0.45,   // de schaduw onder de lip: hoe lang (px bij schaal 1) en hoe donker
+  rustig: 6,                     // zonder `val`: zo traag stroomt hij naar je toe (px per s); bijna stil, een rustige rivier
+                                 // (de gewone rustige rivier, vRustig 22, voelde naar voren veel te hard); met `stil: true`
+                                 // stroomt hij helemaal niet: een stuk stilstaand water onder de brug, alleen de rimpels schuiven zacht
+  plant: { n: 6, spreid: 0.7, h: [0.7, 1.15], struik: 0.45, vaag: 5 }  // per naad: zoveel, zo ver uit elkaar (in Amir), en hoe hoog:
+                                                                        // als deel van de wand onder de lip die in beeld is, zodat ze de brug vrijlaten
+};
+// ---- het spiegelbeeld van Amir in de rivier (WATER_SPIEGEL) ----
+// De schaduw van Amir (amirSchaduw) zet elk beeld zijn frame klaar in amirSpiegel; de rivier met `stroom` tekent dat
+// ondersteboven in zijn water, in smalle stroken die met de rimpels heen en weer wiegen, en vervagend naar beneden.
+// Binnen de vorm van het water (clip), dus de brug en de oeverplanten vallen er vanzelf overheen. De waterlijn
+// waarin hij spiegelt ligt een stuk (`as`) onder de looplijn: onder de brug, waar het water begint.
+const WATER_SPIEGEL = { a: 0.5, uit: 1.1, as: 0.45, strook: 2, amp: 2.2, freq: 0.16, tempo: 3.2, oud: 150 };
+let amirSpiegel = null;                             // {img, ox, y, w, h, flip, wx, t}: uit het vorige beeld
+function waterSpiegelAmir(pad, groundY, yB, xl, xr, s){
+  const A = amirSpiegel, S = WATER_SPIEGEL;
+  if (!A || performance.now() - A.t > S.oud || !A.img || !A.img.naturalWidth) return;
+  const x = W / 2 + (A.wx - world) + A.ox;
+  if (x + A.w < xl || x > xr) return;
+  const img = A.img, iw = img.naturalWidth, ih = img.naturalHeight;
+  const yA = groundY + (yB - groundY) * S.as;       // de waterlijn
+  const d0 = 2 * yA - (A.y + A.h), d1 = 2 * yA - A.y;
+  ctx.save(); ctx.clip(pad);
+  for (let yy = Math.max(d0, yA); yy < d1; yy += S.strook){
+    const bronY = 2 * yA - yy - S.strook;           // dit stukje van Amir (op het scherm), gespiegeld naar yy
+    const sy = (bronY - A.y) / A.h * ih, sh = S.strook / A.h * ih;
+    if (sy + sh <= 0 || sy >= ih) continue;
+    const a = S.a * Math.max(0, 1 - (yy - yA) / (A.h * S.uit));
+    if (a <= 0.01) break;
+    const golf = Math.sin(waterKlok * S.tempo + yy * S.freq) * S.amp * s * (0.4 + (yy - yA) / A.h);
+    ctx.globalAlpha = a;
+    ctx.save(); ctx.translate(x + golf, yy + S.strook); ctx.scale(1, -1);
+    if (A.flip){ ctx.translate(A.w, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(img, 0, sy, iw, sh, 0, 0, A.w, S.strook + 0.5);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+function waterStroomPlanten(o, i, groundY, scale, cx0){
+  const w = o.w || 240, cx = cx0 + (o.x - world);
+  if (cx - w > W / viewZoom() + W || cx + w < -W) return;
+  const m = ctx.getTransform(), yO = m.d ? (cv.height - m.f) / m.d : groundY + H;
+  const P = RIVIER_STROOM.plant, amir = CHAR_H * scale;
+  const lt = rwSilhouetAan() ? VG_RW.kleur : vgSchaduw();
+  const wand = Math.max(amir * 0.4, yO - (groundY + WATER.lip * edgeScale(H * 0.18)));   // de wand onder de lip, in beeld
+  for (const kant of [-1, 1]){
+    const xe = cx + kant * w / 2;
+    for (let j = 0; j < P.n; j++){
+      const r = rnd(i * 31 + j + (kant > 0 ? 17 : 0), 61), r2 = rnd(i * 31 + j + (kant > 0 ? 17 : 0), 62);
+      const S = VG_SOORT[r < P.struik ? 'struik' : 'gras'], img = vgImg(S);
+      if (!img || !imgReady(img)) continue;
+      const p = vgPlaatje(img, false, S.voet, lt, P.vaag);
+      const hh = wand * (P.h[0] + (P.h[1] - P.h[0]) * r2), ww = p.w * hh / p.h, mm = p.m * hh / p.h;
+      // de eerste staat precies op de naad, de rest eromheen
+      const x = xe + (j ? (rnd(i * 31 + j, 63 + kant) - 0.5) * 2 * P.spreid * amir : 0), voet = yO + hh * 0.12;
+      ctx.save(); ctx.translate(x, voet); if (r2 < 0.5) ctx.scale(-1, 1);
+      ctx.drawImage(p.c, -ww / 2 - mm, -hh - mm, ww + mm * 2, hh + mm * 2);
+      ctx.restore();
+    }
+  }
+}
 function waterRivierTeken(o, i, groundY, s){
   const w = o.w || 240, cx = W / 2 + (o.x - world);
   if (cx - w > W / viewZoom() + W || cx + w < -W) return;
   const yT = groundY - WATER.rug * s, yB = groundY + WATER.lip * s;
-  const SR = WATER.soort.rivier, v = (o.v || (o.val ? SR.v : SR.vRustig));
+  const SR = WATER.soort.rivier, v = o.stil ? 0 : (o.v || (o.val ? SR.v : o.stroom ? RIVIER_STROOM.rustig : SR.vRustig));
   // de bedding: van achteren smal (ver weg) naar voren breed, met golvende oevers
   const pts = [], n = 40, oever = (k, kant) => Math.sin(k * 7 + i + kant * 2) * 5 + Math.sin(k * 15 + kant) * 2.5 + Math.sin(k * 41 + kant * 3) * 1.2;
   // ver weg smaller (achter: de breedte achteraan, standaard 0,4; een brede rivier onder een lange brug wil daar meer, Ishmul 0,9);
   // voorbij de lip (met `voor`) groeit hij nog maar zacht door
   const ach = o.achter != null ? o.achter : 0.4;
-  const breed = k => w * (k <= 1 ? ach + (1 - ach) * k : 1 + 0.25 * (k - 1)) / 2;
+  // met `stroom` loopt hij voorbij de lip recht door, zo breed als de lip: tussen de wanden van de grond
+  const breed = k => w * (k <= 1 ? ach + (1 - ach) * k : o.stroom ? 1 : 1 + 0.25 * (k - 1)) / 2;
   // en hij kronkelt, vooraan recht; onder een brug loopt hij recht (anders steekt de bocht als een los stuk achter de leuning uit)
   const kron = k => o.brug ? 0 : Math.sin(Math.min(1, k) * 3.6 + i * 1.3) * w * 0.22 * (1 - Math.min(1, k) * 0.8);
   // met `voor: true` valt hij niet over de lip maar loopt hij door naar de camera, tot onder uit beeld (zoals het pad van een
   // kruispunt in de stad)
-  const m = ctx.getTransform(), yO = o.voor && m.d ? (cv.height - m.f) / m.d + 20 : yB;
+  // kruispunt in de stad). Met `stroom: true` (RIVIER_STROOM) net zo, maar hij blijft zo breed als de lip, recht tussen de
+  // wanden van de grond, met oeverplanten voor de camera over de naad (waterStroomPlanten)
+  const voor = o.voor || o.stroom;
+  const m = ctx.getTransform(), yO = voor && m.d ? (cv.height - m.f) / m.d + 20 : yB;
   const kM = (yO - yT) / (yB - yT), yE = yO;
-  for (let j = 0; j <= n; j++){ const k = j / n * kM; pts.push([cx + kron(k) - breed(k) + oever(k, -1), yT + (yB - yT) * k]); }
-  for (let j = n; j >= 0; j--){ const k = j / n * kM; pts.push([cx + kron(k) + breed(k) + oever(k, 1), yT + (yB - yT) * k]); }
+  const golf = k => o.stroom && k > 1 ? Math.max(0, 1 - (k - 1) * 6) : 1;   // de golvende oever wordt voorbij de lip recht
+  for (let j = 0; j <= n; j++){ const k = j / n * kM; pts.push([cx + kron(k) - breed(k) + oever(k, -1) * golf(k), yT + (yB - yT) * k]); }
+  for (let j = n; j >= 0; j--){ const k = j / n * kM; pts.push([cx + kron(k) + breed(k) + oever(k, 1) * golf(k), yT + (yB - yT) * k]); }
   const pad = waterPadVan(pts);
   waterVul(pad, yT, yE, cx - w / 2, cx + w / 2, { v, seed: i * 97, ringen: waterRingenVan(i, cx, (yT + yE) / 2, w * 0.4, (yE - yT) / 2) });
   // de oevers, maar niet over de achterkant (daar loopt hij door) en de voorkant (daar valt hij)
   ctx.save();
-  ctx.beginPath(); ctx.rect(cx - w * 2, yT + 4, w * 4, (o.voor ? yE + 40 : yB) - yT - 6); ctx.clip();
+  ctx.beginPath(); ctx.rect(cx - w * 2, yT + 4, w * 4, (voor ? yE + 40 : yB) - yT - 6); ctx.clip();
   waterRand(pad, 1.8);
   ctx.restore();
   // ver weg loopt hij weg in de vlakte: de achterkant vervaagt in het land
@@ -29514,7 +30183,14 @@ function waterRivierTeken(o, i, groundY, s){
   fg.addColorStop(0, waterRgb(waterMeng(waterLuchtKleur(), land, 0.2), 0.9)); fg.addColorStop(1, waterRgb(land, 0));
   ctx.save(); ctx.clip(pad); ctx.fillStyle = fg; ctx.fillRect(cx - w, yT - 2, w * 2, (yB - yT) * 0.35 + 2); ctx.restore();
   // en vooraan valt hij over de lip, langs de wand van de grond naar beneden; een rustige rivier valt trager (valRustig)
-  if (!o.voor) waterValGordijn(cx + kron(1) - breed(1) + 6, cx + kron(1) + breed(1) - 6, yB - 4, groundY + H * 1.2, o.val ? v * 6 : SR.valRustig, i, true);
+  if (o.stroom){
+    waterSpiegelAmir(pad, groundY, yB, cx - w / 2, cx + w / 2, s);   // zijn spiegelbeeld, onder de schaduw van de lip
+    // onder de lip (en de brug) een zachte schaduw: het water komt eronder vandaan
+    const sg = ctx.createLinearGradient(0, yB - 4, 0, yB + RIVIER_STROOM.schaduw * s);
+    sg.addColorStop(0, 'rgba(8,10,12,' + RIVIER_STROOM.schaduwA + ')'); sg.addColorStop(1, 'rgba(8,10,12,0)');
+    ctx.save(); ctx.clip(pad); ctx.fillStyle = sg; ctx.fillRect(cx - w, yB - 4, w * 2, RIVIER_STROOM.schaduw * s + 4); ctx.restore();
+  }
+  if (!voor) waterValGordijn(cx + kron(1) - breed(1) + 6, cx + kron(1) + breed(1) - 6, yB - 4, groundY + H * 1.2, o.val ? v * 6 : SR.valRustig, i, true);
 }
 // een vallend gordijn van water tussen xl en xr, van y0 naar y1; met donker: loopt weg in de diepte
 function waterValGordijn(xl, xr, y0, y1, v, seed, donker, buig){
@@ -29584,6 +30260,7 @@ function waterVoorTeken(groundY, scale, cx){
   const s = edgeScale(H * 0.18), P = WATER.palet;
   for (let i = 0; i < lijst.length; i++){
     const o = lijst[i];
+    if (o.k === 'rivier' && o.stroom){ waterStroomPlanten(o, i, groundY, scale, cx); continue; }
     if (o.k === 'val'){
       const t = waterValTerras(o); if (!t) continue;
       const w = o.w || 110, x = cx + (o.x - world);
@@ -29745,6 +30422,7 @@ function waterStraal(x, yB, hoog, bw, i, v){
 // ---- de stap: klok, druppels, regenringen, Amir onder de val en het geluid ----
 let waterValNat = 0;
 function waterStap(dt){
+  waterWeerKleur();
   const lijst = waterenLijst();
   if (!lijst.length){ waterDruppels.length = 0; waterRingen.length = 0; waterPlonzen.length = 0; waterGeluid(0); return; }
   waterKlok += dt;
@@ -37775,6 +38453,7 @@ function ravijnGrasTeken(fx, groundY, op){
 }
 function fallDeath(){
   if (dead) return;
+  if (mentorVal()) return;                         // de tutorial: terug naar het begin van het station
   if (pzOnst && !sandbox && onstPlek){             // Immortal (pauze): terug op de laatste vaste grond in plaats van dood
     world = onstPlek.x; ph = onstPlek.h; pvh = 0; onGround = true; fell = false; jump = null; coyote = 0;
     invuln = 1.3; hurt = 0.38; shake = 0.3;
@@ -39961,7 +40640,7 @@ function restart(){
   mkillReset();                                     // de multikill-reeks en de telling voor het rapport op nul (zie "multikill")
   aanvReset();                                      // de eindpoort dicht (zie "de aanvoerder")
   straatReset();                                    // de straten: terug in de startstraat, de kills op 0
-  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena(); murcStil(); stopBan(); stopKrb(); stopWind();
+  tutReset(); mentorReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena(); murcStil(); stopBan(); stopKrb(); stopWind();
   greenSince = 0; blackAfter = 3 + Math.floor(Math.random() * 3); forceBlack = false; setKindLabel();
   if (level && level.spawns) for (const sp of level.spawns){ sp.used = false; sp.armed = false; }
   poortReset();                                     // de poorten weer dicht, hun vijanden weer binnen
@@ -46043,7 +46722,7 @@ const BAN_GJ = {
   v0: 620,              // de snelheid omhoog bij het afzetten (wereld-eenheden/s)
   g: 2600,              // de valversnelling, zoals BAN_DROP
   voor: 150,            // zo ver voorbij de rand landt hij (wereld-px, bovenop zijn halve lijf)
-  landY: [99, 88, 72, 38, 21, 6, 6],   // hoe hoog (canvas-px) hij in de landingsframes 0 tot 6 nog boven de grond hing
+  landY: [96, 85, 69, 36, 19, 5, 5],   // hoe hoog (canvas-px) hij in de landingsframes 0 tot 6 nog boven de grond hing (na tools/bandiet_gj_schaal.py)
   klap: 7,              // het landingsframe waarop hij neerkomt: daar de stofwolk
   houd: 0.55,           // zo lang blijft hij laag zitten na de landing (het strafvenster)
   opkijkVan: 8,         // opkijk vanaf dit frame (het opkijken zelf), tot het eind
@@ -55352,6 +56031,7 @@ function loop(now){
   updateArena();
   checkTips();
   updateTut(dt);
+  mentorUpdate(dt);
   if (arena && !arenaVast()){      // boss: je blijft in de buurt van waar het gevecht begon (een vaste arena klemt hierboven al, tot haar eigen rand)
     const ah = arenaHalf();
     world = Math.max(arena.c - ah, Math.min(arena.c + ah, world));
@@ -55642,6 +56322,7 @@ function loop(now){
     if (img && img.complete){
     const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
     const cx = W / 2;
+    mentorTeken(groundY, scale, cx);              // de mentor van de tutorial, voor Amir (zie "tutorial: de mentor")
     const pcx = cx + (pWorld - world);            // Amir zelf (gelijk aan cx, behalve in de boss-arena)
     const wetDraw = waterDepthAt(pWorld, ph) * Math.max(0, 1 - ph / 40);
     const sinkPx = wetDraw * POOL.sink * CHAR_H * scale;   // in het water zak je een stukje weg
@@ -55777,6 +56458,7 @@ function loop(now){
         ctx.clip();
       }
       const flipNu = useThrow ? thrFlip() : (autoFlip && facing === 1);
+      amirSpiegel = { img, ox: x - pcx, y, w, h, flip: flipNu, wx: pWorld, t: performance.now() };   // voor het water (WATER_SPIEGEL)
       const fc = fakkelCast(pWorld, vloer);          // de fakkel als lichtbron: neemt de richtingsschaduw over waar het donker is
       drawAmirSchaduw(img, x, y, w, h, flipNu, pcx, groundY + lift, shY,
                       ph - (vloer === null ? 0 : vloer), scale, amirZon(vloer, pWorld) * (1 - fc.w), amirLicht());
@@ -56136,6 +56818,7 @@ function loop(now){
     // geraakt: rood over hem heen. Op een eigen doekje (amirRood), want source-atop op het beeld zelf
     // kleurde de hele rechthoek van zijn plaatje, met de achtergrond erin
     if (pvp) pvpVang(img, x, y, w, h, useThrow ? thrFlip() : (autoFlip && facing === 1), pcx, groundY + lift, scale);   // PvP: dit beeld gaat naar de ander
+    if (mentorOpname) mentorOpname(img, x, y, w, h, useThrow ? thrFlip() : (autoFlip && facing === 1), pcx, groundY + lift, scale);   // de opname van de mentor (tools/mentor_opname.js)
     if (pvp && pvp.coop && dead) mpcLig(w, h, groundY + lift - y);   // Co-op: wie dood is ligt, tot de revive
     if (useStok){ stokSlipStap(x, y, w, h, autoFlip && facing === 1); stokSlipTeken(true, w, h, autoFlip && facing === 1); }   // de slippen van een stok achter hem
     const amirNu = hurt > 0 && amirSteen <= 0 ? amirRood(amirBeeld, Math.min(0.75, hurt * 2)) : amirBeeld;
@@ -57714,6 +58397,7 @@ function loop(now){
     straatHudTeken();                               // de kills en de minimap van een stadje met straten
     straatFadeTeken();                              // en de zwarte fade door een poort
     exeVignetTeken();                               // de rode waas op het splijten van de executie
+    mentorWolkTeken();                              // de tekstwolk van de mentor (tutorial), en de fade na een val
     drawMuurE(camSwap !== null ? camSwap : world);   // voor de open rotsdeur of de houten uitgang: Press E
   }
   ctx.restore();
@@ -59174,6 +59858,7 @@ function readLevel(txt){
 
            rolWorpProef: !!o.rolWorpProef,              // Test 60: oefendoelen, speren genoeg, en de rol-worp in de instellingen
            rolTenue: typeof o.rolTenue === 'string' ? o.rolTenue : null,   // Test 85: C rolt in dat tenue (ROL_TENUE)
+           skin: typeof o.skin === 'string' ? o.skin : null,   // Test 88: Amir het hele level in een ander tenue (SKIN)
            talentKeuze: !!o.talentKeuze,                // aan het begin kies je zelf de talents (Test 14)
            comboKeuze: !!o.comboKeuze,                  // aan het begin en na R de derde slag als terugslag of schade (Test 68)
            stokken: !!o.stokken,                        // de stokken in plaats van de speer (STOK, Test 74)
@@ -59241,7 +59926,9 @@ function readLevel(txt){
            tips: (o.tips || []).map(t => ({ x: Number(t.x), t: String(t.t) })),
            // rode pijlen in de lucht, om iets in een testlevel aan te wijzen (zie "pijlen")
            pijlen: Array.isArray(o.pijlen) ? o.pijlen.map(a => ({ x: Number(a.x), t: a.t ? String(a.t) : undefined })) : undefined,
-           tutorial: o.tutorial ? o.tutorial.map(s => Object.assign({}, s)) : null });
+           tutorial: o.tutorial ? o.tutorial.map(s => Object.assign({}, s)) : null,
+           // de mentor van de tutorial: zijn spoor, de finish van de race en wat hij per station zegt (zie MENTOR)
+           mentor: o.mentor ? JSON.parse(JSON.stringify(o.mentor)) : undefined });
 }
 // standaard: het eerste testlevel staat klaar, ook voor de speelrobot
 let levelList = TEST_LEVELS;
@@ -59262,6 +59949,7 @@ function laadLevel(lv){
   if (lv.winter) loadWinter();                     // de winterplaatjes pas ophalen als ze nodig zijn
   slangLaadLevel(lv); scpLaadLevel(lv); hyLaadLevel(lv); panLaadLevel(lv);
   rolTenueLaadLevel(lv);                           // de rol in een ander tenue (Test 85)
+  skinZet(lv.skin);                                // Amir het hele level in een ander tenue (SKIN, Test 88)
   npcLaadLevel(lv); dorpLaadLevel(lv);
   banLaadLevel(lv);                                // de bandiet-frames als dit level ze gebruikt
   kooiLaadLevel(lv);                               // de kooiman-frames als dit level hem gebruikt
@@ -59361,6 +60049,7 @@ function setLevel(i, list, licht){
   laadNieuw();                                     // een nieuwe lijst van wat dit level gebruikt (zie laadVrij)
   bloedRand.length = 0;                            // het bloed op hout van het vorige level (zie BLOED_RAND)
   levelLaadLater = !!licht;
+  skinZet(level.skin);                             // Amir in het tenue van dit level (SKIN), of terug in het gewone
   if (!licht) laadLevel(level);                    // de plaatjes die dit level nodig heeft en die niet elk level heeft
   document.getElementById('lvname').textContent = level.name;
   zetMuziek();                                     // elk level brengt zijn eigen deuntje mee
@@ -60704,7 +61393,11 @@ const SUBS = {
   'Test 82: Hanging log': 'A log on two vines: jump on it, cut it down',
   'Test 83: Log ramp': 'Cut one vine and walk up the tilted log',
   'Test 84: Stairs': 'Stop on a step with one foot higher than the other, going up and going down',
+  'Test 87: Rivers': 'Two rivers flowing towards you, a calm one and a fast one, as the weather turns',
+  'Test 90: Young Lion': 'Tau level 1: the stick fighter with the lion hood and claw marks',
+  'Test 88: Mkuki': 'Amir in the Mkuki outfit of the spear tribe, every animation in one short walk',
   'Test 85: Roll outfit': 'V rolls in the normal outfit, C in the monk outfit, and he keeps what he rolled in',
+  'Test 89: The First Hunt': 'Your first hunt: an older hunter shows you how to move, then races you to the top',
   'Test 86: The cellar': 'A torch-lit cellar: a wooden stair, lattice doors with eyes behind them, and a cage that opens',
   'Test 76: Ground slam': 'Sticks from the air: slam into the ground and send a wave forward',
   'Test 77: Sun ray': 'Meditate in the sun, then six seconds of Sun Lion: double damage, fast, a huge jump, two ground slams',
@@ -65088,6 +65781,7 @@ if (window.ResizeObserver){
 const sandboxEl = document.getElementById('sandbox');
 let sbFromRight = true, savedLevel = null;
 function startSandbox(arena, gates){
+  skinZet(null);                                        // de sandbox in het gewone tenue (SKIN)
   sbArena = arena === true;                             // Arena modus: golven vijanden, met levens
   straalLijst = []; straalWis();                            // geen zonnestralen uit een vorig potje (de knop Zonnestraal zet er een)
   if (sbRenNieuw) renNieuwLaad();                       // de nieuwe ren (standaard, zie REN_NIEUW)
@@ -66473,6 +67167,12 @@ function sbWater(k){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-sbwater]').forEach(b => b.onclick = () => sbWater(b.dataset.sbwater));
+document.getElementById('sbwaterweer').onclick = e => {
+  sbWaterWeer = !sbWaterWeer;
+  e.target.classList.toggle('on', sbWaterWeer);
+  e.target.textContent = sbWaterWeer ? 'Waterkleur: weer' : 'Waterkleur: vast';
+  cv.focus();
+};
 document.getElementById('sbspetter').onclick = e => {
   SPETTER.nieuw = !SPETTER.nieuw;
   e.target.classList.toggle('on', SPETTER.nieuw);
@@ -69594,8 +70294,9 @@ function mpLobbyOpen(){
   pvpStatus('');
   mpLobbyToon();
   if (pvp.host) pvpZend({ t: 'lobby', inst: pvp.inst, spelers: pvp.spelers });
-  pvpZend({ t: 'broek', id: pvp.broek[pvp.mij] });
   if (!pvp.wapen[pvp.mij]) pvp.wapen[pvp.mij] = mpWapenEigen();
+  mpBroekPas();                                     // met de speer een outfit van Mkuki, met de stokken een broek
+  pvpZend({ t: 'broek', id: pvp.broek[pvp.mij] });
   pvpZend({ t: 'wapen', w: pvp.wapen[pvp.mij] });
   pvp.naam[pvp.mij] = mpNaamEigen(); pvpZend({ t: 'naam', n: pvp.naam[pvp.mij] });
   mpNaamVeld(); mpBroekToon(); mpWapenToon(); mpBroekStart();
@@ -69606,27 +70307,43 @@ function mpLobbyDicht(){ pvpEl('menuPvp').classList.remove('lobby'); pvpEl('star
 // los van wie host is, en een kleur die een ander al draagt sla je over. Kiezen twee tegelijk dezelfde, dan houdt het
 // laagste slot hem (de host eerst) en schuift de ander door naar de eerste vrije. Standaard paars, rood en turkoois.
 // Je keuze blijft bewaard op dit apparaat (amir.mpbroek).
-const MP_BROEK = [{ id: 'paars', naam: 'Purple' }].concat(BROEK.kleuren.map(k => ({ id: k.id, naam: k.naam })));
+// Met de speer ben je Mkuki en kies je een van de zes outfits (MK_OUTFIT, bewaard in amir.mpoutfit, standaard Outfit 1,
+// 3 en 4 per slot); met de stokken het oude tenue met de broekkleuren. Wissel je van wapen, dan wissel je mee van lijst
+// (mpBroekPas). Het bericht blijft {t: 'broek', id}: de id zegt of het een outfit of een broek is.
+const MP_BROEK_OUD = [{ id: 'paars', naam: 'Purple' }].concat(BROEK.kleuren.map(k => ({ id: k.id, naam: k.naam })));
+const MP_OUTFIT = MK_OUTFIT.lijst.map(k => ({ id: k.id, naam: k.naam }));
+const MP_BROEK = MP_BROEK_OUD.concat(MP_OUTFIT);
 function mpBroekNaam(id){ const k = MP_BROEK.find(b => b.id === id); return k ? k.naam : ''; }
 const MP_BROEK_STANDAARD = ['paars', 'rood', 'turq'];   // per slot: de host, de eerste en de tweede gast
-function mpBroekEigen(slot){
+const MP_OUTFIT_STANDAARD = ['mk1', 'mk3', 'mk4'];
+function mpBroekLijst(w){ return (w || (pvp && pvp.mij != null && pvp.wapen[pvp.mij]) || mpWapenEigen()) === 'stok' ? MP_BROEK_OUD : MP_OUTFIT; }
+function mpBroekEigen(slot, w){
+  const L = mpBroekLijst(w), outfit = L === MP_OUTFIT;
   let id = null;
-  try { id = localStorage.getItem('amir.mpbroek'); } catch (e){}
-  return MP_BROEK.some(b => b.id === id) ? id : MP_BROEK_STANDAARD[slot] || 'paars';
+  try { id = localStorage.getItem(outfit ? 'amir.mpoutfit' : 'amir.mpbroek'); } catch (e){}
+  return L.some(b => b.id === id) ? id : (outfit ? MP_OUTFIT_STANDAARD : MP_BROEK_STANDAARD)[slot] || L[0].id;
 }
 function mpBroekZet(id){
   if (!pvp || id === pvp.broek[pvp.mij]) return;
   pvp.broekVan = pvp.broek[pvp.mij]; pvp.broekT0 = performance.now();
   pvp.broek[pvp.mij] = id;
-  try { localStorage.setItem('amir.mpbroek', id); } catch (e){}
+  try { localStorage.setItem(MP_OUTFIT.some(b => b.id === id) ? 'amir.mpoutfit' : 'amir.mpbroek', id); } catch (e){}
   pvpZend({ t: 'broek', id });
   mpBroekToon(); mpTeamToon();
+}
+// past mijn keuze niet bij mijn wapen (net gewisseld), dan de bewaarde keuze voor dat wapen, of de eerste vrije
+function mpBroekPas(){
+  if (!pvp || pvp.mij == null) return;
+  const L = mpBroekLijst();
+  if (L.some(b => b.id === pvp.broek[pvp.mij])) return;
+  const id = mpBroekEigen(pvp.mij);
+  mpBroekZet(mpBroekAnders().includes(id) ? mpBroekVrij(id, 1) : id);
 }
 // wat de anderen dragen
 function mpBroekAnders(){ return pvp.spelers.filter(p => p !== pvp.mij && pvp.broek[p]).map(p => pvp.broek[p]); }
 // de volgende kleur die niemand anders draagt
 function mpBroekVrij(van, stap){
-  const L = MP_BROEK, bezet = mpBroekAnders();
+  const L = mpBroekLijst(), bezet = mpBroekAnders();
   let i = Math.max(0, L.findIndex(b => b.id === van));
   for (let n = 0; n < L.length; n++){ i = (i + stap + L.length) % L.length; if (!bezet.includes(L[i].id)) return L[i].id; }
   return van;
@@ -69678,7 +70395,8 @@ function mpBroekStart(){
 // MP_DOOR, en een nieuwe gast krijgt de namen in pvpGastErbij). Zonder naam heet je naar je broek ("Fire red"). Of je de
 // namen boven de hoofden ziet kiest ieder zelf, met het vinkje onder de naam (amir.mpnamen, standaard aan).
 const MP_NAAM = { max: 14,
-  kleur: { paars: '#a070e8', rood: '#ec4a36', oranje: '#f39433', goud: '#eec24f', turq: '#3fd0c6', wit: '#f4eedf', zwart: '#3a3a40' } };
+  kleur: { paars: '#a070e8', rood: '#ec4a36', oranje: '#f39433', goud: '#eec24f', turq: '#3fd0c6', wit: '#f4eedf', zwart: '#3a3a40',
+    ...Object.fromEntries(MK_OUTFIT.lijst.map(k => [k.id, k.stip])) } };   // de outfits van Mkuki: hun opvallendste kleur
 function mpNaamSchoon(n){ return String(n == null ? '' : n).replace(/[\u0000-\u001f\u007f-\u009f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, MP_NAAM.max); }
 function mpNaamEigen(){ let n = ''; try { n = localStorage.getItem('amir.mpnaam') || ''; } catch (e){} return mpNaamSchoon(n); }
 function mpNaamZet(n){
@@ -69838,6 +70556,7 @@ function mpWapenZet(w){
   try { localStorage.setItem('amir.mpwapen', w); } catch (e){}
   if (w === 'stok') stokLaad();                    // voor het voorbeeld naast de lobby, en het potje
   pvpZend({ t: 'wapen', w });
+  mpBroekPas();                                    // de speer is Mkuki met een outfit, de stokken het oude tenue met een broek
   mpWapenToon();
 }
 function mpWapenAnder(p, w){

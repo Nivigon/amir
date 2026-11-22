@@ -306,6 +306,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | Amir zegt er iets van als hij geraakt wordt | `SFX_RAAK`, `playRaak()` | notities/geluid.md |
 | Amir zegt iets als een vijand sterft | `SFX_RUST`, `vijandDood(baas)`, `DOOD_KANS` | notities/geluid.md |
 | stap voor stap leren spelen | `tutorial` | notities/wegwijzers.md |
+| de tutorial The First Hunt: een mentor (omgekleurde Amir, opgenomen spoor) die voordoet en wacht, een tekstwolk met toetsen, een fade terug na een val en een race (Test 89) | `MENTOR`, `mentorUpdate`, `mentorTeken`, `mentorWolkTeken`, `mentorVal`, `mentorOpname` | notities/tutorial.md |
 | gaten in de grond | `gaps`, `grondDoorlopen` | notities/wegwijzers.md |
 | zuil: een smalle strook grond tussen twee ravijnen | `ZUIL`, `zuilBij`, `zuilWand` | notities/zuil.md |
 | zuil met een hoogte: hoger of lager dan de grond | `ZUIL_HOOG`, `zuilLijst`, `zuilBasis` | notities/zuil.md |
@@ -362,6 +363,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de stoktribe: Bhubesi met de stokken als eigen kaart, de stokken in elk level van een episode, het blok met afkoeling, mediteren zonder straal op G, zeven talents | `bhubesi_stok`, `tribeStok`, `stokTribeLevel`, `stokBlokKoel`, `stokZonDruk`, `straalVrijZ` | notities/stokken.md |
 | PvP: een tegen een over internet (PeerJS), de andere Amir, wie beslist, rondes en het stadje | `PVP`, `PVP_LEVEL`, `pvpStap`, `pvpTeken`, `pvpVang` | notities/pvp.md |
 | de naam in Multiplayer: ieder typt zijn naam naast de lobby, een naambordje boven zijn Amir in het spel (per speler aan of uit), en het team als kaartjes in de lobby (broek, wapen, Ready) | `MP_NAAM`, `mpNaamTeken`, `mpSpelerNoem`, `mpNamenZien`, `mpTeamToon` | notities/multiplayer.md |
+| de outfits van Mkuki: Amir met de speer is Mkuki (Outfit 1 standaard, ook buiten Multiplayer), in de lobby zes outfits met de speer en de oude broeken met de stokken; omkleuren per zone met `<frame>_zones.png` (tools/mkuki_spel_zones.py), `tools/outfittest.js` tekent ze allemaal | `MK_OUTFIT`, `mkSkinVan`, `mkLap`, `broekNu`, `mpBroekLijst`, `mpBroekPas` | notities/multiplayer.md |
 | Multiplayer: de knop in het hoofdmenu, de lobby (de host kiest Co-op Survival of Duel, de map en de regels, de gasten drukken Ready), en het plan voor de winkel | `MP_SOORTEN`, `mpLobbyToon`, `mpWijzig`, `mpStart`, `mpNaarLobby`, `pvpDuelStart` | notities/multiplayer.md |
 | het wapen in Multiplayer: ieder kiest in de lobby de speer of de stokken; de stokspeler heeft de lage zwaai, eigen winkelwaar (Hardwood sticks) en geen speerspullen | `mpWapenZet`, `mpStokken`, `mpWapenLevel`, `mpcWinkelVoorMij`, `stokHoutNu` | notities/multiplayer.md |
 | drie spelers: de ster (de host een verbinding per gast, een speler-id `p` in elk bericht, doorsturen met `MP_DOOR`, `pvpZendAan` voor een speler), per slot de andere Amir, de vijandgroep, de revive-ton en Ready; Duel blijft twee | `PVP.max`, `pvp.peers`, `pvp.anders`, `pvpGastErbij`, `pvpZendAan`, `mpcDodenStap` | notities/multiplayer.md |
@@ -421,7 +423,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `speerInHand` | `true`: Amir begint met de speer in de hand in plaats van hem voor zich uit de grond te pakken; de Level Maker nieuwstijl zet dit in elk level, de echte episodes hebben het niet |
 | `executie` | `true`: elke dodelijke steek, worp of lage zwaai op een schildbandiet is de executie, in plaats van 1 op 5 en 1 op 3 (alleen Test 50, zie `notities/schildbandiet.md`) |
 | `herhaal` | `true`: is de laatste schildbandiet weg (na de executie of de gewone dood), dan komt er na `EXE.herhaalWacht` een nieuwe aanwandelen, net buiten beeld voor Amir uit, met de vlaggen van de eerste schildman-spawn (alleen Test 50, `exeHerhaalStap`) |
-| `wateren` | het water van `WATER`: `[{k, x, w}]`, `k` is `plas`, `poel`, `rivier`, `val` (van de rechterkant van een terras op `x`) of `bron` (met `hoog` in Amir); een poel en rivier laten je waden zoals de oude `water`, een rivier met `brug: true` krijgt een houten brug waar je droog overheen loopt. De rivier met de waterval (vooraan over de rand, standaard rustig, met `val: true` snel) is af: hij mag, met en zonder brug, in elk nieuw level (zie `notities/water.md`). De andere vormen (plas, poel, val, bron) staan nog alleen in Test 67. |
+| `wateren` | het water van `WATER`: `[{k, x, w}]`, `k` is `plas`, `poel`, `rivier`, `val` (van de rechterkant van een terras op `x`) of `bron` (met `hoog` in Amir); een poel en rivier laten je waden zoals de oude `water`, een rivier met `brug: true` krijgt een houten brug waar je droog overheen loopt. De rivier met de waterval (vooraan over de rand, standaard rustig, met `val: true` snel) is af: hij mag, met en zonder brug, in elk nieuw level (zie `notities/water.md`). Met `stroom: true` valt hij niet maar stroomt hij naar de camera, recht tussen de wanden met oeverplanten over de naad (alleen Test 87). De andere vormen (plas, poel, val, bron) staan nog alleen in Test 67. |
 | `zonnestralen` | bundels zonlicht om met de stokken in te mediteren: `[{x, h}]` (zie "de zonnestraal" in `notities/stokken.md`; alleen Test 77) |
 | `onstKeuze` | `true`: aan het begin en na R kies je Lives of Invulnerable (`duoKeuze.onst`); de stoklevels |
 | `vredig` | `true`: geen vijanden, en ook geen vrije slangen of kalebassen die het spel anders bij lege `spawns` stuurt (Test 67) |
@@ -487,6 +489,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `ends` | de fakkels die het level uitspelen: `{x}` |
 | `npcs` | dorpelingen: `{x, k, f, s}` |
 | `tips` | tekst onderweg: `{x, t}` |
+| `mentor` | de mentor van de tutorial: `{spoor, finish, prijs, win, verlies, vallen, stations: [{zeg, seg, ok, eis, nog, kijk, terug, race}]}`; zijn spoor komt uit `tools/mentor_opname.js` (alleen Test 89, zie `notities/tutorial.md`) |
 | `hinderlagen` | de hinderlaag van Co-op: `[{x, vecht, shots: [{x, h, t, poort, deur, kelder}]}]`, een lijn op `x` tot het hele team er levend is, dan de regie langs de shots en het gevecht; een spawn met `hl` en `shot` komt binnen op zijn shot (alleen de Co-op episode The Smugglers' Cellar, zie `notities/multiplayer.md`) |
 | `pijlen` | rode pijlen in de lucht die iets aanwijzen: `{x, t}`, alleen voor testlevels (Test 47) |
 
