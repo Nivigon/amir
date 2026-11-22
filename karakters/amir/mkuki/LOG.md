@@ -455,3 +455,11 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
 - Let op: de verre-been-correctie van REN_WISSEL.md (wissel.py) is niet over de nieuwe 4 en 10 gehaald; beide benen zijn
   even licht. In de kruisframes valt dat weinig op.
 - export.py haalt nu een oude vuistlaag weg als een nieuw frame geen vuist heeft.
+### Rol/worp, prioriteit B
+- worp_15 t/m 23: VERVANGEN, een nieuw Grok-beeld voor de vastgehouden werphouding, post `3cecc798`, `mk_nk_rw19` (gemaakt op
+  worp_19; achterste vuist hoog boven het hoofd, voorste hand open). Per frame apart uitgelijnd: IoU 0,62 tot 0,71 (was
+  0,64 tot 0,55). De achterste vuist zit nu op de schacht, dus de vuistlaag is voor 16-22 nu ook geplakt (was niet); bij 23
+  niet (hand op 319,142 niet gevonden, zoals eerder). Bij 15 staat de vuist net boven de schacht.
+- worp_24: VERVANGEN, post `cb68dc87` 0,77 (was 0,56), `mk_nk_rw24`: voorste arm op schouderhoogte naar links.
+- worp_5: VERVANGEN, post `f8fe1b2c` 0,55 (was 0,59), `mk_nk_rw5`: voeten ver uit elkaar en verspringend (voor plat, achter
+  op de bal). Zelfde hoogte als het vorige frame.

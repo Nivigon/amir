@@ -19,9 +19,9 @@ Prioriteit: **A** = zichtbaar fout, eerst doen. **B** = wijkt af, verbeteren als
 | A (af 22-11, Grok ae7d9ae6) | aanval/lowsweep/sweep_8.png | beide handen op de grond | voorste arm horizontaal naar links, driekwart rug |
 | A (niet vervangen: hoofd al even hoog als origineel, Grok niet dieper; LOG 22-11) | aanval/stofsweep/stof_07.png | te hoog | diep op de hurken |
 | A (niet vervangen, idem) | aanval/stofsweep/stof_08.png | te hoog | diep op de hurken |
-| B | beweging/rol/worp/worp_5.png | voeten te dicht bij elkaar | voeten verder uit elkaar, verspringend |
-| B | beweging/rol/worp/worp_24.png | voorste arm te laag | voorste arm hoger, naar links |
-| B | beweging/rol/worp/worp_15.png t/m worp_23.png | een Grok-beeld voor alle 9; achterste vuist te laag | vuist vlak boven het hoofd; eventueel per frame een eigen beeld voor beweging |
+| B (af 22-11, Grok f8fe1b2c) | beweging/rol/worp/worp_5.png | voeten te dicht bij elkaar | voeten verder uit elkaar, verspringend |
+| B (af 22-11, Grok cb68dc87) | beweging/rol/worp/worp_24.png | voorste arm te laag | voorste arm hoger, naar links |
+| B (af 22-11, een nieuw beeld 3cecc798, vuist boven het hoofd) | beweging/rol/worp/worp_15.png t/m worp_23.png | een Grok-beeld voor alle 9; achterste vuist te laag | vuist vlak boven het hoofd; eventueel per frame een eigen beeld voor beweging |
 | B | aanval/lowsweep/sweep_10.png | armen te kort | armen ver naar rechts gestrekt |
 | B | aanval/lowsweep/sweep_13.png | trap hoger, standbeen rechter; met de hand geplaatst | zijtrap zoals origineel; overgang 12 naar 13 controleren |
 | B | aanval/lowsweep/sweep_9.png | romp te rechtop | bijna plat voorover |
