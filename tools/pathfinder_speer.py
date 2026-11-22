@@ -60,7 +60,7 @@ sp = sp.crop(sp.getbbox())
 
 # De kleuren (22-11-2026, op verzoek): een schacht van ivoor, een creme punt en een helemaal rode greep in plaats van
 # de rood-witte kralen. Per stuk wordt de bron omgekleurd met zijn eigen licht en schaduw, de donkere omlijning blijft.
-IVOOR = (226, 212, 180)      # de schacht
+IVOOR = (214, 188, 146)      # de schacht: licht essenhout (A1)
 CREME = (246, 234, 204)      # het blad van de punt
 ROOD = (168, 32, 30)         # de greep
 BLAD = 1058                  # waar het blad begint, in px van bron/speer.png (na het dwarsstuk en de huls)

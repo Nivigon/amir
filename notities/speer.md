@@ -111,7 +111,7 @@ dus `PATHFINDER` bleef gelijk.
 
 De kleuren (22-11-2026, op verzoek): ook met de rand bleef hij in de vlucht op een gewone speer lijken (bruine schacht,
 rood vlekje bij de kop). `pathfinder_speer.py` (`kleur`) kleurt de bron nu per stuk om met zijn eigen licht en schaduw: de
-schacht ivoor (`IVOOR`), het blad creme (`CREME`, vanaf `BLAD`) en de greep effen rood (`ROOD`, een gladde ronding in plaats
+schacht licht essenhout (`IVOOR`, variant A1: eerst was hij ivoor, maar dat oogde als bot, als iets kostbaars), het blad creme (`CREME`, vanaf `BLAD`) en de greep effen rood (`ROOD`, een gladde ronding in plaats
 van de rood-witte kralen). Dop, dwarsstuk, bandje en vaantje blijven zoals ze waren. Hij wordt ook een fractie groter getekend dan de gewone
 speer (`PATHFINDER.groot`, 1,06, in `javTeken`, vanaf de punt, met het vaantje mee): je ziet het nauwelijks, maar het helpt.
 
