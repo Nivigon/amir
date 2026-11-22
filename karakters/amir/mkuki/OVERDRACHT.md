@@ -89,3 +89,11 @@ Bij ELK frame, ook in alle toekomstige sets, voor je het afwerkt vergelijken met
 Klopt een punt niet: afkeuren, ook bij een goede IoU. In de prompt de houding uitschrijven met een zin zoals in
 `mk_strike_rug` (FACING: rug naar de camera, band over de RUG, borst van ons af) of een ARMS-zin. Een rug-frame zonder
 FACING-zin aanbieden heeft geen zin. Twijfel in TWIJFEL.md.
+
+## Animeer tool Mkuki (22-11-2026)
+Link: https://claude.ai/artifact/YWjQcguwX6WLz4zrcKc7xw (slug ff32008b-a716-4d9f-96b0-29565184a8bc). Alle sets als eigen
+animatie, lijf zonder speer, speer `amirspeer` (proj) uit `plaatsing.json`, vuistlaag bovenop, origineel ernaast of
+eroverheen, afspelen op de fps van de set, per frame een vinkje "nagekeken". Opslag in de db van de tool
+(collectie `frames`, doc `<animatie>-<index>`). Opnieuw bouwen: `tools/mkuki/animeer/bouw.py` (spritebladen + D.json),
+`maak_html.py` (index.html uit de ren-speer-tool), `proef.py` (controleplaat). Bakken na Toms export: per frame het
+volle-resolutie lijf uit deze map, de speer en de maskers zoals in de tool, de vuist erbovenop; `D.bron` geeft het pad per frame.
