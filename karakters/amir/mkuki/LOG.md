@@ -497,3 +497,18 @@ Grok gaf "Gebruikslimiet bereikt" (met Upgraden/Credits toevoegen; niet aangekli
   handpunten) is een plaatsing van de vuistlaag, geen houding: dat is werk voor de Animeer tool.
 ### Prioriteit C (alleen gekeken, niets veranderd)
 - Bekeken op de bijgewerkte platen; geen nieuwe Grok-generaties. De opmerkingen in NAKIJKEN.md blijven staan.
+### Sprint met speer (ren_sp): armen om en om (Tom, 22-11 03:19)
+- Fout die ik eerder miste: in alle 12 frames zat de vrije (nabije) arm achter, ook waar het nabije been voor staat.
+  Het origineel heeft dat ook (de cape verbergt het), REN_WISSEL wisselde alleen de schaduw.
+- Fase: neerkomen in 1 (ver been voor) en 7 (nabij been voor), passeren rond 3-4 en 9-10. Dus nabije arm voor in 11, 12, 1,
+  2; halverwege in 3 en 10; achter in 4 t/m 9. De speerhand (ver) blijft voor de borst.
+- Werkwijze: het huidige Mkuki-frame terug in hulpkleuren als Grok-invoer (`m<n>.png`), prompt `mk_nk_rensp_arm` (alleen de
+  nabije arm naar voren), dan alleen het bovenlijf van Grok (tot net onder de riem) op de benen van het repo-frame
+  (`/home/claude/boven2.py`, `plak_mk.py`, `kleurfix.py`: groene band en blauw in de kralen naar Mkuki-kleuren).
+- Posts: 1 `18466c6f`, 2 `b6f61e90` (eerste `048b8b10` arm bleef achter), 11 `4944d6ae`, 12 `22940454`. Afgekeurd: 3
+  (`53f577cf`, `06553d09`, `4395ee9a`: arm bleef achter; 3 is het passeermoment, arm langs het lijf, dus zo gelaten), 4
+  (`747cbd57` gaf arm voor, maar 4 hoort halverwege: oud frame gehouden), 5 (`000250ba`, arm achter is daar juist goed),
+  11 zij-pose (`44ddb723`, speerhand zakte mee). In 11 een rest van de oude vuist bij de heup weggehaald.
+- Vuistlaag van 1 en 12 weg (de speerhand van Grok zit niet op de gemeten plek); in de Animeer tool schuift de speer
+  daar naar de Mkuki-vuist.
+- Nog open: de ren zonder speer (ren_ns) heeft dezelfde fout.
