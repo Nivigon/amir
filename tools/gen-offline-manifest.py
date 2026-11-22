@@ -27,7 +27,7 @@ ASSET_DIRS = ('amir runc', 'design', 'enemies', 'items', 'karakters', 'klein', '
 
 # Alleen deze extensies; de rest is bronmateriaal of documentatie. De json hoort
 # erbij omdat het spel enemies/hyena/metadata.json tijdens het laden opvraagt.
-KEEP_EXT = ('.png', '.jpg', '.jpeg', '.mp3', '.json')
+KEEP_EXT = ('.png', '.jpg', '.jpeg', '.mp3', '.json', '.woff2')   # woff2: het lettertype van de winkel (design/fonts/)
 
 # Bronmateriaal dat het spel nooit opvraagt: sprite sheets, previews en de
 # magenta-werkbestanden. De drie vegetatie-sheets staan wel letterlijk in de
