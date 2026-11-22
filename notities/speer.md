@@ -109,6 +109,11 @@ speer op: een dekkende donkere lijn om het hele silhouet (`RAND_LIJN`), boven ee
 zachte schaduw (`RAND_SCHADUW`), dezelfde waarden als in `speer_projectiel.png`. De punt wordt gemeten zonder die schaduw,
 dus `PATHFINDER` bleef gelijk.
 
+De kleuren (22-11-2026, op verzoek): ook met de rand bleef hij in de vlucht op een gewone speer lijken (bruine schacht,
+rood vlekje bij de kop). `pathfinder_speer.py` (`kleur`) kleurt de bron nu per stuk om met zijn eigen licht en schaduw: de
+schacht ivoor (`IVOOR`), het blad creme (`CREME`, vanaf `BLAD`) en de greep effen rood (`ROOD`, een gladde ronding in plaats
+van de rood-witte kralen). Dop, dwarsstuk, bandje en vaantje blijven zoals ze waren.
+
 - **De soort.** `SPEER_SOORTEN.pathfinder`, in het veld van het vaantje (`speerBlauw`, `rugSperen[].blauw`, `jav.blauw`,
   `losseSperen[].blauw`). Je koopt er een per speerplek (`koop.pathfinder` telt, `pfAantal`; in de sandbox de knop: een).
   `pfStap` maakt elk beeld zoveel gewone speren die je draagt Pathfinder-speren als je er bezit min wat er al is (`pfTel`:

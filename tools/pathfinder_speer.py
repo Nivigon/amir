@@ -57,6 +57,35 @@ def rand(im):
 
 sp = Image.open(os.path.join(BRON, 'speer.png')).convert('RGBA')
 sp = sp.crop(sp.getbbox())
+
+# De kleuren (22-11-2026, op verzoek): een schacht van ivoor, een creme punt en een helemaal rode greep in plaats van
+# de rood-witte kralen. Per stuk wordt de bron omgekleurd met zijn eigen licht en schaduw, de donkere omlijning blijft.
+IVOOR = (226, 212, 180)      # de schacht
+CREME = (246, 234, 204)      # het blad van de punt
+ROOD = (168, 32, 30)         # de greep
+BLAD = 1058                  # waar het blad begint, in px van bron/speer.png (na het dwarsstuk en de huls)
+
+def kleur(a, x0, x1, doel, glad=False):
+    d = a[:, x0:x1].astype(float)
+    m = d[..., 3] > 128
+    lum = d[..., :3].mean(-1)
+    ref = np.median(lum[m])
+    r = np.clip(lum / ref, 0.45, 1.25)
+    if glad:                 # een gladde ronde greep: licht van boven, donker naar onder, de kralen vallen weg
+        ys = np.where(m.any(1))[0]; t = (np.arange(len(lum)) - ys[0]) / max(1, ys[-1] - ys[0])
+        r = np.repeat((0.6 + 0.55 * np.exp(-((t - 0.32) / 0.3) ** 2))[:, None], lum.shape[1], 1)
+    rand = m & (d[..., :3].mean(-1) < ref * 0.35)        # de omlijning houdt zijn donker
+    if glad: rand[:] = False                             # de greep: ook de lijntjes tussen de kralen weg (rand() legt de buitenlijn)
+    for c in range(3):
+        k = d[..., c]; k[m & ~rand] = np.clip(doel[c] * r, 0, 255)[m & ~rand]
+    a[:, x0:x1] = d.astype(np.uint8)
+
+_a = np.array(sp)
+kleur(_a, 75, 385, IVOOR)
+kleur(_a, 722, 968, IVOOR)
+kleur(_a, 385, 722, ROOD, glad=True)
+kleur(_a, BLAD, _a.shape[1], CREME)
+sp = Image.fromarray(_a)
 a0 = np.array(sp)[..., 3] > 128
 dik = int(a0[:, (GREEP[1] + KOP) // 2].sum())        # de dikte van de schacht in de bron
 s = SCHACHT / dik
