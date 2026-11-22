@@ -28813,6 +28813,37 @@ const RIVIER_STROOM = {
   plant: { n: 6, spreid: 0.7, h: [0.7, 1.15], struik: 0.45, vaag: 5 }  // per naad: zoveel, zo ver uit elkaar (in Amir), en hoe hoog:
                                                                         // als deel van de wand onder de lip die in beeld is, zodat ze de brug vrijlaten
 };
+// ---- het spiegelbeeld van Amir in de rivier (WATER_SPIEGEL) ----
+// De schaduw van Amir (amirSchaduw) zet elk beeld zijn frame klaar in amirSpiegel; de rivier met `stroom` tekent dat
+// ondersteboven in zijn water, in smalle stroken die met de rimpels heen en weer wiegen, en vervagend naar beneden.
+// Binnen de vorm van het water (clip), dus de brug en de oeverplanten vallen er vanzelf overheen. De waterlijn
+// waarin hij spiegelt ligt een stuk (`as`) onder de looplijn: onder de brug, waar het water begint.
+const WATER_SPIEGEL = { a: 0.5, uit: 1.1, as: 0.45, strook: 2, amp: 2.2, freq: 0.16, tempo: 3.2, oud: 150 };
+let amirSpiegel = null;                             // {img, ox, y, w, h, flip, wx, t}: uit het vorige beeld
+function waterSpiegelAmir(pad, groundY, yB, xl, xr, s){
+  const A = amirSpiegel, S = WATER_SPIEGEL;
+  if (!A || performance.now() - A.t > S.oud || !A.img || !A.img.naturalWidth) return;
+  const x = W / 2 + (A.wx - world) + A.ox;
+  if (x + A.w < xl || x > xr) return;
+  const img = A.img, iw = img.naturalWidth, ih = img.naturalHeight;
+  const yA = groundY + (yB - groundY) * S.as;       // de waterlijn
+  const d0 = 2 * yA - (A.y + A.h), d1 = 2 * yA - A.y;
+  ctx.save(); ctx.clip(pad);
+  for (let yy = Math.max(d0, yA); yy < d1; yy += S.strook){
+    const bronY = 2 * yA - yy - S.strook;           // dit stukje van Amir (op het scherm), gespiegeld naar yy
+    const sy = (bronY - A.y) / A.h * ih, sh = S.strook / A.h * ih;
+    if (sy + sh <= 0 || sy >= ih) continue;
+    const a = S.a * Math.max(0, 1 - (yy - yA) / (A.h * S.uit));
+    if (a <= 0.01) break;
+    const golf = Math.sin(waterKlok * S.tempo + yy * S.freq) * S.amp * s * (0.4 + (yy - yA) / A.h);
+    ctx.globalAlpha = a;
+    ctx.save(); ctx.translate(x + golf, yy + S.strook); ctx.scale(1, -1);
+    if (A.flip){ ctx.translate(A.w, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(img, 0, sy, iw, sh, 0, 0, A.w, S.strook + 0.5);
+    ctx.restore();
+  }
+  ctx.restore();
+}
 function waterStroomPlanten(o, i, groundY, scale, cx0){
   const w = o.w || 240, cx = cx0 + (o.x - world);
   if (cx - w > W / viewZoom() + W || cx + w < -W) return;
@@ -28874,6 +28905,7 @@ function waterRivierTeken(o, i, groundY, s){
   ctx.save(); ctx.clip(pad); ctx.fillStyle = fg; ctx.fillRect(cx - w, yT - 2, w * 2, (yB - yT) * 0.35 + 2); ctx.restore();
   // en vooraan valt hij over de lip, langs de wand van de grond naar beneden; een rustige rivier valt trager (valRustig)
   if (o.stroom){
+    waterSpiegelAmir(pad, groundY, yB, cx - w / 2, cx + w / 2, s);   // zijn spiegelbeeld, onder de schaduw van de lip
     // onder de lip (en de brug) een zachte schaduw: het water komt eronder vandaan
     const sg = ctx.createLinearGradient(0, yB - 4, 0, yB + RIVIER_STROOM.schaduw * s);
     sg.addColorStop(0, 'rgba(8,10,12,' + RIVIER_STROOM.schaduwA + ')'); sg.addColorStop(1, 'rgba(8,10,12,0)');
@@ -54942,6 +54974,7 @@ function loop(now){
         ctx.clip();
       }
       const flipNu = useThrow ? thrFlip() : (autoFlip && facing === 1);
+      amirSpiegel = { img, ox: x - pcx, y, w, h, flip: flipNu, wx: pWorld, t: performance.now() };   // voor het water (WATER_SPIEGEL)
       const fc = fakkelCast(pWorld, vloer);          // de fakkel als lichtbron: neemt de richtingsschaduw over waar het donker is
       drawAmirSchaduw(img, x, y, w, h, flipNu, pcx, groundY + lift, shY,
                       ph - (vloer === null ? 0 : vloer), scale, amirZon(vloer, pWorld) * (1 - fc.w), amirLicht());
