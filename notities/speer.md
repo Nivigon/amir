@@ -102,8 +102,10 @@ rood bandje om de binding en een rood vaantje dat meewaait. De art komt uit Grok
 in vier standen (stil, licht wiegen, wind, harde wind).
 
 - **De soort.** `SPEER_SOORTEN.pathfinder`, in het veld van het vaantje (`speerBlauw`, `rugSperen[].blauw`, `jav.blauw`,
-  `losseSperen[].blauw`). Heb je hem (`pfNu`: `koop.pathfinder` in Co-op, of de sandboxknop), dan maakt `pfStap` elk
-  beeld van al je gewone speren Pathfinder-speren, ook die van het rek.
+  `losseSperen[].blauw`). Je koopt er een per speerplek (`koop.pathfinder` telt, `pfAantal`; in de sandbox de knop: een).
+  `pfStap` maakt elk beeld zoveel gewone speren die je draagt Pathfinder-speren als je er bezit min wat er al is (`pfTel`:
+  hand, rug, in de lucht, los op de grond), de rug eerst; een rekspeer blijft gewoon zolang je ze allemaal hebt. Welke in je
+  hand zit kiest de speervolgorde (zie `notities/speer-inventory.md`).
 - **Het beeld.** `javTeken(soort, k, wind, windX)` vervangt overal het tekenen van `javImg`: op de rug, in de worp (zonder
   de draai-frames), liggend, in een wand, in een oefendoel, het baken en de losse speren van een teamgenoot. In Amirs handen
   zit nog de gewone speer in zijn sprites, tot de speer los over de animaties komt (daar wordt aan gewerkt).
