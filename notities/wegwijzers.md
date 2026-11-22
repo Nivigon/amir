@@ -149,7 +149,7 @@ met de golf mee naar voren via `vx`). Bij een herstart is de mist weer heel.
 
 ## De holle stam (HOLSTAM)
 
-Een omgevallen holle boom in het regenwoud (Test 91, sandbox Terrein, Holle stam). Gemaakt in Grok in Toms Chrome; de
+Een omgevallen holle boom in het regenwoud (Test 93, sandbox Terrein, Holle stam). Gemaakt in Grok in Toms Chrome; de
 lessen en alle afgekeurde versies staan in de projectnotitie `claude/holle_stam_overdracht.md`.
 
 - **Platen** (`design/regenwoud/holstam/`): `schil.png` (de buitenkant, Grok-post 6af92838, wit weggeknipt, de witte zoom
