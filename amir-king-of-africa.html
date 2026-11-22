@@ -72372,34 +72372,44 @@ function leibandGrens(){
 }
 // het lichtgordijn op de grens: een zuil van warm licht van de grond tot boven in beeld, die opkomt naarmate je dichterbij
 // bent (MPC_LEIBAND.zie) en zacht ademt, met vonkjes die opstijgen. Zo zie je tot waar je van je teamgenoot weg mag
+// de lijn van een hinderlaag tekent dezelfde zuil, in rood: tot hier, eerst het gevecht (of wachten op het team)
+const HINDER_ZUIL = ['rgba(255,70,40,', 'rgba(255,90,55,', 'rgba(255,120,80,', 'rgba(255,170,130,', 'rgba(255,200,170,'];
+const LEIBAND_ZUIL = ['rgba(255,190,80,', 'rgba(255,200,100,', 'rgba(255,220,130,', 'rgba(255,236,170,', 'rgba(255,240,190,'];
+function hinderZuilX(){
+  if (!hinder || hinderVast() || dead || binnenBij(world)) return null;
+  const i = hinderNu(); return i < 0 ? null : hinderGrens(i);
+}
 function leibandTeken(groundY, scale, cx){
-  const G = leibandGrens(); if (!G) return;
+  const G = leibandGrens(), hx = hinderZuilX();
+  const zuilen = (G ? G.map(x => [x, LEIBAND_ZUIL]) : []);
+  if (hx != null) zuilen.push([hx, HINDER_ZUIL]);
+  if (!zuilen.length) return;
   const t = performance.now() / 1000, B = MPC_LEIBAND.breed * scale / 0.7;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  for (const x of G){
+  for (const [x, K] of zuilen){
     const a = Math.max(0, 1 - Math.abs(world - x) / MPC_LEIBAND.zie); if (a <= 0.01) continue;
     const sx = cx + (x - world), voet = groundY - terrainH(x) * scale, adem = 0.8 + 0.2 * Math.sin(t * 2.4);
     const sterk = Math.min(1, a * 1.4) * adem;
     // de zuil: een heldere kern die naar opzij uitloopt, van onder fel naar boven toe weg
     const zij = ctx.createLinearGradient(sx - B, 0, sx + B, 0);
-    zij.addColorStop(0, 'rgba(255,190,80,0)'); zij.addColorStop(0.3, 'rgba(255,200,100,' + (0.3 * sterk) + ')'); zij.addColorStop(0.44, 'rgba(255,220,130,' + (0.75 * sterk) + ')');
-    zij.addColorStop(0.5, 'rgba(255,236,170,' + sterk + ')'); zij.addColorStop(0.56, 'rgba(255,220,130,' + (0.75 * sterk) + ')'); zij.addColorStop(0.7, 'rgba(255,200,100,' + (0.3 * sterk) + ')');
-    zij.addColorStop(1, 'rgba(255,200,90,0)');
+    zij.addColorStop(0, K[0] + '0)'); zij.addColorStop(0.3, K[1] + (0.3 * sterk) + ')'); zij.addColorStop(0.44, K[2] + (0.75 * sterk) + ')');
+    zij.addColorStop(0.5, K[3] + sterk + ')'); zij.addColorStop(0.56, K[2] + (0.75 * sterk) + ')'); zij.addColorStop(0.7, K[1] + (0.3 * sterk) + ')');
+    zij.addColorStop(1, K[1] + '0)');
     ctx.fillStyle = zij;                            // in stroken: onderaan fel, naar boven toe vervaagt de zuil in de lucht
     const N = 12, sh = voet / N;
     for (let i = 0; i < N; i++){ ctx.globalAlpha = 0.45 + 0.55 * (i + 1) / N; const y0 = Math.round(i * sh); ctx.fillRect(sx - B, y0, B * 2, Math.round((i + 1) * sh) - y0); }
     ctx.globalAlpha = 1;
     // de plas licht op de grond
     const pl = ctx.createRadialGradient(sx, voet, 0, sx, voet, B * 2.6);
-    pl.addColorStop(0, 'rgba(255,226,150,' + (0.9 * sterk) + ')'); pl.addColorStop(1, 'rgba(255,200,90,0)');
+    pl.addColorStop(0, K[3] + (0.9 * sterk) + ')'); pl.addColorStop(1, K[1] + '0)');
     ctx.save(); ctx.translate(sx, voet); ctx.scale(1, 0.28); ctx.translate(-sx, -voet);
     ctx.fillStyle = pl; ctx.beginPath(); ctx.arc(sx, voet, B * 2.6, 0, Math.PI * 2); ctx.fill(); ctx.restore();
     // vonkjes die langs de zuil opstijgen (vast per index, zodat ze niet flikkeren)
     for (let i = 0; i < 14; i++){
       const f = ((t * (0.18 + (i % 5) * 0.04) + i * 0.137) % 1), y = voet - f * voet * 0.85;
       const vx = sx + Math.sin(i * 12.9 + t * 1.7) * B * 0.45, r = (1.2 + (i % 3) * 0.7) * scale / 0.7;
-      ctx.fillStyle = 'rgba(255,240,190,' + (sterk * (1 - f) * 0.9) + ')';
+      ctx.fillStyle = K[4] + (sterk * (1 - f) * 0.9) + ')';
       ctx.beginPath(); ctx.arc(vx, y, r, 0, Math.PI * 2); ctx.fill();
     }
   }
@@ -72847,6 +72857,14 @@ function hinderKlem(){
   const i = hinderNu(); if (i < 0) return;
   const x = hinderGrens(i);
   if (world < x && !binnenBij(world)) world = x;   // in een huis (de winkel, ver van de straat) geldt de lijn niet
+  // in het gevecht houdt de lijn ook de vijanden tegen (alleen de host, die rekent ze uit): een terugslag (de stun-counter
+  // van de stokken, de draaislag) sloeg er een voorbij de lijn, waar geen speler meer bij kon. Hun spawns liggen er
+  // allemaal rechts van (hinderGrens ligt MPC_HL.ruimte voorbij de verste), dus in het gevecht hoort niemand links ervan
+  if (!pvp.host || hinder.stand[i] !== 'vecht') return;
+  for (const q of MPC_LIJSTEN){
+    if (q.los) continue;
+    for (const o of q.l()) if (mpcLeeft(o) && o.x < x){ o.x = x; if (o.vx < 0) o.vx = 0; }
+  }
 }
 // de host, in de regie: welke vijanden van een lijst wachten. Wie er al was voor de regie wacht helemaal, een nieuwe
 // beweegt zijn eerste MPC_HL.toon seconden (de deur uit, de poort door, van het dak) en wacht dan tot FIGHT!. Zo zie je

@@ -693,6 +693,12 @@ zijn, of ze kunnen door die freeze niet verder tot de andere speler levend en bi
 - **Testen:** `node tools/mptest.js --hl` speelt nu elke hinderlaag van Ambush 2 tot en met 6 na: bij FIGHT! staat geen
   vijand binnen 200 px van een speler, en na 6 s staat elke vijand binnen bereik van de lijn. `HL_LV=3,6` beperkt tot die
   levels (`HL_LV=x` slaat ze over), `HL_DEUR=1` print waar de deuren echt staan.
+- **De lijn houdt ook de vijanden tegen, en je ziet hem (22-11-2026).** Gevraagd: "met stun hit met stokken sloeg ik de
+  ambush vijand buiten de onzichtbare barriere, die ik ook zichtbaar wil". `hinderKlem` klemde alleen de spelers; een terugslag
+  (de stun-counter, de draaislag) sloeg een vijand voorbij de lijn, waar niemand meer bij kon, en dan bleef de lijn dicht tot het
+  vangnet. Nu zet de host in het gevecht elke levende vijand die links van `hinderGrens` komt terug op de lijn (zijn spawns
+  liggen er allemaal rechts van). En de lijn is te zien: dezelfde lichtzuil als het leiband, maar rood (`HINDER_ZUIL`,
+  `hinderZuilX`, in `leibandTeken`), voor en tijdens het gevecht, niet in de regie, binnen of als je dood ligt.
 - **Het leiband** (`leibandKlem`, alleen in de Co-op episodes; in Co-op Survival, ook Ishmul en Co-op solo, loop je vrij, op verzoek van de opdrachtgever): een levende speler komt niet verder dan `MPC_LEIBAND.max`
   (1200, was 1000) van een levende teamgenoot; wie al verder weg was (na een revive of een val) mag alleen dichterbij. Niet in een
   huis, de winkel of de regie. Een hint: "Stay close to your teammate".
