@@ -195,6 +195,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de rol-worp: F tijdens de rol, hij gooit uit de landing; Test 60 met oefendoelen en afstellen | `ROL_WORP`, `rolWorpDruk`, `rolWorpLos`, `rolDoelen` | notities/rol.md |
 | het schild van Amir: C vasthouden, vangen en de parade | `AMIR_SCHILD`, `schildVang`, `schildTeken` | notities/schild.md |
 | reserve-speren op de rug (prototype) | `RUG`, `RUG_MAX`, `rugSperen` | notities/rug-speren.md |
+| de speervolgorde: welke speersoort eerst in je hand zit (de inventory, Hold first), vanzelf de beste na oprapen en na een worp, Z wisselt | `speerVolgorde`, `speerSorteer`, `speerWissel`, `speerVoorop`, `rugSort`, `invSperenToon`, `pfAantal` | notities/speer-inventory.md |
 | de oude speer: gespalkt, drie keer te gebruiken, dan breekt hij; per stand slechter | `OUDE_SPEER`, `oudSoort`, `oudBreek`, `oudSteekStap` | notities/oude-speer.md |
 | de Pathfinder Spear: de speer uit de winkel van Co-op met het rode vaantje dat meewaait (op de rug, in de worp, liggend), en de prooi: een geworpen treffer markeert 3 s (rode rand, vaantje boven het hoofd, 20% trager, een half leven extra per treffer) | `PATHFINDER`, `PROOI`, `javTeken`, `pfVaanTeken`, `pfStap`, `prooiRaak`, `prooiGloed` | notities/speer.md |
 | zicht: een vijand ziet je alleen als er niets tussen zit | `ZICHT`, `vijandZiet`, `zichtWaak` | notities/zicht.md |
@@ -370,7 +371,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de hinderlaag en het leiband: een lijn die het team pas voorbij kan als iedereen levend bij is, dan een regie (balken, de camera langs de plekken waar de vijanden binnenkomen) en het gevecht; in een Co-op episode niet verder dan 1000 van een teamgenoot (Survival is vrij) | `MPC_HL`, `hinderlagen`, `hinderStart`, `hinderHostStap`, `hinderCamX`, `MPC_LEIBAND`, `leibandKlem` | notities/multiplayer.md |
 | Ishmul, de voorstad: de tweede map van Co-op Survival (rivier met brug, plein op opstapjes met fontein, luifel, savanne), en de instellingen per map | `MP_ISHMUL_LEVEL`, `MPC_KAARTEN`, `mpcKaart`, `mpStarts` | notities/multiplayer.md |
 | de versies van de Co-op map: avond, nacht met fakkels aan de muren of diepe nacht, willekeurig en om de 3 rondes een andere, gesynchroniseerd met `cv` | `MPC_VERSIE`, `mpcVersieZet`, `mpcVersieWissel`, `mpcFakkelsStap` | notities/multiplayer.md |
-| de winkel van Co-op: na `winkelNa` rondes allebei naar een binnenkamer, ieder zijn eigen prijslijst en beurs, goud per kill en per ronde, Full Circle met twee upgrades die samen mogen, Ready van allebei | `MPC_WINKEL`, `mpcWinkelIn`, `mpcWinkelUit`, `mpcWinkelKoop`, `mpcGoudIedereen`, `mpcFcModus` | notities/multiplayer.md |
+| de winkel van Co-op: na `winkelNa` rondes allebei naar een binnenkamer, ieder zijn eigen prijslijst en beurs, goud per kill en per ronde, Full Circle met twee upgrades die samen mogen; het scherm rechts met tabs, kaarten met plaatjes, You carry en de marktman links, Undo van de laatste aankoop, en na Ready van iedereen 3 s aftellen (Not ready stopt het) | `MPC_WINKEL`, `MPC_WINKEL_CAT`, `mpcWinkelToon`, `mpcUndo`, `mpcVertrekStap`, `mpcWinkelIn`, `mpcWinkelUit`, `mpcWinkelKoop`, `mpcGoudIedereen`, `mpcFcModus` | notities/multiplayer.md |
 | sandbox | de vrije testmodus |  |
 
 Op schijf: `karakters/` (Amir, dorpeling, dorpelinge), `enemies/`, `design/` (decor,

@@ -164,7 +164,7 @@ de lobby staat dan in het staande stokframe.
   80 goud na Hardwood). Slaat als Hardwood (0,75), en een stokslag op het schild van de schildbandiet haalt met kans
   `STOK.goudSchild` (0,5) een stand extra af (`hitSchildman`, met de crit-ster). `stokHoutNu` geeft 3. De stokken uit
   `STOK.skins.goud` (zwart met het gouden leeuwenkopje), en de kwast van gouden manen hangt als slip aan de knoop.
-- **De Pathfinder Spear (22-11-2026):** een speerartikel (`speer: true`, 40 goud, `koop.pathfinder`), zie "de Pathfinder
+- **De Pathfinder Spear (22-11-2026):** een speerartikel (`speer: true`, 40 goud, een per speerplek, `koop.pathfinder` telt hoeveel, `mpcWinkelHeb` is uitverkocht bij 1 + `RUG_MAX`), zie "de Pathfinder
   Spear" in `notities/speer.md`. De host markeert: een treffer van een gast draagt `pf` in `mh` (zijn worp met een
   Pathfinder-speer), `mpcTrefferVanGast` zet dan `prooiGast`, en `prooiRaak` stuurt `{t: 'prooi', a, id}` naar de anderen.
   Alleen de host vertraagt (`prooiTraag` doet niets bij een gast: daar komen de plekken van de host).
@@ -767,3 +767,29 @@ want de doorgestuurde gast loopt een sprong verder achter) en per gast de vijand
 Voor de lobby is eerder een los script gebruikt met een nagebootste `Peer` die berichten tussen twee
 vensters in een browsercontext doorgeeft via een `BroadcastChannel` (Host, Join, lobby, instellen, Ready, Start, Escape
 naar de lobby, Leave). De echte PeerJS-server is vanuit de cloud van Claude niet te bereiken.
+
+## De nieuwe winkel van Co-op (22-11-2026): tabs, kaarten, Undo en aftellen
+
+Kop in de HTML: `// ---- Undo in de winkel van Co-op` en `mpcWinkelToon`. Ontwerp: optie A2 op het canvas "Amir winkel: twee
+layouts" (rechts een paneel, links blijft de winkelkamer met de marktman zichtbaar).
+
+- **Layout** (`#winkelui.coop`): het paneel staat rechts (64vw), de kamer links blijft zichtbaar onder een zacht verloop.
+  Bovenin `Shop` en je goud (`#wkgoud`), dan de tabs (`#wktabs`, `MPC_WINKEL_CAT`: Spears of Sticks voor een stokspeler,
+  Supplies, Charms & life, Team alleen met een teamgenoot). Elk artikel in `MPC_WINKEL` heeft een `cat`; een artikel met
+  `nieuw: true` (nu de Pathfinder) staat als brede kaart bovenaan met NEW.
+- **Kaarten** met een plaatje (`mpcBeeld`): de echte speer, de Pathfinder, de kalebas en het gif; de rest een eenvoudig icoon
+  (`MPC_IKOON`, `mpcStokIkoon`), plek voor echte art later.
+- **Het zijpaneel** (`mpcInfoToon`): het item groot (`#wkinfobeeld`), sfeertekst, uitleg, **You carry** (`mpcDraagToon`: je
+  speren in hand en op de rug zoals in de inventory, en je tas) en Buy (bij de Pathfinder "Buy another" als je er al een hebt).
+  Zonder keuze toont hij het eerste artikel van de tab.
+- **De marktman** zegt iets in de ballon links (`#wkzeg`, `mpcZeg`, de zinnen in `MPC_ZEG`): bij openen, kopen, de Pathfinder,
+  Undo, te weinig goud en Ready.
+- **Undo** (`mpcLaatste`, `mpcUndo`, `mpcUndoKan`, `#wkundo`): alleen je laatste aankoop, alleen bij deze marktman
+  (`mpcWinkelIn` en `mpcWinkelUit` zetten hem op null, dus in Survival alleen wat je deze ronde kocht), en alleen zolang hij
+  onaangeroerd is (`mpcUndoStand` legt het na het kopen vast: levens, gif, speren, `RUG_MAX`, Pathfinders). Give 5 gold is
+  niet terug te draaien. Het goud komt helemaal terug.
+- **Aftellen na Ready** (`MPC_WINKEL_WEG.aftel`, 3 s): het scherm blijft open na Ready. Is iedereen klaar, dan zet de host
+  `C.vertrek` en stuurt `wkvertrek`; iedereen toont "Leaving in 3..." (`mpcVertrekToon`, ook in de banner). Not ready stopt het
+  (de host stuurt `wkvertrek` met `aan: false`). Bij nul stuurt de host `winkelUit` (`mpcVertrekStap`, vanuit `pvpStap`, ook
+  in de pauze van Co-op solo).
+
