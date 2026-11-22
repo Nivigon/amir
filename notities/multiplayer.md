@@ -678,7 +678,7 @@ zijn, of ze kunnen door die freeze niet verder tot de andere speler levend en bi
   binnen `MPC_HL.rond` van de lijn (`hinderVechtKlaar`), of na het vangnet (`MPC_HL.vangnet`, 150 s). Dan stuurt de host
   `hlvrij` en zegt het spel "The way is open".
 - **De lijn schuift mee in het gevecht** (`hinderGrens`, 20-11-2026). Zodra het gevecht begint ligt de lijn niet meer op `x`
-  maar `MPC_HL.ruimte` (450) voorbij de verste vijand van de hinderlaag (zijn spawn, de deur waar hij uitkomt, een shot).
+  maar `MPC_HL.ruimte` (700, was 450) voorbij de verste vijand van de hinderlaag (zijn spawn, de deur waar hij uitkomt, een shot).
   Aanleiding: in Ambush 2 stond de makkelijke schildbandiet op -7600, voorbij de lijn op -6300; hij kwam niet vanzelf en het
   team kon niet bij hem, dus de lijn bleef dicht tot het vangnet. `hinderKlem`, `hinderHint` en `hinderVechtKlaar` lezen allemaal
   `hinderGrens`.
@@ -694,8 +694,8 @@ zijn, of ze kunnen door die freeze niet verder tot de andere speler levend en bi
   vijand binnen 200 px van een speler, en na 6 s staat elke vijand binnen bereik van de lijn. `HL_LV=3,6` beperkt tot die
   levels (`HL_LV=x` slaat ze over), `HL_DEUR=1` print waar de deuren echt staan.
 - **Het leiband** (`leibandKlem`, alleen in de Co-op episodes; in Co-op Survival, ook Ishmul en Co-op solo, loop je vrij, op verzoek van de opdrachtgever): een levende speler komt niet verder dan `MPC_LEIBAND.max`
-  (1200, was 1000) van een levende teamgenoot; wie al verder weg was (na een revive of een val) mag alleen dichterbij. Niet in een
-  huis, de winkel of de regie. Een hint: "Stay close to your teammate".
+  (1600, eerder 1200 en 1000) van een levende teamgenoot; wie al verder weg was (na een revive of een val) mag alleen dichterbij. Niet in een
+  huis, de winkel, de regie of het gevecht van een hinderlaag (`hinderVecht`). Een hint: "Stay close to your teammate".
 - **Ruimer en zichtbaar (21-11-2026).** Gevraagd: "vergroot de range met 20%, en zorg dat er licht duidelijk is tot waar je
   mag gaan". `MPC_LEIBAND.max` is 1200 (was 1000). Op de grens staat een zuil van warm licht met een plas op de grond en
   opstijgende vonkjes (`leibandGrens`, `leibandTeken`), die opkomt vanaf `MPC_LEIBAND.zie` (900) van de grens en zacht ademt.
@@ -707,6 +707,14 @@ zijn, of ze kunnen door die freeze niet verder tot de andere speler levend en bi
   dan (zie hierboven).
 
 ## Bijgesteld na het spelen (21-11-2026)
+
+- **Meer ruimte (22-11-2026).** Gevraagd: "de ruimte qua afstand van elkaar is nog te klein, of de ambush-ruimte". Drie
+  dingen: het leiband staat uit in het gevecht van een hinderlaag (`hinderVecht`, in `leibandKlem` en `leibandGrens`): de lijn
+  houdt het team daar al bij elkaar, en bij "Behind you!" wil je je juist opsplitsen. `MPC_LEIBAND.max` van 1200 naar 1600,
+  ongeveer de wereldbreedte in beeld op een laptop (1280 / 0,75 is zo'n 1700): daarvoor liep je al tegen de zuil terwijl je
+  teamgenoot nog midden in beeld stond. En `MPC_HL.ruimte` van 450 naar 700, zodat er voorbij de verste vijand plek is om te
+  ontwijken. `tools/mptest.js --hl` test nu 1600 en dat het leiband in het gevecht uit staat; de revive-proef zet het team
+  eerst buiten `MPC_HL.verzamel` neer (de regie begon soms al voor de gast dood was).
 
 - **Wie dood ligt pakt niets op.** `eDruk` en `sgPak` doen niets zolang `dead`: geen speer, rek of kist terwijl je op de
   revive wacht. Daarvoor kon dat wel.

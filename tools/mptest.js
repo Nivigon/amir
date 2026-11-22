@@ -235,10 +235,10 @@ async function hlProef(R){
   for (const p of allen) await p.evaluate(() => { godMode = true; });
   // het leiband: de host springt ver vooruit, de gasten staan bij de start
   await zetAllen(-400); await wacht(400);
-  await H.page.evaluate(() => { world = -1700; });
+  await H.page.evaluate(x => { world = x; }, -400 - MPCLEI - 300);
   await wacht(300);
   const lx = await H.page.evaluate(() => Math.round(world));
-  meld(lx >= -1400 - 5 && lx <= -1300, 'het leiband: de host komt niet verder dan ' + MPCLEI + ' van de anderen (' + lx + ')');
+  meld(lx >= -400 - MPCLEI - 5 && lx <= -400 - MPCLEI + 100, 'het leiband: de host komt niet verder dan ' + MPCLEI + ' van de anderen (' + lx + ')');
   // de lijn: de host loopt alleen naar de hinderlaag
   await zet(H.page, -2600); await wacht(200);
   await H.page.evaluate(() => { leibandOud = null; world = -3500; });
@@ -256,6 +256,8 @@ async function hlProef(R){
   meld(await tot(G.page, () => bandieten.length >= 2, null, 4000), 'en de gast ziet ze');
   meld(await elk(() => hinder.stand[0] === 'vecht' && !hinder.regie && !amirVast(), null, 9000) === null, 'na de regie: het gevecht, Amir kan weer');
   meld(await tot(H.page, () => level.spawns.filter(s => s.hl === 0).every(s => s.used), null, 4000), 'alle vijanden van de hinderlaag zijn er');
+  await H.page.evaluate(x => { world = x; }, -3050 + MPCLEI + 300); await wacht(300);
+  meld(await H.page.evaluate(x => Math.round(world) === x, -3050 + MPCLEI + 300), 'in het gevecht staat het leiband uit (' + await H.page.evaluate(() => Math.round(world)) + ')');
   await zetAllen(-6000); await wacht(300);
   meld(await H.page.evaluate(() => world >= hinderGrens(0) && hinderGrens(0) < -3000), 'in het gevecht schuift de lijn tot achter de verste vijand (' + await H.page.evaluate(() => Math.round(hinderGrens(0))) + ') en niet verder');
   await ruim();
@@ -263,7 +265,7 @@ async function hlProef(R){
   await zetAllen(-3500); await wacht(300);
   meld(await H.page.evaluate(() => world < -3400), 'en het team kan verder');
   // de tweede hinderlaag: een dode teamgenoot houdt hem tegen
-  await zetAllen(-5900);
+  await zetAllen(-5700);   // nog buiten MPC_HL.verzamel van de tweede lijn (-6500): anders begint de regie voor de gast dood is
   await G.page.evaluate(() => { godMode = false; invuln = 0; lives = 1; hurtPlayer(true); });
   await tot(G.page, () => dead, null, 3000);
   await zetAllen(-6450);   // ook de dode: zijn lijk ligt bij de lijn
@@ -334,7 +336,7 @@ async function hlProef(R){
   meld(await elk(() => pvp.coop.fase === 'uit' && /Episode complete/.test(pvpEl('mpeind').textContent), null, 10000) === null, 'het hele team bij de kelder: Episode complete');
   for (const r of R){ if (r.fouten.size){ console.log(r.wie + ' fouten:'); for (const f of r.fouten) console.log('  ' + f); } }
 }
-const MPCLEI = 1000;
+const MPCLEI = 1600;   // MPC_LEIBAND.max
 // de vaste proef: wat de spelers niet vanzelf doen, stap voor stap, met OK of FOUT per stap. R de ramen (host, gast,
 // en met drie spelers gast2), L wat er in de lobby gebeurde
 const meld = (ok, t) => { console.log((ok ? 'OK   ' : 'FOUT ') + t); if (!ok) process.exitCode = 1; };
