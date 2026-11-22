@@ -478,20 +478,24 @@ def krassen(set_, i, broek, k=6):
     dt = nd.distance_transform_edt(broek)
     yy, xx = np.mgrid[0:H, 0:W]
     afst = np.hypot(xx - cx, yy - cy)
-    score = np.minimum(dt, 8) - 0.3 * afst
+    sk = DIJ[key][3] if len(DIJ[key]) > 3 else 1.0
+    score = np.minimum(dt, 8 * sk) - 0.3 * afst
     score[afst > (DIJ[key][2] if len(DIJ[key]) > 2 else 16)] = -99
     cy, cx = np.unravel_index(np.argmax(score), score.shape)
-    ln = float(np.clip(L * KRAS['lang'], KRAS['min'], KRAS['max']))
+    sk = DIJ[key][3] if len(DIJ[key]) > 3 else 1.0
+    ln0 = float(np.clip(L * KRAS['lang'], KRAS['min'] * sk, KRAS['max'] * sk)); ln = ln0
     a = np.radians(KRAS['hoek'])
     dx, dy = ux * np.cos(a) - uy * np.sin(a), ux * np.sin(a) + uy * np.cos(a)
     if dy < 0:
         dx, dy = -dx, -dy
     nx, ny = -dy, dx
+    KRAS_LAATST.update({'x': int(cx), 'y': int(cy), 'hoek': round(float(np.degrees(np.arctan2(dy, dx))), 1), 'lang': round(ln, 1),
+                        'tussen': KRAS['tussen'], 'dik': KRAS['dik'], 'boog': KRAS['boog']})
     for s in (-0.5, 0.5):
-        mx, my = cx + nx * s * KRAS['tussen'], cy + ny * s * KRAS['tussen']
+        mx, my = cx + nx * s * KRAS['tussen'] * sk, cy + ny * s * KRAS['tussen'] * sk
         boven, onder = [], []
         for t in np.linspace(-0.5, 0.5, 21):
-            w = KRAS['dik'] * (1 - (2 * abs(t)) ** 1.8) / 2
+            w = KRAS['dik'] * sk * (1 - (2 * abs(t)) ** 1.8) / 2
             bo = KRAS['boog'] * ln * (1 - (2 * t) ** 2)
             px, py = mx + dx * t * ln + nx * bo, my + dy * t * ln + ny * bo
             boven.append(((px + nx * w) * k, (py + ny * w) * k)); onder.append(((px - nx * w) * k, (py - ny * w) * k))
@@ -500,6 +504,9 @@ def krassen(set_, i, broek, k=6):
     return m * nd.binary_erosion(broek, iterations=1)
 
 
+KRAS_LAATST = {}
+_kp = os.path.join(A, 'tau1', 'krassen_plaatsing.json')
+KRAS_PLAATS = json.load(open(_kp)) if os.path.exists(_kp) else {}
 TAU_KRAS = (208, 162, 108)   # goudbeige zoals op de referentie
 PALET = {'tau': TAU, 'wit': WIT, 'zwart': ZWART}
 
@@ -517,6 +524,7 @@ def maak(naam, set_, i):
     Vrel[(z == 1) & K] = V[(z == 1) & K] / VREF[1]
     Vrel[(z == 1) & ~K] = V[(z == 1) & ~K] / VREF_ORIG[1]
     Vrel[z == 2] = V[z == 2] / VREF_ORIG[2]
+    zonder_kras = None
     m = krassen(set_, i, z == 2)
     if m is not None:
         z[m > 0.5] = 3
@@ -530,14 +538,18 @@ def maak(naam, set_, i):
             if pn == 'tau' and zk == 2:
                 continue                                  # de paarse broek blijft het origineel
             b[sel, :3] = np.array(pal[zk], float)[None] * Vrel[sel, None]
+        if pn == 'tau':
+            zonder_kras = np.clip(b, 0, 255).astype(np.uint8)
         if m is not None:
             # een donkere rand om de krassen (de gescheurde stof), zoals op de referentie
-            rand = np.clip(nd.maximum_filter(m, size=3) - m, 0, 1) * (z == 2)
+            rand = np.clip(nd.maximum_filter(m, size=3 if set_ != 'jump' else 5) - m, 0, 1) * (z == 2)
             b[rand > 0, :3] = b[rand > 0, :3] * (1 - 0.55 * rand[rand > 0, None])
             kc = np.array(TAU_KRAS if pn == 'tau' else pal[3], float)
             kl = kc[None] * Vrel[m > 0, None]
             mm = m[m > 0, None]
             b[m > 0, :3] = b[m > 0, :3] * (1 - mm) + kl * mm
+            if pn == 'tau':
+                pass
         b = np.clip(b, 0, 255).astype(np.uint8)
         uit[pn] = met_stokken(set_, i, b)
     # zones: waar een stok overheen ligt is geen zone
@@ -551,6 +563,22 @@ def maak(naam, set_, i):
     uit['zones'] = zk
     p = uitpad(set_, i)
     os.makedirs(os.path.dirname(p), exist_ok=True)
+    # krassen als losse laag (Tom 02:56): het spelbeeld zonder krassen, de krassen apart
+    uit['metkras'] = uit['tau']
+    uit['tau'] = met_stokken(set_, i, zonder_kras)
+    kd = os.path.join(os.path.dirname(p), 'krassen')
+    os.makedirs(kd, exist_ok=True)
+    if m is not None:
+        laag = np.zeros(m.shape + (4,), np.uint8)
+        kc = np.array(TAU_KRAS, float)
+        laag[..., :3] = np.clip(kc[None, None] * Vrel[..., None].clip(0.92, 1.08), 0, 255).astype(np.uint8)
+        rand = np.clip(nd.maximum_filter(m, size=3) - m, 0, 1)
+        laag[..., :3] = (laag[..., :3] * (1 - (rand > 0)[..., None]) + np.array([40, 26, 44]) * (rand > 0)[..., None]).astype(np.uint8)
+        laag[..., 3] = (np.clip(m + 0.55 * rand, 0, 1) * 255).astype(np.uint8)
+        Image.fromarray(laag).save(os.path.join(kd, os.path.basename(uitpad(set_, i, '_kras'))))
+        Image.fromarray(uit['metkras']).save(os.path.join(kd, os.path.basename(uitpad(set_, i, '_voorbeeld'))))
+        KRAS_PLAATS['%s_%d' % (set_, i)] = KRAS_LAATST.copy()
+        json.dump(KRAS_PLAATS, open(os.path.join(A, 'tau1', 'krassen_plaatsing.json'), 'w'), indent=1)
     Image.fromarray(uit['tau']).save(p)
     Image.fromarray(zk).save(uitpad(set_, i, '_zones'))
     vd = os.path.join(os.path.dirname(p), 'recolour')

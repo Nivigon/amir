@@ -69,3 +69,13 @@ Kap-posts per frame in `bron/grok_posts.json` (kop_ren0..11). IoU kop 0,90-0,95.
 - Tom bevestigt: zelfde fysieke been (dus in de ren wisselen ze van voor naar achter in beeld).
 - Fout gevonden en hersteld: het spelbeeld van rennen_03 werd over de gerepareerde bron geschreven; nu schrijft alles
   naar `tau1/`, de bron opnieuw uit de Grok-reparatie gemaakt.
+
+### 03:00 krassen als losse laag (Tom: "moeten we die per frame los plaatsen? dan kun je door")
+- Ja. De frames zelf zijn nu ZONDER krassen. Per frame `krassen/<frame>_kras.png` (de laag op hetzelfde canvas) en
+  `krassen/<frame>_voorbeeld.png` (frame met krassen, alleen om te kijken). Plek, hoek, lengte, afstand, dikte en boog
+  per frame in `tau1/krassen_plaatsing.json`: dat is een startwaarde, Tom zet ze later per frame goed.
+
+### Springen (klaar, 7)
+Kap per frame op kop en schouders (prompt `tau_kop2`, met "viewing direction exactly as drawn"). IoU kop 0,94-0,97.
+Posts in `bron/grok_posts.json` (kop_jump0..6). De krassen zijn 2x zo groot (de sprongframes zijn op 2x getekend).
+De vacht houdt hier de oogvlekjes op de borst (origineel), alleen de kap is nieuw.
