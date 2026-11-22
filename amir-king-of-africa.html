@@ -2297,6 +2297,7 @@
         <button id="sbtondak">Tonnen op het dak</button>
         <button id="sbwapenrek">Wapenrek</button>
         <button id="sbkooien">Dierenkooien</button>
+        <button id="sbkooiopen">Kooien open</button>
         <button id="sbdoorgang">Doorgang</button>
         <button id="sbbrug">Brug</button>
         <button id="sbbrugban">Brug met bandiet</button>
@@ -6738,13 +6739,13 @@ const TEST_86 = {
     plafond: {r: -560},
     palen: [-1330, -2900, -4500],
     deuren: [ {x: -1850}, {x: -2450, bandiet: true} ],
-    kooien: [ {x: -3550} ],
     bundel: true
   },
   fakkels: [ {x: -2130, y: 0.95, s: 1}, {x: -3060, y: 0.95, s: 1}, {x: -4100, y: 0.95, s: 1} ],
   skeletten: [ {x: -1230, f: 0} ],
   tonnen: [ {x: -4300, kalebas: true}, {x: -4420, f: true}, {x: -4360, y: 0.62} ],
-  spawns: [ {x: -2450, k: 'bandiet', kgat: 1}, {x: -3550, k: 'hyenas', kkooi: 0} ],
+  dierkooien: [ {x: -3550, maat: 'hoog', dier: 'hyena', open: 'bij'} ],   // dezelfde kooi als op straat (DKOOI), hij gaat open als je eraan komt
+  spawns: [ {x: -2450, k: 'bandiet', kgat: 1} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
   voorgrond: false,
   hppotions: [],
@@ -7418,9 +7419,11 @@ const STAD_15 = {
           { x: -20330, t: 'When he walks to the back and turns away: jump over the counter and sneak (crouch) to the curtain' } ]
 };
 // Stad 16: de kooienmarkt. Dierenkooien in de straat (zie "dierenkooien" in notities/kooien.md): een hoge kooi met het
-// halve doek en een hyena, alleen via het kistje ervoor te halen en daarvandaan de galerij op; een lage kooi met een
-// slang die je in een sprong haalt; een bandiet bovenop een kooi met het overgegooide doek, die er bij zijn dood
+// halve doek en een hyena, alleen via het kistje ervoor te halen en daarvandaan de galerij op; een lage kooi die je in
+// een sprong haalt; een bandiet bovenop een kooi met het overgegooide doek, die er bij zijn dood
 // afvalt; decor op de stoep tegen de muren (kleiner, in de kleur van de muur) en twee stukken kooi voor de camera.
+// Twee kooien gaan open (DKOOI.open): de lage met een hyena als je eraan komt, en achteraan een hoge met een bandiet als
+// je op het zegel ervoor stapt. De hoge kooi met de hyena vooraan blijft dicht: niet elke volle kooi gaat open.
 const STAD_16 = {
   name: 'Stad 16: The cage market',
   lagen: 'stad_dag', goud: true,
@@ -7436,12 +7439,14 @@ const STAD_16 = {
   dierkooien: [
     {x: -560, maat: 'hoog', doek: 'over', achter: true},
     {x: -1230, maat: 'hoog', doek: 'half', dier: 'hyena'},
-    {x: -1980, maat: 'laag', dier: 'slang'},
+    {x: -1980, maat: 'laag', dier: 'hyena', open: 'bij'},           // gaat open als je eraan komt: de hyena stapt gebukt naar buiten
     {x: -2420, maat: 'laag', doek: 'half', achter: true},
     {x: -2950, maat: 'laag', doek: 'over'},
     {x: -3300, maat: 'slang', doek: 'half', dier: 'slang', achter: true},
-    {x: -1550, maat: 'hoog', doek: 'half', vg: true}
+    {x: -1550, maat: 'hoog', doek: 'half', vg: true},
+    {x: -3620, maat: 'hoog', doek: 'half', dier: 'bandiet', open: 'zegel', id: 'markt'}   // het zegel ervoor laat de bandiet eruit
   ],
+  zegels: [ {x: -3250, kooi: 'markt'} ],
   kistjes: [ {x: -1040}, {x: -2560, achter: true}, {x: -2620, achter: true, f: true}, {x: -3420, vg: true} ],
   spawns: [ {x: -2950, k: 'bandiet', dak: 'kooi'}, {x: -3700, k: 'bandiet'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
@@ -7451,7 +7456,8 @@ const STAD_16 = {
   ends: [ {x: -4350} ],
   tips: [ { x: -60, t: 'Test level: animal cages. Walk past them, or climb up: the small crate is the step to the tall cage' },
           { x: -1700, t: 'The low cage you reach in one jump' },
-          { x: -2600, t: 'A bandit on a cage falls off when he dies' } ]
+          { x: -2600, t: 'A bandit on a cage falls off when he dies' },
+          { x: -3100, t: 'Not every cage stays shut. Watch what moves inside' } ]
 };
 const STAD_LEVELS = [STAD_1, STAD_2, STAD_3, STAD_4, STAD_5, STAD_6, STAD_7, STAD_8, STAD_9, STAD_10, STAD_11, STAD_12, STAD_14, STAD_15, STAD_16];
 // Episode Oaktown: een stadje van zeven korte straten op een kaart als een dobbelsteen met zes ogen (zie "straten" en
@@ -13404,6 +13410,7 @@ function zegelUpdate(dt, scale){
 // De schakelaar zelf. De rune op een rots gebruikt dezelfde acties (runeDoet), maar gaat om door een speer.
 function zegelSchakel(z, doorVijand){
   if (z.poort) poortOpen(z.poort, zegelWie(z));                    // een poort gaat een keer open (zie "poort"), naast wat hij verder doet
+  if (z.kooi != null) dkOpenZegel(String(z.kooi));                 // en een dierenkooi (open: 'zegel', zie "dierenkooien")
   if (z.stuurt){ z.aan = !z.aan; return; }                         // koppel-zegel: alleen de latch om, koppelUpdate doet de acties
   if (z.plafond) zegelPlafond(z);                                  // zie "zakplafond"
   else if (z.rijs) zegelRijs(z);                                   // zie "rijzende grond"
@@ -16384,13 +16391,13 @@ function kelderVoorTeken(groundY, scale, cx){
   } else stadTrapUitTeken(x, y, 0.95, A);
 }
 
-// ---- de kelderzaal: een kelder als eigen level, met fakkels, een houten trap, traliedeuren en een kooi ----
+// ---- de kelderzaal: een kelder als eigen level, met fakkels, een houten trap en traliedeuren ----
 // Een level met kelderZaal speelt onder de grond: een achterwand van leem met stutpalen, een plafond van aarde met een
 // balk en balkkoppen (plafond.png), een houten trap met een dichte wang waar Amir achter langs loopt, traliedeuren in de
-// achterwand en een kooi met een beest erin. Het licht komt van de fakkels (het uitzicht kelder, met gaten zoals de diepe
+// achterwand. Het licht komt van de fakkels (het uitzicht kelder, met gaten zoals de diepe
 // nacht, zie donkerGatenNa) en van een schuine bundel die rechtsboven langs de trap naar binnen valt, met stofjes erin.
 //
-//   kelderZaal: { trap: {x}, plafond: {r}, palen: [x], deuren: [{x, bandiet}], kooien: [{x, open}], bundel: true }
+//   kelderZaal: { trap: {x}, plafond: {r}, palen: [x], deuren: [{x, bandiet}], bundel: true }
 //
 // trap.x is de voet van de trap (de onderkant links); de trap loopt naar rechts omhoog, het level begint erop. Onder de
 // wang ligt een trap van onzichtbare opstapjes (kzaalTreden, look 'geen'), zodat Amir en de lopende vijanden er gewoon
@@ -16398,10 +16405,8 @@ function kelderVoorTeken(groundY, scale, cx){
 // plafond.r is het rechtereind van het plafond (links ervan tot het eind van het level); rechts ervan is het trapgat.
 // Een deur met bandiet heeft twee ogen achter de latten die Amir volgen; komt hij dichtbij, dan rammelt de deur en
 // breekt de bandiet erdoor (klap, gat, groot gat, open), het kruis vliegt naar de camera en er spatten splinters. Een
-// spawn met kgat: i is de vijand van deur i. Een kooi heeft zijn deurtje op de kopse kant, haaks op de camera: dicht zie
-// je het niet, open zwaait het in perspectief naar je toe (kzaalKooiDeur, in stroken). Een spawn met kkooi: i is het
-// beest in kooi i (nu een hyena): tot de kooi opengaat staat hij er grommend in, dan stapt hij eruit. open: 'bij' (de
-// standaard) opent hem als Amir dichtbij komt; later kan dat een hendel of een bandiet zijn.
+// spawn met kgat: i is de vijand van deur i. Een kooi met een beest erin is een gewone dierenkooi (dierkooien, met open:
+// 'bij'), dezelfde kooi als op straat (zie "dierenkooien").
 // Test 86 is het proefstuk; in de sandbox onder De stad de knop Kelderzaal. Zie notities/kelder.md.
 const KZAAL = {
   dir: 'design/stad/kelder/binnen/',
@@ -16418,21 +16423,14 @@ const KZAAL = {
   deur: { hoog: 1.45, ogen: [0.5, 0.33], ogenDx: 0.07, oog: 0.016, kijk: 0.012,
           trigger: 430, rammel: 0.5, fases: [0.06, 0.04, 0.04], schok: 0.22, freeze: 0.1,
           scherf: { duur: 0.5, groot: 1.5 } },
-  // de opening is een regie (kzaalVries): de wereld staat stil, het luikje klinkt als het luikje van de kooiman,
-  // het deurtje zwaait in duur s open, na wacht s stapt het beest in uit s naar buiten (loopframes op loop x zijn
-  // fps), en pas dan loopt het spel door
-  kooi: { hoog: 1.0, deur: { breed: 0.62, hoog: 0.87, sx: 0.015, sy: 0.075 }, binnen: 0.21, achter: 0.21,
-          trigger: 400, duur: 2.0, los: 0.22, D: 6, stroken: 160, wacht: 1.1, uit: 2.2, loop: 0.55, na: 0.25 },
   bundel: { boven: 3.4, breed: 1.6, vloer: [-2.4, -0.4], stof: 90 }   // de lichtbundel, in Amir t.o.v. de voet van de trap
 };
-let kzaalVries = null;   // de regie van een kooi die opengaat: {i, t}, de wereld staat stil (zie kzaalVriesStap)
 let kzaalImgs = null, kzaalStaat = null, kzaalBundelPx = null, kzaalScherven = [];
 function kzaalLevel(){ return (level && level.kelderZaal) || null; }
 function kzaalLaad(){
   if (kzaalImgs) return;
   const im = src => zetBron(new Image(), KZAAL.dir + src, () => console.warn('ontbreekt: kelder ' + src));
-  kzaalImgs = { trap: im('trap_hout.png'), plafond: im('plafond.png'), kooi: im('kooi/kooi.png'), kooiDeur: im('kooi/kooideur.png'),
-                deur: ['deur_0_heel', 'deur_1_klap', 'deur_2_gat', 'deur_3_groot_gat', 'deur_4_open'].map(n => im('deur/' + n + '.png')),
+  kzaalImgs = { trap: im('trap_hout.png'), plafond: im('plafond.png'), deur: ['deur_0_heel', 'deur_1_klap', 'deur_2_gat', 'deur_3_groot_gat', 'deur_4_open'].map(n => im('deur/' + n + '.png')),
                 scherf: im('deur/scherf_kruis.png') };
   binnenLaad();                                      // de muur en de palen van binnen
 }
@@ -16484,17 +16482,15 @@ function kzaalTreden(T, sc){
 }
 // ---- bij de start van het level ----
 function kzaalReset(){
-  kzaalScherven = []; kzaalBundelPx = null; kzaalVries = null;
+  kzaalScherven = []; kzaalBundelPx = null;
   const K = kzaalLevel(); if (!K){ kzaalStaat = null; return; }
   kzaalLaad();
   kzaalTredenLeg(K);
   kzaalStaat = {
-    deuren: (K.deuren || []).map(d => ({ fase: 'dicht', t: 0, knip: 2 + Math.random() * 3 })),
-    kooien: (K.kooien || []).map(() => ({ fase: 'dicht', t: 0, los: false, f: 0 }))
+    deuren: (K.deuren || []).map(d => ({ fase: 'dicht', t: 0, knip: 2 + Math.random() * 3 }))
   };
-  for (const sp of (level.spawns || [])){              // de vijand staat in zijn deur of kooi
+  for (const sp of (level.spawns || [])){              // de vijand staat in zijn deur
     if (sp.kgat != null && K.deuren && K.deuren[sp.kgat]) sp.x = K.deuren[sp.kgat].x;
-    if (sp.kkooi != null && K.kooien && K.kooien[sp.kkooi]) sp.x = K.kooien[sp.kkooi].x;
   }
 }
 let kzaalTredenSc = 0, kzaalPlafR = null;
@@ -16525,44 +16521,13 @@ function kzaalTredenLeg(K){
     level.zwevers.push({ r: kzaalPlafR, l: endWall() - 2000, h: onder + 400, onder, look: 'geen', kz: true });
   }
 }
-// mag deze spawn komen? Een beest in een kooi laat de kooi zelf los, een bandiet achter een deur pas als die open is
+// mag deze spawn komen? Een bandiet achter een deur pas als die open is (een beest in een kooi: zie de dierenkooien)
 function kzaalKlaar(sp){
-  if (sp.kkooi != null) return false;
   if (sp.kgat == null) return true;
   const st = kzaalStaat && kzaalStaat.deuren[sp.kgat];
   return !st || st.fase === 'open';
 }
 function kzaalBandietIn(i){ return (level.spawns || []).some(sp => sp.kgat === i && !sp.used); }
-// het beest uit kooi i komt echt in het spel, bij het deurtje, met zijn kop naar Amir
-function kzaalKooiLos(i){
-  const K = kzaalLevel(), k = K && K.kooien && K.kooien[i], st = kzaalStaat && kzaalStaat.kooien[i];
-  if (!k || !st || st.los) return;
-  st.los = true;
-  for (const sp of (level.spawns || [])) if (sp.kkooi === i && !sp.used){
-    sp.used = true;
-    const uit = kzaalKooiUitX(k, nowScale(), 1), side = world > uit ? -1 : 1;
-    const h = makeHyena(uit, side, { laughed: false, lachT: Infinity });
-    h.base = 0; zichtZet(h, sp);
-    hyenas.push(h);
-  }
-}
-// waar het beest staat terwijl hij naar buiten stapt (p van 0, midden in de kooi, tot 1, net buiten het deurtje)
-function kzaalKooiUitX(k, sc, p){
-  const m = kzaalKooiMaat(k, sc), van = k.x + m.w * 0.02, tot = m.deurX + 0.15 * CHAR_H * sc;
-  return van + (tot - van) * p;
-}
-// de regie van de kooi: de wereld staat stil (dt 0, zoals de stamp van de kooiman), op echte tijd zwaait het deurtje
-// open, het beest gromt nog even en stapt dan langzaam naar buiten; daarna loopt het spel door
-function kzaalVriesStap(rdt){
-  const R = kzaalVries, C = KZAAL.kooi, K = kzaalLevel();
-  const st = kzaalStaat && kzaalStaat.kooien[R.i];
-  if (!K || !st){ kzaalVries = null; return; }
-  R.t += rdt; st.t += rdt;
-  if (shake > 0) shake = Math.max(0, shake - rdt);
-  const loopT = R.t - C.wacht;
-  st.f += rdt * HY.fps.dreigen * (loopT > 0 ? C.loop * HY.fps.loop / HY.fps.dreigen : 1);
-  if (loopT >= C.uit + C.na || R.t > C.wacht + C.uit + 3){ kzaalVries = null; kzaalKooiLos(R.i); }
-}
 function kzaalUpdate(dt){
   const K = kzaalLevel(); if (!K || !kzaalStaat) return;
   if (Math.abs(nowScale() - kzaalTredenSc) > 1e-6) kzaalTredenLeg(K);   // een ander formaat: de trap is breder of smaller
@@ -16583,22 +16548,6 @@ function kzaalUpdate(dt){
       if (st.px) kzaalScherven.push({ x: st.px.x, y: st.px.y, h: st.px.h, t: 0, rot: (Math.random() - 0.5) * 0.6, spin: 2.5 + Math.random() * 2.5 });
     }
     if (st.fase === 'breek' && st.t >= D.fases.reduce((a, b) => a + b, 0)) st.fase = 'open';
-  });
-  const C = KZAAL.kooi;
-  (K.kooien || []).forEach((k, i) => {
-    const st = kzaalStaat.kooien[i];
-    st.f += dt * HY.fps.dreigen;
-    if (st.fase === 'dicht'){
-      if (!dead && !kzaalVries && (k.open || 'bij') === 'bij' && Math.abs(world - k.x) <= C.trigger + C.hoog * CHAR_H){
-        st.fase = 'open'; st.t = 0; shake = Math.max(shake, 0.08);
-        kooiDeurGeluid();                              // het luikje van de kooiman
-        if ((level.spawns || []).some(sp => sp.kkooi === i && !sp.used)) kzaalVries = { i, t: 0 };   // met een beest erin: de regie
-        else st.los = true;
-      }
-      return;
-    }
-    if (kzaalVries && kzaalVries.i === i) return;      // de regie loopt op echte tijd (kzaalVriesStap)
-    st.t += dt;
   });
   for (let i = kzaalScherven.length - 1; i >= 0; i--){ kzaalScherven[i].t += dt; if (kzaalScherven[i].t > D.scherf.duur) kzaalScherven.splice(i, 1); }
 }
@@ -16678,46 +16627,10 @@ function kzaalAchter(groundY, scale, cx){
   });
   ctx.restore();
 }
-// de maat van kooi k op het scherm, en deurX: de wereld-x van het scharnier (een wereld-x is een schermpixel)
-function kzaalKooiMaat(k, scale){
-  const im = kzaalImgs && kzaalImgs.kooi, A = CHAR_H * scale, h = KZAAL.kooi.hoog * A;
-  const w = h * (imgReady(im) ? im.naturalWidth / im.naturalHeight : 1009 / 508);
-  return { h, w, deurX: k.x + w / 2 - KZAAL.kooi.deur.sx * h };
-}
-// na de fakkels, voor de vijanden: het plafond, de kooien en de lichtbundel (die wordt gemeten voor de gaten)
+// na de fakkels, voor de vijanden: het plafond en de lichtbundel (die wordt gemeten voor de gaten)
 function kzaalMidden(groundY, scale, cx){
   const K = kzaalLevel(); if (!K || !kzaalImgs) return;
   const I = kzaalImgs, A = CHAR_H * scale, zoom = viewZoom(), xl = -W, xr = W / zoom + W;
-  // de kooien
-  const C = KZAAL.kooi;
-  (K.kooien || []).forEach((k, i) => {
-    const st = kzaalStaat && kzaalStaat.kooien[i]; if (!st || !imgReady(I.kooi)) return;
-    const m = kzaalKooiMaat(k, scale), x = cx + (k.x - world) - m.w / 2, y = groundY - m.h;
-    if (x > xr || x + m.w < xl) return;
-    ctx.save();
-    ctx.fillStyle = 'rgba(8,5,3,' + C.binnen + ')';    // het donker binnen in de kooi
-    ctx.fillRect(x + m.w * 0.02, y + m.h * 0.05, m.w * 0.96, m.h * 0.9);
-    ctx.globalAlpha = 1; ctx.filter = 'brightness(' + C.achter + ')';   // de achterste tralies: een donkere, iets kleinere kopie
-    ctx.drawImage(I.kooi, x + m.w * 0.03, y - m.h * 0.02, m.w * 0.94, m.h * 0.97);
-    ctx.filter = 'none';
-    // het beest erin, grommend naar de deur toe, tot hij los is
-    if (!st.los && (level.spawns || []).some(sp => sp.kkooi === i && !sp.used)){
-      const B = hyBank({ skin: winterOn() ? 'wit' : 'zwart' });
-      const R = kzaalVries && kzaalVries.i === i ? kzaalVries : null, p = R ? Math.min(1, Math.max(0, (R.t - C.wacht) / C.uit)) : 0;
-      const loopt = R && R.t > C.wacht && B && B.loop;   // in de regie: de loopframes, langzaam naar buiten
-      const fr = loopt ? B.loop[Math.floor(st.f) % HY.n.loop] : B && B.dreigen && B.dreigen[Math.floor(st.f) % HY.n.dreigen];
-      if (fr && imgReady(fr)){
-        const hS = hyScale() * 0.92, hw = HY.w * hS, hh = HY.h * hS;
-        const bx = loopt ? cx + (kzaalKooiUitX(k, scale, p) - world) : x + m.w * 0.52;
-        const by = y + m.h * (0.94 + 0.06 * Math.min(1, p * 1.6));   // eruit stapt hij van de kooibodem op de vloer
-        ctx.save(); ctx.translate(bx, by); ctx.scale(-1, 1);
-        ctx.drawImage(fr, -hw / 2, -HY.ground * hS, hw, hh); ctx.restore();
-      }
-    }
-    ctx.drawImage(I.kooi, x, y, m.w, m.h);
-    if (st.fase !== 'dicht') kzaalKooiDeur(st, x + m.w - C.deur.sx * m.h, y, m.h);
-    ctx.restore();
-  });
   // het plafond: aarde, de balk en de balkkoppen, van plafond.r naar links
   const P = KZAAL.plafond, plaat = kzaalPlafondPlaat();
   if (K.plafond && plaat){
@@ -16745,28 +16658,6 @@ function kzaalMidden(groundY, scale, cx){
     const hel = 1 / KZAAL.trap.rand[1], dx = (yBot - yTop) * hel;
     const pts = [[xb0 + dx, yTop], [xb0 + dx + Bd.breed * A, yTop], [xb1, yBot], [xb0, yBot]].map(([px, py]) => T.transformPoint(new DOMPoint(px, py)));
     kzaalBundelPx = { pts, A: A * Math.hypot(T.a, T.b), vloer: T.transformPoint(new DOMPoint((xb0 + xb1) / 2, yBot)) };
-  }
-}
-// het kooideurtje in perspectief: in stroken van het scharnier (hx) naar de vrije rand, elke strook kleiner naarmate
-// hij verder van de camera staat. Hoek 90 is dicht (op de kant, onzichtbaar), 0 plat naar de camera.
-function kzaalKooiDeurHoek(t){
-  const C = KZAAL.kooi, p = Math.min(1.5, t / C.duur);
-  if (p < 0.28) return 90 * (1 - Math.pow(p / 0.28, 1.6));
-  return -18 * Math.exp(-(p - 0.28) * 6) * Math.sin((p - 0.28) * 2 * Math.PI / 0.36);
-}
-function kzaalKooiDeur(st, hx, kooiTop, KH){
-  const im = kzaalImgs.kooiDeur, zw = kzaalZwart(im); if (!imgReady(im)) return;
-  const C = KZAAL.kooi, th = kzaalKooiDeurHoek(st.t) * Math.PI / 180;
-  const B = C.deur.breed * KH, dh = C.deur.hoog * KH, midY = kooiTop + C.deur.sy * KH + dh / 2, D = C.D * KH;
-  const sw = im.naturalWidth, sh = im.naturalHeight, N = C.stroken, donker = 0.45 * Math.max(0, Math.sin(th));
-  const proj = u => { const x = u * B * Math.cos(th), z = u * B * Math.sin(th), k = D / (D + z); return { x: x * k, k }; };
-  for (let i = 0; i < N; i++){
-    const u0 = i / N, u1 = (i + 1) / N, p0 = proj(u0), p1 = proj(u1);
-    const dx = hx + Math.min(p0.x, p1.x), ww = Math.abs(p1.x - p0.x) + 0.6, hh = dh * p1.k;
-    if (ww < 0.2) continue;
-    const sx = sw * (1 - u1), sww = sw * (u1 - u0);
-    ctx.drawImage(im, sx, 0, sww, sh, dx, midY - hh / 2, ww, hh);
-    if (zw && donker > 0.01){ ctx.globalAlpha = donker; ctx.drawImage(zw, sx, 0, sww, sh, dx, midY - hh / 2, ww, hh); ctx.globalAlpha = 1; }
   }
 }
 // na Amir: de wang van de trap, zodat zijn voeten erachter wegvallen
@@ -28690,8 +28581,15 @@ function drawWaterStrips(groundY){
 // dan de voorkant en het doek. Drie lagen: een echte kooi op de looplijn (volle kleur), met achter: true decor op de
 // stoep tegen de muur (kleiner, minder contrast en een waas in de kleur van de muur, nooit grijzer dan die muur), en
 // met vg: true een stuk kooi groot en donker voor de camera. Het kistje (de kooi helemaal onder het doek) is een opstap
-// naar een hoge kooi, en ook gewoon sfeer. Velden: dierkooien [{x, maat, doek, dier, f, achter, vg, s, dekking, kleur}]
-// en kistjes [{x, f, achter, vg, s}].
+// naar een hoge kooi, en ook gewoon sfeer. Velden: dierkooien [{x, maat, doek, dier, f, achter, vg, s, dekking, kleur,
+// open, id, deur}] en kistjes [{x, f, achter, vg, s}].
+// Het beest beweegt een beetje (het loopt heen en weer, de bandiet zit gehurkt te ademen): in een donker level zie je
+// een silhouet bewegen, niet precies wat. Een kooi met open gaat open: 'bij' als Amir dichtbij komt, 'zegel' als een
+// zegel met kooi: id afgaat. Zonder open blijft het decor, dus niet elke volle kooi gaat open. Dan zwaait het deurtje op
+// de kopse kant aan de kant van Amir in perspectief open (deur.png, tools/kooi_deur.py; deur: 'l' of 'r' zet de kant
+// vast), met een korte freeze (DKOOI.open.vries, hooguit een keer per DKOOI.open.rust s, zodat een level met veel
+// kooien niet steeds stilstaat). Het beest stapt gebukt naar buiten, richt zich op tot zijn volle maat en is dan een
+// echte vijand (dkLos): dier hyena, slang of bandiet.
 const DKOOI = {
   dir: 'design/stad/kooi/',
   // breed en hoog (met blad) in Amir, en binnen [l, t, r, b] als deel van de plaat (kooi.json)
@@ -28704,7 +28602,14 @@ const DKOOI = {
   // de doeken: x, y, w, h als deel van de kooi (x en w van de breedte, y en h van de hoogte), gemeten op de Grok-platen
   doeken: { half: [-0.006, 0.005, 0.595, 1.066], over: [-0.152, -0.201, 1.20, 1.335] },
   kistje: { breed: 0.7, hoog: 0.4425, top: 0.0226, zak: 0.04, loop: 0.25 },   // loop: de looplijn alleen op de middelste helft
-  dieren: { hyena: { breed: 0.9776, hoog: 0.6 }, slang: { breed: 1.1442, hoog: 0.62 } },
+  dieren: { hyena: { breed: 0.9776, hoog: 0.6 }, slang: { breed: 1.1442, hoog: 0.62 }, bandiet: { hoog: 0.78 } },   // bandiet: gehurkt (hurk_idle)
+  // het heen en weer lopen in de kooi: zoveel van de binnenbreedte, een keer heen en terug in periode s
+  beweeg: { amp: 0.1, periode: 9 },
+  // het openen: bij Amir van de rand (bij), het deurtje zwaait in zwaai s open en staat dan op rust graden, het beest
+  // wacht nog wacht s en stapt in uit s naar buiten (de laatste groei van die tijd richt hij zich op tot zijn volle
+  // maat); vries s freeze, hooguit een keer per rust s. D: de diepte van het perspectief in deurhoogtes
+  open: { bij: 2.2, zwaai: 0.22, eind: 14, wacht: 0.2, uit: 0.95, groei: 0.45, vries: 0.35, rust: 10, D: 6, stroken: 90,
+          buiten: { hyena: 0.55, slang: 0.5, bandiet: 0.3 } },   // hoe ver (Amir) voorbij de rand hij loskomt
   vloer: 0.6,                // het donker achter de tralies
   dekking: 0.3, doekDekking: 0.62,   // het donker over het beest: zonder doek zie je het, met doek nauwelijks
   gebukt: 0.95,              // het beest past in de kooi: hooguit zoveel van de binnenhoogte
@@ -28721,13 +28626,26 @@ function dkLaad(){
   dkImgs = {};
   const zet = n => zetBron(new Image(), DKOOI.dir + n + '.png', () => console.warn('ontbreekt: ' + DKOOI.dir + n + '.png'));
   for (const m of Object.keys(DKOOI.maten)){ dkImgs['voor_' + m] = zet('voor_' + m); dkImgs['achter_' + m] = zet('achter_' + m); }
-  for (const n of ['doek_half', 'doek_over', 'kistje', 'dier_hyena', 'dier_slang']) dkImgs[n] = zet(n);
+  for (const n of ['doek_half', 'doek_over', 'kistje', 'dier_hyena', 'dier_slang', 'deur']) dkImgs[n] = zet(n);
 }
-function dkLaadLevel(lv){ if (lv && ((lv.dierkooien && lv.dierkooien.length) || (lv.kistjes && lv.kistjes.length))) dkLaad(); }
+// de vijanden die uit een kooi kunnen komen, en de bandiet die erin zit (gehurkt): hun frames alvast laden
+function dkDierLaad(k){
+  if (k.dier === 'bandiet') banLaadHurk(false);
+  if (!k.open) return;
+  if (k.dier === 'hyena') hyLoad();
+  if (k.dier === 'slang') slangLaad('groen');
+}
+function dkLaadLevel(lv){
+  if (!lv || !((lv.dierkooien && lv.dierkooien.length) || (lv.kistjes && lv.kistjes.length))) return;
+  dkLaad();
+  for (const k of (lv.dierkooien || [])) dkDierLaad(k);
+}
+let dkVriesT = -Infinity;      // wanneer de laatste kooi-freeze was (performance.now in s)
+function dkNieuw(k){ const n = Object.assign({ soort: 'kooi', maat: 'hoog' }, k); n.st = { fase: 'dicht', t: 0 }; dkDierLaad(n); return n; }
 function dkReset(){
-  dkLijst.length = 0;
+  dkLijst.length = 0; dkVriesT = -Infinity;
   if (!level) return;
-  for (const k of (level.dierkooien || [])) dkLijst.push(Object.assign({ soort: 'kooi', maat: 'hoog' }, k));
+  for (const k of (level.dierkooien || [])) dkLijst.push(dkNieuw(k));
   for (const k of (level.kistjes || [])) dkLijst.push(Object.assign({ soort: 'kistje' }, k));
   if (dkLijst.length) dkLaad();
 }
@@ -28801,12 +28719,9 @@ function dkBouw(c, k, bx, by, A){
   const bl = x0 + B[0] * w, bt = y0 + B[1] * h, bw = (B[2] - B[0]) * w, bh = (B[3] - B[1]) * h;
   c.fillStyle = 'rgba(14,9,6,' + DKOOI.vloer + ')'; c.fillRect(bl, bt, bw, bh);
   const ach = I['achter_' + mt]; if (imgReady(ach)) c.drawImage(ach, x0, y0, w, h);
-  const D = k.dier && DKOOI.dieren[k.dier], dim = k.dier && I['dier_' + k.dier];
-  if (D && imgReady(dim)){
-    const dh = Math.min(D.hoog * A, bh * DKOOI.gebukt), dw = dh * dim.naturalWidth / dim.naturalHeight;
-    const adem = 1 + Math.sin(performance.now() / 700 + k.x) * 0.012;
-    const dx = k.doek === 'half' ? bl + bw * 0.62 : bl + bw * 0.5;     // naast het doek, waar je hem ziet
-    c.save(); c.translate(dx, bt + bh); c.scale(-1, adem); c.drawImage(dim, -dw / 2, -dh, dw, dh); c.restore();
+  if (k.dier && (!k.st || k.st.fase !== 'leeg')){      // het beest, alleen binnen de kooi (wat al buiten is: dkTeken)
+    const fl = k.f ? -1 : 1, b = dkBeest(k, A);
+    if (b){ c.save(); c.beginPath(); c.rect(bl, bt, bw, bh); c.clip(); dkBeestTeken(c, b, (b.x - k.x) * fl, bt + bh, b.face * fl); c.restore(); }
   }
   const dek = k.dekking != null ? k.dekking : (k.doek ? DKOOI.doekDekking : DKOOI.dekking);
   c.fillStyle = 'rgba(14,9,6,' + dek + ')'; c.fillRect(bl, bt, bw, bh);
@@ -28814,6 +28729,132 @@ function dkBouw(c, k, bx, by, A){
   const P = k.doek && DKOOI.doeken[k.doek], di = k.doek && I['doek_' + k.doek];
   if (P && imgReady(di)) c.drawImage(di, x0 + P[0] * w, y0 + P[1] * h, P[2] * w, P[3] * h);
   c.restore();
+}
+// ---- het beest in de kooi, en hoe hij eruit komt ----
+// de binnenkant van kooi k in px, ten opzichte van zijn midden (onderkant 0)
+function dkBinnen(k, A){
+  const M = DKOOI.maten[k.maat] || DKOOI.maten.hoog, w = M.breed * A, h = M.hoog * A, B = M.binnen;
+  return { w, h, bl: -w / 2 + B[0] * w, bw: (B[2] - B[0]) * w, bt: -h + B[1] * h, bh: (B[3] - B[1]) * h };
+}
+// de kant van het deurtje: 1 rechts, -1 links
+function dkKant(k){ return k.st && k.st.kant ? k.st.kant : k.deur === 'l' ? -1 : k.deur === 'r' ? 1 : 1; }
+// waar het beest nu staat en hoe hij eruitziet: {img, x (wereld), w, h, ax, ay (het voetpunt in het plaatje, px), face}
+// face 1 is naar rechts. Binnen: gebukt (zo klein dat hij past), heen en weer lopend; eruit: zijn echte frames, van de
+// kooi naar net buiten het deurtje, en op het eind groeit hij naar zijn volle maat.
+function dkBeest(k, A){
+  const I = dkImgs, D = DKOOI.dieren[k.dier]; if (!I || !D) return null;
+  const Bi = dkBinnen(k, A), O = DKOOI.open, nu = performance.now() / 1000;
+  const st = k.st || { fase: 'dicht', t: 0 };
+  const midL = k.doek === 'half' ? Bi.bl + Bi.bw * 0.62 : Bi.bl + Bi.bw * 0.5;   // naast het doek, waar je hem ziet
+  const fase = (nu + (k.x % 97)) / DKOOI.beweeg.periode * Math.PI * 2;
+  const m = st.fase === 'open' ? Math.max(0, Math.min(1, (st.t - O.wacht) / O.uit)) : 0;
+  const uit = st.fase === 'open' && st.t > O.wacht && st.x0 != null;
+  const loop = !uit && k.dier !== 'bandiet';       // de bandiet zit gehurkt, de dieren lopen heen en weer
+  const binX = k.x + (midL + (loop ? Math.sin(fase) * DKOOI.beweeg.amp * Bi.bw : 0)) * (k.f ? -1 : 1);
+  // binnen kijkt hij waar hij heen loopt; gaat de deur open, dan naar het deurtje
+  const binFace = st.fase === 'open' ? st.kant : (Math.cos(fase) >= 0 ? 1 : -1) * (k.f ? -1 : 1);
+  // m: hoe ver hij naar buiten is (0 binnen, 1 los); groei: van gebukt naar zijn volle maat
+  const kant = dkKant(k), x1 = k.x + kant * (Bi.w / 2 + (O.buiten[k.dier] || 0.4) * A);
+  const ease = m * m * (3 - 2 * m), x = uit ? st.x0 + (x1 - st.x0) * ease : binX;
+  const gq = Math.max(0, Math.min(1, (m - (1 - O.groei)) / O.groei)), gs = gq * gq * (3 - 2 * gq);
+  const groei = g => g + (1 - g) * gs + Math.sin(gq * Math.PI) * 0.04 * (1 - g);   // een klein beetje overschot
+  if (k.dier === 'bandiet'){
+    const G = BAN_HURK_GEO, s1 = A * BAN_H_SHARE / G.fig, g = Math.min(1, Bi.bh * DKOOI.gebukt / (D.hoog * A));
+    const bank = banVar(false).bank, op = uit && gq > 0;   // eruit: eerst gehurkt naar buiten, dan staat hij op (hurk_in achterstevoren)
+    const set = op ? bank.hurk_in : bank.hurk_idle; if (!set) return null;
+    const i = op ? Math.round((1 - gs) * (BAN.n.hurk_in - 1)) : dkMod(Math.floor(nu * BAN.fps.hurk_idle + k.x), BAN.n.hurk_idle);
+    const img = set[Math.max(0, Math.min(set.length - 1, i))], s = s1 * (op ? groei(g) : g);
+    return { img, x, w: G.w * s, h: G.h * s, ax: (G.anker + 67 * (op ? gs : 0)) * s, ay: G.ground * s, face: uit ? kant : -(st.kant || 1), native: -1 };
+  }
+  if (!uit && k.open && k.dier === 'slang' && snk.groen){   // een slang die eruit kan: binnen al de zandslang die eruit komt
+    const set = snk.groen.idle, s1 = A * 0.62 / SNK_H, g = Math.min(1, Math.min(D.hoog * A, Bi.bh * DKOOI.gebukt) / (0.62 * A)), s = s1 * g;
+    return { img: set[dkMod(Math.floor(nu * 6 + k.x), set.length)], x, w: SNK_W * s, h: SNK_H * s, ax: SNK_W * s / 2, ay: SNK_GROUND * s, face: binFace, native: 1 };
+  }
+  if (!uit){                                       // binnen: het stilstaande plaatje, dat licht ademt
+    const im = I['dier_' + k.dier]; if (!imgReady(im)) return null;
+    const dh = Math.min(D.hoog * A, Bi.bh * DKOOI.gebukt), dw = dh * im.naturalWidth / im.naturalHeight;
+    const adem = 1 + Math.sin(nu * 1.43 + k.x) * 0.012;
+    return { img: im, x, w: dw, h: dh * adem, ax: dw / 2, ay: dh * adem, face: binFace, native: -1 };
+  }
+  if (k.dier === 'hyena'){
+    const B = hyBank({ skin: winterOn() ? 'wit' : 'zwart' }), set = B && B.loop; if (!set) return null;
+    const s1 = A * HY_H_SHARE / HY.fig, g = Math.min(1, Math.min(D.hoog * A, Bi.bh * DKOOI.gebukt) / (HY_H_SHARE * A)), s = s1 * groei(g);
+    return { img: set[Math.floor(st.t * HY.fps.loop * 1.2) % set.length], x, w: HY.w * s, h: HY.h * s, ax: HY.w * s / 2, ay: HY.ground * s, face: kant, native: -1 };
+  }
+  const set = snk.groen && snk.groen.move; if (!set) return null;   // de slang: de zandslang glijdt eruit
+  const s1 = A * 0.62 / SNK_H, g = Math.min(1, Math.min(D.hoog * A, Bi.bh * DKOOI.gebukt) / (0.62 * A)), s = s1 * groei(g);
+  return { img: set[Math.floor(st.t * 10) % set.length], x, w: SNK_W * s, h: SNK_H * s, ax: SNK_W * s / 2, ay: SNK_GROUND * s, face: kant, native: 1 };
+}
+const dkMod = (a, n) => ((a % n) + n) % n;   // de x is negatief, dus een modulo die altijd positief is
+// teken het beest met zijn voetpunt op (px, py), face 1 naar rechts
+function dkBeestTeken(c, b, px, py, face){
+  if (!b || !b.img || !imgReady(b.img)) return;
+  c.save(); c.translate(px, py); if (face !== b.native) c.scale(-1, 1);
+  c.drawImage(b.img, -b.ax, -b.ay, b.w, b.h); c.restore();
+}
+// de hoek van het deurtje: 90 is dicht (op de kant, onzichtbaar), dan zwaait het in zwaai s open en wiebelt het uit
+function dkDeurHoek(t){
+  const O = DKOOI.open;
+  if (t < O.zwaai) return O.eind + (90 - O.eind) * (1 - Math.pow(t / O.zwaai, 1.6));
+  return O.eind - 18 * Math.exp(-(t - O.zwaai) * 5) * Math.sin((t - O.zwaai) * 2 * Math.PI / 0.34);
+}
+// het deurtje in perspectief, in stroken van het scharnier (hx) naar de vrije rand: elke strook kleiner naarmate hij
+// verder van de camera staat (zoals het kooideurtje van de kooiman), donkerder als hij nog op de kant staat
+function dkDeurTeken(k, sx, sy, A){
+  const im = dkImgs && dkImgs.deur; if (!imgReady(im) || !k.st || k.st.fase === 'dicht') return;
+  const O = DKOOI.open, Bi = dkBinnen(k, A), kant = dkKant(k);
+  const th = dkDeurHoek(k.st.t) * Math.PI / 180, dh = Bi.bh + Bi.h * 0.06, B = dh * im.naturalWidth / im.naturalHeight;
+  const hx = sx + kant * (Bi.w / 2 - Bi.w * 0.02), midY = sy + Bi.bt - Bi.h * 0.03 + dh / 2, Dd = O.D * dh;
+  const sw = im.naturalWidth, sh = im.naturalHeight, N = O.stroken, zw = kzaalZwart(im), donker = 0.45 * Math.max(0, Math.sin(th));
+  const proj = u => { const z = u * B * Math.sin(th), kk = Dd / (Dd + z); return { x: u * B * Math.cos(th) * kk, k: kk }; };
+  for (let i = 0; i < N; i++){
+    const u0 = i / N, u1 = (i + 1) / N, p0 = proj(u0), p1 = proj(u1);
+    const ww = Math.abs(p1.x - p0.x) + 0.6, hh = dh * p1.k; if (ww < 0.2) continue;
+    const dx = kant > 0 ? hx + Math.min(p0.x, p1.x) : hx - Math.max(p0.x, p1.x) - 0.6;
+    const bx = kant > 0 ? sw * u0 : sw * (1 - u1), bw = sw / N;
+    ctx.drawImage(im, bx, 0, bw, sh, dx, midY - hh / 2, ww, hh);
+    if (zw && donker > 0.01){ ctx.globalAlpha = donker; ctx.drawImage(zw, bx, 0, bw, sh, dx, midY - hh / 2, ww, hh); ctx.globalAlpha = 1; }
+  }
+}
+// elk beeld, op echte tijd (ook tijdens de freeze): openen als Amir dichtbij komt, en het beest los als hij buiten is
+function dkStap(rdt){
+  if (!dkLijst.length || !level) return;
+  const A = CHAR_H * nowScale(), O = DKOOI.open;
+  for (const k of dkLijst){
+    if (!k.st || !k.dier || !k.open || k.achter || k.vg) continue;
+    if (k.st.fase === 'dicht'){
+      if (k.open === 'bij' && !dead && Math.abs(world - k.x) - dkBinnen(k, A).w / 2 <= O.bij * A) dkOpen(k);
+      continue;
+    }
+    if (k.st.fase !== 'open') continue;
+    k.st.t += rdt;
+    if (k.st.x0 == null && k.st.t > O.wacht){ const b = dkBeest(k, A); k.st.x0 = b ? b.x : k.x; }   // vanaf hier loopt hij naar buiten
+    if (k.st.t >= O.wacht + O.uit) dkLos(k, A);
+  }
+  for (const k of dkLijst) if (k.st && k.st.fase === 'leeg') k.st.t += rdt;   // het deurtje wiebelt uit
+}
+// de kooi gaat open: het deurtje aan de kant van Amir, het luikje van de kooiman, een korte freeze (niet te vaak)
+function dkOpen(k){
+  if (!k.st || k.st.fase !== 'dicht') return;
+  k.st = { fase: 'open', t: 0, kant: k.deur === 'l' ? -1 : k.deur === 'r' ? 1 : (world >= k.x ? 1 : -1), x0: null };
+  kooiDeurGeluid();
+  shake = Math.max(shake, 0.1);
+  const nu = performance.now() / 1000;
+  if (nu - dkVriesT >= DKOOI.open.rust){ deurFreeze = Math.max(deurFreeze, DKOOI.open.vries); dkVriesT = nu; }
+}
+// een zegel met kooi: id opent de kooien met open: 'zegel' en die id
+function dkOpenZegel(id){ for (const k of dkLijst) if (k.open === 'zegel' && k.id === id) dkOpen(k); }
+// het beest is buiten en op zijn volle maat: vanaf nu een echte vijand, met zijn kop naar Amir
+function dkLos(k, A){
+  const kant = dkKant(k), x = k.x + kant * (dkBinnen(k, A).w / 2 + (DKOOI.open.buiten[k.dier] || 0.4) * A);
+  k.st.fase = 'leeg';
+  const side = x > world ? 1 : -1, base = terrainH(x);
+  if (k.dier === 'hyena'){ const h = makeHyena(x, side, { laughed: false, lachT: Infinity }); h.base = base; zichtZet(h, null); hyenas.push(h); }
+  else if (k.dier === 'slang'){ const s = makeSnake('groen'); s.x = x; s.side = side; s.base = base; zichtZet(s, null); snakes.push(s); }
+  else if (k.dier === 'bandiet'){
+    const b = makeBandiet(x, side, false, false, undefined, false, false, null, false);
+    b.base = base; zichtZet(b, null); bandieten.push(b);
+  }
 }
 // de schaduw op de straat: een donkere streep waar hij de grond raakt en in de stad de schuine slagschaduw
 function dkSchaduw(sx, sy, w, A, sterk){
@@ -28878,6 +28919,17 @@ function dkTeken(groundY, scale, cx){
       } else {
         dkSchaduw(sx, sy, dkMaat(k, scale).w, A, 1);
         dkBouw(ctx, k, sx, sy, A);
+        if (k.st && k.st.fase !== 'dicht'){
+          dkDeurTeken(k, sx, sy, A);                    // het open deurtje
+          if (k.st.fase === 'open'){                    // en wat al voorbij de rand van de kooi is
+            const b = dkBeest(k, A), kant = dkKant(k), rand = sx + kant * dkBinnen(k, A).w / 2;
+            if (b){
+              ctx.save(); ctx.beginPath();
+              ctx.rect(kant > 0 ? rand : rand - 4 * A, sy - 3 * A, 4 * A, 3.5 * A); ctx.clip();
+              dkBeestTeken(ctx, b, cx + (b.x - world), sy, b.face); ctx.restore();
+            }
+          }
+        }
       }
     }
   }
@@ -54774,8 +54826,8 @@ function loop(now){
   // de freeze van de opening van Murghtaan 3 (MURC_INTRO): de wereld staat stil, de balken en de naam lopen op echte tijd
   if (running && !paused && !won) murcBalkStap(realDt);
   if (murcVries){ dt = 0; }
-  // de regie van een kooi in de kelderzaal: de wereld staat stil terwijl het beest eruit stapt (zie kzaalVriesStap)
-  if (kzaalVries){ dt = 0; if (running && !paused && !won) kzaalVriesStap(realDt); }
+  // de dierenkooien: het deurtje en het beest dat eruit stapt lopen op echte tijd, ook door hun korte freeze heen (DKOOI.open)
+  if (running && !paused && !won) dkStap(realDt);
   if (kooiVries > 0){
     dt = 0;
     if (running && !paused && !won){
@@ -58526,7 +58578,6 @@ function readLevel(txt){
                                                 // poort: komt pas uit die poort als een zegel of rune hem opent (zie "poort")
                                                 poort: (s.poort === undefined || s.poort === null) ? undefined : String(s.poort),
                                                 kgat: Number.isInteger(s.kgat) ? s.kgat : undefined,     // de kelderzaal: achter traliedeur kgat (zie KZAAL)
-                                                kkooi: Number.isInteger(s.kkooi) ? s.kkooi : undefined,  // en in kooi kkooi
                                                 // de hinderlaag van Co-op (zie "de hinderlaag"): welke hinderlaag en in welk shot hij binnenkomt
                                                 hl: Number.isInteger(s.hl) && s.hl >= 0 ? s.hl : undefined,
                                                 shot: Number.isInteger(s.shot) && s.shot >= 0 ? s.shot : undefined,
@@ -58550,7 +58601,7 @@ function readLevel(txt){
                                              flip: !!q.f, y: Number(q.y) || 0 })),
            hangstammen: (o.hangstammen || []).map(q => ({ x: Number(q.x), ...(q.h != null ? { h: Number(q.h) } : {}), ...(q.breed != null ? { breed: Number(q.breed) } : {}), ...(q.tweede !== undefined ? { tweede: q.tweede === false ? false : Number(q.tweede) } : {}) })),   // de hangende stam (HSTAM)
            tonnen: (o.tonnen || []).map(q => ({ x: Number(q.x), y: Number(q.y) || 0, kalebas: !!q.kalebas, f: !!q.f, put: q.put != null ? Number(q.put) : undefined, kraam: q.kraam != null ? Number(q.kraam) : undefined, luifel: q.luifel != null ? Number(q.luifel) : undefined, a: q.a != null ? Number(q.a) : undefined })),   // houten tonnen die breken
-           dierkooien: (o.dierkooien || []).map(q => ({ x: Number(q.x), maat: DKOOI.maten[q.maat] ? q.maat : 'hoog', doek: DKOOI.doeken[q.doek] ? q.doek : null, dier: DKOOI.dieren[q.dier] ? q.dier : null, f: !!q.f, achter: !!q.achter, vg: !!q.vg, s: q.s != null ? Number(q.s) : undefined, dekking: q.dekking != null ? Number(q.dekking) : undefined, kleur: Array.isArray(q.kleur) ? q.kleur.map(Number) : undefined })),   // dierenkooien (DKOOI)
+           dierkooien: (o.dierkooien || []).map(q => ({ x: Number(q.x), maat: DKOOI.maten[q.maat] ? q.maat : 'hoog', doek: DKOOI.doeken[q.doek] ? q.doek : null, dier: DKOOI.dieren[q.dier] ? q.dier : null, open: (q.open === 'bij' || q.open === 'zegel') ? q.open : undefined, id: q.id != null ? String(q.id) : undefined, deur: (q.deur === 'l' || q.deur === 'r') ? q.deur : undefined, f: !!q.f, achter: !!q.achter, vg: !!q.vg, s: q.s != null ? Number(q.s) : undefined, dekking: q.dekking != null ? Number(q.dekking) : undefined, kleur: Array.isArray(q.kleur) ? q.kleur.map(Number) : undefined })),   // dierenkooien (DKOOI)
            kistjes: (o.kistjes || []).map(q => ({ x: Number(q.x), f: !!q.f, achter: !!q.achter, vg: !!q.vg, s: q.s != null ? Number(q.s) : undefined })),   // het kistje onder het doek (DKOOI)
            wapenrekken: (o.wapenrekken || []).map(q => ({ x: Number(q.x), f: !!q.f, n: q.n != null ? Number(q.n) : undefined, put: q.put != null ? Number(q.put) : undefined, kraam: q.kraam != null ? Number(q.kraam) : undefined, luifel: q.luifel != null ? Number(q.luifel) : undefined, a: q.a != null ? Number(q.a) : undefined })),   // wapenrekken met speren (zie "wapenrek"); eerst nam readLevel ze niet over, nu staan ze in The Roofs of Kumbasa
            thickets: (o.thickets || []).map(q => ({ x: Number(q.x),
@@ -58577,6 +58628,7 @@ function readLevel(txt){
                                                 rijs: (q.rijs === undefined || q.rijs === null) ? undefined : String(q.rijs),
                                                 // opent de poort met die naam: zijn vijanden komen eruit (zie "poort")
                                                 poort: (q.poort === undefined || q.poort === null) ? undefined : String(q.poort),
+                                                kooi: (q.kooi === undefined || q.kooi === null) ? undefined : String(q.kooi),   // opent de dierenkooien met die id
                                                 // verschijnt pas als de takel-brug in het ravijn is gestort (zie "takelwiel met plateau")
                                                 naTakelVal: q.naTakelVal === true,
                                                 // koppelingen: de seinen die dit zegel stuurt als het aan staat (zie "koppelingen")
@@ -67042,6 +67094,18 @@ document.getElementById('sbkooien').onclick = () => {
   flashHint('Dierenkooien: spring via het kistje op de hoge kooi, de lage haal je in een sprong');
   cv.focus();
 };
+// kooien die opengaan (DKOOI.open): een lage met een hyena, een hoge met een bandiet, een lage met een slang en een
+// volle die dicht blijft; loop erheen en het deurtje gaat open
+document.getElementById('sbkooiopen').onclick = () => {
+  dkLaad();
+  const A = CHAR_H * nowScale(), x0 = world - 5 * A;
+  dkLijst.push(dkNieuw({ x: x0, maat: 'laag', dier: 'hyena', open: 'bij' }),
+    dkNieuw({ x: x0 - 4 * A, maat: 'hoog', doek: 'half', dier: 'bandiet', open: 'bij' }),
+    dkNieuw({ x: x0 - 8 * A, maat: 'slang', dier: 'slang', open: 'bij' }),
+    dkNieuw({ x: x0 - 11 * A, maat: 'hoog', doek: 'over', dier: 'hyena' }));
+  flashHint('Cages that open: walk up to them. The last one stays shut');
+  cv.focus();
+};
 document.getElementById('sbtonnen').onclick = () => {
   tonLaad();
   const A = CHAR_H * nowScale(), w = TON.h * TON.romp * A, x0 = world - 2.2 * A;
@@ -67398,13 +67462,14 @@ document.getElementById('sbkelder').onclick = () => {
   flashHint('Loop naar de muur: het kelderluik vliegt open');
   cv.focus();
 };
-// de kelderzaal (zie KZAAL): het plafond, palen, traliedeuren met een bandiet en een kooi met een hyena, voor je uit
+// de kelderzaal (zie KZAAL): het plafond, palen, traliedeuren met een bandiet en een dierenkooi met een hyena, voor je uit
 document.getElementById('sbkzaal').onclick = () => {
   const x = world - 500;
   level.kelderZaal = { plafond: { r: x + 300 }, palen: [x - 200, x - 1750],
-                       deuren: [ { x: x - 600 }, { x: x - 1150, bandiet: true } ], kooien: [ { x: x - 2150 } ] };
-  level.spawns = (level.spawns || []).filter(sp => sp.kgat == null && sp.kkooi == null);
-  level.spawns.push({ x: x - 1150, kind: 'bandiet', kgat: 1, n: 1, zicht: true }, { x: x - 2150, kind: 'hyenas', kkooi: 0, n: 1, zicht: true });
+                       deuren: [ { x: x - 600 }, { x: x - 1150, bandiet: true } ] };
+  level.spawns = (level.spawns || []).filter(sp => sp.kgat == null);
+  level.spawns.push({ x: x - 1150, kind: 'bandiet', kgat: 1, n: 1, zicht: true });
+  dkLaad(); hyLoad(); dkLijst.push(dkNieuw({ x: x - 2150, maat: 'hoog', dier: 'hyena', open: 'bij' }));   // de kooi met de hyena (DKOOI)
   level.fakkels = [ { x: x - 870, y: 0.95, s: 1 }, { x: x - 1500, y: 0.95, s: 1 } ];
   sbLagen = 'kelder'; lichtMengKey = null; sbLagenToon();
   hyLoad(); banLaad(false); stadLaad(); kzaalReset();
