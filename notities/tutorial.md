@@ -13,8 +13,14 @@ via `broekBeeld`) en een donkerder huid (`MENTOR.huid`: de tinten van rood tot o
 blijft). Identiteit en verhaal komen later; dan kan hij eigen art krijgen.
 
 Bij elk station doet hij het stuk eerst voor ("Watch."), draait zich om, en wacht in zijn idle tot de speler bij hem is
-(`MENTOR.bij`, op de grond) en gedaan heeft wat het station vraagt (`eis`, nu alleen `rol`, gemeld door `rolStart` via
-`mentorEvent`). Dan "goed zo" (`ok`), en hij doet het volgende voor.
+(`MENTOR.bij`, op de grond, en minstens een seconde na zijn aankomst) en gedaan heeft wat het station vraagt (`eis`: `rol`,
+gemeld door `rolStart` via `mentorEvent`, of `sprint`, een halve seconde met Shift over de grond rennen). Staat de speler stil
+bij hem zonder het gedaan te hebben, dan zegt hij `nog`. Dan "goed zo" (`ok`, met `okDuur` per station), en hij doet het
+volgende voor. Voorbij hem lopen kan niet: zolang hij uitlegt, voordoet of aftelt houdt hij de speler `MENTOR.voor` achter
+zich (niet in de race en niet bij het slot).
+
+Hij wordt getekend vlak voor Amir (na de lichtkaart), in dezelfde stand van de camera; eerder in het beeld stond hij op
+een hogere laag te zweven.
 
 ## Het spoor: opgenomen, niet nagebouwd
 
@@ -39,11 +45,22 @@ mentor: { spoor, finish, prijs: {x, h}, win, verlies, vallen: [grappen], station
 - `seg`: welk stuk hij daarna voordoet. Zonder `seg` (maar met `ok`) gaat hij meteen door naar het volgende station.
 - `eis` en `nog`: wat de speler eerst moet doen, en wat hij zegt als de speler bij hem is zonder het gedaan te hebben.
 - `kijk`: de tekst aan het begin van het voordoen (standaard "Watch.", `false` voor geen).
-- `terug`: waar een val (`fallDeath`, via `mentorVal`) de speler neerzet: een korte fade (`MENTOR.val`) en een grap uit `vallen`.
+- `terug`: een veilige plek voor een stuk. Een val (`fallDeath`, via `mentorVal`) zet de speler op de dichtstbijzijnde
+  `terug` achter hem (op plek, niet op station: in de race loopt het station al vooruit), met een korte fade
+  (`MENTOR.val`) en een grap uit `vallen`; de uitleg van het station blijft achter de grap staan.
 - `race`: aftellen (3, 2, 1, Go!), dan speelt hij zijn stuk op `MENTOR.race.tempo` (iets trager dan opgenomen). Wie het
   eerst voorbij `finish` is wint; wint de speler, dan komt er een kalebas op `prijs`.
 
 `readLevel` neemt het veld over. In de sandbox doet de mentor niets.
+
+## De kruipstam (`kruipstammen`)
+
+Geen zwevende rots meer (de opdrachtgever wil niets dat nergens aan vastzit): een omgevallen dode stam op twee keien, een
+Grok-plaat (`design/tutorial/stam_keien.png`, gemaakt met de stijl van `design/tree.png` en `design/boulder.png`, wit
+weggeknipt). `kruipstammen: [{x, s}]`, `x` het midden. readLevel zet er een onzichtbare zwevende laag onder
+(`look: 'geen'`, `kruipstamDak`) met de onderkant van de stam als `onder` (163): staand loop je ertegenaan, kruipend kom
+je eronder door. De keien staan net achter het pad. levelcheck telt zo'n kruipdak niet mee in de sprongen tussen zwevende
+lagen.
 
 ## De wolk
 
@@ -59,3 +76,5 @@ op als de tekst wisselt. De grootte schaalt met de hoogte van het scherm. De bal
 - `offline-assets.json` kent het spoor nog niet: draai `tools/gen-offline-manifest.py` op een volledige checkout. Zonder het
   spoor is het level gewoon speelbaar, alleen zonder mentor.
 - Het level staat nu in Test levels; als het af is, krijgt het een eigen plek in Campaign.
+- De klim: een laag savanneterras, dan een plateau van rots (een hoge savannelaag wordt onderin zwart) met een richel aan
+  de wand.

@@ -24,18 +24,22 @@ const START = [ { tot: -450 }, { draai: 1 }, { idle: 0.6, stil: true }, { lus: 1
 const SEGS = [
   // 0: naar de kei, eroverheen
   [ { tot: -690 }, { spring: 14, tot: -1150 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
-  // 1: het terras op, de twee lagen op
-  [ { tot: -1395 }, { spring: 10, tot: -1700 }, { spring: 16, tot: -1975 }, { spring: 16, tot: -2300 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
-  // 2: eraf, en kruipend onder het rotsdak door
-  [ { tot: -2880 }, { kruip: true, tot: -3430 }, { tot: -3600 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
+  // 1: het lage terras op, de richel aan de wand, en het hoge terras op
+  [ { tot: -1395 }, { spring: 10, tot: -1700 }, { tot: -1745 }, { spring: 16, tot: -1765 }, { spring: 16, tot: -2300 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
+  // 2: eraf, en kruipend onder de omgevallen stam door
+  [ { tot: -2850 }, { kruip: true, tot: -3470 }, { tot: -3620 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
   // 3: rollen
   [ { tot: -3760 }, { rol: 1, tot: -4100 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
-  // 4: de sprintsprong over het ravijn
-  [ { sprint: true, tot: -4255 }, { spring: 16, sprint: true, tot: -5000 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
-  // 5: de race naar de top (seg 6 in het level is de race; seg 5 hierboven is de sprong)
-  [ { sprint: true, tot: -5215 }, { spring: 14, sprint: true, tot: -5715 }, { spring: 14, sprint: true, tot: -6200 },
-    { kruip: true, tot: -6575 }, { sprint: true, tot: -6790 }, { spring: 16, sprint: true, tot: -7240 },
-    { spring: 16, sprint: true, tot: -7690 }, { spring: 16, sprint: true, tot: -8150 }, { draai: 1 }, { lus: 1 }, { idle: 3 } ]
+  // 4: over een smal gat, gewoon lopend
+  [ { tot: -4235 }, { spring: 14, tot: -4700 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
+  // 5: sprinten
+  [ { sprint: true, tot: -5100 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
+  // 6: de sprintsprong over het brede ravijn
+  [ { sprint: true, tot: -5420 }, { spring: 16, sprint: true, tot: -6250 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
+  // 7: de race naar de top
+  [ { sprint: true, tot: -6465 }, { spring: 14, sprint: true, tot: -6965 }, { spring: 14, sprint: true, tot: -7390 },
+    { kruip: true, tot: -8025 }, { sprint: true, tot: -8090 }, { spring: 16, sprint: true, tot: -8490 },
+    { spring: 16, sprint: true, tot: -8940 }, { spring: 16, sprint: true, tot: -9400 }, { draai: 1 }, { lus: 1 }, { idle: 3 } ]
 ];
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png',
@@ -84,7 +88,7 @@ function opname([START, SEGS]){
     tel++;
     if (laatste && tel % 2 === 0 && !(si === 0 && !(c.idle || c.lus))) cur.f.push(laatste);
     if (laatste && tel % 2 === 0 && c.stil) cur.f.pop();
-    if (tel % 6 === 0) B.spoor.push([si, ci, Math.round(world), Math.round(ph), onGround ? 1 : 0, duckT.toFixed(1)]);
+    if (tel % 6 === 0) B.spoor.push([si, ci, Math.round(world), Math.round(ph), onGround ? 1 : 0, duckT.toFixed(1), jump ? jump.phase : '-', keys['ArrowUp'] ? 'U' : '', st ? (st.los ? 'L' : st.spring) : '']);
     if (!st){                                              // een nieuwe opdracht begint
       st = { t: 0 };
       if (c.lus){ cur.lus = cur.f.length; ci++; st = null; return; }
@@ -102,11 +106,11 @@ function opname([START, SEGS]){
     if (c.kruip && !keys['ArrowDown']) toets('ArrowDown', true);
     if (!c.kruip && keys['ArrowDown']) toets('ArrowDown', false);
     if (st.spring != null){
-      if (st.spring === c.spring) toets('ArrowUp', true);
-      if (--st.spring <= 0){ toets('ArrowUp', false); st.spring = null; }
+      if (st.spring === c.spring && !st.los){ if (onGround){ toets('ArrowUp', true); st.los = !!(jump && jump.phase === 'crouch'); if (!st.los) toets('ArrowUp', false); } }   // pas springen als hij staat
+      if (st.los && --st.spring <= 0){ toets('ArrowUp', false); st.spring = null; }
     }
     if (st.rol){ toets('v', true); toets('v', false); st.rol = false; }
-    if (c.tot != null && world <= c.tot && (onGround || c.kruip)){ ci++; st = null; }
+    if (c.tot != null && world <= c.tot && (onGround || c.kruip) && (!c.spring || st.los) && !(st.los && st.t < 0.15)){ ci++; st = null; }
     if (st && st.t > 30){ B.fout = 'vast bij stuk ' + si + ' opdracht ' + ci + ' op x ' + Math.round(world); B.klaar = true; }
   };
 }
