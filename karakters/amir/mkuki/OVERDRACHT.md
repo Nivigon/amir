@@ -79,6 +79,19 @@ schaal (0,3) en alleen de vergelijkplaten die twijfel geven.
 Een frame met de goede omtrek kan toch de verkeerde kant vooraan hebben: IoU ziet dat niet. Bij elke vergelijking
 kijken of het verre been en de verre arm achter en donker staan zoals in het origineel. De prompts hebben een DEPTH-zin.
 
+## Loopcycli: armen tegen benen in (Tom, 22-11 03:19, verplicht)
+Bij rennen, lopen, sluipen en elke andere cyclus niet alleen per frame kijken maar de hele cyclus achter elkaar:
+1. Per frame noteren welk been voor staat (nabij of ver) en welke arm voor zit (nabij of ver).
+2. Regel: nabij been voor = verre arm voor en nabije arm achter, en andersom. Wisselen de benen halverwege de cyclus,
+   dan wisselen de armen mee. Dezelfde arm de hele cyclus voor (of dezelfde kant als het voorste been) is FOUT,
+   ook als elk frame los op het origineel lijkt.
+3. Het origineel is hier geen garantie: de oude ren is twee keer dezelfde halve cyclus en de cape verbergt dat. Volgt
+   het origineel de regel niet, dan geldt de regel en noteer je de afwijking.
+4. Uitzondering: een hand die iets vasthoudt (de speer met twee handen bij het sluipen, de vuisten in dekking) hoeft
+   niet te zwaaien; dat staat dan in LOG.md.
+5. Kijken met `python3 tools/mkuki/cyclus.py uit.png 0.35 <paden>` (origineel boven, Mkuki onder) en daarna de GIF
+   van de hele lus naast het origineel. Pas daarna is een cyclusset af.
+
 ## Houding in 3D: verplichte controle per frame (Tom, 21-11 20:15)
 Bij ELK frame, ook in alle toekomstige sets, voor je het afwerkt vergelijken met het origineel:
 1. Draaiing van het lijf: borst naar de camera, half ingedraaid, of rug naar de camera (bij Amir: zie je de vacht op
