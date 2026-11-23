@@ -32,6 +32,7 @@
 //   node tools/mptest.js --zilverhart --stokken host   Silver Pride: de gast valt, de host legt het hart neer, de gast komt eruit
 //   node tools/mptest.js --sperenzien --spelers 2      de speren van een ander: zijn soort in de hand, de soorten op zijn rug
 //                                        en zijn gif, ook op een geworpen speer (--shots map: een schermafdruk van wat de host ziet)
+//   node tools/mptest.js --tonproef --spelers 2        de gast breekt een ton: de stukken komen tot rust, het houtgeluid houdt op
 //   node tools/mptest.js --bennu --spelers 2           de veren van de speerspeler, de bol als schild, en de zelf-revive met hart en veren
 //   node tools/mptest.js --stokken gast  deze spelers kiezen in de lobby de stokken (ook host, gast2, of host,gast): kijkt na
 //                                        dat iedereen het weet, dat hun potje met stokken start zonder speer, en hun winkel;
@@ -172,9 +173,6 @@ async function zhProef(R){
   meld(ow === 0 || await tot(G.page, () => zhOntwaakT === 0, null, 3000), 'na 3 s mag hij weer alles (na 3,5 s nog ' + ow.toFixed(2) + ' s)');
   for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
 }
-// Feathers of the Bennu (BN) en de zelf-revive: de gast valt, de host (met de speer) blaast de veren met G, de bol houdt een
-// vijand en een gifbal buiten, de gast staat op. Dan valt de gast met een hart in de tas (het klopt op zijn lijk) en met de
-// veren (de bol om zijn lijk), en is het geen game over zolang dat kan. node tools/mptest.js --bennu --spelers 2
 // --sperenzien: de gast draagt een Pathfinder in de hand, een Shield Piercer en Ardhi's Reach op de rug, met gif; de host
 // moet dat allemaal in de stand van de gast zien, en zijn eigen gif mag er niet door veranderen
 async function sperenZienProef(R){
@@ -194,6 +192,25 @@ async function sperenZienProef(R){
   await wacht(800);
   if (shots) await H.page.screenshot({ path: path.join(shots, 'speren_worp_host.png') });
 }
+// --tonproef: de gast raakt een ton drie keer, de host telt en breekt hem. Daarna moeten bij iedereen alle
+// stukken stil liggen en het houtgeluid ophouden (eerst stuiterden ze bij een lage framerate eindeloos, met elke keer een klik)
+async function tonProef(R){
+  const [H, G] = R;
+  meld(await tot(H.page, () => pvp.coop && pvp.coop.ronde >= 1 && tonnen.some(t => !t.weg), null, 60000), 'ronde 1 en een ton');
+  for (const r of R) await r.page.evaluate(() => { godMode = true; MPC_LEIBAND.max = 1e9; window.__hout = 0; const o = houtRaak; houtRaak = function(){ window.__hout++; return o.apply(this, arguments); }; });
+  const id = await G.page.evaluate(() => { const t = tonnen.find(t => !t.weg && t.mpId != null); if (!t) return null; return t.mpId; });
+  meld(id != null, 'de gast staat bij de ton');
+  for (let i = 0; i < 3; i++){ await G.page.evaluate(id => tonRaak(tonnen.find(t => t.mpId === id), 1, true), id); await wacht(700); }   // zoals een steek: de gast meldt, de host telt
+  for (const r of R) meld(await tot(r.page, id => { const t = tonnen.find(t => t.mpId === id); return t && t.weg; }, id, 5000), r.wie + ': de steken van de gast breken de ton');
+  await wacht(5000);
+  for (const r of R){
+    const s = await r.page.evaluate(() => ({ klik: window.__hout, los: tonStukken.filter(s => !s.rust && !s.weg).length }));
+    meld(s.los === 0 && s.klik < 60, r.wie + ': na 5 s liggen alle stukken stil en klinkt het hout niet meer (' + s.klik + ' klikken, ' + s.los + ' nog in beweging)');
+  }
+}
+// Feathers of the Bennu (BN) en de zelf-revive: de gast valt, de host (met de speer) blaast de veren met G, de bol houdt een
+// vijand en een gifbal buiten, de gast staat op. Dan valt de gast met een hart in de tas (het klopt op zijn lijk) en met de
+// veren (de bol om zijn lijk), en is het geen game over zolang dat kan. node tools/mptest.js --bennu --spelers 2
 async function bnProef(R){
   const [H, G] = R, allen = R.map(r => r.page);
   for (const p of allen) await p.evaluate(() => { godMode = true; MPC.reviveNa = 999; });
@@ -1181,6 +1198,7 @@ async function elk(H, G){
   if (args.includes('--winkel')){ await winkelProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--hl')){ await hlProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--sperenzien')){ await sperenZienProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
+  if (args.includes('--tonproef')){ await tonProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--bennu')){ await bnProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--zilverhart')){ await zhProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--ep')){ await epProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
