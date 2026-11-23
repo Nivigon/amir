@@ -1100,6 +1100,10 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   Het echte knipperen zat ergens anders: `stadLuifelDip` las `kuil.omhoog`, maar `omhoog` staat in `luifelStrak` naast
   `vast`. Bij elk naveren omhoog (een negatieve kuil, vlak na elke stuit) werd de kuil dus `NaN` en tekende de doek niet,
   alleen het hout eronder. Nu leest hij `luifelStrak.omhoog`.
+- **Ook tijdens een stuit** (`KUIL_BIJ`, in `stadKuilStap`): `kuilOp` hing eerst aan "staat op de doek" bij het begin van
+  de spelstap. Op de trampoline (Ishmul) raakt Amir de doek bij een stuit maar een beeld of twee, en dan was de kuil nog uit:
+  in de landingspose stonden zijn voeten bovenop de doek. Nu telt Amir als erop zodra zijn voeten boven de doek zijn en
+  hooguit `KUIL_BIJ` (0,08) Amir erboven, ook in de lucht. Geldt voor de strakke luifel en de rechte springdoek.
 - **Twee lagen**: de doek met de kuil voor Amir, en na Amir alleen de voorrand rond zijn voeten (`stadLuifelVoor`, in de
   render-lus voor `critFxTeken`), minder diep ingezakt (`kuil.voor`), vanaf `kuil.rand` boven de stallijn. Zo vallen zijn
   zolen en tenen achter de voorrand en loopt de doek achter hem omhoog.
