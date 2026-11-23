@@ -91,3 +91,10 @@ neer als die er nog niet is). Onder Zwevende laag, **Tonnen erop**: twee met een
 
 In de Maker: teken je een ton op een dak, galerij of balkon, dan krijgt hij `dak` (de hoogte van die vloer, zoals een vijand),
 op een zwevende laag `zwever: true`.
+
+## Stukken stuiteren hooguit twee keer (23-11-2026)
+
+Een los stuk stuitert hooguit `TON.stuit` (2) keer, en alleen als het harder neerkomt dan een beeld zwaartekracht
+(`-260 - TON.zwaarte * dt`). Bij een lage framerate (dt op het plafond van 0,05, wat in Co-op gebeurt) gaf de Euler-stap
+een stuk anders bij elke landing weer genoeg vaart voor een nieuwe stuit: de stukken stuiterden eindeloos, met elke keer
+een houtklik, en de ton leek in zijn animatie te blijven hangen. Proef: `node tools/mptest.js --tonproef --spelers 2`.
