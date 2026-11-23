@@ -223,6 +223,9 @@
   #menuRol.on{display:flex}
   #rolnaamrij{display:none;gap:8px}
   #menuRol.naam #rolnaamrij{display:flex}
+  #rolwwrij{display:none;gap:8px}
+  #menuRol.ww #rolwwrij{display:flex}
+  #rolww{font:inherit;font-size:16px;width:11em;padding:8px 12px;border-radius:8px;border:1px solid #8a6a3a;background:#1d140b;color:#f3e2bf}
   #rolnaam{font:inherit;font-size:18px;width:11em;padding:9px 12px;border-radius:8px;border:1px solid #8a6a3a;background:#1d140b;color:#f3e2bf}
   #rolfout{color:#e9a07a;font-size:12px;min-height:1.2em}
   #btnDesigner{display:none;position:absolute;left:14px;bottom:12px;z-index:3;padding:5px 11px!important;font-size:11px!important;
@@ -1339,6 +1342,10 @@
       <div id="rolnaamrij">
         <input id="rolnaam" maxlength="20" placeholder="Your name" autocomplete="off" spellcheck="false">
         <button id="rolgo" type="button">Start</button>
+      </div>
+      <div id="rolwwrij">
+        <input id="rolww" type="password" maxlength="30" placeholder="Designer password" autocomplete="off">
+        <button id="rolwwgo" type="button">Enter</button>
       </div>
       <small id="rolfout"></small>
       <p id="rolnote">We save your name and what you play, to improve the game.</p>
@@ -62874,6 +62881,7 @@ var TLOG = {
   sleutel: 'amir-tester-2026',
   rolKey: 'amir.rol', naamKey: 'amir.tester', idKey: 'amir.apparaat', rijKey: 'amir.tlogRij', nieuwKey: 'amir.tlogGezien.',
   max: 200,                                        // zoveel regels hooguit in de wachtrij
+  ww: 'a50b8943a8a9b9a96f48f726e335cee5b6367fb897145387c233d6d1aab3a80e',   // het designerwachtwoord, SHA-256 van de kleine letters
 };
 var tlog = { potje: null, sessie: Math.random().toString(36).slice(2, 8), doden: 0, doodLevel: null, bron: null, bezig: false };
 function tlogLees(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -63004,14 +63012,32 @@ function tlogNaamKlaar(){
   tlogWieToon(); showMenu('menuMain');
 }
 document.getElementById('btnTester').onclick = () => {
-  rolEl.classList.add('naam'); rolFoutEl.textContent = '';
+  rolEl.classList.remove('ww'); rolEl.classList.add('naam'); rolFoutEl.textContent = '';
   rolNaamEl.value = tlogLees(TLOG.naamKey) || '';
   rolNaamEl.focus();
 };
 document.getElementById('rolgo').onclick = tlogNaamKlaar;
 rolNaamEl.addEventListener('keydown', e => { if (e.key === 'Enter') tlogNaamKlaar(); });
-document.getElementById('btnDesigner').onclick = () => { tlogZet(TLOG.rolKey, 'designer'); tlogWieToon(); showMenu('menuMain'); };
-document.getElementById('rolwissel').onclick = () => { tlogZet(TLOG.rolKey, null); rolEl.classList.remove('naam'); showMenu('menuRol'); };
+// Designer vraagt een wachtwoord (TLOG.ww is de SHA-256 ervan, in kleine letters; hoofdletters tellen niet). Een lichte drempel,
+// geen beveiliging: het spel staat openbaar, wie de code leest kan eromheen. Zonder crypto.subtle (geen https) vergelijkt hij niets en laat hij niet toe.
+const rolWwEl = document.getElementById('rolww');
+document.getElementById('btnDesigner').onclick = () => {
+  rolEl.classList.remove('naam'); rolEl.classList.add('ww'); rolFoutEl.textContent = '';
+  rolWwEl.value = ''; rolWwEl.focus();
+};
+async function tlogWwKlaar(){
+  let goed = false;
+  try {
+    const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rolWwEl.value.trim().toLowerCase()));
+    goed = [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join('') === TLOG.ww;
+  } catch (e) {}
+  if (!goed){ rolFoutEl.textContent = 'Wrong password'; rolWwEl.select(); return; }
+  rolFoutEl.textContent = ''; rolEl.classList.remove('ww');
+  tlogZet(TLOG.rolKey, 'designer'); tlogWieToon(); showMenu('menuMain');
+}
+document.getElementById('rolwwgo').onclick = tlogWwKlaar;
+rolWwEl.addEventListener('keydown', e => { if (e.key === 'Enter') tlogWwKlaar(); });
+document.getElementById('rolwissel').onclick = () => { tlogZet(TLOG.rolKey, null); rolEl.classList.remove('naam', 'ww'); showMenu('menuRol'); };
 tlogWieToon();
 if (!tlogRol() || (tlogRol() === 'tester' && !tlogLees(TLOG.naamKey))) showMenu('menuRol');
 tlogLeeg();                                        // wat er de vorige keer is blijven liggen
