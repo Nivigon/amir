@@ -895,7 +895,7 @@ def velden(lv, sp):
         if o.get('k') not in sp.NPCS:
             yield fout(o.get('x'), "npc '%s' staat niet in NPCS en wordt weggelaten" % o.get('k'))
     for o in lv.d.get('spawns') or []:
-        if o.get('k') not in ('groen', 'zwart', 'knock', 'scorp', 'panter', 'hyenas', 'fosfor', 'bandiet', 'kooiman', 'meelman', 'schildman', 'kruisboogbandiet', 'zweepman'):
+        if o.get('k') not in ('groen', 'zwart', 'knock', 'scorp', 'panter', 'hyenas', 'fosfor', 'bandiet', 'kooiman', 'schildman', 'kruisboogbandiet', 'zweepman'):
             yield fout(o.get('x'), "vijand '%s' bestaat niet: het spel maakt er een groene slang van" % o.get('k'))
     gs = lv.d.get('grondSoort')
     if gs is not None:

@@ -25,7 +25,7 @@ Alleen doden waar al bloed in de animatie zit (besproken met de opdrachtgever):
 - **De zweepman** (`zwmDruppelStap`): de spat en het nadruppelen na een treffer, 9 s (`ZWM_BLOED.lig`). Er moeten een
   paar druppels bij elkaar liggen (`drempel`). Nyundo gebruikt dezelfde druppels, maar staat nooit op hout.
 
-Niet: de gewone dood van bandiet, kruisboogbandiet, kooiman en meelman (geen bloed in de animatie), de slang (te klein,
+Niet: de gewone dood van bandiet, kruisboogbandiet en kooiman (geen bloed in de animatie), de slang (te klein,
 3,8 s), gif, de lensspat.
 
 ## Regels

@@ -10,7 +10,7 @@ Met `sneak: true` in een level (naast `zicht: true`, zonder zicht doet het niets
 niet opgemerkt heeft van achteren in een klap doden. Het bouwt op het zicht (`notities/zicht.md`): een vijand
 begint in rust (`s.zWacht`) en wordt wakker als hij Amir ziet. Het zicht had achter zijn rug nog de oude
 afstand (een half scherm op zijn niveau), dus van achteren naderen kon niet. De sluipaanval vervangt dat
-achterbereik door gehoor, alleen voor de mens-vijanden: bandiet, schildbandiet, kooiman, meelman,
+achterbereik door gehoor, alleen voor de mens-vijanden: bandiet, schildbandiet, kooiman,
 kruisboogbandiet en zweepman (`oog === 'mens'` in `vijandZiet`, dat zet `s.sMens`). Slangen, schorpioenen,
 hyena's en de panter kijken zoals ze deden; een baas doet niet mee.
 
@@ -52,7 +52,7 @@ tijdraam: lopen tot net buiten gehoor, bukken, een stukje kruipen en steken duur
 geeft ongeveer 3 s. Wie treuzelt wordt gezien. Lion's Patience verdubbelt de klok.
 
 `sneakRust` zit in `zichtWaak` (bandiet, schildbandiet, kooiman, zweepman, alleen in rust en alleen voor `'mens'`)
-en los in `updateMeelman` en `updateKruisboog`, die hun "ziet" zelf uitrekenen en hun rust via `zichtWaakMet`
+en los in `updateKruisboog`, die zijn "ziet" zelf uitrekent en zijn rust via `zichtWaakMet`
 bijhouden. De kruisboogbandiet staat met de sluipaanval in rust stil in zijn mikhouding in plaats van naar Amir toe
 te lopen, en draait zich in rust niet naar hem toe.
 

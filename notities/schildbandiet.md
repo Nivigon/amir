@@ -65,6 +65,14 @@ zonder E en zonder freeze. Twee smaken, op `e.laag`:
 - **Dood hoog** (na een worp, `wijze: 'worp'`): de lagen `speer` en `wond` tekenen mee, Amirs speer zit in zijn borst
   (`jav = null`), en vanaf frame `EXE.speerLigtVan` (7) van de val ligt hij echt op de grond op `speer_ligt_op`
   (`exeSpeerNeer`, op te pakken met E), net als na het wankelen zonder E.
+  De speer-laag is een plaatje van de standaardspeer. Was het een andere soort (`e.blauw`: Pathfinder, Shield Piercer,
+  Ardhi's Reach, een gekleurd vaantje), dan tekent `exeSpeerPose` die soort met `javTeken` op de pose van de laag: `tip`
+  (de punt, vanaf anker en grondlijn), `hoek` (graden) en `in` (zoveel px vanaf de punt zit in het lijf en wordt
+  weggeknipt), met `speer_lengte` in de json voor de schaal. Het vaantje van de Pathfinder hangt er ongeknipt aan. De
+  pose komt uit `tools/schildman_speerpose.py` (past de standaardspeer op elk speerplaatje van knielen, wankel en val);
+  draai dat opnieuw na een nieuwe export van die lagen. De executie zelf (Amir rukt de speer eruit) tekent nog altijd de
+  standaardspeer. Bij de worp-kill speelt `exeStart` de bloedspetter (`bloedSpeel`, `sounds/bloedspuit.mp3`), ook als
+  het de executie met E wordt.
 - **Dood laag** (na een steek, de lage zwaai, of de sandbox-knop Dood): zonder de lagen `speer` en `wond`; Amir houdt zijn
   speer gewoon in handen.
 

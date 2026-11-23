@@ -21,8 +21,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # van Amir en de hyena (tools/gen-klein.py); die hoort erbij zodat het spel ook
 # offline nog van set kan wisselen.
 # 'amir runc' is de oude mappenstructuur; daar staan de speerworpframes.
-# items/ (de drinkkalebas, de meelzakken) en ravijn/assets/ (de wand en de stenen van het ravijn)
-# zaten er lang niet in, en dan ontbraken ze offline in elk level met een ravijn of een meelman.
+# items/ (de drinkkalebas) en ravijn/assets/ (de wand en de stenen van het ravijn)
+# zaten er lang niet in, en dan ontbraken ze offline in elk level met een ravijn.
 ASSET_DIRS = ('amir runc', 'design', 'enemies', 'items', 'karakters', 'klein', 'music', 'ravijn', 'sounds')
 
 # Alleen deze extensies; de rest is bronmateriaal of documentatie. De json hoort
@@ -98,7 +98,6 @@ ARENA_SOORTEN = {
     'bandiet': ('enemies/bandiet/', 'enemies/bandiet_elite/', 'enemies/bandiet_duin/'),
     'schildman_makkelijk': ('enemies/schildbandiet/',),
     'schildman': ('enemies/schildbandiet/',),
-    'meelman': ('enemies/meelman/',),
     'kooiman': ('enemies/kooiman/', 'enemies/vogel/'),
 }
 # wat binnen die mappen toch niet meegaat: het skelet en het speerteken (levels), en de

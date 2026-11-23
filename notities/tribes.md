@@ -62,7 +62,7 @@ Het vierde talent van beide trees. Het houten plaatje is `4_true_flight.png` en 
   `critKans` deel crit, geschud, zonder terugleggen, `critZakVul`/`critZakTrek`), per level een verse zak (`restart`).
   Raakt de speer, dan zet `javHitEnemy` `critNu`, en de `hitX` van de vijand haalt met `critPak()` een treffer extra af
   in dezelfde aanroep (een tweede aanroep stuit op zijn `inv`): `enemyTakeHit` (slangen, schorpioen), `hitHyena`,
-  `hitBandiet`, `hitMeelman`, `hitKruisboog`, `hitKooiman`, `hitZweepman` (die slaat de arm eraf niet over) en
+  `hitBandiet`, `hitKruisboog`, `hitKooiman`, `hitZweepman` (die slaat de arm eraf niet over) en
   `hitSchildman` (het schild een stand extra, nooit door het schild heen in een klap). Bazen roepen `critPak` niet aan;
   elk beeld zet `critNu` uit bij `javBox`. Het effect: `critFx` (hitstop, schok) en `critFxTeken` (een witgouden ster),
   ook op het oefendoel van Test 60. Een fosforslang of een kooiman die de speer afslaat krijgt geen schade, dus ook geen crit.
@@ -103,7 +103,7 @@ vertraagde beeld zit bewust alleen op de perfecte: elke keer zou snel gaan verve
 De tweede speer raakt door de onkwetsbaarheid heen. Een vijand is na een treffer even onkwetsbaar (`s.inv`, bij de bandiet
 1,15 s), en de tweede komt zo'n 0,55 s na de eerste aan: hij viel dan zonder schade op de grond, of werd niet eens getest.
 Een speer met `jav.dubbel` zet bij een gewone vijand `s.inv` op 0 (`dubbelDoor`, via `javRaakt(box, s)`), en waar een
-vijand tijdens zijn onkwetsbaarheid de speertest oversloeg (bandiet, meelman, kruisboogbandiet, schildbandiet, zweepman,
+vijand tijdens zijn onkwetsbaarheid de speertest oversloeg (bandiet, kruisboogbandiet, schildbandiet, zweepman,
 en bij de hyena de test vooraf) test hij nu toch de tweede (`dubbelVliegt`). De bandiet pareert hem niet. Uitgezonderd: de
 bazen (panter, baviaan, Nyundo) en de kooiman (alleen te raken als zijn kooi open is). En de eerste `DUBBEL.dichtT`
 (0,08 s) raakt de tweede ook wat tussen Amir en de punt staat (`javVak`): een bandiet stormt na de eerste treffer meteen

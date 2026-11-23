@@ -524,14 +524,14 @@ brug moeten kunnen lopen.
   zijn voeten ligt, `supportHeight` neemt het als steun (via `p.stap`, net als de helling van de strakke luifel), en in
   `updateJump` glijdt `ph` met `OPSTAP.v` (400 px/s) omhoog en omlaag in plaats van te springen of te vallen.
 - **Vijanden:** `blocksMonster` en `dropAhead` laten een opstapje door, en de hoogte van de bandiet, schildbandiet,
-  kooiman, meelman, kruisboog, zweepman en hyena (en de panter, die `updateHyena` deelt) volgt de vloer met `opstapVolg`.
+  kooiman, kruisboog, zweepman en hyena (en de panter, die `updateHyena` deelt) volgt de vloer met `opstapVolg`.
   Een uitzondering op "vijanden gaan niet over treden", maar alleen voor terrassen met de vlag; elke andere trede houdt ze
   tegen zoals altijd.
 - **Slangen en schorpioenen** blijven beneden (`geenOpstap` in `slangSchuif` en `scpBlocked`): voor hen is 28 een hele trede.
 - `opstapBij` zoekt tot 160 voorbij de rand van een opstapje: de bandiet kijkt een halve lijfbreedte vooruit, en met 60 bleef
   hij op de laatste trede staan.
 - Een trap van opstapjes af (`opstapTrap`, met de plek waar hij staat als `x0` in `dropAhead`, vanuit `knockBlocked` en de
-  storm van de hyena): de kooiman en de meelman kijken verder vooruit dan een trede breed is (80 op Ishmul) en zagen bovenaan
+  storm van de hyena): de kooiman kijkt verder vooruit dan een trede breed is (80 op Ishmul) en zagen bovenaan
   het plein al de trede van 28, 56 lager. Dan bleven de meelman en de duel-kooiman daar voorgoed staan, en hield een ronde
   van Co-op nooit op. Nu loopt `opstapTrap` de vloer ertussen na: alleen opstapjes, elk niet hoger dan `OPSTAP.max`, is
   geen rand (20-11-2026).
@@ -1043,6 +1043,14 @@ doek steekt van het huis af de straat in; wie erop landt wordt van het huis af w
   en op het lage huis 2, nu strak tegen huis 1, tegen de muur van huis 1 (`h` 926 boven dak 771, `worp` 1,4, je stuurt naar
   het dak van 1100). Vroeger hing die tweede tegen de muur van huis 3 en gooide hij je over het hele lage dak; recht omhoog
   met sturen haalt die afstand niet. Nagemeten op 852x393, 1280x720 en 1920x1080.
+- **De kuil** (`STAD_SPRINGDOEK.kuil`, `stadDoekDiep`, `stadKuilRecht`, het tweede deel van `stadLuifelVoor`): op de rechte
+  doek stond Amir op de bovenrand, met zijn voeten helemaal in beeld. Nu net als bij de strakke luifel: hij staat `kuil.amir`
+  van `kuil.diep` lager (in `stadLuifelPlats`), de doek zakt rond hem in (een klok van `kuil.breed` Amir, in kolommen in
+  `stadLuifelTeken`), en na Amir tekent `stadLuifelVoor` de doek nog een keer, maar `kuil.voor` zo diep ingezakt, in een vak
+  rond hem vanaf `kuil.rand` boven zijn voeten. Zo vallen zijn voeten tot de enkels achter de voorrand. Aan de paal zit de
+  doek vast: over `kuil.vast` bron-px loopt de kuil naar nul, anders scheurde de doek daar in twee lagen. `stadKuilStap`
+  houdt `kuilOp` ook voor de rechte doek bij, dus ook daar geen harde schaduw van Amir. De schuine doek en de luifel bij
+  de put krijgen dit niet: daar sta je nooit op, je wordt meteen weggeworpen.
 - **Kozijn** (`kozijn: true`, alleen met `recht`): de losse luifel boven een raam. Geen paal: die is uit het gebakken plaatje
   geknipt (`stadLuifelBeeld(kleur, onder, true, kaal)`) en er loopt niets naar `voet`. De schoor steunt tegen de muur, en
   onder de doek staat een smalle houten lat met een vensterbankje, de zijkant van een kozijn (in `stadLuifelTeken`). De regel
@@ -1092,6 +1100,19 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   Het echte knipperen zat ergens anders: `stadLuifelDip` las `kuil.omhoog`, maar `omhoog` staat in `luifelStrak` naast
   `vast`. Bij elk naveren omhoog (een negatieve kuil, vlak na elke stuit) werd de kuil dus `NaN` en tekende de doek niet,
   alleen het hout eronder. Nu leest hij `luifelStrak.omhoog`.
+- **Ook tijdens een stuit** (`KUIL_BIJ`, in `stadKuilStap`): `kuilOp` hing eerst aan "staat op de doek" bij het begin van
+  de spelstap. Op de trampoline (Ishmul) raakt Amir de doek bij een stuit maar een beeld of twee, en dan was de kuil nog uit:
+  in de landingspose stonden zijn voeten bovenop de doek. Nu telt Amir als erop zodra zijn voeten boven de doek zijn en
+  hooguit `KUIL_BIJ` (0,08) Amir erboven, ook in de lucht. Geldt voor de strakke luifel en de rechte springdoek.
+- **Allebei de voeten in de kuil** (`stadDoekVeilig`, `stadLuifelKlem`, `stadDoekStuitTerug`, `DOEK_TREK`): aan een eind stak
+  er een voet buiten de doek (de muurkant, waar de klem pas bij het laatste punt van `stal` stopte) of boven het stuk dat aan
+  stam of paal vastzit en niet inzakt (het open eind), en die voet zag je. Nu heeft elke doek (strakke luifel en rechte
+  springdoek) een veilig stuk: waar de kuil helemaal inzakt, een halve voetafstand (`kuil.voet`) van de rand. Sta je erbuiten,
+  dan trekt de doek je erheen (`DOEK_TREK`, 1,2 Amir per seconde). Aan de muurkant loop je niet verder dan het veilige stuk;
+  aan het open eind trekt hij je terug, behalve als je naar buiten loopt: dan loop je er gewoon af. Bij de rechte doek is
+  de marge aan het open eind groter (1,6 keer), omdat de franje erover hangt. Een stuit aan de rand (trampoline of rechte doek)
+  werpt je een stukje terug (`stadLuifelVx` over de duur van de stuit), zodat je de volgende keer in het veilige stuk landt.
+  De landingsplek zelf blijft de hele doek.
 - **Twee lagen**: de doek met de kuil voor Amir, en na Amir alleen de voorrand rond zijn voeten (`stadLuifelVoor`, in de
   render-lus voor `critFxTeken`), minder diep ingezakt (`kuil.voor`), vanaf `kuil.rand` boven de stallijn. Zo vallen zijn
   zolen en tenen achter de voorrand en loopt de doek achter hem omhoog.
@@ -1149,7 +1170,8 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   volume volgt hoe hard je landt, en op de trampoline klinkt elke goede stuit hoger (`plof.trede`), zodat je hoort dat je
   hoogte opbouwt. Uitstuiteren geeft ploffen die zachter worden.
 - **De muurkant** (`stadLuifelKlem`, na de andere klemmen in de beweging): wie op de doek staat, loopt aan de muurkant (het
-  hoge eind, tegen het huis) niet van de doek af maar stopt bij het laatste punt van `stal`. Aan de open kant val je er gewoon
+  hoge eind, tegen het huis) niet van de doek af maar stopt bij het veilige stuk (zie "allebei de voeten in de kuil"), en
+  nooit voorbij het laatste punt van `stal`. Aan de open kant val je er gewoon
   af, en springen gaat vrij. Het herkent "erop staan" aan de hoogte van de doek, niet aan `kuilOp` (die valt even weg bij een
   stapje op de helling).
 - **Landingsplek**: de hele doek (van het eerste tot het laatste punt van `stal`), zonder inkorting: aan het eind mag een voet

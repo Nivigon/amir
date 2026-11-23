@@ -27,6 +27,15 @@ duw zonder schade. Nu is het een talent van Mkuki dat je verdient door een openi
     In de hoogte is de zone plat (`FC.breed.ry`, in `steekOverY`): breed voor Amir, maar alleen op zijn eigen niveau, van
     zijn voeten tot iets boven zijn hoofd. Als cirkel raakte hij een vijand op een galerij of dak ver boven hem. Rondom
     uit de winkel van Co-op (`MPC.rond.ry`) net zo.
+- **Van de galerij geslagen** (op verzoek van de opdrachtgever, 23 november 2026): staat een bandiet of schildbandiet op
+  een galerij of dak in de stad en brengt de terugslag van de draaislag hem tot aan de rand, dan slaat hij eraf en valt
+  naar de straat (`FC_VAL`, `fcValLanding`, `fcValStart`, `fcValStap`; de vlag `s.fcVal` zet de treffer, alleen bij de
+  terugslag). Een klein wipje, een val met `FC_VAL.g`, landen met stof, en dan `FC_VAL.rust` stil. In de val is hij niet
+  te raken. Alleen als de plek beneden veilig is, anders blijft hij aan de rand staan zoals eerst: gewone grond (geen
+  lagere galerij, kooi, zwever of gang eronder), geen ravijn of put, geen kraam onderweg, niet in een huis, niet voorbij
+  een wand, trede of de levelgrens (`hardBlocked`), en niet voorbij de lijn van een hinderlaag in Co-op (`hinderGrens`).
+  Een terras, zwever of de houten vloer van een huis telt niet als galerij. De landing wordt vanaf de rand van de galerij
+  gerekend (`stadVloeren`), niet vanaf zijn voeten: `dropAhead` houdt hem al een stuk voor de rand tegen.
 - Een Test level zonder tribe heeft alle talents: daar geldt Crushing Circle. De oude reeks van drie steken is overal uit
   (`comboKetenKan` alleen in de sandbox en Test 68).
 - **Uitproberen:** Test 68 kiest aan het begin en na R (Full Circle, Crushing Circle, Wide Circle, Drie steken, Duw op X;
