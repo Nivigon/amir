@@ -16626,7 +16626,8 @@ const HOLSTAM = {
   bron: { b: 2031, h: 576, L: 470, R: 1560, ov: 40,   // de plaat en de knippen voor de drie stukken (bronpixels)
           vloer: 472, top: 118, plafond: 122, knip: 486,   // looplijn binnen (op de grond), bovenkant (bovenop lopen), plafond binnen, waar hij in de grond verdwijnt
           rand: [0.16, 0.10], lip: -6 },          // het deel van de kolom boven en onder dat dicht blijft als de voorkant vervaagt; lip: de onderrand loopt tot zoveel boven de looplijn door, over Amirs voeten (zo sta je erin)
-  schilFilter: 'brightness(0.8) saturate(0.88)',   // de buitenkant iets donkerder en minder fel: hij was lichter en warmer dan de hangende stam ernaast
+  schilFilter: 'brightness(0.8) saturate(0.88)',
+  mos: { hue: [44, 60], draai: 6, vol: 1.25, licht: 0.8 },   // het mos: vanaf die tint groen (overlopend), zoveel graden groener, zoveel voller en donkerder   // de buitenkant iets donkerder en minder fel: hij was lichter en warmer dan de hangende stam ernaast
   hoog: 2.25,               // de hoogte van de hele plaat bij s 1, in Amir (binnen dan ruim boven Amir, bovenop op 1,5 Amir)
   vaag: 1,                  // zoveel vervaagt de voorkant als Amir erin staat: helemaal, alleen de rand boven en de lip over zijn voeten blijven
   vaagV: 5,                 // hoe snel (per s)
@@ -16674,6 +16675,25 @@ function holstamDak(q){
   const M = holstamMaat(q), rand = 0.02 * M.w + (M.plafond < CHAR_H ? 0.16 * CHAR_H * nowScale() : 0);   // een kleine stam: het dak pas binnen de opening, zodat Amir tot in de opening loopt en daar moet bukken
   return { r: M.r - rand, l: M.l + rand, h: M.top, onder: M.plafond, look: 'geen', holstam: true, hq: Number(q.x) };
 }
+// het mos van de Grok-plaat was lichter en geler dan het mos van het regenwoud (de grondrand, de hangende stam):
+// een keer bij het bakken donkerder, voller en iets groener (HOLSTAM.mos). Alleen waar het groen is; de bast blijft.
+function holstamMosKleur(c){
+  const M = HOLSTAM.mos, g = c.getContext('2d'), d = g.getImageData(0, 0, c.width, c.height), p = d.data;
+  const glad = (a, b, x) => Math.max(0, Math.min(1, (x - a) / (b - a)));
+  for (let i = 0; i < p.length; i += 4){
+    if (p[i + 3] < 8) continue;
+    const r = p[i] / 255, gg = p[i + 1] / 255, b = p[i + 2] / 255, mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), dl = mx - mn;
+    if (dl < 0.02) continue;
+    let h = mx === r ? ((gg - b) / dl) % 6 : mx === gg ? (b - r) / dl + 2 : (r - gg) / dl + 4; h *= 60; if (h < 0) h += 360;
+    const sat = dl / mx, w = glad(M.hue[0], M.hue[1], h) * (1 - glad(130, 150, h)) * glad(0.22, 0.38, sat);
+    if (w <= 0) continue;
+    const h2 = h + M.draai * w, s2 = Math.min(1, sat * (1 + (M.vol - 1) * w)), v2 = mx * (1 - (1 - M.licht) * w);
+    const cc = v2 * s2, x = cc * (1 - Math.abs((h2 / 60) % 2 - 1)), m = v2 - cc, k = Math.floor(h2 / 60) % 6;
+    const [rr, g2, bb] = [[cc, x, 0], [x, cc, 0], [0, cc, x], [0, x, cc], [x, 0, cc], [cc, 0, x]][k];
+    p[i] = (rr + m) * 255; p[i + 1] = (g2 + m) * 255; p[i + 2] = (bb + m) * 255;
+  }
+  g.putImageData(d, 0, 0);
+}
 // de drie bakplaten van een stam (schil, de dichte rand, binnenkant), een keer per lengte op bronmaat
 function holstamBak(q){
   const I = holstamImgs; if (!I || !imgReady(I.schil) || !imgReady(I.binnen)) return null;
@@ -16699,6 +16719,7 @@ function holstamBak(q){
     return c;
   };
   const schil = maak(I.schil, HOLSTAM.schilFilter), binnen = maak(I.binnen);
+  holstamMosKleur(schil);
   // de binnenkant: het daglicht bij de openingen (en donkerder in de vuurvliegjes-variant)
   const bg = binnen.getContext('2d'); bg.globalCompositeOperation = 'source-atop';
   bg.fillStyle = 'rgba(8,5,3,' + (q.vlieg ? 0.5 : 0.3) + ')'; bg.fillRect(0, 0, bw, B.h);   // binnen is het donker (de lichtlaag van het spel maakt het weer lichter)
