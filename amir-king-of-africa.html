@@ -30325,7 +30325,7 @@ const typing = e => e.target && (e.target.tagName === 'TEXTAREA' || e.target.tag
 addEventListener('keydown', e => {
   if (makerOpen) return;                          // de Level Maker heeft zijn eigen scherm; het spel reageert dan niet op toetsen
   if (winkelUIAan){                              // het winkelscherm: Escape of E sluit het, de rest doet niets
-    if (e.key === 'Escape' && pvp && pvp.dw && pvp.dw.inWinkel){ e.preventDefault(); winkelUIDicht(true); toMenu(); return; }   // de winkel van het Duel: Escape is terug naar de lobby
+    if (e.key === 'Escape' && pvp && pvp.dw && pvp.dw.inWinkel && !pvp.dw.mijnKlaar){ e.preventDefault(); winkelUIDicht(true); toMenu(); return; }   // de winkel van het Duel: Escape is terug naar de lobby (na Ready sluit hij gewoon)
     if (e.key === 'Escape' || e.key === 'e' || e.key === 'E'){ e.preventDefault(); winkelUIDicht(); }
     return;
   }
@@ -30362,6 +30362,7 @@ addEventListener('keydown', e => {
   if (sandbox && (e.key === 'j' || e.key === 'J')){ if (!e.repeat) bavAfzetWissel(); return; }   // de afzet van de baviaan
   if (sandbox && (e.key === 'k' || e.key === 'K')){ if (!e.repeat) bavSchudNu(); return; }   // het hoofdschudden meteen
   if (e.key.toLowerCase() === woedeWaarde('toets')){ if (!e.repeat) woedeStart(); return; }   // de woede van Bhubesi
+  if ((e.key === 'r' || e.key === 'R') && mpWinkelWacht()){ if (!e.repeat) mpcKlaarDruk(); return; }   // in de winkel na Ready: R is Not ready (en de winkel weer open)
   if (e.key === 'r' || e.key === 'R'){ opnieuw(); return; }
   if ((e.key === 'h' || e.key === 'H') && testBalkMag()){ showBoxes = !showBoxes; setBoxLabel(); return; }
   if ((e.key === 'b' || e.key === 'B') && testBalkMag()){ barEl.classList.toggle('hide'); barPijlToon(); return; }   // testbalk erbij halen
@@ -30379,6 +30380,7 @@ addEventListener('keydown', e => {
     thrPress();                                  // vasthouden = spannen, een tik = de oude stoot
     return;
   }
+  if ((e.key === 'e' || e.key === 'E') && pvp && pvp.dw && pvp.dw.inWinkel){ if (!e.repeat){ winkelUIOpen(); mpcWinkelBanner(); } return; }   // de winkel van het Duel: geen toonbank, E opent hem overal
   if (e.key === 'e' || e.key === 'E'){ if (!e.repeat) eDruk(); return; }   // vasthouden trekt aan een skelet, zie skeletTrek
   if ((e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') && !e.repeat && straatKnoopToets('neer')){ e.preventDefault(); return; }   // bij een pad: het pad af
   if ((e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') && !e.repeat && doorvalTik()){ keys[e.key] = true; e.preventDefault(); return; }   // twee keer omlaag: door het hout (DOORVAL)
@@ -38635,7 +38637,7 @@ function winkelUIOpen(){
 }
 function winkelUIDicht(af){
   if (!winkelUIAan) return;
-  if (!af && typeof pvp !== 'undefined' && pvp && pvp.dw && pvp.dw.inWinkel) return;   // de winkel van het Duel: blijft open tot iedereen Ready is (Escape gaat naar de lobby)
+  if (!af && typeof pvp !== 'undefined' && pvp && pvp.dw && pvp.dw.inWinkel && !pvp.dw.mijnKlaar) return;   // de winkel van het Duel: blijft open tot iedereen Ready is (Escape gaat naar de lobby)
   winkelUIAan = false; winkelUIEl.classList.remove('on');
   document.getElementById('pvphud').classList.remove('wk');
   paused = false; cv.focus();
@@ -74704,6 +74706,11 @@ function duelWinkelUit(){
   const W = pvp.dw; if (!W || !W.inWinkel) return;
   W.inWinkel = false; W.mijnKlaar = false; W.wkKlaar = {}; W.vertrek = null; mpcLaatste = null;
   winkelUIDicht(true); mpcOntdooi();
+  // na Ready mocht je rondlopen: de ronde begint weer op je eigen startplek, met je speren terug (geen voorsprong)
+  const x = mpStarts()[pvpStartSlot()];
+  if (Math.abs(world - x) > 4 || ph > 1) stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: terrainH(x), face: pvpStartSlot() === 1 ? 1 : -1 }, T: MPC_WINKEL_WEG.fade, binnen: true };
+  else facing = pvpStartSlot() === 1 ? 1 : -1;
+  mpcSperenTerug();
   duelRugVol();                                      // een extra speerslot: meteen een speer op die plek
   pvpRondeStart(pvp.ronde);
   pvpHud();
@@ -75413,6 +75420,8 @@ function mpCoopAan(){ return !!(pvp && pvp.coop); }
 // winkel aan in de lobby). De winkelfuncties (mpcWinkel...) lezen goud, aankopen en Ready uit mpcWs()
 function mpcWs(){ return pvp ? (pvp.coop || pvp.dw || null) : null; }
 function mpWinkelAan(){ return !!mpcWs(); }
+// in de winkel en al Ready, met het scherm dicht: R is dan Not ready (niet opnieuw beginnen)
+function mpWinkelWacht(){ const W = typeof pvp !== 'undefined' && mpcWs(); return !!(W && W.inWinkel && W.mijnKlaar && !W.ep); }
 function mpKoop(){ const W = typeof pvp !== 'undefined' && mpcWs(); return W ? W.koop : null; }
 function mpcGast(){ return mpCoopAan() && !pvp.host; }
 function mpcLeeft(o){ return sbLeeft(o) && o.fase !== 'dood' && o.fase !== 'weg' && !(o.doodT0 > 0); }
@@ -76953,10 +76962,11 @@ function mpcWinkelAnderKlaar(){
   return n === anderen.length ? 'Both teammates are ready.' : n + ' of ' + anderen.length + ' teammates ready.';
 }
 function mpcWinkelBanner(){
-  const C = mpcWs(), wie = pvp.dw ? 'your opponent' : pvp.spelers.length > 2 ? 'your teammates' : 'your teammate', ander = mpcWinkelAnderKlaar();
-  if (C.vertrek && mpcVertrekTekst){ pvpBanner(mpcVertrekTekst + (C.mijnKlaar ? ' Press E at the counter for Not ready.' : '')); return; }
-  pvpBanner(C.mijnKlaar ? 'Ready. Waiting for ' + wie + '...'
-    : (ander ? ander + ' ' : '') + (pvp.dw ? 'Shop: buy what you need, then Ready' : 'Shop: press E at the counter, then Ready'));
+  const C = mpcWs(), ander = mpcWinkelAnderKlaar();
+  const tik = pvp.dw ? 'E: shop' : 'E at the counter: shop';
+  if (C.vertrek && mpcVertrekTekst){ pvpBanner(mpcVertrekTekst + (C.mijnKlaar ? '  (' + tik + ', R: not ready)' : '')); return; }
+  pvpBanner(C.mijnKlaar ? 'Waiting for other players...  (' + tik + ', R: not ready)'
+    : (ander ? ander + ' ' : '') + (pvp.dw ? 'Shop: press E, buy what you need, then Ready' : 'Shop: press E at the counter, then Ready'));
 }
 // weer de straat op, bij iedereen: het rek is weer vol, en bij de host begint de pauze naar de volgende ronde
 function mpcWinkelUit(){
@@ -76976,7 +76986,11 @@ function mpcKlaarDruk(){
   C.mijnKlaar = !C.mijnKlaar; C.wkKlaar[pvp.mij] = C.mijnKlaar;
   pvpZend({ t: 'wkklaar', aan: C.mijnKlaar });
   if (C.mijnKlaar) mpcZeg('klaar');
-  if (winkelUIAan) mpcWinkelToon();                   // het scherm blijft open: tijdens het aftellen kun je nog Not ready drukken
+  // Ready sluit het scherm: je kunt rondlopen (in Co-op in de winkelkamer, in het Duel op straat) en met E de winkel weer
+  // openen; Ready blijft dan staan. Not ready (de knop of R) opent hem weer. De episode heeft geen Ready (alleen Close)
+  if (C.mijnKlaar && !C.ep) winkelUIDicht(true);
+  else if (!C.mijnKlaar && !winkelUIAan && running && !paused) winkelUIOpen();
+  else if (winkelUIAan) mpcWinkelToon();
   mpcWinkelBanner();
   if (pvp.host) mpcWinkelKlaar();
 }
