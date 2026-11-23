@@ -862,6 +862,20 @@ niet met `STOK_AAN` of in een level met `broekKeuze` of een eigen `skin`).
   van het frame gedeeld door die van de Mkuki-kleur (`MK_OUTFIT.vref`), dus licht en schaduw blijven. Per tekening en
   per speler, dus in Co-op kan de een Mkuki zijn en de ander met de stokken het oude tenue. Wat de skin niet heeft
   (de oude ren, de sluipaanval, de executie, de stokken, de schaduw) blijft het oude tenue.
+- **Vooraf kleuren (`MK_WARM`).** Eerst kwam een outfit pas op kleur als een frame voor het eerst getekend werd: de
+  zonekaart moest nog binnenkomen en het kleuren (13 ms per frame in de grote set) gebeurde midden in het spel, dus zag je
+  een beweging eerst in Outfit 1. Nu:
+  - `mkLap` is gesplitst: `mkZonen` doet het dure deel een keer per frame (welke pixel bij welke zone, helderheid, alfa,
+    binnen de rechthoek), los van de outfit; een outfit inkleuren kost daarna 0,2 ms.
+  - `mkSkinVoorladen` laadt de zonekaarten mee, en eerst het voorbeeld van de lobby (de idle uit de grote set).
+  - In het menu (`mkVoorWarm`, 6 s na het openen, en bij de knop Multiplayer en in de lobby; elk beeld hooguit
+    `MK_WARM_MENU` ms, `requestIdleCallback` kwam in het menu nooit aan de beurt): het voorbeeld van de lobby in alle zes
+    outfits, dan elk frame voor de outfit van de vorige keer (`amir.mpoutfit`). Nagemeten: na 5 s staat het voorbeeld klaar.
+  - In de lobby (`vachtLobbyStap`) elk frame voor de outfits die nu gedragen worden (`mkWarmTaken`), en de rest achter het
+    laadscherm (`warmBouw`). Met de stokken ook het voorbeeld (`stokBank.staan[0]`) in alle zes outfits van de stoktribe.
+  - `mkSkinLaad` zet elk pad om naar het volledige adres: `mkLosBeeld` bouwt zijn pad uit `img.src` (volledig), de
+    voorlader uit een kort pad, en zonder dat waren het twee plaatjes en kwam het vooraf kleuren in het spel niet aan.
+  - `tools/mptest.js` meldt FOUT op elk outfitframe van Mkuki dat pas in het spel gekleurd wordt; nu 0.
 - **De zonekaarten** komen uit `tools/mkuki_spel_zones.py`: precies zoals `tools/mkuki_spel_bak.py` het frame bakt (speer,
   maskers, vuist), maar met het lijf in de zonekleuren. Bak je de skin opnieuw (een export uit de Mkuki animeer tool),
   draai dan ook dit script. `--check` kijkt eerst na of de lijven nog kloppen met de frames in de repo.
