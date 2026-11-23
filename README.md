@@ -9,6 +9,8 @@ laatste vijf updates, rechtstreeks van GitHub, met bij elke of hij al in jouw ve
 
 ## Episodes
 
+De eerste keer dat je het spel opent kies je wie je bent: **Tester** (je typt je naam, een keer per apparaat) of, klein linksonder, **Designer**. Een tester stuurt per poging op een level een regel naar de testlog: welk level, de modus, het wapen, de tribe, de outfit, hoe lang, of het uitgespeeld is, waar en waaraan je doodging, de kills en het goud. De designer en de sandbox loggen niets. Onder **Settings** staat bij Player wie je bent, met **Switch** om te wisselen.
+
 Het hoofdmenu heeft vier grote knoppen: **Single Player**, **Multiplayer**, **Level Editor** (de Maker) en **Test Lab**, met daaronder klein **Updates** en **Settings** (daar staat nu ook de uitleg van de toetsen, onder Controls).
 
 Onder **Single Player** staat eerst **The First Hunt**, de tutorial voor nieuwe spelers (zie hieronder): zolang je hem nog nooit uitgespeeld hebt licht de knop op met "Start here", daarna staat er een vinkje. Daarnaast kies je **Campaign** (de episodes, met onder meer **The Roofs of Kumbasa**, De Rivierstad en De Gouden Poort) of **Survival**: golven vijanden zolang je het volhoudt, in **King's Arena** (de vroegere Arena modus), **The Gates** (de arena gates) of **City Survival** (de vroegere Co-op solo).
