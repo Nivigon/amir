@@ -25913,7 +25913,13 @@ function jav2Draw(groundY, scale, cx){
 // van de rug naar zijn hand.
 function rugSpeerTeken(pcx, feetY, scale){
   if (!rugAan() || dead) return;
-  const n = rugSperen.length;
+  rugSperenTeken(rugSperen.map(r => r.blauw), facing, rugTrekT, pcx, feetY, scale, pfRugWind(), pfWindX, gifSterkte());
+}
+// de speren op een rug: soorten (r.blauw, voorste eerst), de kijkrichting, de trek naar de hand, de wind en het gif.
+// Voor mijn eigen Amir (rugSpeerTeken) en voor de andere Amirs in Multiplayer (pvpRugTeken), zodat iedereen ziet welke
+// speersoorten een ander draagt en of er gif op zit
+function rugSperenTeken(soorten, facing, rugTrekT, pcx, feetY, scale, wind, windX, gif){
+  const n = soorten.length;
   if ((!n && rugTrekT <= 0) || !imgReady(javImg)) return;
   const ah = CHAR_H * scale;
   const back = facing >= 0 ? -1 : 1;                   // de rug is de kant waar hij niet heen kijkt
@@ -25921,7 +25927,6 @@ function rugSpeerTeken(pcx, feetY, scale){
   const lerp = (a, b, t) => a + (b - a) * t;
   ctx.save();
   for (let i = n - 1; i >= 0; i--){                    // de achterste eerst, zodat de voorste erbovenop ligt
-    const r = rugSperen[i];
     // De speer staat rechtop op zijn rug met de punt boven de schouder uit, net als de speer in zijn
     // hand. Hij wordt getekend langs de lijn van punt (hoog) naar knop (laag), en per reserve waaiert
     // die lijn uit over zijn rug, zodat twee of drie speren duidelijk twee of drie zijn.
@@ -25942,7 +25947,7 @@ function rugSpeerTeken(pcx, feetY, scale){
     ctx.globalAlpha = a;
     ctx.translate(tipX, tipY);
     ctx.rotate(hoek);
-    javTeken(r.blauw, kk, pfRugWind(), pfWindX, gifSterkte());   // vergiftigd: het staal zuurgroen, en af en toe een druppel (gifDrup)
+    javTeken(soorten[i], kk, wind, windX, gif);   // vergiftigd: het staal zuurgroen, en af en toe een druppel (gifDrup)
     ctx.restore();
   }
   ctx.restore();
@@ -74903,10 +74908,28 @@ function pvpStap(rdt){
     pvpZendSnel(Object.assign({ t: 's', q: ++pvp.qs, tm: +pvpNu().toFixed(3), ak: pvp.coop && !pvp.host && pvp.nets[0] ? pvp.nets[0].v.q : undefined, x: Math.round(playerX()), h: Math.round(ph), f: facing, hu: +hurt.toFixed(2),
       sf: atkFrame, ss: atkStok || undefined, sl: steekLive() && !atkMes ? 1 : 0, sn: pvp.sn, sw: swFrame, wn: pvp.wn, j, l: lives, d: dead ? 1 : 0, rz: pvp.coop && reviveZelfKan() ? 1 : undefined,
       iv: invuln > 0 ? 1 : 0, du: +duckT.toFixed(2), ds: +duckShare.toFixed(2), ...mkSpeerZend(),
-      bl: pvpBlindT > 0 ? 1 : undefined, lm: pvp.dw ? pvp.levens : undefined }, pvp.mijn));   // het Duel: blind van het stof, en mijn hartjes (Extra life)   // iv, du en ds: de stand voor de vijanden van Co-op (mpcGastStand)
+      bl: pvpBlindT > 0 ? 1 : undefined, lm: pvp.dw ? pvp.levens : undefined, ...pvpSperenZend() }, pvp.mijn));   // het Duel: blind van het stof, en mijn hartjes (Extra life)   // iv, du en ds: de stand voor de vijanden van Co-op (mpcGastStand)
   }
   if (pvp.coop) mpcVriesWacht(rdt);                 // Co-op: een freeze die niet afloopt laat Amir niet voorgoed staan
   if (pvp.coop) mpCoopStap(rdt, rdt);                // Co-op: de rondes, de deuren en de vijanden
+}
+// mijn speren voor het beeld van de anderen: het gif (gi, de treffers die er nog op zitten), de soorten op mijn rug (rg,
+// voorste eerst) en de trek van de rug naar de hand (rt). De soort in mijn hand gaat al mee met mkSpeerZend (sp)
+function pvpSperenZend(){
+  const o = {};
+  if (gifHits > 0 && !stokAan()) o.gi = gifHits;
+  if (rugAan() && !stokAan() && !dead && rugSperen.length){ o.rg = rugSperen.map(r => r.blauw || 0); if (rugTrekT > 0) o.rt = +rugTrekT.toFixed(2); }
+  return o;
+}
+// de speren op de rug van een andere Amir, achter zijn lijf (voor hem getekend), in zijn soorten en met zijn gif.
+// De druppels van zijn gif vallen niet bij mijn voeten: wat javTeken in gifBron zet, gaat er weer af
+function pvpRugTeken(g, sx, voet, scale){
+  if (!Array.isArray(g.rg) || !g.rg.length || g.d) return;
+  const n0 = gifBron.lijst.length;
+  ctx.save();
+  ctx.globalAlpha = g.a == null ? 1 : g.a;
+  try { rugSperenTeken(g.rg.map(b => b || false), g.f, +g.rt || 0, sx, voet, scale, 0, 0, g.gi > 0 ? 1 : 0); }
+  finally { ctx.restore(); gifBron.lijst.length = n0; }
 }
 function pvpBeeld(src){
   let im = pvp.beelden[src];
@@ -74962,6 +74985,7 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
   const sx = cx + (g.x - world), voet = groundY - g.h * scale;
   const im = g.im && pvpBeeld(g.im);
   const zhWacht = pvp.coop && g.d && zhLijst.some(z => z.voor === p && z.op);   // Silver Pride: al uit het hart, zijn stand komt nog
+  if (im && !zhWacht && !bnTekentAnder(p)) pvpRugTeken(g, sx, voet, scale);   // zijn reserve-speren, achter zijn lijf
   if (im && !zhWacht && !bnTekentAnder(p)){          // Feathers of the Bennu: zijn ritueel tekent hem (bnTekenAmir)
     const w = g.dw * scale, h = g.dh * scale;
     ctx.save();
@@ -74973,8 +74997,12 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
     if (pvp.coop && g.d) mpcLig(w, h, -g.dy * scale);  // Co-op: mijn teamgenoot ligt dood
     // zijn broekkleur uit de lobby, op een eigen doek per slot: het gedeelde doek van broekBeeld is ook het beeld van mijn
     // Amir (amirHer), en lijkAchterAmir tekende dat later opnieuw, dus dan stond zijn beeld in zijn kleur op mijn plek
-    const kb = broekBeeld(im, im, broekKleurVan(pvp.broek[p]), pvpBroekCv[p] || (pvpBroekCv[p] = document.createElement('canvas')),
-                         { s: typeof g.sp === 'string' && SPEER_SOORTEN[g.sp] ? g.sp : null, w: +g.vw || 0 });   // zijn speersoort en het vaantje (MK_LOS)
+    // zijn speersoort, het vaantje en zijn gif (MK_LOS); mkGifPunt is de druppel van mijn eigen speer, die blijft van mij
+    const gifPunt = mkGifPunt;
+    let kb;
+    try { kb = broekBeeld(im, im, broekKleurVan(pvp.broek[p]), pvpBroekCv[p] || (pvpBroekCv[p] = document.createElement('canvas')),
+                         { s: typeof g.sp === 'string' && SPEER_SOORTEN[g.sp] ? g.sp : null, w: +g.vw || 0, g: g.gi > 0 ? 1 : 0 }); }
+    finally { mkGifPunt = gifPunt; }
     ctx.drawImage(g.hu > 0 ? amirRood(kb, Math.min(0.75, g.hu * 2)) : kb, 0, 0, w, h);
     ctx.restore();
   }
@@ -74996,8 +75024,10 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
   const j = g.j;
   if (j && imgReady(javImg) && (!pvp.coop || j.st !== 'vlucht')){
     const eigen = jav;
+    const eigenGif = gifHits, n0 = gifBron.lijst.length;   // zijn gif op de punt en de druppel, niet het mijne
     jav = { x: j.x, h: j.h, sa: j.sa, dir: j.dir, state: j.st, t: j.t, blauw: j.b, wob: 0, sag: 0, kantel: 0, los: 0 };
-    try { javSchacht(cx + (j.x - world), groundY - j.h * scale, scale); } finally { jav = eigen; }
+    gifHits = +g.gi || 0;
+    try { javSchacht(cx + (j.x - world), groundY - j.h * scale, scale); } finally { jav = eigen; gifHits = eigenGif; gifBron.lijst.length = n0; }
   }
   if (pvp.coop) return;                             // Co-op: elkaar raken kan niet
   // de vorige plek van zijn speer altijd bijwerken, ook als ik onkwetsbaar ben of hieronder al geraakt word: anders

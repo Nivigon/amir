@@ -84,3 +84,18 @@ Wat er in de inventory zit en hoeveel gif de speren nog hebben, gaat mee naar he
 
 Onder Speer en spullen, de rij **Gif**: **Gif in inventory**, **Gif op speren**, **Speren schoon** (ook niemand meer
 vergiftigd) en **Winkel** (opent het winkelscherm, gratis). Zet de health-balk aan (Vijanden) om de balk te zien aflopen.
+
+### Bij de anderen in Multiplayer (23-11-2026)
+
+Afspraak: vanaf nu ziet iedereen van elke speer en elk wapen van een ander welke soort het is en of er gif op zit, net zo
+als bij zichzelf. Een nieuwe speer of een nieuw wapen gaat dus ook altijd mee in de stand naar de anderen.
+
+- De stand (`t: 's'`) neemt `pvpSperenZend()` mee: `gi` (de gif-treffers die nog op de speren zitten), `rg` (de soorten op
+  de rug, voorste eerst) en `rt` (de trek van de rug naar de hand). De soort in de hand ging al mee (`sp`, `mkSpeerZend`).
+- `pvpRugTeken` tekent de speren op de rug van een ander met `rugSperenTeken` (dezelfde tekencode als `rugSpeerTeken`
+  voor mijn eigen rug), in zijn soorten en met zijn gif.
+- De speer in zijn hand krijgt zijn gif mee in `broekBeeld` (`g`), de geworpen speer (`javSchacht`) tekent met zijn
+  `gifHits` in plaats van de mijne.
+- Zijn gif mag niets van het mijne veranderen: `mkGifPunt`, `gifHits` en `gifBron.lijst` worden na het tekenen teruggezet,
+  zodat zijn druppels niet bij mijn voeten vallen.
+- Proef: `node tools/mptest.js --sperenzien --spelers 2` (met `--shots map` een schermafdruk).
