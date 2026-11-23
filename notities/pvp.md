@@ -125,10 +125,76 @@ rondes is iedereen onkwetsbaar (`godMode`). Na het duel vraagt R een rematch; di
 
 ## De kit
 
-Basis plus de rol: lopen, sprinten, springen, bukken, steken, lage zwaai, werpen (een speer in de hand, een op de rug) en
-de rol. Geen talents (`runReset`, en `levelList` is `PVP_LEVELS`, niet `TEST_LEVELS`, want die geeft alle talents en een
-vierde leven), geen draaislag (`combo: false`). De rol heeft in PvP een afkoeling van 1,2 s in plaats van 0,5 (`PVP.rolKoel`,
-in `pvpVerbonden` gezet en in `pvpStop` teruggezet), zodat je niet elke worp wegrolt.
+De kit van Co-op (23-11-2026, op verzoek van de opdrachtgever: voor de PvP-levels nu en later is dat de basis): lopen,
+sprinten, springen, bukken, steken, lage zwaai, werpen (een speer in de hand, een op de rug) en de rol, plus met de speer
+stof in de ogen (`lv.stof` in `pvpDuelStart`) en met de stokken de grondklap (`mpWapenLevel` zet `grondklap` nu ook in het
+Duel; afkoeling `GK.koelCoop`, 5 s, via `gkKoelDuur`, dat nu naar `pvp` kijkt in plaats van naar Co-op). Ieder kiest in de
+lobby zijn wapen (zie "Het wapen" in `notities/multiplayer.md`). Geen talents (`runReset`, en `levelList` is `PVP_LEVELS`,
+niet `TEST_LEVELS`, want die geeft alle talents en een vierde leven), geen draaislag (`combo: false`). De rol heeft in PvP een
+afkoeling van 1,2 s in plaats van 0,5 (`PVP.rolKoel`, in `pvpVerbonden` gezet en in `pvpStop` teruggezet), zodat je niet
+elke worp wegrolt.
+
+### Blind sweep: het stof in de ogen tegen een speler
+
+`pvpStofIn`, `pvpStofBeeld`, `pvpBlindT`, `pvpBlindPlek`, `pvpBlindNa`, `PVP_BLIND`
+
+- `stofWerp` stuurt in het Duel `{t: 'stof', x, ax, d, v}`: de punt, waar ik sta, de richting en mijn vloer. Net als bij een
+  treffer beslist de laptop van de ander: staat hij voor mij (`Math.sign` van het verschil is `d`), binnen `STOF.bereik`,
+  op mijn hoogte (vloer tot 90 verschil) en kijkt hij mij aan (`facing` is `-d`), dan is hij `PVP_BLIND.duur` (3) seconden
+  blind. Rolt hij (`rol`), dan mist het stof. Bij hem komt ook de pluim van het stof in beeld (`pvpStofBeeld`, alleen beeld).
+- **Blind** is voor een speler: een sluier van zand over het hele beeld, na de lichtlaag en het weer (`pvpBlindNa`), met een
+  vrije plek van `PVP_BLIND.gat` Amir om zijn eigen Amir (de plek op het doek zet `pvpBlindPlek` in `pvpTeken`, met de
+  transform van dat moment), korrels die erdoor waaien, en het laatste `uit` seconden vervagend. Zandsterretjes om zijn hoofd
+  (`stofTeken`), bij hem en bij de ander (`bl` in `s`). De aanvaller krijgt `{t: 'blind'}` en een melding.
+- **Geen dubbele schade**: anders dan bij een vijand (`hitBandiet` en de rest) telt de volgende treffer gewoon. Blind kost ook
+  geen leven. Een nieuwe ronde of de winkel zet het uit.
+
+### De grondklap tegen een speler
+
+`pvpGkIn`, `pvpGkStap`, `pvpGkGolven`
+
+`gkInslag` stuurt het bericht `gk` nu in elke Multiplayer-modus, met `ax` (waar ik sta) en `s` (de schade van de golf:
+`GK.schade.licht`, een half leven, of met Ground slam: heavier een heel). Bij de ander rolt de golf van `ax` over de vloer naar
+voren tot het bereik (`b` keer zijn eigen schaal) met `GK.golfV`, en raakt hem een keer als hij langs komt terwijl hij op die
+vloer staat (vloer tot 40 verschil, niet hoger dan `GK.hoog` erboven). Dat gaat via `hurtPlayer`, dus de rol, het blok van
+de stokken en Gris-gris werken zoals altijd, en de aanvaller krijgt `au`.
+
+## De winkel van het Duel (23-11-2026)
+
+`pvp.dw`, `duelWinkelNieuw`, `duelWinkelStraks`, `duelWinkelIn`, `duelWinkelUit`, `duelWinkelStop`, `duelTasVoor`,
+`duelTasNa`, `duelStap`, `duelOntvang`, `mpcWs`, `mpWinkelAan`, `mpKoop`
+
+- **De lobby.** Het vinkje Shop and gold (`pvp.regels.duel.winkel`) en daaronder het startbudget, de winkel voor ronde 1,
+  hoe vaak tussen de rondes (`winkelNa`, 0 is nooit) en het goud erbij per winkel (zie "Duel-regels" in
+  `notities/multiplayer.md`).
+- **De beurs.** `pvp.dw` heeft dezelfde vorm als het winkeldeel van `pvp.coop` (`goud`, `koop`, `inWinkel`, `wkKlaar`,
+  `mijnKlaar`, `vertrek`). De winkelfuncties van Co-op (`mpcWinkelToon`, `mpcWinkelKoop`, `mpcWinkelNiet`, Undo, Ready en het
+  aftellen) lezen die nu via `mpcWs()` (`pvp.coop` of anders `pvp.dw`), en wat de rest van het spel uit de aankopen leest
+  (`grisGrisKans`, `gkZwaarNu`, `stokHoutNu`, `stokSkinNu`, `pfAantal`) via `mpKoop()`. Ieder zijn eigen beurs.
+- **Wat er te koop is**: alleen wat `duel: true` heeft (`mpcWinkelVoorMij`): de kalebas (in het Duel in je tas, `uitlegDuel`;
+  tussen de rondes zijn je levens toch vol), Extra spear slot, Extra life (een leven meer in elke ronde: `pvp.levens`, en de
+  ander tekent mijn hartjes uit `lm` in `s`), Gris-gris en voor de stokken Ground slam: heavier. Niet: Full Circle (die zoekt
+  een open vijand, `fcOpenDoel`, geen speler), de Pathfinder en het gif (de prooi en het gif werken op vijanden), een nieuwe
+  speer (elke ronde begint vol), de stokken van Hardwood, Lion Claw en Gold King (in het Duel kost elke stokslag al een heel
+  leven), en de tab Team.
+- **Geen winkelkamer.** Het winkelscherm gaat op straat open (`duelWinkelIn`, met `winkelUIOpen`), Close staat er niet: het
+  blijft open tot iedereen Ready drukte, dan het aftellen van Co-op (`MPC_WINKEL_WEG.aftel`), en de host zegt `winkelUit`.
+  Daarna begint de ronde (`pvpRondeStart`). Escape in de winkel is terug naar de lobby. Tijdens de winkel `pvp.fase = 'winkel'`
+  en `godMode`.
+- **Wanneer.** Voor ronde 1 (`winkelEerst`): `duelWinkelStraks` in `pvpDuelStart`, en `duelStap` opent hem zodra er geladen is.
+  Tussen de rondes: de host zet `w` in het bericht `ronde` als `ronde % winkelNa === 0` (en het duel niet uit is), en iedereen
+  krijgt `goudErbij` (`pvpNieuweRonde(n, winkel)`). Het goud komt bij iedereen zelf, er gaat geen goud over de lijn.
+- **Mee naar de volgende ronde.** `restart` maakt de tas leeg en zet de rug terug: `duelTasVoor` onthoudt de kalebassen,
+  `duelTasNa` zet ze terug, telt het speerslot weer bij `RUG_MAX` op en vult de rug (`duelRugVol`). Extra life zit in
+  `pvp.levens` (`levensStart`), Gris-gris en de zware grondklap in `koop`.
+- **Rematch**: `rm` in het bericht `ronde`, en `duelWinkelNieuw` begint weer met het startbudget, lege aankopen en de
+  levens uit de lobby; met `winkelEerst` eerst weer de winkel.
+- **Testen:** `node tools/mptest.js --duel --duelwinkel --spelers 2` (de winkel voor ronde 1, kopen, Ready, de aankopen mee
+  naar ronde 2 met goud erbij, het stof en de grondklap tegen een speler). Met `--stokken host` koopt de host de zware
+  grondklap in plaats van het speerslot.
+- **Open:** met `--stokken gast` raakt in de test de verbinding tijdens de winkel weg, midden in de lange outfitproeven van de
+  stokken (die draaien terwijl allebei in de winkel staan). Twintig seconden stil in de winkel zonder die proeven houdt de
+  verbinding wel; nog niet uitgezocht.
 
 ## Het stadje (`PVP_LEVEL`)
 

@@ -26,6 +26,9 @@
 //                                        goed de andere Amir en de vijanden bij de gast de echte baan volgden: bij de best
 //                                        passende vertraging (ms) de gemiddelde afwijking in px (lager is vloeiender en klopt beter)
 //   node tools/mptest.js --duel --spelers 2   het Duel: allebei in de ronde, de gast valt, de ronde naar de host, ronde 2
+//   node tools/mptest.js --duel --duelwinkel --spelers 2   het Duel met de winkel: allebei eerst in de winkel met het
+//                                        startbudget, kopen, Ready, de ronde; de aankopen mee naar ronde 2 met goud erbij;
+//                                        het stof verblindt de ander zonder schade, de grondklap van de ander raakt
 //   node tools/mptest.js --zilverhart --stokken host   Silver Pride: de gast valt, de host legt het hart neer, de gast komt eruit
 //   node tools/mptest.js --bennu --spelers 2           de veren van de speerspeler, de bol als schild, en de zelf-revive met hart en veren
 //   node tools/mptest.js --stokken gast  deze spelers kiezen in de lobby de stokken (ook host, gast2, of host,gast): kijkt na
@@ -52,6 +55,53 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
+// het Duel met de winkel (--duel --duelwinkel): de winkel voor ronde 1, kopen, Ready, de aankopen mee, het stof en de grondklap
+async function duelWinkelProef(ramen){
+  const [H, G] = ramen;
+  for (const r of ramen) meld(await tot(r.page, () => pvp && pvp.dw && pvp.dw.inWinkel && winkelUIAan && pvp.fase === 'winkel', null, 30000), r.wie + ': eerst in de winkel, met het startbudget (' + await r.page.evaluate(() => pvp.dw && pvp.dw.goud) + ' goud)');
+  meld(await H.page.evaluate(() => !MPC_WINKEL.some(q => q.k === 'fc' && mpcWinkelVoorMij(q)) && MPC_WINKEL.some(q => q.k === 'leven' && mpcWinkelVoorMij(q))), 'alleen de duelwaar is te koop (Extra life wel, Full Circle niet)');
+  await H.page.evaluate(() => { mpcWinkelKoop(MPC_WINKEL.find(q => q.k === 'leven')); mpcWinkelKoop(MPC_WINKEL.find(q => q.k === 'slot')); });
+  await G.page.evaluate(() => { mpcWinkelKoop(MPC_WINKEL.find(q => q.k === 'kalebas')); mpcWinkelKoop(MPC_WINKEL.find(q => q.k === 'amulet')); });
+  const hg = await H.page.evaluate(() => ({ g: pvp.dw.goud, l: lives, rug: RUG_MAX }));
+  meld(hg.g === 40 && hg.l === 4, 'de host kocht Extra life (60), het speerslot (45) was te duur: ' + JSON.stringify(hg));
+  const gg = await G.page.evaluate(() => ({ g: pvp.dw.goud, hp: hppotionCarry }));
+  meld(gg.g === 55 && gg.hp === 1, 'de gast kocht een kalebas in zijn tas en Gris-gris: ' + JSON.stringify(gg));
+  for (const r of ramen) await r.page.evaluate(() => mpcKlaarDruk());
+  for (const r of ramen) meld(await tot(r.page, () => pvp.fase === 'vecht' && !winkelUIAan && !godMode, null, 8000), r.wie + ': allebei Ready, afgeteld: ronde 1');
+  meld(await G.page.evaluate(() => pvpAnderen().length === 1), 'de gast ziet de host');
+  meld(await tot(G.page, () => pvp.anders[0] && pvp.anders[0].g && pvp.anders[0].g.lm === 4, null, 4000), 'de gast ziet bij de host vier hartjes');
+  // het stof: de gast staat voor de host en kijkt hem aan; de host werpt
+  const hx = await H.page.evaluate(() => { invuln = 0; facing = -1; return world; });
+  await G.page.evaluate(hx => { invuln = 0; world = hx - 250; facing = 1; window.__l0 = lives; }, hx);
+  await wacht(400);
+  await H.page.evaluate(() => { stofA = { f: STOF.werpFrame, acc: 0, kant: -1, geworpen: false }; stofWerp(); stofA = null; });
+  meld(await tot(G.page, () => pvpBlindT > 0, null, 3000), 'het stof van de host verblindt de gast die hem aankijkt');
+  meld(await G.page.evaluate(() => lives === window.__l0), 'blind kost geen leven');
+  meld(await tot(H.page, () => pvp.anders[1] && pvp.anders[1].g && pvp.anders[1].g.bl === 1, null, 3000), 'de host ziet de sterretjes boven de gast (bl)');
+  await G.page.evaluate(() => { pvpBlindT = 0; facing = -1; });
+  await wacht(300);
+  await H.page.evaluate(() => { stofKoel = 0; stofA = { f: STOF.werpFrame, acc: 0, kant: -1, geworpen: false }; stofWerp(); stofA = null; });
+  await wacht(800);
+  meld(await G.page.evaluate(() => pvpBlindT === 0), 'met zijn rug naar de host wordt de gast niet blind');
+  // de grondklap van de host (nagebootst bericht): de golf rolt naar de gast toe en raakt hem een keer
+  await G.page.evaluate(hx => { invuln = 0; window.__l0 = lives; world = hx - 250; window.__am = pvp.dw.koop.amulet; pvp.dw.koop.amulet = 0; }, hx);   // Gris-gris even uit: anders vangt hij de golf soms
+  await H.page.evaluate(hx => pvpZend({ t: 'gk', x: Math.round(hx - 60), x2: Math.round(hx - 10), d: -1, b: 400, v: 0, ax: Math.round(hx), s: 0.5 }), hx);
+  meld(await tot(G.page, () => lives === window.__l0 - 0.5, null, 3000), 'de golf van de grondklap kost de gast een half leven (' + await G.page.evaluate(() => lives) + ')');
+  await G.page.evaluate(() => { pvp.dw.koop.amulet = window.__am; });
+  // de gast valt: ronde naar de host, en de winkel met goud erbij
+  await G.page.evaluate(() => { godMode = false; invuln = 0; lives = 0.5; const am = pvp.dw.koop.amulet; pvp.dw.koop.amulet = 0; hurtPlayer(true); pvp.dw.koop.amulet = am; });
+  for (const r of ramen) meld(await tot(r.page, () => pvp.ronde === 2 && pvp.dw.inWinkel && winkelUIAan, null, 10000), r.wie + ': na ronde 1 weer de winkel');
+  const h2 = await H.page.evaluate(() => ({ g: pvp.dw.goud, l: lives }));
+  meld(h2.g === 90 && h2.l === 4, 'de host: 50 goud erbij en nog steeds vier levens: ' + JSON.stringify(h2));
+  const g2 = await G.page.evaluate(() => ({ g: pvp.dw.goud, hp: hppotionCarry, gg: grisGrisKans() }));
+  meld(g2.g === 105 && g2.hp === 1 && g2.gg > 0, 'de gast: 50 goud erbij, de kalebas en Gris-gris nog bij zich: ' + JSON.stringify(g2));
+  await H.page.evaluate(() => mpcWinkelKoop(MPC_WINKEL.find(q => q.k === (stokAan() ? 'slam' : 'slot'))));
+  for (const r of ramen) await r.page.evaluate(() => mpcKlaarDruk());
+  meld(await tot(H.page, () => pvp.fase === 'vecht' && !winkelUIAan, null, 8000), 'ronde 2 na Ready');
+  if (await H.page.evaluate(() => stokAan())) meld(await H.page.evaluate(() => gkZwaarNu() && pvp.dw.goud === 40), 'met de stokken: Ground slam: heavier gekocht');
+  else meld(await H.page.evaluate(() => RUG_MAX === 2 && rugSperen.length === 2), 'het speerslot: een tweede speer op de rug (' + await H.page.evaluate(() => RUG_MAX + '/' + rugSperen.length) + ')');
+  for (const r of ramen){ if (r.fouten.size){ console.log(r.wie + ' fouten:'); for (const f of r.fouten) console.log('  ' + f); } }
+}
 function laadPlaywright(){
   const plekken = ['playwright', path.join(process.execPath, '../../lib/node_modules/playwright')];
   for (const p of plekken){ try { return require(p); } catch (e) { /* volgende */ } }
@@ -837,6 +887,10 @@ async function elk(H, G){
   const traag = ramen[ramen.length - 1];
   await traag.page.evaluate(() => { window.__houd = true; const o = mpLaadVast; mpLaadVast = () => window.__houd || o(); });
   if (args.includes('--winkeleerst')) await H.page.evaluate(() => { pvp.inst.coop.winkelEerst = true; });   // Start in the shop
+  if (args.includes('--duelwinkel')) await H.page.evaluate(() => mpWijzig(() => { Object.assign(pvp.inst.duel, { winkel: true, goud0: 100, winkelEerst: true, winkelNa: 1, goudErbij: 50 }); }));
+  if (args.includes('--duelwinkel')) await wacht(600);
+  if (args.includes('--duelwinkel')) for (const r of ramen.slice(1)) await r.page.evaluate(() => { if (!pvp.klaar) pvpEl('mpready').click(); });
+  if (args.includes('--duelwinkel')) await wacht(400);
   const start = await H.page.evaluate(() => { const ok = !pvpEl('mpstart').disabled; mpStart(); return ok; });
   lobby.push([start, 'iedereen Ready: Start mag']);
   console.log('Start mocht: ' + start);
@@ -1069,6 +1123,7 @@ async function elk(H, G){
     return { fase: C.fase, ronde: C.ronde, score: C.score, kills: C.kills, dood: dead, levens: lives, tel, x: Math.round(world),
              tonnen: tonnen.filter(t => !t.weg).length, eind: C.eind };
   };
+  if (args.includes('--duel') && args.includes('--duelwinkel')){ await duelWinkelProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--duel')){
     meld(await tot(H.page, () => pvp.fase === 'vecht' && running, null, 30000) && await tot(G.page, () => pvp.fase === 'vecht' && running, null, 30000), 'het Duel loopt bij allebei');
     meld(await H.page.evaluate(() => Math.round(world)) === -250 && await G.page.evaluate(() => Math.round(world)) === -2550, 'de host rechts, de gast links');
