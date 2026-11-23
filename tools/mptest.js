@@ -463,7 +463,7 @@ async function proef(R, L){
       const o = q.l().find(o => o.mpId != null && mpcLeeft(o));
       if (q.k === 'snakes' || q.k === 'scorps') enemyTakeHit(o);
       else if (q.k === 'bandieten') hitBandiet(o); else if (q.k === 'hyenas') hitHyena(o); else if (q.k === 'kooimannen') hitKooiman(o);
-      else if (q.k === 'meelmannen') hitMeelman(o); else if (q.k === 'zweepmannen') hitZweepman(o); else if (q.k === 'kruisbogen') hitKruisboog(o, 'steek');
+      else if (q.k === 'zweepmannen') hitZweepman(o); else if (q.k === 'kruisbogen') hitKruisboog(o, 'steek');
       else if (q.k === 'schildmannen') hitSchildman(o, 'steek'); else if (q.k === 'fosforSlangen') fosforRaak(o); else if (q.k === 'goudapen') gaapDood(o, false);
       else enemyTakeHit(o);
       return q.k + ' ' + o.mpId;
@@ -627,7 +627,7 @@ async function elk(H, G){
       for (const q of MPC_LIJSTEN) if (!q.los) for (const o of q.l()) if (o.mpId != null && mpcLeeft(o)){
         o.mpGemeld = 0;
         if (q.k === 'snakes' || q.k === 'scorps') enemyTakeHit(o); else if (q.k === 'bandieten') hitBandiet(o); else if (q.k === 'hyenas') hitHyena(o);
-        else if (q.k === 'kooimannen') hitKooiman(o); else if (q.k === 'meelmannen') hitMeelman(o); else if (q.k === 'zweepmannen') hitZweepman(o);
+        else if (q.k === 'kooimannen') hitKooiman(o); else if (q.k === 'zweepmannen') hitZweepman(o);
         else if (q.k === 'kruisbogen') hitKruisboog(o, 'steek'); else if (q.k === 'schildmannen') hitSchildman(o, 'steek');
         else if (q.k === 'fosforSlangen') fosforRaak(o); else if (q.k === 'goudapen') gaapDood(o, false);
       }

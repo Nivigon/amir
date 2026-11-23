@@ -110,7 +110,7 @@ async function meet(browser, poort, beeld, manifest){
   await page.evaluate(() => { for (const k in MUZIEK){ const a = new Audio(); a.preload = 'auto'; a.src = MUZIEK[k].src || MUZIEK[k]; a.load(); } });
   await page.waitForTimeout(3000);
   const stand = await page.evaluate(() => ({ kills: sbArenaCfg.kills, t: Math.round(sbArenaCfg.t0),
-    levend: [scorps, snakes, panthers, hyenas, bandieten, schildmannen, meelmannen, kooimannen, fosforSlangen].map(l => l.length) }));
+    levend: [scorps, snakes, panthers, hyenas, bandieten, schildmannen, kooimannen, fosforSlangen].map(l => l.length) }));
   await context.close();
 
   // dezelfde keuze als voorSet in sw.js: een toestel haalt van elke familie met een kleine versie

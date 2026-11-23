@@ -165,7 +165,7 @@ function robot([lopen, taai, wachten, vredig, richtForce]){
     if (!spearFound && spearNear()) toggleSpear();
     const voor = [];
     for (const b of thickets) if (b.stage < THICKET_HITS) voor.push([b.x, b.base]);
-    for (const l of [snakes, scorps, kooimannen, hyenas, panthers, fosforSlangen, bandieten, schildmannen, kruisbogen, zweepmannen, meelmannen])
+    for (const l of [snakes, scorps, kooimannen, hyenas, panthers, fosforSlangen, bandieten, schildmannen, kruisbogen, zweepmannen])
       for (const e of l) if (!e.dead) voor.push([e.x, e.base || 0]);
     const iets = voor.some(([x, b]) => { const d = (x - world) * dir; return d > -40 && d < 200 && Math.abs(b - ph) < 60; });
     if (!vredig && spear && iets && onGround && !jump) startAttack();
