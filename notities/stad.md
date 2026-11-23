@@ -1104,6 +1104,15 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   de spelstap. Op de trampoline (Ishmul) raakt Amir de doek bij een stuit maar een beeld of twee, en dan was de kuil nog uit:
   in de landingspose stonden zijn voeten bovenop de doek. Nu telt Amir als erop zodra zijn voeten boven de doek zijn en
   hooguit `KUIL_BIJ` (0,08) Amir erboven, ook in de lucht. Geldt voor de strakke luifel en de rechte springdoek.
+- **Allebei de voeten in de kuil** (`stadDoekVeilig`, `stadLuifelKlem`, `stadDoekStuitTerug`, `DOEK_TREK`): aan een eind stak
+  er een voet buiten de doek (de muurkant, waar de klem pas bij het laatste punt van `stal` stopte) of boven het stuk dat aan
+  stam of paal vastzit en niet inzakt (het open eind), en die voet zag je. Nu heeft elke doek (strakke luifel en rechte
+  springdoek) een veilig stuk: waar de kuil helemaal inzakt, een halve voetafstand (`kuil.voet`) van de rand. Sta je erbuiten,
+  dan trekt de doek je erheen (`DOEK_TREK`, 1,2 Amir per seconde). Aan de muurkant loop je niet verder dan het veilige stuk;
+  aan het open eind trekt hij je terug, behalve als je naar buiten loopt: dan loop je er gewoon af. Bij de rechte doek is
+  de marge aan het open eind groter (1,6 keer), omdat de franje erover hangt. Een stuit aan de rand (trampoline of rechte doek)
+  werpt je een stukje terug (`stadLuifelVx` over de duur van de stuit), zodat je de volgende keer in het veilige stuk landt.
+  De landingsplek zelf blijft de hele doek.
 - **Twee lagen**: de doek met de kuil voor Amir, en na Amir alleen de voorrand rond zijn voeten (`stadLuifelVoor`, in de
   render-lus voor `critFxTeken`), minder diep ingezakt (`kuil.voor`), vanaf `kuil.rand` boven de stallijn. Zo vallen zijn
   zolen en tenen achter de voorrand en loopt de doek achter hem omhoog.
@@ -1161,7 +1170,8 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   volume volgt hoe hard je landt, en op de trampoline klinkt elke goede stuit hoger (`plof.trede`), zodat je hoort dat je
   hoogte opbouwt. Uitstuiteren geeft ploffen die zachter worden.
 - **De muurkant** (`stadLuifelKlem`, na de andere klemmen in de beweging): wie op de doek staat, loopt aan de muurkant (het
-  hoge eind, tegen het huis) niet van de doek af maar stopt bij het laatste punt van `stal`. Aan de open kant val je er gewoon
+  hoge eind, tegen het huis) niet van de doek af maar stopt bij het veilige stuk (zie "allebei de voeten in de kuil"), en
+  nooit voorbij het laatste punt van `stal`. Aan de open kant val je er gewoon
   af, en springen gaat vrij. Het herkent "erop staan" aan de hoogte van de doek, niet aan `kuilOp` (die valt even weg bij een
   stapje op de helling).
 - **Landingsplek**: de hele doek (van het eerste tot het laatste punt van `stal`), zonder inkorting: aan het eind mag een voet
