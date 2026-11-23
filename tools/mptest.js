@@ -43,6 +43,8 @@
 //                                        van een Co-op episode in plaats van Survival (zonder de proef van --ep)
 //   node tools/mptest.js --geensnel      zonder het nagebootste snelle kanaal (zoals via het relais)
 //   node tools/mptest.js --proef --winkeleerst   met Start in the shop: kijkt na dat ook elke gast in de winkel begint
+//   node tools/mptest.js --tlog          de tester-logging (TLOG): elk venster is een tester (host, gast, gast2), de regels
+//                                        naar de Google Sheet worden onderschept en aan het eind getoond (niets gaat echt weg)
 //   node tools/mptest.js --kaart ishmul  Co-op Survival op een andere map (een id uit MP_KAARTEN.coop; standaard dye)
 //   node tools/mptest.js --hl            de tweede Co-op episode (The Smugglers' Cellar): de lijn van een hinderlaag, het
 //                                        leiband, wachten op het team, de regie (balken, camera, vijanden per shot), het
@@ -697,12 +699,20 @@ async function elk(H, G){
   const ramen = [];
   for (const wie of ['host', 'gast', 'gast2'].slice(0, N_SPELERS)){
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    const tlogRegels = [];
+    if (args.includes('--tlog')){
+      await ctx.addInitScript(n => { try { localStorage.setItem('amir.rol', 'tester'); localStorage.setItem('amir.tester', n); } catch (e) {} }, 'test' + wie);
+      await ctx.route(/script\.google\.com/, route => {
+        try { tlogRegels.push(JSON.parse(route.request().postData() || '{}')); } catch (e) {}
+        route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      });
+    }
     const page = await ctx.newPage();
     const fouten = new Set();
     page.on('pageerror', e => fouten.add('fout: ' + e.message + (e.stack ? ' @ ' + (e.stack.split('\n')[1] || '').trim() : '')));
     page.on('console', m => { if (m.type() === 'error') fouten.add('console: ' + m.text().slice(0, 300)); });
     page.on('response', r => { if (r.status() >= 400) fouten.add(r.status() + ' ' + r.url().replace(/^https?:\/\/[^/]+\//, '')); });
-    ramen.push({ wie, page, fouten, bus: [] });
+    ramen.push({ wie, page, fouten, bus: [], tlogRegels });
   }
   // de nagebootste verbindingen, een ster: de host heeft een conn per gast ('g1', 'g2'), een gast een naar de host ('h').
   // send gaat via Node naar het venster aan de andere kant, met --net een vertraging, jitter en verlies. Het betrouwbare
@@ -1141,6 +1151,10 @@ async function elk(H, G){
       meld(await tot(G.page, () => lives < window.__l0, null, 3000), 'de stokslag van de host raakt de gast in het Duel');
     }
     for (const r of ramen){ if (r.fouten.size){ console.log(r.wie + ' fouten:'); for (const f of r.fouten) console.log('  ' + f); } }
+    if (args.includes('--tlog')) for (const r of ramen){
+      console.log(r.wie + ': tester-logging, ' + r.tlogRegels.length + ' regels:');
+      for (const q of r.tlogRegels){ const { sleutel, ...rest } = q; console.log('  ' + JSON.stringify(rest)); }
+    }
     loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return;
   }
   if (args.includes('--winkel')){ await winkelProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
@@ -1310,6 +1324,10 @@ async function elk(H, G){
     if (r.net) console.log('lijn: ' + JSON.stringify(r.net));
     console.log(JSON.stringify(r.laatst));
     console.log('doden: ' + doden[r.wie] + ', weer op: ' + revives[r.wie]);
+    if (args.includes('--tlog')){
+      console.log('tester-logging, ' + r.tlogRegels.length + ' regels:');
+      for (const q of r.tlogRegels){ const { sleutel, ...rest } = q; console.log('  ' + JSON.stringify(rest)); }
+    }
     if (r.fouten.size){ console.log('fouten:'); for (const f of r.fouten) console.log('  ' + f); }
     else console.log('geen fouten');
   }
