@@ -1087,6 +1087,9 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   Naveert de doek omhoog, dan blijft zijn onderrand op het hout liggen en rekt alleen de bovenkant mee (in
   `stadLuifelStrakKolommen`, ook voor de voorrand). Schoof de onderrand mee omhoog, dan ging er bij elke stuit een
   spleet tussen doek en hout open en dicht: de luifel knipperde tijdens het springen.
+  Het echte knipperen zat ergens anders: `stadLuifelDip` las `kuil.omhoog`, maar `omhoog` staat in `luifelStrak` naast
+  `vast`. Bij elk naveren omhoog (een negatieve kuil, vlak na elke stuit) werd de kuil dus `NaN` en tekende de doek niet,
+  alleen het hout eronder. Nu leest hij `luifelStrak.omhoog`.
 - **Twee lagen**: de doek met de kuil voor Amir, en na Amir alleen de voorrand rond zijn voeten (`stadLuifelVoor`, in de
   render-lus voor `critFxTeken`), minder diep ingezakt (`kuil.voor`), vanaf `kuil.rand` boven de stallijn. Zo vallen zijn
   zolen en tenen achter de voorrand en loopt de doek achter hem omhoog.

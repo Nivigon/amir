@@ -4230,7 +4230,7 @@ const stofOpHoogte = s => Math.abs(vloerBij(playerX(), ph) - (s.base || 0)) <= 9
 const STOF_SOORTEN = [
   { soort: 'bandiet', lijst: () => bandieten, kijk: s => s.face, hoogte: s => banZelfdeHoogte(s), hoofd: 0.75, kreet: 'man',
     mag: s => !(s.state === 'dood' || s.state === 'weg' || s.state === 'vault' || s.dropping || s.air > 0 || s.introKind),
-    start: s => { banLaadIdle(!!s.elite); banSet(s, 'walk'); } },   // de patrouillegang; tot die binnen is tekent hij de run
+    start: s => { banLaadIdle(banVariant(s)); banSet(s, 'walk'); } },   // de loopset van zijn eigen variant (chaser, Duinwacht, elite)   // de patrouillegang; tot die binnen is tekent hij de run
   { soort: 'schildman', lijst: () => schildmannen, kijk: s => s.face, hoogte: stofOpHoogte, hoofd: 0.8, kreet: 'man', toon: 0.93,
     mag: s => !s.exe && s.state !== 'weg' && s.state !== 'exe' && s.state !== 'flinch' && s.state !== 'vault' && !schbOnaantastbaar(s),
     start: s => schbSet(s, 'loop') },
@@ -21171,7 +21171,7 @@ function bavSchaduw(b, st, fr, sx, voet, h, w, groei, shY, scale, wx, vloer){
 function banSchaduw(s, bodyX, voeten, scale, bS){
   const img = banFrameImg(s);
   if (!img || !imgReady(img)) return;
-  const geo = banGeo(s.state), gs = banSetScale(s.state), face = s.face;
+  const ts = banTekenSet(s), geo = banGeo(ts), gs = banSetScale(ts), face = s.face;
   const vault = s.state === 'vault';
   const vaultLift = vault ? banVaultLift01(s.frame) * (s.vaultH || 0) * scale : 0;
   const grondRij = vault ? BAN_VAULT_GROND[Math.min(s.frame, BAN_VAULT_GROND.length - 1)] : geo.ground;
@@ -39599,9 +39599,9 @@ function stadLuifelVast(L, u){
   const V = L.vast, z = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
   return z((u - V[0]) / V[1]) * z((V[2] - u) / V[3]);
 }
-// de kuil op scherm-x: een klok rond Amir; boven de rustplek (naveren) maar een stukje (kuil.omhoog)
+// de kuil op scherm-x: een klok rond Amir; boven de rustplek (naveren) maar een stukje (luifelStrak.omhoog)
 function stadLuifelDip(D, kx, sg){
-  const d = D < 0 ? D * STAD.plein.luifelStrak.kuil.omhoog : D;
+  const d = D < 0 ? D * STAD.plein.luifelStrak.omhoog : D;   // omhoog staat naast vast, niet in kuil: kuil.omhoog gaf NaN en een doek die wegviel
   return x => d * Math.exp(-Math.pow((x - kx) / sg, 2));
 }
 // de plaat in kolommen, elk zoveel lager als de kuil daar is (dip in scherm-px op scherm-x); voor: alleen de voorrand
@@ -49102,9 +49102,12 @@ function banIdleKlaar(s){
   const set = banVar(banVariant(s)).bank.idle;
   return !!set && set.every(im => im && im.complete && im.naturalWidth > 0);
 }
+// de set die echt getekend wordt: zijn eigen stand, of de run zolang die set nog niet geladen is. De maat (banGeo,
+// banSetScale) moet van dezelfde set komen, anders tekende hij run-frames op het canvas van walk (te groot of te klein)
+function banTekenSet(s){ return banVar(banVariant(s)).bank[s.state] ? s.state : 'run'; }
 function banFrameImg(s){
   const bank = banVar(banVariant(s)).bank;
-  const set = bank[s.state] || bank.run;
+  const set = bank[banTekenSet(s)];
   return set && set[Math.min(s.frame, set.length - 1)];
 }
 function updateBandieten(dt, plats, cliff){
@@ -59915,7 +59918,7 @@ function loop(now){
           }
           continue;
         }
-        const geo = banGeo(s.state), gs = banSetScale(s.state);   // de werp- en doodset hebben een eigen canvas en maat
+        const bts = banTekenSet(s), geo = banGeo(bts), gs = banSetScale(bts);   // de werp- en doodset hebben een eigen canvas en maat (van de set die echt getekend wordt)
         // Schaduw: zijn eigen frame als silhouet op de grond (banSchaduw, zoals Amir en de baviaan).
         // Liggend als lijk een platte ellips over zijn lengte, en hoog in de lucht (van boven neerkomend)
         // een kleine vage ellips die de landing aanwijst; staand en tijdens een vault het silhouet.
@@ -75564,6 +75567,8 @@ function mpcDraagToon(){
 }
 // het winkelscherm in Co-op: de tabs, de kaarten van die tab (het nieuwe artikel groot bovenaan), je goud, Undo en Ready
 let mpcTab = 'wapen';
+const MPC_DUBBEL_MS = 400;          // twee klikken op hetzelfde artikel binnen zoveel ms is kopen
+let mpcDubbel = { id: null, t: 0 };
 function mpcWinkelToon(){
   const C = pvp.coop, el = document.getElementById('wkcoop');
   el.innerHTML = '';
@@ -75600,8 +75605,14 @@ function mpcWinkelToon(){
       b.append(beeld, tekst);
       const id = q.k + (aan != null ? '_' + aan : '');
       if (mpcKeus && mpcKeus.id === id) b.classList.add('kies');
-      b.onclick = () => { mpcKeus = { id, q, aan }; mpcWinkelToon(); };   // een klik: het zijpaneel (mpcInfoToon)
-      b.ondblclick = () => mpcWinkelKoop(q, aan);                      // dubbelklik: meteen kopen
+      // een klik: het zijpaneel (mpcInfoToon); een tweede klik op hetzelfde artikel kort daarna: meteen kopen. Zelf
+      // bijgehouden, want de klik bouwt de kaarten opnieuw op, zodat de browser nooit een dblclick op een knop zag
+      b.onclick = () => {
+        const nu = performance.now(), dubbel = mpcDubbel.id === id && nu - mpcDubbel.t < MPC_DUBBEL_MS;
+        mpcDubbel = dubbel ? { id: null, t: 0 } : { id, t: nu };
+        mpcKeus = { id, q, aan };
+        if (dubbel) mpcWinkelKoop(q, aan); else mpcWinkelToon();
+      };
       el.append(b);
     }
   }
