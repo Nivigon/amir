@@ -23496,6 +23496,8 @@ const ZH = {
   tauBoven: 2.9,          // Tau zoveel Amir boven het hart, in de lucht
   tauH: 1.25,             // Tau zoveel keer zo groot als boven een mediterende Amir
   max: 1,                 // zoveel harten draag je tegelijk
+  soloWacht: 2,           // Co-op solo: zoveel s lig je dood voor het hart vanzelf gaat kloppen (zhSoloStap)
+  soloOnkw: 4,            // Co-op solo: zoveel s onkwetsbaar na de revive, om weg te komen; abilities mogen dan wel
   dummyStaat: 5           // Test 91: zo lang staat de oefenteamgenoot, dan ligt hij weer
 };
 let zhSchaal = 0.7, zhLijst = [], zhCarry = 0, zhOntwaakT = 0, zhNeerT = 0, zhEigenK = 1, zhHartImg = null, zhDummy = null, zhDummyBeeld = null;
@@ -23556,7 +23558,19 @@ function zhLaad(){
 }
 function zhLevelAan(){ return !!(level && level.zilverhart) && !pvp; }
 // mag de toets G nu iets doen (anders blijft G van de woede van Bhubesi)
-function zhToetsMag(){ return zhLevelAan() || zhCarry > 0; }
+function zhToetsMag(){ return zhLevelAan() || (zhCarry > 0 && !(pvp && pvp.solo)); }   // solo werkt het hart vanzelf (zhSoloStap), G blijft van de woede
+// Co-op solo (bij de host, in mpcDodenStap): lig je dood met een hart in de tas, dan gaat het na ZH.soloWacht s vanzelf
+// kloppen op je lijk en sta je op met de uitbarsting. Zolang dat loopt is het geen game over (true)
+function zhSoloStap(){
+  if (!dead) return false;
+  if (zhLijst.some(z => z.voor === pvp.mij && !z.op)) return true;      // het hart klopt al
+  if (zhCarry <= 0) return false;
+  const C = pvp.coop;
+  if (C.t - (C.doodT[pvp.mij] ?? C.t) < ZH.soloWacht) return true;
+  zhCarry--; balkHud && balkHud();
+  zhStart(world, ph, pvp.mij);
+  return true;
+}
 // de dode teamgenoot die het hart zou terugbrengen: de eerste die dood ligt en nog niet onderweg is
 function zhDodeVoor(){
   if (zhLevelAan()) return zhDummy && zhDummy.dood && !zhLijst.length ? 'dummy' : null;
@@ -23588,11 +23602,12 @@ function zhStart(x, h, voor){
 // de dode zelf: precies op het hart opstaan, ZH.onkw onkwetsbaar en zonder abilities
 function zhOpstaan(x, h){
   if (!dead) return;
-  dead = false; lives = 1; hurt = 0; invuln = ZH.onkw; world = x; ph = h; pvh = 0; zhOntwaakT = ZH.onkw;
+  const solo = !!(pvp && pvp.solo);                                     // solo: langer onkwetsbaar en de abilities mogen, om weg te komen
+  dead = false; lives = 1; hurt = 0; invuln = solo ? ZH.soloOnkw : ZH.onkw; world = x; ph = h; pvh = 0; zhOntwaakT = solo ? 0 : ZH.onkw;
   deadEl.classList.remove('on');
   drawLives(); hudToon();
   if (pvp && pvp.coop) delete pvp.coop.doodT[pvp.mij];
-  flashHint('A Silver Lion brought you back');
+  flashHint(solo ? 'A Silver Lion brought you back. Get away!' : 'A Silver Lion brought you back');
 }
 // hoe groot iemand nu is die uit het hart komt (1 als er niets loopt)
 function zhGroeiK(z){
@@ -62957,7 +62972,8 @@ const BALK = [
       return { zien: true, klaar: true, p: 1, tel: hppotionCarry, dim: hppotionCarry === 0 };
     } },
   { id: 'zilverhart', toets: 'G', icoon: () => '<img class="klein" src="items/zilverhart/hart_icoon.png" alt="">', staat(){   // Silver Pride (ZH)
-      const dl = zhLevelAan(); return { zien: dl || zhCarry > 0, klaar: zhDodeVoor() != null, p: 1, tel: dl ? null : zhCarry, dim: zhDodeVoor() == null };
+      const dl = zhLevelAan(), solo = !!(pvp && pvp.solo);                // solo: het hart werkt vanzelf, dus altijd klaar
+      return { zien: dl || zhCarry > 0, klaar: solo || zhDodeVoor() != null, p: 1, tel: dl ? null : zhCarry, dim: !solo && zhDodeVoor() == null };
     } },
   { id: 'schijn', toets: '', icoon: () => '<img alt="">', staat(){
       return { zien: tribeHeeft('feign_death'), klaar: true, p: 1, dim: schijnKeer <= 0 && schijnT <= 0 };
@@ -73703,8 +73719,9 @@ const MPC_WINKEL = [
   { k: 'leven', cat: 'charm',    naam: 'Extra life',               prijs: [60, 90, 120], uitleg: 'One more life, for the rest of the game' },
   { k: 'amulet', cat: 'charm',   naam: 'Gris-gris',                prijs: [40, 75, 110], uitleg: ['A charm against harm: 10% chance a hit costs you no life',
                                                                             'Stronger charm: 20% chance', 'Strongest charm: 30% chance'] },   // GRISGRIS
-  { k: 'zilverhart', cat: 'team', nieuw: true, naam: 'Silver Pride',       prijs: [35, 50, 65], stok: true,
+  { k: 'zilverhart', cat: 'team', nieuw: true, naam: 'Silver Pride',       prijs: [35, 50, 65], prijsSolo: [50, 80, 110], stok: true,
     uitleg: 'Instantly revives your fallen co-op partner by crushing this rare heart of a Silver Lion. For 3 seconds they cannot be harmed, but cannot use abilities. Press G when a teammate is down. You carry one at a time',
+    uitlegSolo: 'When you fall, this rare heart of a Silver Lion brings you back a few seconds later with one life. For 4 seconds nothing can harm you: get away. You carry one at a time',
     sfeer: 'Silver lions are never sighted. Rare, silver, and a blessing for a friend.' },   // Silver Pride (ZH): alleen met de stokken en een teamgenoot
   { k: 'geef', cat: 'team',     naam: 'Give 5 gold',              prijs: 5,  uitleg: 'To your teammate' }   // met twee teamgenoten een knop per teamgenoot (mpcWinkelToon)
 ];
@@ -74586,6 +74603,7 @@ function mpcDodenStap(){
   const C = pvp.coop, S = pvp.spelers;
   for (const p of S){ if (mpcDood(p)){ if (C.doodT[p] == null) C.doodT[p] = C.t; } else delete C.doodT[p]; }
   for (const k in C.doodT) if (!S.includes(+k)) delete C.doodT[k];
+  if (pvp.solo && zhSoloStap()) return;               // Co-op solo met Silver Pride: nog geen game over
   if (S.every(mpcDood)){ mpcEinde(); return; }
   for (const k in C.reviveTon){                       // niet meer dood: weg met zijn ton
     if (C.doodT[k] != null) continue;
@@ -75556,12 +75574,16 @@ function mpcVertrekToon(){
 }
 // de prijslijst: wat het nu kost (een extra leven wordt duurder), en waarom het niet kan (null: het kan)
 // een item met trappen (prijs is een lijst: Extra life, Gris-gris) telt in koop hoe vaak je het kocht
-function mpcWinkelPrijs(q){ return Array.isArray(q.prijs) ? q.prijs[Math.min(pvp.coop.koop[q.k] || 0, q.prijs.length - 1)] : q.prijs; }
+function mpcWinkelPrijs(q){ const P = pvp.solo && q.prijsSolo || q.prijs; return Array.isArray(P) ? P[Math.min(pvp.coop.koop[q.k] || 0, P.length - 1)] : P; }   // Co-op solo: een eigen prijs (prijsSolo)
+// de uitleg op een kaart, per trap; Co-op solo heeft soms een eigen tekst (uitlegSolo)
+function mpcUitleg(q, trap){ const U = pvp.solo && q.uitlegSolo || q.uitleg; return Array.isArray(U) ? U[Math.min(trap, U.length - 1)] : U; }
+// Silver Pride: met een teamgenoot, of in Co-op solo (dan voor jezelf)
+function mpcZhZien(){ return pvp.solo || pvp.spelers.some(p => p !== pvp.mij); }
 function mpcWinkelHeb(q){
   if (q.k === 'pathfinder') return pfAantal() >= 1 + RUG_MAX;   // een per speerplek (de hand en de rug), meer mag
   const K = pvp.coop.koop; return Array.isArray(q.prijs) ? (K[q.k] || 0) >= q.prijs.length : (q.k in K) && !!K[q.k]; }
 // de speerspullen (speer: true) ziet een stokspeler niet, en Hardwood sticks (stok: true) alleen hij
-function mpcWinkelVoorMij(q){ return stokAan() ? !q.speer : !q.stok; }
+function mpcWinkelVoorMij(q){ if (q.k === 'zilverhart' && pvp.solo) return true; return stokAan() ? !q.speer : !q.stok; }   // solo: Silver Pride voor elk wapen
 function mpcWinkelNiet(q){
   const C = pvp.coop, K = C.koop, handVol = spear || spearFound || rugTrekT > 0;
   let r = null;
@@ -75571,7 +75593,7 @@ function mpcWinkelNiet(q){
   else if (q.eis && !K[q.eis]) r = 'Buy ' + MPC_WINKEL.find(w => w.k === q.eis).naam + ' first.';
   else if (q.sluit && K[q.sluit]) r = 'You chose ' + MPC_WINKEL.find(w => w.k === q.sluit).naam + '.';   // een keuze: het een of het ander
   else if (q.k === 'kalebas' && lives >= levensStart()) r = 'Your lives are full.';
-  else if (q.k === 'zilverhart' && pvp.spelers.length < 2) r = 'Only with a teammate.';
+  else if (q.k === 'zilverhart' && !mpcZhZien()) r = 'Only with a teammate.';
   else if (q.k === 'zilverhart' && zhCarry >= ZH.max) r = 'You already carry a Silver Pride.';
   else if (q.k === 'speer' && (!rugAan() || (rugVol() && handVol))) r = 'Your hand and back are full.';
   else if (q.k === 'gif' && gifCarry >= 1 + RUG_MAX) r = 'One poison per spear slot (' + (1 + RUG_MAX) + ').';
@@ -75589,7 +75611,7 @@ function mpcWinkelKoop(q, aan){
   if (q.k === 'kalebas'){ lives++; drawLives(); }
   else if (q.k === 'speer'){ rugErbij(false); if (!spear && !spearFound && rugTrekT <= 0) rugTrekKlaar(); setSpearLabel(); }
   else if (q.k === 'gif'){ gifCarry++; invHud(); tekst = 'Poison in your bag. Press I to smear it on your spears.'; }
-  else if (q.k === 'zilverhart'){ K.zilverhart = (K.zilverhart || 0) + 1; zhCarry++; zhLaad(); tekst = 'Silver Pride in your bag. Press G when a teammate is down.'; }
+  else if (q.k === 'zilverhart'){ K.zilverhart = (K.zilverhart || 0) + 1; zhCarry++; zhLaad(); tekst = pvp.solo ? 'Silver Pride in your bag. If you fall, it brings you back.' : 'Silver Pride in your bag. Press G when a teammate is down.'; }
   else if (q.k === 'leven'){ K.leven++; pvp.levens++; lives++; drawLives(); }
   else if (q.k === 'amulet'){ K.amulet++; tekst = 'Bought: ' + q.naam + '. ' + Math.round(grisGrisKans() * 100) + '% chance a hit costs you no life.'; }
   else if (q.k === 'pathfinder'){   // een Pathfinder erbij: hij komt op een gewone speer die je draagt (pfStap)
@@ -75674,7 +75696,7 @@ function mpcInfoToon(){
   zet('wkinfosfeer', q.sfeer ? '“' + q.sfeer + '”' : '');
   zet('wkinfobron', q.bron || '');
   zet('wkinfouitleg', (k.aan != null && pvp.spelers.length > 2 ? 'To ' + mpSpelerNoem(k.aan, true) + '. ' : '')
-    + (Array.isArray(q.uitleg) ? q.uitleg[Math.min(trap, q.uitleg.length - 1)] : q.uitleg));
+    + mpcUitleg(q, trap));
   koop.classList.toggle('weg', heb);
   koop.classList.toggle('duur', !!niet);
   // goud geven is geen aankoop: een eigen knop in een andere kleur, met de naam van wie het krijgt
@@ -75746,7 +75768,7 @@ function mpcWinkelToon(){
   el.innerHTML = '';
   const anderen = pvp.spelers.filter(p => p !== pvp.mij);
   // de tabs: alleen die er iets voor jou in hebben
-  const tabs = MPC_WINKEL_CAT.filter(c => MPC_WINKEL.some(q => q.cat === c.k && mpcWinkelVoorMij(q) && ((q.k !== 'geef' && q.k !== 'zilverhart') || anderen.length)));
+  const tabs = MPC_WINKEL_CAT.filter(c => MPC_WINKEL.some(q => q.cat === c.k && mpcWinkelVoorMij(q) && (q.k !== 'geef' || anderen.length) && (q.k !== 'zilverhart' || mpcZhZien())));
   if (!tabs.some(c => c.k === mpcTab)) mpcTab = tabs.length ? tabs[0].k : 'wapen';
   const nav = document.getElementById('wktabs'); nav.innerHTML = '';
   for (const c of tabs){
@@ -75755,7 +75777,7 @@ function mpcWinkelToon(){
     b.onclick = () => { mpcTab = c.k; mpcKeus = null; mpcWinkelToon(); };
     nav.append(b);
   }
-  const lijst = MPC_WINKEL.filter(q => mpcWinkelVoorMij(q) && q.cat === mpcTab && (q.k !== 'zilverhart' || anderen.length));   // Silver Pride alleen met een teamgenoot
+  const lijst = MPC_WINKEL.filter(q => mpcWinkelVoorMij(q) && q.cat === mpcTab && (q.k !== 'zilverhart' || mpcZhZien()));   // Silver Pride met een teamgenoot, of solo voor jezelf
   lijst.sort((a, b) => (b.nieuw ? 1 : 0) - (a.nieuw ? 1 : 0));   // het nieuwe artikel groot bovenaan
   for (const q of lijst){
     // Give 5 gold: een knop per teamgenoot (wkc_geef_<slot>), met twee teamgenoten de kleur van zijn broek erbij
@@ -75770,7 +75792,7 @@ function mpcWinkelToon(){
       naam.textContent = q.naam + (trap ? ' (' + trap + ' of ' + q.prijs.length + ')' : '');
       uit.textContent = aan != null && anderen.length > 1 ? 'To ' + mpSpelerNoem(aan, true)
                       : q.k === 'pathfinder' && pfAantal() ? 'You have ' + pfAantal() + ' of ' + (1 + RUG_MAX)
-                      : Array.isArray(q.uitleg) ? q.uitleg[Math.min(trap, q.uitleg.length - 1)] : q.uitleg;
+                      : mpcUitleg(q, trap);
       prijs.textContent = heb ? (Array.isArray(q.prijs) || q.k === 'pathfinder' ? 'Sold out' : 'Bought') : mpcWinkelPrijs(q) + ' gold';
       if (q.nieuw && !heb){ const n = document.createElement('span'); n.className = 'wknieuw'; n.textContent = 'NEW'; tekst.append(n); }
       tekst.append(naam, uit, prijs);

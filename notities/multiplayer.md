@@ -890,6 +890,14 @@ Op verzoek van de opdrachtgever: een revive-item voor de stokspeler (de speerspe
   is daar onbeperkt en na `ZH.dummyStaat` s valt hij weer om. Proef: `node tools/zilverhart_test.js [map]` en
   `node tools/mptest.js --zilverhart --stokken host`.
 
+**In Co-op solo (23-11-2026):** op verzoek staat Silver Pride ook in de winkel van Co-op solo, daar voor elk wapen
+(`mpcWinkelVoorMij`) en voor jezelf (`mpcZhZien`). Eigen prijs `prijsSolo` 50, 80, 110 (een self-revive is meer waard dan
+een teamgenoot terug; de derde keer is de laatste) en eigen tekst `uitlegSolo` (`mpcUitleg`). Ga je dood met een hart in de
+tas, dan is het geen game over: `zhSoloStap` (in `mpcDodenStap`, voor `mpcEinde`) laat na `ZH.soloWacht` (2 s) het hart
+vanzelf kloppen op je lijk (`zhStart` met `voor` jezelf), en met de uitbarsting sta je op (`zhOpstaan`) met een leven en
+`ZH.soloOnkw` (4 s) onkwetsbaar; de abilities mogen dan wel (`zhOntwaakT` blijft 0), zodat je met een rol weg kunt komen.
+G blijft in solo van de woede (`zhToetsMag`); het icoon in de balk staat altijd klaar.
+
 **Bijgesteld (23-11-2026):** de bol is weg; nu een cirkel zilverwit licht vanuit het midden van het hart, naar buiten zwakker,
 die met de slag opzwelt (`ZH.licht`, `ZH.lichtA`, `ZH.slagA`). Het afstellen gebeurt niet in het spel maar in een
 losse tool (een artifact van de opdrachtgever, de Silver Pride tuner) die hetzelfde effect nabootst; de getallen daaruit gaan in `ZH`.
