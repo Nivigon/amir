@@ -155,10 +155,11 @@ opdrachtgever (23-11-2026): de stok en de speer kozen hij uit Grok-platen, de na
   draagt de soort `ardhi` (`ardhiStap`). Liggend, op de rug en in de worp `javTeken` met `design/speer/ardhi/jav.png`, in
   Amirs handen `mkSpeerTeken` met `bron/ar_<hoek>.png` en `ar` in `los.json`. In de speervolgorde na de Pathfinder.
 - **Leven terug**: een treffer met een Ardhi-wapen trekt een knikker (`ardhiKnikker`, zie "kansen" in CLAUDE.md):
-  stok 1 op 33, steek 1 op 33, geworpen speer 1 op 10 (`ARDHI.kans`). Raak: een sapdruppel wordt uit het lijf van
-  de vijand getrokken, barst, en de lichtpuntjes vliegen in bogen naar Amir en trekken zijn borst in (`ardhiHeelTeken`,
-  alles uit `p.t`, waar de vijand stond ligt vast bij de treffer; `design/ardhi/druppel_los.png`, `sounds/ardhi_heel.mp3`
-  bij het barsten); als de meeste puntjes binnen zijn het leven. Een eerdere versie (een druppel die boven je hoofd
+  stok 1 op 33, steek 1 op 33, geworpen speer 1 op 10 (`ARDHI.kans`). Raak: een kleine sapdruppel wordt uit het lijf
+  van de vijand getrokken en barst met een plop (`sounds/ardhi_plop.mp3`) in een bolletje licht dat even zweeft; dan
+  trekt een lichtstroom van drie gevlochten slierten in een boog naar Amir en vloeit zijn borst in, en pas dan het leven
+  (`sounds/ardhi_heel.mp3`). Ruim twee seconden in totaal, bewust: je ziet het leven aankomen (de opdrachtgever wilde die
+  vertraging). `ardhiHeelTeken`, alles uit `p.t`, de maten in `ARDHI.heel`, `design/ardhi/druppel_los.png`. Een eerdere versie (een druppel die boven je hoofd
   oplicht, of in je hoofd valt) vond de opdrachtgever niets. Met
   volle levens trekt hij geen knikker. Een gast krijgt het leven bij zichzelf (`mpcHitDoor`), de host en solo in `gifRaak`.
 - **Ardhi's Roots** (`ardhiroots`, Spears, 50, na Ardhi's Reach): raakt een geworpen Ardhi-speer een vijand met

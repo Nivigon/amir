@@ -28151,8 +28151,8 @@ function prooiTeken(sx, topY, s, scale){
 // - Ardhi's Grip ('ardhi'): de stokken (een keuze naast Lion Claw en Gold King), slaan als Hardwood (stokHoutNu 4).
 // - Ardhi's Reach ('ardhireach'): een van je speren wordt een Ardhi-speer, de soort 'ardhi' in het veld van het vaantje,
 //   net als de Pathfinder (ardhiStap zet hem, javTeken tekent hem, in Amirs hand mkSpeerTeken met bron/ar_<hoek>.png).
-// - Een treffer met een Ardhi-wapen kan je een leven teruggeven: een sapdruppel wordt uit de vijand getrokken,
-//   barst, en de lichtpuntjes vliegen naar Amir en trekken zijn borst in; dan het leven erbij. De kans komt uit een knikkerzak (de marble bag, zoals True Flight: zonder terugleggen, dus geen lange
+// - Een treffer met een Ardhi-wapen kan je een leven teruggeven: een kleine sapdruppel wordt uit de vijand
+//   getrokken en barst, en een lichtstroom trekt in een boog naar Amir en vloeit zijn borst in; dan pas het leven. De kans komt uit een knikkerzak (de marble bag, zoals True Flight: zonder terugleggen, dus geen lange
 //   reeksen pech of geluk): ARDHI.kans, per bron een eigen zak, per level vers. Alleen als je levens niet vol zijn.
 // - Ardhi's Roots ('ardhiroots', na Ardhi's Reach): raakt je geworpen Ardhi-speer een vijand met anderen bij zich,
 //   dan schieten er wortels uit de grond om de twee dichtstbijzijnde (de geraakte telt mee) en staan ze ARDHI.wortel.duur
@@ -28160,7 +28160,7 @@ function prooiTeken(sx, topY, s, scale){
 const ARDHI = {
   speer: { w: 624, h: 56, tipX: 623, tipY: 26.9 },      // design/speer/ardhi/jav.png, de punt rechts (tools/ardhi_bak.py)
   kans: { stok: [1, 33], steek: [1, 33], worp: [1, 10] },   // de knikkerzak: zoveel raak op zoveel knikkers (3%, 3%, 10%)
-  heel: { uit: 0.4, breek: 0.12, vlucht: 0.55, na: 0.6, punt: 14, trek: 0.3, maat: 0.2 },   // uit de vijand trekken, barsten, de vlucht van een puntje, de spreiding van hun vertrek; zoveel puntjes, zo hoog boven zijn borst en zo groot (in Amir)
+  heel: { uit: 0.45, breek: 0.14, zweef: 0.35, vlucht: 1.5, trek: 0.28, boog: 0.9, maat: 0.12 },   // uit de vijand trekken, barsten, zweven, de lichtstroom naar Amir (het leven als hij binnen is); zo hoog boven zijn borst, zo hoog de boog en zo groot de druppel (in Amir)
   wortel: { duur: 1.6, n: 2, bereik: 2.2, groei: 0.28, zak: 0.35, maat: 0.8 }   // de wortels: zo lang vast, zoveel vijanden, binnen zoveel Amir, groeien, wegzakken, breedte (in Amir)
 };
 let ardhiImg = null, ardhiDrup = null, ardhiRing = null, ardhiSnd = null;
@@ -28169,7 +28169,7 @@ function ardhiLaad(){
   ardhiImg = loadQuiet(['design/speer/ardhi/jav.png']);
   ardhiDrup = loadQuiet(['design/ardhi/druppel_los.png']);   // de kale druppel, zonder de blaadjes en het plasje
   ardhiRing = loadQuiet(['design/ardhi/ring.png']);
-  ardhiSnd = { heel: banStemmen('sounds/ardhi_heel.mp3', 2), wortel: banStemmen('sounds/ardhi_wortel.mp3', 3) };
+  ardhiSnd = { heel: banStemmen('sounds/ardhi_heel.mp3', 2), plop: banStemmen('sounds/ardhi_plop.mp3', 2), wortel: banStemmen('sounds/ardhi_wortel.mp3', 3) };
 }
 let sbArdhi = false;                              // de sandboxknop Ardhi's Reach (met Roots)
 let ardhiGast = null;                             // tijdens een treffer van een gast (mpcTrefferVanGast): zijn Ardhi-worp met Roots
@@ -28280,16 +28280,17 @@ function ardhiStap(dt){
   const H = ARDHI.heel, p = ardhiHeelNu;
   if (p && dt > 0){
     p.t += dt;
-    if (!p.gaf && p.t >= H.uit + H.breek + H.vlucht + H.na * 0.25){   // de meeste puntjes zijn binnen: het leven erbij
+    if (!p.gaf && p.t >= H.uit + H.breek + H.zweef + H.vlucht){   // de lichtstroom is binnen: het leven erbij, met het geluid
       p.gaf = true;
       if (!dead && lives > 0){
         lives = Math.min(levensStart(), lives + 1); drawLives();
         if (typeof mpCoopAan === 'function' && mpCoopAan() && typeof mpCoopHud === 'function') mpCoopHud();
       }
+      if (ardhiSnd) banStemSpeel(ardhiSnd.heel, 0.8);
     }
     if (p.t < H.uit && p.s && Number.isFinite(p.s.x)){ p.vx = p.s.x; p.vh = (p.s.base || 0) + CHAR_H * 0.55; }   // hij komt uit de vijand, ook als die beweegt
-    if (!p.knal && p.t >= H.uit){ p.knal = true; if (ardhiSnd) banStemSpeel(ardhiSnd.heel, 0.8); }   // de druppel barst: het geluid
-    if (p.t >= H.uit + H.breek + H.vlucht + H.na + 0.35 || dead) ardhiHeelNu = null;
+    if (!p.knal && p.t >= H.uit){ p.knal = true; if (ardhiSnd) banStemSpeel(ardhiSnd.plop, 0.7); }   // de druppel barst: een vloeibare plop
+    if (p.t >= H.uit + H.breek + H.zweef + H.vlucht + 0.6 || dead) ardhiHeelNu = null;
   }
   const gast = typeof mpcGast === 'function' && mpcGast();
   for (let i = ardhiWortels.length - 1; i >= 0; i--){
@@ -28329,66 +28330,77 @@ function ardhiWortelTeken(groundY, scale, cx){
     ctx.restore();
   }
 }
-// het leven uit de vijand: een sapdruppel wordt uit zijn lijf getrokken, spat uiteen, en de lichtpuntjes vliegen in een
-// boog naar Amir en trekken zijn borst in; als ze binnen zijn het leven. Alles volgt uit p.t (ARDHI.heel); waar de
-// vijand stond (p.vx, p.vh, wereld) staat vast vanaf de treffer, zodat het ook klopt als hij doodgaat of wegloopt
+// het leven uit de vijand: een kleine sapdruppel wordt uit zijn lijf getrokken en barst in een bolletje licht dat even
+// zweeft; dan rekt het uit tot een lichtstroom van gevlochten slierten die in een sierlijke boog naar Amir trekt en
+// zijn borst in vloeit. Pas als de stroom binnen is het leven: je ziet het ruim een seconde aankomen. Alles volgt uit p.t
+// (ARDHI.heel); waar de vijand stond (p.vx, p.vh) volgt hem zolang de druppel eruit getrokken wordt
 function ardhiHeelTeken(sx, topY, scale, groundY, cx){
   const p = ardhiHeelNu; if (!p || !imgReady(ardhiDrup)) return;
   const H = ARDHI.heel, A = CHAR_H * scale, t = p.t;
   const ex = cx + (p.vx - world), ey = groundY - p.vh * scale;            // de borst van de vijand op het scherm
-  const bx = ex, by = ey - A * H.trek;                                     // waar de druppel uiteenvalt
+  const bx = ex, by = ey - A * H.trek;                                     // waar de druppel barst
   const ax = sx, ay = topY + A * 0.36;                                     // Amirs borst
-  const Tb = H.uit, Tv = Tb + H.breek;
+  const Tb = H.uit, Tw = Tb + H.breek, Ts = Tw + H.zweef, Ta = Ts + H.vlucht;   // barsten, zweven, de stroom, aankomst
   const asp = ardhiDrup.naturalHeight / ardhiDrup.naturalWidth, m = A * H.maat;
+  const zacht = (x, y, r, a, kern) => {                                    // een zacht lichtpuntje
+    if (a <= 0.01 || r <= 0.2) return;
+    ctx.globalAlpha = Math.min(1, a);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, kern || 'rgba(255,250,220,1)'); g.addColorStop(0.3, 'rgba(255,215,110,0.75)'); g.addColorStop(1, 'rgba(255,170,40,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  };
   ctx.save();
-  if (t < Tv){                                                             // de druppel: eruit getrokken, dan barst hij
-    const k = Math.min(1, t / H.uit), e = 1 - Math.pow(1 - k, 3);
-    const br = Math.max(0, (t - Tb) / H.breek);
-    const b = m * (0.25 + 0.75 * e) * (1 + 0.5 * br), h = b * asp * (1 + 0.25 * (1 - e));   // hij rekt eerst uit het lijf
+  if (t < Tw){                                                             // de druppel: eruit getrokken, dan barst hij
+    const k = Math.min(1, t / H.uit), e = 1 - Math.pow(1 - k, 3), br = Math.max(0, (t - Tb) / H.breek);
+    const b = m * (0.3 + 0.7 * e) * (1 - 0.6 * br), h = b * asp * (1 + 0.35 * (1 - e));
     const y = ey + (by - ey) * e;
-    ctx.globalCompositeOperation = 'lighter';                              // een gloed op zijn borst waar hij uitkomt
-    const g = ctx.createRadialGradient(ex, ey, 0, ex, ey, A * 0.22);
-    g.addColorStop(0, 'rgba(255,210,90,' + (0.5 * (1 - br)) + ')'); g.addColorStop(1, 'rgba(255,190,60,0)');
-    ctx.fillStyle = g; ctx.fillRect(ex - A * 0.22, ey - A * 0.22, A * 0.44, A * 0.44);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = (0.35 + 0.65 * e) * (1 - br);
-    ctx.drawImage(ardhiDrup, bx - b / 2 + Math.sin(t * 40) * A * 0.004 * (1 - k), y - h / 2, b, h);
-    if (br > 0){                                                           // de flits van het barsten
-      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.sin(br * Math.PI);
-      const f = ctx.createRadialGradient(bx, by, 0, bx, by, A * 0.2);
-      f.addColorStop(0, 'rgba(255,245,200,0.9)'); f.addColorStop(1, 'rgba(255,200,80,0)');
-      ctx.fillStyle = f; ctx.fillRect(bx - A * 0.2, by - A * 0.2, A * 0.4, A * 0.4);
+    ctx.globalCompositeOperation = 'lighter'; zacht(ex, ey, A * 0.16, 0.45 * (1 - br));
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = (0.3 + 0.7 * e) * (1 - br);
+    ctx.drawImage(ardhiDrup, bx - b / 2, y - h / 2, b, h);
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  if (t >= Tb && t < Ts + 0.08){                                          // het bolletje licht dat even zweeft
+    const k = Math.min(1, (t - Tb) / H.breek), wt = Math.max(0, t - Tw);
+    const puls = 1 + 0.15 * Math.sin(wt * 14), r = A * 0.07 * (0.6 + 0.4 * k) * puls;
+    zacht(bx, by - A * 0.04 * Math.min(1, wt / H.zweef), r, t > Ts ? 1 - (t - Ts) / 0.08 : 1);
+    for (let i = 0; i < 6; i++){                                           // stofjes die eromheen draaien
+      const h = i / 6 * Math.PI * 2 + wt * 3, rr = A * (0.05 + 0.035 * Math.sin(wt * 5 + i));
+      zacht(bx + Math.cos(h) * rr, by - A * 0.04 * Math.min(1, wt / H.zweef) + Math.sin(h) * rr * 0.6, A * 0.012, 0.8 * k);
     }
   }
-  if (t >= Tb){                                                            // de lichtpuntjes, elk een eigen boog
-    ctx.globalCompositeOperation = 'lighter';
-    const N = H.punt, kant = Math.sign(ax - bx) || 1;
-    for (let i = 0; i < N; i++){
-      const t0 = Tb + i * H.na / N * 0.5, u = (t - t0) / H.vlucht;
-      if (u < 0 || u > 1.15) continue;
-      const hoek = (i / N) * Math.PI * 2 + 0.7, spat = A * (0.12 + 0.1 * ((i * 7) % 3) / 2);
-      const p1x = bx + Math.cos(hoek) * spat * 2.2, p1y = by + Math.sin(hoek) * spat * 1.6 - A * 0.15;   // eerst naar buiten, dan naar hem toe
-      const punt = q => { const v = q * q * (3 - 2 * q), w = 1 - v;
-        return [w * w * bx + 2 * w * v * p1x + v * v * ax, w * w * by + 2 * w * v * p1y + v * v * ay]; };
-      const uu = Math.min(1, u), [x, y] = punt(uu), r = A * 0.016 * (1 - 0.4 * uu);
-      for (let s = 3; s >= 1; s--){                                        // een staartje
-        const [tx, ty] = punt(Math.max(0, uu - s * 0.05));
-        ctx.globalAlpha = 0.25 * (1 - s / 4) * (u > 1 ? 0 : 1);
-        ctx.fillStyle = '#ffd25a'; ctx.beginPath(); ctx.arc(tx, ty, r * (1 - s * 0.18), 0, Math.PI * 2); ctx.fill();
+  if (t >= Ts){                                                            // de lichtstroom
+    const sy0 = by - A * 0.04, mx = (bx + ax) / 2, my = Math.min(sy0, ay) - A * H.boog;
+    const pad = (q, fase) => {                                             // de boog, en een slinger eromheen
+      q = Math.max(0, Math.min(1, q));
+      const w = 1 - q, x = w * w * bx + 2 * w * q * mx + q * q * ax, y = w * w * sy0 + 2 * w * q * my + q * q * ay;
+      const dx = 2 * w * (mx - bx) + 2 * q * (ax - mx), dy = 2 * w * (my - sy0) + 2 * q * (ay - my), l = Math.hypot(dx, dy) || 1;
+      const s = A * 0.05 * Math.sin(q * 9 + fase) * Math.sin(Math.PI * q);   // dun aan beide einden
+      return [x - dy / l * s, y + dx / l * s];
+    };
+    const ruw = (t - Ts) / H.vlucht, kop = ruw < 1 ? ruw * ruw * (3 - 2 * ruw) * 0.92 + ruw * 0.08 : ruw;   // traag op gang, rustig aankomen
+    const N = 46, stap = 0.013;
+    for (let s = 0; s < 3; s++){                                           // drie slierten om elkaar heen gevlochten
+      const fase = s * 2.1 + t * 4.2;
+      for (let j = N; j >= 0; j--){
+        const q = kop - j * stap; if (q < 0 || q > 1) continue;
+        const [x, y] = pad(q, fase), f = 1 - j / N;
+        zacht(x, y, A * (s === 0 ? 0.034 : 0.02) * (0.3 + 0.7 * f), (s === 0 ? 0.7 : 0.5) * Math.pow(f, 1.3));
       }
-      ctx.globalAlpha = u > 1 ? Math.max(0, 1 - (u - 1) / 0.15) : 1;
-      const gl = ctx.createRadialGradient(x, y, 0, x, y, r * 3.2);
-      gl.addColorStop(0, 'rgba(255,250,215,1)'); gl.addColorStop(0.35, 'rgba(255,214,90,0.8)'); gl.addColorStop(1, 'rgba(255,180,40,0)');
-      ctx.fillStyle = gl; ctx.fillRect(x - r * 3.2, y - r * 3.2, r * 6.4, r * 6.4);
     }
-    const Ti = Tb + H.na * 0.5 + H.vlucht;                                  // de laatste is binnen: zijn borst gloeit op
-    const gi = t > Tb + H.vlucht ? Math.max(0, 1 - Math.abs(t - Ti) / 0.45) : 0;
-    if (gi > 0){
-      ctx.globalAlpha = gi;
-      const gg = ctx.createRadialGradient(ax, ay, 0, ax, ay, A * 0.3);
-      gg.addColorStop(0, 'rgba(255,235,150,0.8)'); gg.addColorStop(0.4, 'rgba(220,200,80,0.35)'); gg.addColorStop(1, 'rgba(160,190,60,0)');
-      ctx.fillStyle = gg; ctx.fillRect(ax - A * 0.3, ay - A * 0.3, A * 0.6, A * 0.6);
+    if (kop <= 1) zacht(...pad(kop, t * 4.2), A * 0.05, 1);                // de kop van de stroom
+    for (let i = 0; i < 12; i++){                                          // vonkjes die van de stroom loslaten en wegzweven
+      const qi = (i + 0.5) / 12, los = (kop - qi) / 0.18 * H.vlucht * 0.35; // seconden sinds de kop daar langskwam
+      if (los < 0 || los > 0.6) continue;
+      const [x, y] = pad(qi, i * 1.7);
+      zacht(x + Math.sin(i * 3.1) * A * 0.08 * los, y - A * 0.12 * los, A * 0.012, 0.9 * (1 - los / 0.6));
     }
+  }
+  const gi = t > Ta - 0.1 ? Math.max(0, 1 - Math.abs(t - Ta - 0.15) / 0.45) : 0;   // zijn borst gloeit op als hij binnen is
+  if (gi > 0){
+    ctx.globalAlpha = gi;
+    const gg = ctx.createRadialGradient(ax, ay, 0, ax, ay, A * 0.34);
+    gg.addColorStop(0, 'rgba(255,238,160,0.85)'); gg.addColorStop(0.4, 'rgba(225,205,90,0.35)'); gg.addColorStop(1, 'rgba(160,190,60,0)');
+    ctx.fillStyle = gg; ctx.fillRect(ax - A * 0.34, ay - A * 0.34, A * 0.68, A * 0.68);
   }
   ctx.restore();
 }
