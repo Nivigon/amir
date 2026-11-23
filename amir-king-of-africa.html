@@ -7239,6 +7239,8 @@ const TEST_93 = {
               {r: -2770, l: -2930, h: 280, grond: true, opstap: true},
               {r: -2850, l: -2930, h: 308, grond: true, opstap: true} ],
   hangstammen: [ {x: -9000} ],
+  zwammen: [ {x: -1750}, {x: -1790, v: 1, f: true}, {x: -4300, k: 'gloei'}, {x: -5150, v: 1}, {x: -6400},   // losse paddenstoeltjes
+             {x: -6440, k: 'gloei', s: 0.8}, {x: -8600, v: 1, f: true}, {x: -10500}, {x: -11900, k: 'gloei'}, {x: -13200, v: 1} ],
   spawns: [ {x: -1150, k: 'bandiet', rug: true},
             {x: -3700, k: 'bandiet'}, {x: -4800, k: 'groen'}, {x: -5600, k: 'hyenas'},
             {x: -7600, k: 'schildman', niveau: 'makkelijk'},
@@ -16712,7 +16714,17 @@ const HOLSTAM = {
          donker: 0.28,                  // de plaatjes binnen iets donkerder, zoals de binnenkant
          bij: 0.75,                     // E werkt binnen zoveel Amir van het open hol
          grav: 1500, rust: 2.2,         // de scherven: zwaartekracht, en zo lang blijven ze liggen voor ze vervagen
-         lens: { vd: [1.15, 1.6], max: 6, blur: 7 } }   // stukken die langs de camera vliegen: hoe snel ze naderen
+         lens: { vd: [1.15, 1.6], max: 6, blur: 7 } },   // stukken die langs de camera vliegen: hoe snel ze naderen
+  // het aankleden (design/regenwoud/holstam/kit/, uit tools/holstam_kit_knip.py): per stam een paar stukken op de schil
+  // en aan de voet, gekozen uit zijn x, zodat elke stam anders is en elke ronde dezelfde
+  kit: ['mos_0', 'mos_1', 'mos_2', 'mos_3', 'mos_4', 'hangmos_0', 'hangmos_1', 'zwam_0', 'zwam_1', 'zwam_2', 'zwam_3',
+        'paddo_0', 'paddo_1', 'gloei_0', 'wortel_0', 'varen_0', 'varen_1'],
+  aankleed: { mos: [2, 4], hang: [1, 2], zwam: [1, 3], spiegel: 0.5, licht: [0.92, 1.06], tint: 6 },
+  schorsrand: { hoog: 0.48, top: 0.78, ov: 0.12 },   // de bastrand (rand.png) voor Amir langs als hij in de stam staat: hoogte in Amir, deel boven de looplijn
+  randLicht: { kleur: '255,196,120', a: 0.55, dik: 12 },   // de zon staat achter: een warme rand langs de bovenkant (bronpixels)
+  voetDonker: 0.62, kopDonker: 0.45,                  // de voorkant naar onder toe donkerder; de rafelrand bij de openingen gedimd
+  bundels: { a: 0.3, blur: 16 },                      // lichtbundels binnen, schuin door de openingen
+  zwam: { paddo: 0.3, gloei: 0.38 }                   // losse paddenstoeltjes (level.zwammen) en aan de voet: hoogte in Amir
 };
 let holstamImgs = null;
 function holstamLaad(){
@@ -16720,12 +16732,15 @@ function holstamLaad(){
   holstamImgs = { schil: new Image(), binnen: new Image() };
   holstamImgs.schil.src = HOLSTAM.dir + 'schil.png';
   holstamImgs.binnen.src = HOLSTAM.dir + 'binnen.png';
+  holstamImgs.rand = zetBron(new Image(), HOLSTAM.dir + 'rand.png', () => console.warn('ontbreekt: holstam/rand'));
+  holstamImgs.kit = {};
+  for (const k of HOLSTAM.kit) holstamImgs.kit[k] = zetBron(new Image(), HOLSTAM.dir + 'kit/' + k + '.png', () => console.warn('ontbreekt: holstam/kit/' + k));
   const G = HOLSTAM.gat, laad = n => zetBron(new Image(), HOLSTAM.dir + 'gat/' + n + '.png', () => console.warn('ontbreekt: gat/' + n));
   holstamImgs.gat = [0, 1, 2, 3, 4].map(i => laad('gat_' + i));
   holstamImgs.scherf = {};
   for (const k in G.scherven) holstamImgs.scherf[k] = Array.from({ length: G.scherven[k] }, (_, i) => laad(k + '_' + i));
 }
-function holstamLaadLevel(lv){ if (lv && lv.holstammen && lv.holstammen.length) holstamLaad(); }
+function holstamLaadLevel(lv){ if (lv && ((lv.holstammen && lv.holstammen.length) || (lv.zwammen && lv.zwammen.length))) holstamLaad(); }
 function holstamLijst(){ return (level && level.holstammen) || []; }
 function holstamN(q){ return Math.max(0, Math.min(3, q.n != null ? Number(q.n) : 0.5)); }
 function holstamK(q){ return HOLSTAM.hoog * CHAR_H * (Number(q.s) || 1) / HOLSTAM.bron.h; }   // sprite-eenheden per bronpixel
@@ -16762,7 +16777,7 @@ function holstamMosKleur(c){
 // de drie bakplaten van een stam (schil, de dichte rand, binnenkant), een keer per lengte op bronmaat
 function holstamBak(q){
   const I = holstamImgs; if (!I || !imgReady(I.schil) || !imgReady(I.binnen)) return null;
-  const n = holstamN(q), sleutel = n + (q.vlieg ? 'v' : '');
+  const n = holstamN(q), sleutel = n + (q.vlieg ? 'v' : '') + (holstamKitKlaar() ? 'k' : '');
   if (q._bak && q._bak.sleutel === sleutel) return q._bak;
   // het middenstuk heel, niet afgeknipt: een afgeknipt stuk sloot niet aan op de rechterkop (de bovenkant sprong een
   // stuk), dus komen er ceil(n) hele middenstukken in, elk smaller (n / ceil(n)) zodat de lengte toch klopt
@@ -16783,8 +16798,9 @@ function holstamBak(q){
     }
     return c;
   };
-  const schil = maak(I.schil, HOLSTAM.schilFilter), binnen = maak(I.binnen);
+  const schil = holstamAankleed(q, maak(I.schil, HOLSTAM.schilFilter)), binnen = maak(I.binnen);   // spiegelen, tint, mos en zwammen uit de kit
   holstamMosKleur(schil);
+  holstamLicht(schil);
   // de binnenkant: het daglicht bij de openingen (en donkerder in de vuurvliegjes-variant)
   const bg = binnen.getContext('2d'); bg.globalCompositeOperation = 'source-atop';
   bg.fillStyle = 'rgba(8,5,3,' + (q.vlieg ? 0.5 : 0.3) + ')'; bg.fillRect(0, 0, bw, B.h);   // binnen is het donker (de lichtlaag van het spel maakt het weer lichter)
@@ -16792,6 +16808,7 @@ function holstamBak(q){
   gr.addColorStop(0, 'rgba(255,214,150,' + lk + ')'); gr.addColorStop(e, 'rgba(255,214,150,0)');
   gr.addColorStop(1 - e, 'rgba(255,214,150,0)'); gr.addColorStop(1, 'rgba(255,214,150,' + lk + ')');
   bg.fillStyle = gr; bg.fillRect(0, 0, bw, B.h);
+  holstamBundels(bg, bw);
   // de rand: per kolom alleen het bovenste en onderste stuk van de schil (die blijft dicht als de voorkant vervaagt)
   const rand = document.createElement('canvas'); rand.width = bw; rand.height = B.h; const rg = rand.getContext('2d');
   const sd = schil.getContext('2d').getImageData(0, 0, bw, B.h), d = sd.data;
@@ -16807,8 +16824,119 @@ function holstamBak(q){
     }
   }
   rg.putImageData(sd, 0, 0);
-  q._bak = { sleutel, schil, binnen, rand, bw };
+  q._bak = { sleutel, schil, binnen, rand, bw, lip: holstamLipBak(bw) };
   return q._bak;
+}
+// ---- aankleden: de kit op de schil, licht, bundels, de bastrand en de voet ----
+// de keuzes per stam komen uit zijn x (een vaste reeks, geen kans in het spel): elke ronde dezelfde stam
+function holstamRng(x){
+  let a = (Math.abs(Math.round(Number(x) * 7.31)) + 12345) >>> 0;
+  return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+function holstamKitKlaar(){ const K = holstamImgs && holstamImgs.kit; return !!K && imgReady(holstamImgs.rand) && HOLSTAM.kit.every(k => imgReady(K[k])); }
+function holstamAmirBron(){ return HOLSTAM.bron.h / HOLSTAM.hoog; }   // zoveel bronpixels is een Amir
+function holstamAankleed(q, schil){
+  if (!holstamKitKlaar()) return schil;
+  const K = holstamImgs.kit, A = HOLSTAM.aankleed, B = HOLSTAM.bron, w = schil.width, h = schil.height, r = holstamRng(q.x), am = holstamAmirBron();
+  const tussen = (a, b) => a + (b - a) * r(), aantal = v => Math.round(tussen(v[0], v[1] + 0.49));
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+  g.filter = 'brightness(' + tussen(A.licht[0], A.licht[1]).toFixed(3) + ') hue-rotate(' + Math.round(tussen(-A.tint, A.tint)) + 'deg)';
+  if (r() < A.spiegel){ g.translate(w, 0); g.scale(-1, 1); }
+  g.drawImage(schil, 0, 0); g.setTransform(1, 0, 0, 1, 0, 0); g.filter = HOLSTAM.schilFilter;
+  const d = g.getImageData(0, 0, w, h).data, top = x => { x = Math.max(0, Math.min(w - 1, Math.round(x))); for (let y = 0; y < h; y++) if (d[(y * w + x) * 4 + 3] > 80) return y; return -1; };
+  const lo = Math.max(0.16 * w, 1.1 * am), hi = Math.min(0.84 * w, w - 1.1 * am);   // niet bij de openingen
+  const zet = (im, cx, by, bw, atop) => { const bh = bw * im.height / im.width; g.globalCompositeOperation = atop ? 'source-atop' : 'source-over'; g.drawImage(im, cx - bw / 2, by - bh, bw, bh); return bh; };
+  for (let i = aantal(A.zwam); i > 0; i--){   // zwammen plat op de bast (binnen de schil)
+    const x = tussen(lo, hi), t = top(x); if (t < 0) continue;
+    zet(K['zwam_' + Math.floor(r() * 4)], x, tussen(t + 0.55 * am, B.vloer - 0.4 * am), tussen(0.22, 0.32) * am, true);
+  }
+  for (let i = aantal(A.hang); i > 0; i--){   // hangmos over de bovenrand
+    const x = tussen(lo, hi), t = top(x); if (t < 0) continue;
+    const im = K['hangmos_' + Math.floor(r() * 2)], bw = tussen(0.7, 1.05) * am; zet(im, x, t - 8 + bw * im.height / im.width, bw, false);
+  }
+  for (let i = aantal(A.mos); i > 0; i--){    // mosplukken bovenop, half in de bast gezakt
+    const x = tussen(lo, hi), t = top(x); if (t < 0) continue;
+    const im = K['mos_' + Math.floor(r() * 5)], bw = tussen(0.55, 1.05) * am, bh = bw * im.height / im.width; zet(im, x, t + 0.45 * bh, bw, false);
+  }
+  g.globalCompositeOperation = 'source-over'; g.filter = 'none';
+  return c;
+}
+// licht: de zon staat achter de stam: een warme rand langs de bovenkant, de voorkant naar onder toe donkerder, de rafelrand bij de openingen gedimd
+function holstamLicht(c){
+  const g = c.getContext('2d'), w = c.width, h = c.height, B = HOLSTAM.bron, L = HOLSTAM.randLicht, d = g.getImageData(0, 0, w, h).data;
+  g.save(); g.globalCompositeOperation = 'source-atop';
+  const gv = g.createLinearGradient(0, B.top, 0, B.knip);
+  gv.addColorStop(0, 'rgba(10,8,14,0)'); gv.addColorStop(0.45, 'rgba(10,8,14,0.12)'); gv.addColorStop(1, 'rgba(10,8,14,' + HOLSTAM.voetDonker + ')');
+  g.fillStyle = gv; g.fillRect(0, 0, w, h);
+  const kw = 0.11 * B.b;
+  for (const [x0, k] of [[0, 1], [w, -1]]){
+    const gk = g.createLinearGradient(x0, 0, x0 + k * kw, 0); gk.addColorStop(0, 'rgba(12,8,6,' + HOLSTAM.kopDonker + ')'); gk.addColorStop(1, 'rgba(12,8,6,0)');
+    g.fillStyle = gk; g.fillRect(Math.min(x0, x0 + k * kw), 0, kw, h);
+  }
+  const gr = g.createLinearGradient(0, 0, 0, L.dik); gr.addColorStop(0, 'rgba(' + L.kleur + ',' + L.a + ')'); gr.addColorStop(1, 'rgba(' + L.kleur + ',0)');
+  g.fillStyle = gr;
+  for (let x = 0; x < w; x++){ let t = -1; for (let y = 0; y < h; y++) if (d[(y * w + x) * 4 + 3] > 80){ t = y; break; } if (t < 0) continue; g.setTransform(1, 0, 0, 1, 0, t); g.fillRect(x, 0, 1, L.dik); }
+  g.restore();
+}
+// binnen: zachte bundels die schuin door de openingen vallen
+function holstamBundels(g, w){
+  const B = HOLSTAM.bron, U = HOLSTAM.bundels, lc = document.createElement('canvas'); lc.width = w; lc.height = B.h; const l = lc.getContext('2d');
+  for (const [x0, k] of [[0, 1], [w, -1]]) for (let i = 0; i < 3; i++){
+    const sx = x0 + k * (40 + i * 90), ex = sx + k * (260 + i * 60);
+    l.beginPath(); l.moveTo(sx, B.top + 10); l.lineTo(sx + k * 70, B.top + 10); l.lineTo(ex + k * 70, B.vloer); l.lineTo(ex, B.vloer); l.closePath();
+    const gl = l.createLinearGradient(sx, B.top, ex, B.vloer); gl.addColorStop(0, 'rgba(255,205,140,' + U.a + ')'); gl.addColorStop(1, 'rgba(255,205,140,0)');
+    l.fillStyle = gl; l.fill();
+  }
+  g.save(); g.globalCompositeOperation = 'source-atop'; g.filter = 'blur(' + U.blur + 'px)'; g.drawImage(lc, 0, 0); g.restore();
+}
+// de bastrand: een paar randen naast elkaar (om en om gespiegeld, met een zachte overgang) over de lengte van de stam
+function holstamLipBak(bw){
+  const im = holstamImgs.rand, R = HOLSTAM.schorsrand, B = HOLSTAM.bron; if (!imgReady(im)) return null;
+  const h = R.hoog * holstamAmirBron(), w0 = h * im.width / im.height, top = B.vloer - R.top * h;
+  const x0 = 0.035 * bw, x1 = 0.965 * bw, n = Math.max(1, Math.round((x1 - x0) / (w0 * 1.1))), ww = (x1 - x0) / (n - (n - 1) * R.ov);
+  const c = document.createElement('canvas'); c.width = bw; c.height = B.h; const g = c.getContext('2d');
+  for (let i = 0; i < n; i++){
+    const t = document.createElement('canvas'); t.width = Math.ceil(ww); t.height = Math.ceil(h); const tg = t.getContext('2d');
+    tg.filter = HOLSTAM.schilFilter; if (i % 2){ tg.translate(ww, 0); tg.scale(-1, 1); } tg.drawImage(im, 0, 0, ww, h); tg.setTransform(1, 0, 0, 1, 0, 0); tg.filter = 'none';
+    if (i > 0){ tg.globalCompositeOperation = 'destination-in'; const gr = tg.createLinearGradient(0, 0, ww * R.ov, 0); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, '#000'); tg.fillStyle = gr; tg.fillRect(0, 0, ww, h); }
+    g.drawImage(t, x0 + i * ww * (1 - R.ov), top);
+  }
+  holstamMosKleur(c);
+  g.globalCompositeOperation = 'source-atop'; const gv = g.createLinearGradient(0, top, 0, top + h);
+  gv.addColorStop(0, 'rgba(10,8,14,0)'); gv.addColorStop(1, 'rgba(10,8,14,0.45)'); g.fillStyle = gv; g.fillRect(0, 0, bw, B.h);
+  return c;
+}
+// de voet: wortels uit de koppen de grond in, en een paar paddenstoeltjes en varens (uit zijn x)
+function holstamVoetTeken(q, M, S, scale){
+  if (!holstamKitKlaar()) return;
+  const K = holstamImgs.kit, r = holstamRng(q.x + 1), am = CHAR_H * scale, sq = Math.min(1.2, Number(q.s) || 1);
+  if (!q._voet){
+    const v = [];
+    for (const k of [-1, 1]){
+      v.push({ k: 'wortel_0', u: k < 0 ? 0.07 : 0.93, kant: k, h: (0.6 + 0.15 * r()) * sq, hoek: 1.3 + 0.12 * r() });
+      if (r() < 0.75) v.push({ k: r() < 0.25 ? 'gloei_0' : 'paddo_' + Math.floor(r() * 2), u: k < 0 ? -0.02 - 0.05 * r() : 1.02 + 0.05 * r(), h: 0, f: r() < 0.5 });
+      if (r() < 0.6) v.push({ k: 'varen_' + Math.floor(r() * 2), u: k < 0 ? 0.08 + 0.06 * r() : 0.86 + 0.06 * r(), h: (0.3 + 0.1 * r()) * sq, f: r() < 0.5 });
+    }
+    q._voet = v;
+  }
+  for (const v of q._voet){
+    const im = K[v.k]; if (!imgReady(im)) continue;
+    const hh = (v.h || (v.k === 'gloei_0' ? HOLSTAM.zwam.gloei : HOLSTAM.zwam.paddo)) * am, ww = hh * im.width / im.height, x = S.x + v.u * S.w;
+    ctx.save();
+    if (v.kant){ ctx.translate(x, S.gy - 0.12 * am * sq); ctx.rotate(-v.kant * v.hoek); ctx.drawImage(im, -ww / 2, -0.06 * hh, ww, hh); }
+    else { ctx.translate(x, S.gy + 0.06 * hh); if (v.f) ctx.scale(-1, 1); ctx.drawImage(im, -ww / 2, -hh, ww, hh); }
+    ctx.restore();
+  }
+}
+// losse paddenstoeltjes door het level (level.zwammen: [{x, k, v, s, f}], k paddo of gloei)
+function holstamZwammenTeken(groundY, scale, cx){
+  const L = level && level.zwammen; if (!L || !L.length || !holstamImgs) return;
+  for (const z of L){
+    const im = holstamImgs.kit[z.k === 'gloei' ? 'gloei_0' : 'paddo_' + (z.v ? 1 : 0)]; if (!imgReady(im)) continue;
+    const hh = (z.k === 'gloei' ? HOLSTAM.zwam.gloei : HOLSTAM.zwam.paddo) * CHAR_H * scale * (z.s || 1), ww = hh * im.width / im.height;
+    const x = cx + (z.x - world); if (x < -ww || x > W / viewZoom() + ww) continue;
+    ctx.save(); ctx.translate(x, groundY - terrainH(z.x) * scale + 0.06 * hh); if (z.f) ctx.scale(-1, 1); ctx.drawImage(im, -ww / 2, -hh, ww, hh); ctx.restore();
+  }
 }
 function holstamReset(){
   holstamScherven = []; holstamLens = []; holstamKruim = []; holstamFade = null;
@@ -16937,7 +17065,7 @@ function holstamPlaat(im, S, a){
 }
 function holstamSchaduw(S){                            // een zachte donkere schaduw op de snede: hij ligt in het mos
   const hgt = 0.05 * HOLSTAM.bron.h * S.kk, gr = ctx.createLinearGradient(0, S.knip - hgt * 2, 0, S.knip + hgt * 0.6);
-  gr.addColorStop(0, 'rgba(14,10,6,0)'); gr.addColorStop(0.7, 'rgba(14,10,6,0.55)'); gr.addColorStop(1, 'rgba(14,10,6,0)');
+  gr.addColorStop(0, 'rgba(14,10,6,0)'); gr.addColorStop(0.7, 'rgba(14,10,6,0.78)'); gr.addColorStop(1, 'rgba(14,10,6,0)');
   ctx.save(); ctx.fillStyle = gr; ctx.fillRect(S.x + 0.03 * S.w, S.knip - hgt * 2, S.w * 0.94, hgt * 2.6); ctx.restore();
 }
 function holstamSchil(q, b, S){
@@ -16949,6 +17077,7 @@ function holstamSchil(q, b, S){
 // achter de personages: de binnenkant, en de schil als Amir bovenop staat
 function holstamAchter(groundY, scale, cx){
   holstamDenTeken(groundY, scale, cx);
+  holstamZwammenTeken(groundY, scale, cx);
   for (const q of holstamLijst()){
     const b = holstamBak(q); if (!b) continue;
     const M = holstamMaat(q), S = holstamScherm(q, M, groundY, scale, cx); if (!holstamZichtbaar(S)) continue;
@@ -16965,7 +17094,11 @@ function holstamVoor(groundY, scale, cx){
   for (const q of holstamLijst()){
     const b = holstamBak(q); if (!b) continue;
     const M = holstamMaat(q), S = holstamScherm(q, M, groundY, scale, cx); if (!holstamZichtbaar(S)) continue;
-    if (!q._achter) holstamSchil(q, b, S);
+    if (!q._achter){
+      holstamSchil(q, b, S);
+      if (b.lip && q.vaag > 0.001){ ctx.save(); ctx.globalAlpha *= Math.min(1, q.vaag / HOLSTAM.vaag); ctx.drawImage(b.lip, S.x, S.y, S.w, HOLSTAM.bron.h * S.kk); ctx.restore(); }   // de bastrand over Amirs voeten
+    }
+    holstamVoetTeken(q, M, S, scale);
     holstamKruisTeken(q, M, S, scale);
     holstamSchervenTeken(q, groundY, scale, cx);
     if (!q.vliegen) continue;
@@ -63054,6 +63187,7 @@ function readLevel(txt){
                                                     zwart: (q.zwart === 'savanne' || q.zwart === 'vulling') ? q.zwart : undefined })),   // zwarte terrein-variant, zie de tekenlagen
            // zwevende savannelagen: een dik savanneblok in de lucht, zie "zwevende savannelaag"
            kruipstammen: Array.isArray(o.kruipstammen) ? o.kruipstammen.map(q => ({ x: Number(q.x), s: Number(q.s) || 1 })) : undefined,
+           zwammen: Array.isArray(o.zwammen) ? o.zwammen.map(q => ({ x: Number(q.x), k: q.k === 'gloei' ? 'gloei' : 'paddo', v: q.v ? 1 : 0, s: Number(q.s) || 1, f: !!q.f })) : undefined,   // losse paddenstoeltjes (HOLSTAM.zwam)
            holstammen: Array.isArray(o.holstammen) ? o.holstammen.map(q => ({ x: Number(q.x), s: Number(q.s) || 1, n: q.n != null ? Number(q.n) : undefined, vlieg: q.vlieg === true, anker: q.anker === 'r' ? 'r' : undefined,
                                                                        hol: q.hol ? { dx: Number(q.hol.dx) || 0, inhoud: ['goud', 'ruimte', 'uitzicht', 'ingang'].includes(q.hol.inhoud) ? q.hol.inhoud : 'kalebas', vondst: q.hol.vondst === 'kist' ? 'kist' : 'kalebas', goud: q.hol.goud != null ? Number(q.hol.goud) : undefined, f: !!q.hol.f, kruis: q.hol.kruis === true, h: q.hol.h != null ? Number(q.hol.h) : undefined } : undefined })) : undefined,   // de holle stam (HOLSTAM)
            zwevers: (o.zwevers || []).concat((o.kruipstammen || []).map(kruipstamDak)).concat((o.holstammen || []).map(q => holstamDak({ x: Number(q.x), s: Number(q.s) || 1, n: q.n, anker: q.anker }))).map(q => {
