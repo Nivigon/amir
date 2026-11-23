@@ -35,7 +35,7 @@ koppel-rune met `stuurt`). Dan:
 
 - komen zijn spawns een voor een, `POORT.tussen` seconden na elkaar, precies op de plek van de opening
   (de spawner gebruikt dan `sp.x` in plaats van `spawnPoint`), op de hoogte van de spawn (`boven`, `y`). Ook de
-  kooiman, de meelman en de fosforgroep lezen `boven` (het dak van een gang: `bovenVloer`, niet de gang-bodem);
+  kooiman en de fosforgroep lezen `boven` (het dak van een gang: `bovenVloer`, niet de gang-bodem);
 - wacht een spawn achter de opening tot Amir binnen zijn triggerafstand is (`triggerDist`), en telt zijn beurt
   (`poortWacht`) pas dan af: een zegel of regiepunt mag dus ver van de poort liggen. Eerst schreef de spawner hem
   als 'ver voorbij' af als Amir meer dan 2,5 scherm weg was, en kwam hij nooit, terwijl de hint hem beloofde;

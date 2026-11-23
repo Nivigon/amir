@@ -11,7 +11,7 @@ Valse Koning (die is weggehaald, met zijn menu, verhaal en ondertitels). Menu `m
 `menuEpisodes`; Spelen is `gpSpeel` (tribekeuze, goud op 0, het verhaal), en de knop Nightmare (`btnnightmareKum`) neemt
 de Nightmare over die De Valse Koning had. Teksten in het spel in het Engels (regel 5).
 
-Alleen mensen (geen meelman) en hyena's, en Nyundo als enige baas (Roofs 8, gevraagd, regel 12), in indigo
+Alleen mensen en hyena's, en Nyundo als enige baas (Roofs 8, gevraagd, regel 12), in indigo
 (`KUM_TINT.nyundo`, dertig treffers). Twee aanvoerders in eigen kleur: Sefu de wever (3, groen, razernij) en Zuri de
 verfmeester (6, schaduw met stofspoor en razernij, opent de eindpoort).
 
@@ -219,7 +219,7 @@ Drie dagen, elk van `stad_ochtend` (het ochtendgloren, een nieuwe scene) via `st
 Per level: 1 losse rovers, de eerste brug, een kist in een huis; 2 een rivier met en een zonder brug, hyena's, een kist op de
 galerij; 3 de eerste winkel, een kist boven de doeken, Jabari (aanvoerder, 6, einde); 4 regen, de eerste zweepman, een snelle val
 (`val: true`), een kist boven in een huis met een verdieping; 5 de eerste nacht, sluipen, een kist achter een boog; 6 de dam van leem
-(de opzet van Goud 4) met een meelman op de trap en een kist op de stelling; 7 drie kamers achter elkaar (de kist in de achterste) en
+(de opzet van Goud 4) met een dolkwerper op de trap en een kist op de stelling; 7 drie kamers achter elkaar (de kist in de achterste) en
 de tweede winkel; 8 zandstorm, hyena's in roedels, twee bruggen, de takel als enige weg naar de kist; 9 Kofi (12) en de eindpoort;
 10 het plein met Nyundo bij nacht, `hp: 24` en rode oker (`tint`), met vier fakkels zodat Amir te zien blijft; 11 de derde winkel en een kist boven op de toren (1388);
 12 schutters op alle galerijen, een kist boven in een huis; 13 drie rivieren (de laatste zonder brug), de vierde winkel en twee

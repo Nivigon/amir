@@ -39,7 +39,7 @@ Na een wijziging aan die lijst, aan de arena of aan wat de sandbox laadt: `node 
 (zie `notities/tools.md`). Die speelt de arena in Chromium met alle soorten aan en meldt FOUT op elk
 bestand dat het spel opvraagt en niet in de set staat, voor de grote en de kleine spriteset apart.
 
-Twee dingen die daarbij aan het licht kwamen: `items/` (de drinkkalebas, de meelzakken) en
+Twee dingen die daarbij aan het licht kwamen: `items/` (de drinkkalebas) en
 `ravijn/assets/` zaten helemaal niet in de lijst, en de json van de schildbandiet (`lagen.json`,
 `executie.json`) ging in `sw.js` als "het spel zelf" naar de shellcache terwijl de downloadknop hem
 in de assetcache zette, zodat de schildman offline niet laadde. Json onder de assetmappen is nu een

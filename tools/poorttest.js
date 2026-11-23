@@ -103,7 +103,7 @@ const zegel = (c, r, pc, pr, extra) => ({ c, r, k: 'zegel', poort: { c: pc, r: p
     await page.evaluate(() => {
       window.__eerste = []; const gezien = new WeakSet();
       window.__spion = () => { if (!level) return;
-        const lijsten = [['slang', snakes], ['scorp', scorps], ['bandiet', bandieten], ['schildman', schildmannen], ['kooiman', kooimannen], ['meelman', meelmannen], ['fosfor', fosforSlangen]];
+        const lijsten = [['slang', snakes], ['scorp', scorps], ['bandiet', bandieten], ['schildman', schildmannen], ['kooiman', kooimannen], ['fosfor', fosforSlangen]];
         for (const [k, l] of lijsten) for (const v of l) if (!gezien.has(v)){ gezien.add(v); window.__eerste.push({ k, x: Math.round(v.x), b: Math.round(v.base), t: +(__vt() / 1000).toFixed(2), amir: Math.round(world) }); } };
     });
     await page.evaluate(() => __wacht(0.5));
@@ -121,7 +121,6 @@ const zegel = (c, r, pc, pr, extra) => ({ c, r, k: 'zegel', poort: { c: pc, r: p
           ...bandieten.map(s => ({ k: 'bandiet', x: Math.round(s.x), b: Math.round(s.base), st: s.state })),
           ...schildmannen.map(s => ({ k: 'schildman', x: Math.round(s.x), b: Math.round(s.base), st: s.state })),
           ...kooimannen.map(s => ({ k: 'kooiman', x: Math.round(s.x), b: Math.round(s.base), st: s.state })),
-          ...meelmannen.map(s => ({ k: 'meelman', x: Math.round(s.x), b: Math.round(s.base), st: s.state })),
           ...fosforSlangen.map(s => ({ k: 'fosfor', x: Math.round(s.x), b: Math.round(s.base), st: s.state }))],
     eerste: window.__eerste || [],
     hint: (document.getElementById('hint') || {}).textContent || '' }));
@@ -183,7 +182,7 @@ const zegel = (c, r, pc, pr, extra) => ({ c, r, k: 'zegel', poort: { c: pc, r: p
   });
 
   // ---- 4. elke vijandsoort uit de poort ----
-  const soorten = ['groen', 'zwart', 'knock', 'scorp', 'fosfor', 'bandiet', 'bandiet:dolk', 'bandiet:elite', 'schildman', 'schildman:makkelijk', 'meelman', 'kooiman:smash', 'kooiman:vogel'];
+  const soorten = ['groen', 'zwart', 'knock', 'scorp', 'fosfor', 'bandiet', 'bandiet:dolk', 'bandiet:elite', 'schildman', 'schildman:makkelijk', 'kooiman:smash', 'kooiman:vogel'];
   for (const soort of soorten){
     await check('soort ' + soort + ': komt uit de poort op de plek van de poort', async () => {
       const uit = [];
@@ -214,7 +213,7 @@ const zegel = (c, r, pc, pr, extra) => ({ c, r, k: 'zegel', poort: { c: pc, r: p
     await foto('mesa');
     return uit;
   });
-  for (const soort of ['scorp', 'bandiet', 'schildman', 'kooiman:smash', 'meelman', 'fosfor']){
+  for (const soort of ['scorp', 'bandiet', 'schildman', 'kooiman:smash', 'fosfor']){
     await check('mesa ' + soort + ': komt op het terras en niet op de grond eronder', async () => {
       const uit = [];
       const g = grid({ teken: r => { for (let c = 9; c <= 15; c++) r[6][c] = 'R'; }, objecten: [poort(12, 5, { vijand: soort }), zegel(18, 6, 12, 5)] });
@@ -240,7 +239,7 @@ const zegel = (c, r, pc, pr, extra) => ({ c, r, k: 'zegel', poort: { c: pc, r: p
     if (!s.vij.length) uit.push('geen vijand'); else if (Math.abs(s.vij[0].b) > 2) uit.push('vijand niet op het dak: ' + JSON.stringify(s.vij));
     return uit;
   });
-  for (const soort of ['scorp', 'bandiet', 'schildman', 'kooiman:smash', 'kooiman:vogel', 'meelman', 'fosfor']){
+  for (const soort of ['scorp', 'bandiet', 'schildman', 'kooiman:smash', 'kooiman:vogel', 'fosfor']){
     await check('dak ' + soort + ': op de savanne boven de gang', async () => {
       const uit = [];
       const g = grid({ teken: r => { for (let c = 9; c <= 15; c++) for (let rr = 8; rr <= 10; rr++) r[rr][c] = 'G'; r[7][16] = 'V'; },

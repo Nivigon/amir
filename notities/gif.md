@@ -37,7 +37,7 @@ Wat er in de inventory zit en hoeveel gif de speren nog hebben, gaat mee naar he
 
 - **Smeren** zet `gifHits` op 10, voor al je speren samen (hand, rug, de geworpen speer).
 - **Een treffer** van Amir roept in de hit-functie van de soort, net na `hits++`, `gifRaak(s, soort)` aan. Alleen
-  soorten in `GIF_SOORTEN` (bandiet, kooiman, meelman, kruisboog, zweepman, schildman, hyena, Brutus) vatten het; slang,
+  soorten in `GIF_SOORTEN` (bandiet, kooiman, kruisboog, zweepman, schildman, hyena, Brutus) vatten het; slang,
   schorpioen, fosforslang en panter zijn immuun en kosten niets. Niet met het mes (`atkMes`), en bij de schildbandiet
   niet als de speer in het schild komt (`s.schild > 0`). Elke treffer met een gifspeer spat wat bloed en gif (`gifSpat`).
 - **Pas het volgende beeld** (`gifWacht`, in `gifUpdate`) kost het een treffer: alleen als de vijand de treffer overleefde
