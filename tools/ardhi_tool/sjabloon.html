@@ -122,7 +122,7 @@ let ac = null, buf = {};
 async function laadAudio(){
   if (!ac){ ac = new (window.AudioContext || window.webkitAudioContext)(); }
   if (ac.state === 'suspended') await ac.resume();
-  for (const k in SND) if (!buf[k]){ const r = await fetch(SND[k]); buf[k] = await ac.decodeAudioData(await r.arrayBuffer()); }
+  for (const k in SND) if (!buf[k]){ const b = atob(SND[k].split(',')[1]), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); buf[k] = await ac.decodeAudioData(u.buffer); }   // geen fetch: die blokkeert de artifact-pagina
 }
 let bronnen = [];
 function speelGeluid(k, wacht, vol, rate){
@@ -226,11 +226,13 @@ function teken(t){
 // ---- afspelen ----
 let t = 0, loopt = false, vorige = 0, lus = false;
 function start(){
+  stopGeluid(); t = 0; loopt = true; vorige = performance.now(); $('speel').textContent = 'Stop';   // het beeld start meteen, het geluid zodra het klaar is
+  const t0 = performance.now();
   laadAudio().then(() => {
-    stopGeluid(); t = 0; loopt = true; vorige = performance.now(); $('speel').textContent = 'Stop';
-    const T = tijden(), sp = +$('tempo').value;
-    for (const k in H.geluiden){ const g = H.geluiden[k]; if (g.moment === 'uit' || !(g.vol > 0)) continue; speelGeluid(k, (T[g.moment] + g.dt) / sp, g.vol, sp); }
-  }).catch(() => { $('melding').textContent = 'Geluid kon niet starten in deze weergave.'; });
+    if (!loopt) return;
+    const T = tijden(), sp = +$('tempo').value, al = (performance.now() - t0) / 1000;
+    for (const k in H.geluiden){ const g = H.geluiden[k]; if (g.moment === 'uit' || !(g.vol > 0)) continue; speelGeluid(k, (T[g.moment] + g.dt) / sp - al, g.vol, sp); }
+  }).catch(e => { $('melding').textContent = 'Geluid kon niet starten: ' + (e && e.message || e); });
 }
 function stop(){ loopt = false; stopGeluid(); $('speel').textContent = 'Afspelen'; }
 $('speel').onclick = () => loopt ? stop() : start();
