@@ -1,5 +1,5 @@
 // Proefrit voor de Ardhi-wapens (ARDHI) in de sandbox: de speer wordt Ardhi's Reach, de knikkerzak geeft precies 1 op 10
-// (worp) en 1 op 33 (steek, stok), de druppel uit de vijand geeft een leven terug, een geworpen Ardhi-speer zet wortels om twee
+// (worp), 1 op 25 (steek) en 1 op 33 (stok), de druppel uit de vijand geeft een leven terug, een geworpen Ardhi-speer zet wortels om twee
 // bandieten in een groep (en ze staan vast), en de stokken krijgen Ardhi's Grip.
 // node tools/ardhi_test.js [map voor de afdrukken]
 const { chromium } = require('playwright');
@@ -35,8 +35,8 @@ const srv = http.createServer((q, r) => {
   await page.evaluate(() => { speerVolgorde = ['ardhi', 'pathfinder', 'standaard', 'geel', 'blauw', 'oud']; speerSorteer(); });
   await page.waitForTimeout(400); await schiet('speer_in_hand');
   // de knikkerzak
-  const zak = await page.evaluate(() => { ardhiZakken = {}; let w = 0, s = 0; for (let i = 0; i < 10; i++) w += ardhiKnikker('worp', 1, 10) ? 1 : 0; for (let i = 0; i < 33; i++) s += ardhiKnikker('steek', 1, 33) ? 1 : 0; return { w, s }; });
-  ok('knikkerzak: 1 op 10 en 1 op 33', zak.w === 1 && zak.s === 1, zak);
+  const zak = await page.evaluate(() => { ardhiZakken = {}; let w = 0, s = 0; for (let i = 0; i < 10; i++) w += ardhiKnikker('worp', 1, 10) ? 1 : 0; const [sr, sn] = ARDHI.kans.steek; for (let i = 0; i < sn; i++) s += ardhiKnikker('steek', sr, sn) ? 1 : 0; return { w, s }; });
+  ok('knikkerzak: 1 op 10 en 1 op 25', zak.w === 1 && zak.s === 1, zak);
   // het leven terug: de druppel
   await page.evaluate(() => { levensStart = () => 3; lives = 1; ardhiZakken = { worp: [true] }; worpTref = true; jav = { blauw: 'ardhi', state: 'vlucht', t: 0 }; ardhiTreffer({ x: world - 200 }); worpTref = false; jav = null; });
   ok('een raak knikker zet de druppel', await page.evaluate(() => !!ardhiHeelNu));
