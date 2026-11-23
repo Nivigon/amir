@@ -841,7 +841,8 @@ niet met `STOK_AAN` of in een level met `broekKeuze` of een eigen `skin`).
   boven; 3 creme broek, witte schort, rood boven; 4 zwarte broek, oker schort, donkerrood en goud; 5 witte broek, ivoren
   schort, goud; 6 bordeaux met goud. Elk een eigen broekkleur, zodat je elkaar uit elkaar houdt.
 - **De lobby.** `mpBroekLijst`: met de speer de outfits (`MP_OUTFIT`, bewaard in `amir.mpoutfit`, standaard mk1, mk3, mk4
-  per slot), met de stokken de broeken (`MP_BROEK_OUD`, `amir.mpbroek`). Wisselt je wapen, dan zet `mpBroekPas` je keuze
+  per slot), met de stokken de outfits van de stoktribe (`MP_VACHT`, `amir.mpvacht`; zie hieronder, vroeger de oude
+  broeken `MP_BROEK_OUD` en `amir.mpbroek`). Wisselt je wapen, dan zet `mpBroekPas` je keuze
   om. Het bericht blijft `{t: 'broek', id}`. `MP_NAAM.kleur` heeft per outfit zijn opvallendste kleur (`stip`).
   `mpLobbyOpen` zet een level-skin uit (`skinZet(null)`): het menu houdt het laatst geladen level vast, en had dat een
   eigen skin (Test 90, Tau), dan gaf `mkSkinVan` niets en stond Amir in de lobby in het oude tenue in plaats van in zijn outfit.
@@ -928,3 +929,48 @@ nog niet in de winkel van Co-op en nog niet over het netwerk.
 - **Test 94** (Test levels): de oefenteamgenoot ligt op `level.bennu.x`, ver voor je; hij staat op als de veren aankomen, blijft
   `BN.dummyStaat` s staan en valt weer om. Geen vijanden (`vredig`), dus het terugduwen van vijanden door de bol zit er nog niet in.
 - **Nog te doen:** de winkel en het netwerk (zoals `zh`), het terugduwen van vijanden, het offline-manifest bijwerken.
+
+## De outfits van de stoktribe in Co-op en Survival (23-11-2026)
+
+Op verzoek: een speler met de stokken kiest in de lobby (Co-op met 2 of 3, Co-op solo en City Survival) niet meer uit de
+oude broekkleuren maar uit de zes outfits van de stoktribe, broek en leeuwenvacht samen (`VACHT.outfits`, zie "De outfits
+van de stoktribe" in `notities/stokken.md`): Homefinder, Ice Warder, Dawnbreaker, Firedancer, Moss Cleaver, Show Stopper.
+Met de speer blijven het de outfits van Mkuki.
+
+- **De lijst.** `MP_VACHT` (in plaats van `MP_BROEK_OUD`), bewaard in `amir.mpvacht`. `MP_BROEK` is `MP_VACHT` plus
+  `MP_OUTFIT`, dus `mpBroekNaam` geeft de naam in Title Case, ook op het kaartje van het team. Het bericht blijft
+  `{t: 'broek', id}`; een nieuwe gast krijgt de outfits van de anderen in `pvpGastErbij`, net als de broek eerst.
+- **Standaard per slot** (`MP_VACHT_STANDAARD`): de host Homefinder, de eerste gast Firedancer, de tweede Ice Warder.
+  Drie andere broeken (paars, ossenbloed, indigo) en drie andere vachten (tawny, goud, wit), zodat je elkaar in een
+  gevecht meteen uit elkaar houdt. Paars en indigo liggen dicht bij elkaar, maar daar staan de tawny en de witte vacht
+  tegenover. Moss Cleaver (olijf) was het alternatief voor de derde; de asgrijze vacht lijkt dan op de witte niet.
+- **Tekenen.** `broekKleurVan` kent de outfits: Homefinder is het tenue zoals het is (geen lapje), de andere `vachtKl(id)`.
+  Zo gaat het overal vanzelf: je eigen Amir (`broekNu`), een teamgenoot (`pvpTekenEen`), de lobby (`mpAmirTeken`). Het
+  naambordje en het kaartje krijgen de kleur uit `MP_NAAM.kleur` (de broek; bij Dawnbreaker het blond van de vacht).
+- **Geen haperingen: gebakken maskers (`VACHT_BAK`).** Eerst rekende `broekLap` per frame het vachtmasker en het
+  broekmasker uit, de eerste keer dat het frame getekend werd: 30 tot 40 ms per frame per outfit (gemeten in Chromium),
+  dus een hapering bij elke nieuwe beweging, maal het aantal stokspelers. Nu:
+  - `tools/vacht_bak.js` bakt per frame dat een stokspeler kan tonen (de stokken, ook goud en klauw, de lage zwaai, de
+    bewegingen, de idle) het masker in `karakters/amir_vacht/<frame>`: rood de broek (0 tot 255), groen de vacht, alleen
+    de rechthoek om die twee; `lijst.json` geeft per frame die rechthoek. Het script roept `broekMaskers` uit het spel zelf
+    aan, met `skinZet(null)` (het opstartlevel heeft een skin, en dan ging `src` van een Amir-frame naar die skin).
+    `tools/vacht_bak_pak.py` pakt ze daarna in met een palet (exact): 917 maskers, 1,2 MB.
+  - `broekLap` met een masker kleurt alleen nog die rechthoek (`broekKleur`, zonder losse arrays per pixel): 2 tot 5 ms.
+    Zonder masker (een nieuw frame) rekent hij het zoals eerst (`broekMaskers`).
+  - De lapjes van een outfit staan op de framenaam (`img._skinRel`), niet op het plaatje: het plaatje van een teamgenoot
+    (`pvpBeeld`, een eigen Image) en de kleine set krijgen hetzelfde lapje (`lap.w`, `broekBeeld` schaalt). Niet als een
+    skin dat frame vervangt (`skinPad`).
+  - Vooraf kleuren: in de lobby elk beeld 4 ms (`vachtLobbyStap`, `VACHT_LOBBY`) voor de outfits die nu gedragen worden,
+    en wat er dan nog over is achter het laadscherm (`vachtWarmTaken` in `warmBouw`). Wisselt iemand van outfit, dan gaan
+    de lapjes van een outfit die niemand meer draagt weg.
+  - Nagemeten (Co-op solo, Chromium op 2 cores): laden met een outfit 22,7 s, met Homefinder (niets te kleuren) 23 s;
+    eerst, zonder de lobby, 32 s. In het spel komen er geen nieuwe lapjes meer bij (`tools/mptest.js` meldt het).
+- **Testen.** `node tools/mptest.js --spelers 2 --stokken host,gast` (of met drie spelers) kijkt na: de standaard per slot,
+  iedereen dezelfde outfits, het kaartje, een keuze die bij iedereen aankomt, de lapjes vooraf gekleurd, geen paars in de
+  broek over (alle frames, alle outfits: paars dat precies zo bleef binnen 3 px van de omgekleurde broek of een los stuk van
+  150 px, hooguit 3%; nu hooguit 2%), en de nieuwe lapjes in het spel. Op deze testmachine (2 cores) crasht een venster met
+  drie spelers, ook zonder deze wijziging; met twee spelers is alles OK.
+- **Opnieuw bakken** na nieuwe of andere frames van Amir, of een wijziging aan `vachtMasker`, `broekMaskers`, `BROEK` of
+  `VACHT` (zaad, groei, eiland): `node tools/vacht_bak.js` (met `--alleen <pad>` voor een deel), daarna
+  `tools/gen-offline-manifest.py`.
+

@@ -28,7 +28,10 @@
 //   node tools/mptest.js --duel --spelers 2   het Duel: allebei in de ronde, de gast valt, de ronde naar de host, ronde 2
 //   node tools/mptest.js --zilverhart --stokken host   Silver Pride: de gast valt, de host legt het hart neer, de gast komt eruit
 //   node tools/mptest.js --stokken gast  deze spelers kiezen in de lobby de stokken (ook host, gast2, of host,gast): kijkt na
-//                                        dat iedereen het weet, dat hun potje met stokken start zonder speer, en hun winkel
+//                                        dat iedereen het weet, dat hun potje met stokken start zonder speer, en hun winkel;
+//                                        de outfits van de stoktribe (per slot een andere standaard, het kaartje, een keuze die
+//                                        bij iedereen aankomt), dat ze achter het laadscherm al gekleurd zijn, dat er na het
+//                                        kleuren geen paars in de broek over is, en of er in het spel nog lapjes bij kwamen
 //   node tools/mptest.js --geensnel      zonder het nagebootste snelle kanaal (zoals via het relais)
 //   node tools/mptest.js --proef --winkeleerst   met Start in the shop: kijkt na dat ook elke gast in de winkel begint
 //   node tools/mptest.js --kaart ishmul  Co-op Survival op een andere map (een id uit MP_KAARTEN.coop; standaard dye)
@@ -679,7 +682,38 @@ async function elk(H, G){
     const wapens = await Promise.all(ramen.map(r => r.page.evaluate(() => pvp.wapen.slice(0, 3).join())));
     const zou = ramen.map(r => stokken.includes(r.wie) ? 'stok' : 'speer').join();
     meld(wapens.every(w => w.startsWith(zou)), 'het wapen uit de lobby, bij iedereen hetzelfde (' + wapens[0] + ')');
+    // de outfits van de stoktribe (VACHT): een stokspeler kiest uit de zes, per slot een andere standaard, en iedereen ziet
+    // ze, ook op de kaartjes van het team
+    const ob = await Promise.all(ramen.map(r => r.page.evaluate(() => ({ b: pvp.spelers.map(p => pvp.broek[p]),
+      vacht: VACHT.outfits.map(k => k.id), std: MP_VACHT_STANDAARD, namen: pvp.spelers.map(p => mpBroekNaam(pvp.broek[p])),
+      kaart: [...pvpEl('mpteam').querySelectorAll('.mpkaart span')].map(s => s.textContent) }))));
+    const o0 = ob[0], stokSlots = ramen.map((r, i) => stokken.includes(r.wie) ? i : -1).filter(i => i >= 0);
+    meld(ob.every(o => o.b.join() === o0.b.join()), 'de outfits zijn bij iedereen dezelfde (' + o0.b.join(', ') + ')');
+    meld(stokSlots.every(i => o0.b[i] === o0.std[i]), 'met de stokken de standaard outfit van zijn slot (' + stokSlots.map(i => o0.namen[i]).join(', ') + ')');
+    meld(new Set(o0.b).size === o0.b.length, 'iedereen een andere outfit');
+    meld(ob.every(o => stokSlots.every(i => o.kaart[i] && o.kaart[i].startsWith(o0.namen[i] + ' \u00b7 Sticks'))), 'de outfit op het kaartje van het team, bij iedereen (' + ob[ob.length - 1].kaart.join(' | ') + ')');
+    // in een venster een outfit kiezen: de anderen zien hem meteen, met de naam in Title Case
+    const ki = stokSlots[stokSlots.length - 1];
+    if (ki != null){
+      await ramen[ki].page.evaluate(() => { mpBroekZet('showstopper'); });
+      for (const r of ramen) await tot(r.page, i => pvp.broek[i] === 'showstopper', ki, 5000);
+      await wacht(300);
+      const ziet = await Promise.all(ramen.map(r => r.page.evaluate(i => pvp.broek[i] + '|' + [...pvpEl('mpteam').querySelectorAll('.mpkaart span')][i].textContent, ki)));
+      meld(ziet.every(z => z === 'showstopper|Show Stopper \u00b7 Sticks'), 'een andere outfit kiezen komt bij iedereen aan (' + ziet.join(', ') + ')');
+      await ramen[ki].page.evaluate(i => { mpBroekZet(MP_VACHT_STANDAARD[i]); }, ki);
+      for (const r of ramen) await tot(r.page, i => pvp.broek[i] === MP_VACHT_STANDAARD[i], ki, 5000);
+    }
   }
+  // de tijd van elk nieuw lapje (broekLap) zodra het spel loopt: na het laadscherm hoort er niets meer bij te komen
+  for (const r of ramen) await r.page.evaluate(() => {
+    window.__lapT = [];
+    const o = broekLap;
+    broekLap = function(img, kl){
+      const a = performance.now(), uit = o(img, kl), d = performance.now() - a;
+      if (running && !laadWacht && !window.__lapStil && d > 1) window.__lapT.push([+d.toFixed(1), kl.id, img._skinRel || '?']);
+      return uit;
+    };
+  });
   if (args.includes('--duel')) await H.page.evaluate(() => { window.__duel = true; });
   if (args.includes('--ep') || args.includes('--hl') || args.includes('--winkel'))
     await H.page.evaluate(k => { window.__ep = true; window.__epKaart = k; }, args.includes('--hl') ? 'b0' : args.includes('--winkel') ? 'b2' : '0');
@@ -747,6 +781,95 @@ async function elk(H, G){
       if (!args.includes('--duel')) meld(wil ? (st.winkel.includes('hout') && st.winkel.includes('slam') && !/speer|gif|fc|slot/.test(st.winkel)) : !st.winkel.includes('hout'),
         r.wie + ': de winkel voor zijn wapen (' + st.winkel + ')');
     }
+    // de outfits in het spel: elk venster heeft de lapjes van elke stokspeler al achter het laadscherm gekleurd (VACHT_BAK)
+    for (const r of ramen){
+      const w = await r.page.evaluate(() => pvp.spelers.map(p => { const kl = broekKleurVan(pvp.broek[p]);
+        if (!kl || !kl.vacht) return pvp.broek[p] + ':-'; const C = broekLapCache.get(kl.id); return pvp.broek[p] + ':' + (C ? C.n.size : 0); }));
+      meld(w.every(x => /:-$/.test(x) || +x.split(':')[1] >= 200), r.wie + ': de outfits van de stokspelers vooraf gekleurd (' + w.join(', ') + ' lapjes)');
+    }
+    // nergens paars over in de broek: elk frame van de stokspeler in elke outfit. Paars dat na het kleuren nog precies zo
+    // staat en bij de broek hoort: binnen 3 px van de omgekleurde broek (een lijn langs de rand) of een los stuk van minstens
+    // 150 px binnen de rechthoek om de broek (het achterbeen achter een stok), als deel van het paars van de broek. Niet: de
+    // key-rand (tint 300 en hoger), de lila vegende stok in een slag, en de dunne paarse zweem langs een arm of vuist.
+    const paars = await H.page.evaluate(async () => {
+      window.__lapStil = true;                         // dit kleuren is de proef zelf, geen lapje uit het spel
+      const ids = VACHT.outfits.slice(1).map(k => k.id), kls = ids.map(id => broekKleurVan(id));
+      const beelden = new Map();
+      for (const set in stokBank) for (const im of stokBank[set]) beelden.set(im._skinRel, im);
+      for (const im of SKIN.imgs) if (im._skinRel && !beelden.has(im._skinRel) && !VACHT_WARM_NIET.test(im._skinRel) && VACHT_BAK.lijst.has(im._skinRel)) beelden.set(im._skinRel, im);
+      const c = document.createElement('canvas'), g = c.getContext('2d', { willReadFrequently: true });
+      const lees = cv => {
+        c.width = cv.naturalWidth || cv.width; c.height = cv.naturalHeight || cv.height; g.clearRect(0, 0, c.width, c.height); g.drawImage(cv, 0, 0);
+        return g.getImageData(0, 0, c.width, c.height).data;
+      };
+      const isPaars = (p, i) => {
+        if (p[i + 3] < 128) return false;
+        const r = p[i] / 255, gr = p[i + 1] / 255, b = p[i + 2] / 255, mx = Math.max(r, gr, b), mn = Math.min(r, gr, b), d = mx - mn;
+        if (!d || d / mx < 0.14 || mx < 0.12) return false;
+        const t = (mx === r ? ((gr - b) / d + 6) % 6 : mx === gr ? (b - r) / d + 2 : (r - gr) / d + 4) * 60;
+        return t >= 215 && t < 300;
+      };
+      const uit = { frames: 0, slechtst: {} }, doek = document.createElement('canvas'), orig = new Map();
+      for (const [rel, im] of beelden) if (imgReady(im)){
+        const p = lees(im); let n = 0;
+        for (let i = 0; i < p.length; i += 4) if (isPaars(p, i)) n++;
+        if (n >= 200) orig.set(rel, p);                // minder: geen broek in beeld
+      }
+      uit.frames = orig.size;
+      const draag = pvp.spelers.map(p => pvp.broek[p]);
+      for (let k = 0; k < ids.length; k++){
+        for (const [rel, p0] of orig){
+          const im = beelden.get(rel), W = im.naturalWidth;
+          for (let n = 0; n < 50 && !broekLap(im, kls[k]); n++) await new Promise(ok => setTimeout(ok, 20));   // het masker komt nog binnen
+          const p1 = lees(broekBeeld(im, im, kls[k], doek));
+          let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
+          for (let i = 0; i < p0.length; i += 4){
+            if (!isPaars(p0, i) || (p0[i] === p1[i] && p0[i + 1] === p1[i + 1] && p0[i + 2] === p1[i + 2])) continue;
+            const j = i / 4, x = j % W, y = (j - x) / W;
+            if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+          }
+          if (x1 < 0) continue;
+          x0 -= 8; y0 -= 8; x1 += 8; y1 += 8;
+          const H = p0.length / 4 / W, N = W * H;
+          const blijf = new Uint8Array(N), om = new Uint8Array(N);   // paars gebleven, omgekleurd paars
+          let voor = 0;
+          for (let j = 0; j < N; j++){
+            const i = j * 4;
+            if (!isPaars(p0, i)) continue;
+            const zelfde = p0[i] === p1[i] && p0[i + 1] === p1[i + 1] && p0[i + 2] === p1[i + 2];
+            if (zelfde) blijf[j] = 1; else { om[j] = 1; voor++; }
+          }
+          // losse stukken gebleven paars en hun maat
+          const stuk = new Int32Array(N).fill(-1), maat = [], st = [];
+          for (let j0 = 0; j0 < N; j0++){
+            if (!blijf[j0] || stuk[j0] >= 0) continue;
+            const id = maat.length; let n = 0; stuk[j0] = id; st.push(j0);
+            while (st.length){ const j = st.pop(); n++; const x = j % W;
+              for (const q of [j - 1, j + 1, j - W, j + W]) if (q >= 0 && q < N && Math.abs((q % W) - x) <= 1 && blijf[q] && stuk[q] < 0){ stuk[q] = id; st.push(q); } }
+            maat.push(n);
+          }
+          let over = 0;
+          for (let j = 0; j < N; j++){
+            if (!blijf[j]) continue;
+            const x = j % W, y = (j - x) / W;
+            if (x < x0 || x > x1 || y < y0 || y > y1) continue;
+            let bij = maat[stuk[j]] >= 150;
+            for (let dy = -3; dy <= 3 && !bij; dy++) for (let dx = -3; dx <= 3 && !bij; dx++){
+              const xx = x + dx, yy = y + dy;
+              if (xx >= 0 && yy >= 0 && xx < W && yy < H && om[yy * W + xx]) bij = true;
+            }
+            if (bij) over++;
+          }
+          const f = over / Math.max(1, voor + over);
+          if (!uit.slechtst[ids[k]] || f > uit.slechtst[ids[k]].f) uit.slechtst[ids[k]] = { f: +f.toFixed(3), rel };
+        }
+        if (!draag.includes(ids[k])) broekLapCache.delete(kls[k].id);   // het geheugen weer vrij
+      }
+      window.__lapStil = false;
+      return uit;
+    });
+    for (const id in paars.slechtst) meld(paars.slechtst[id].f <= 0.03, 'na het kleuren geen paars in de broek, ' + id + ' over ' + paars.frames + ' frames: hooguit ' +
+      (paars.slechtst[id].f * 100).toFixed(1) + '% over (' + paars.slechtst[id].rel + ')');
     // een stokslag van een gast bij de host: een halve treffer, met Hardwood sticks 0,75, en de counter een hele
     const gi = ramen.findIndex(r => r !== H && stokken.includes(r.wie));
     // de grondklap in Co-op: aan bij de stokspelers, 5 s afkoeling, en de golf van de gast doet bij de host zijn schade
@@ -925,6 +1048,12 @@ async function elk(H, G){
       vijanden: r !== ramen[0] ? vergelijk(pak(r.net.baan.beeld, 'v'), pak(ramen[0].net.baan.echt, 'v')) : null
     };
     for (const r of ramen) delete r.net.baan;
+  }
+  // nieuwe lapjes terwijl het spel liep (na het laadscherm): hoeveel, en de traagste
+  for (const r of ramen){
+    const L = await r.page.evaluate(() => window.__lapT || []).catch(() => []);
+    const traag = L.reduce((m, x) => x[0] > m[0] ? x : m, [0]);
+    meld(!L.some(x => x[0] > 4), r.wie + ': in het spel ' + L.length + ' nieuwe lapjes van meer dan 1 ms' + (L.length ? ', de traagste ' + traag[0] + ' ms (' + traag[1] + ', ' + traag[2] + ')' : ''));
   }
   loopt = false;
   await Promise.all(pompen);
