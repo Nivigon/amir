@@ -61,7 +61,7 @@ grond"). De bandiet en de kooiman blijven daarnaast op hun eigen niveau en halen
 hoogteverschil (`banZelfdeHoogte`, `kooiZelfdeHoogte`: de vloer onder Amir vergeleken met hun eigen vloer).
 Uitzondering op verzoek van de opdrachtgever: de chaser (`chaser: true`, de Asloper uit `enemies/bandiet_as/`) springt
 van een galerij, dak of terras naar beneden als Amir lager staat (`BAN_GJ`, `banGjStap`, zie "de chaser" in
-`notities/bandiet.md`); omhoog komt ook hij niet. Uitzondering op verzoek van de opdrachtgever: staat Amir op een springdoek, een rieten kraamdak of de doek van
+`notities/bandiet.md`); omhoog komt ook hij niet. Uitzondering op verzoek van de opdrachtgever: de terugslag van Full Circle slaat een bandiet of schildbandiet van een galerij of dak naar de straat, alleen als hij daar veilig neerkomt (`FC_VAL`, `fcValLanding`, zie `notities/combo.md`). Uitzondering op verzoek van de opdrachtgever: staat Amir op een springdoek, een rieten kraamdak of de doek van
 een kraam (die tellen niet als vloer), dan slaan de bandiet, de schildbandiet en de zweepman toch als hun slag er
 in de animatie bij kan, genoeg van Amir binnen het bereik van hun wapen (`amirOpDoek`, `slagBij`, `banKanBij`,
 `schbKanBij`, `zwmKanBij`, `BAN_BIJ_MIN`). Alleen de slag zelf; dolkworp, vault en hinderlaag niet.
