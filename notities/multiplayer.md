@@ -579,6 +579,10 @@ De tweede map van Co-op Survival, uitgewerkt in een mockup met de opdrachtgever 
   Alle rijen huizen in de verte houden op dezelfde plek op, op de muur van de voorste rij (`grensRand` in `stadAchter`):
   eerst had elke rij zijn eigen rand, liep de verste rij verder door en zag je onder die huizen de nevel als een plat blauw
   vak tussen de huizen. Ook het paleis vaagt weg voor het die rand bereikt, anders zweefde het boven de savanne.
+  Die rand ligt nooit rechts van de linkermuur van het meest linkse huis aan de straat (`doel` in `stadAchter`): door de
+  parallax lag hij, met de camera op de brug, rechts van het lage huis op de linkeroever, en daarboven zag je blauwe lucht
+  waar de stad hoort. Afgerond naar rechts op een muur valt hij nu achter dat huis. `tools/stadlucht.js` loopt de camera
+  over de straat op vier schermen en meldt FOUT op elke plek waar tussen de huizen lucht te zien is (`stadAchterRand`).
 - **De lucht** (`lucht: {wolken, vogels, gloed}` in `stad`, `STAD_LUCHT`, `stadLucht`, `luchtWolken`, `stadReigers`): wolken
   uit Grok in de stijl van de rotsen (`design/stad/verte/wolk_1..8.png`, gefacetteerd, middaglicht), witte reigers in een
   losse V in plaats van de gieren (met een dun grijs randje, zodat ze ook voor een wolk te zien zijn), en een warme gloed
