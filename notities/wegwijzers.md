@@ -155,28 +155,28 @@ lessen en alle afgekeurde versies staan in de projectnotitie `claude/holle_stam_
 - **Platen** (`design/regenwoud/holstam/`): `schil.png` (de buitenkant, Grok-post 6af92838, wit weggeknipt, de witte zoom
   eraf) en `binnen.png` (de doorsnede, post 320f8104, al in het silhouet van de schil geschaald en op 55%). De Grok-bron
   staat in `bron/`. Beide 2031x576 en precies op elkaar: dezelfde knippen gelden voor allebei.
-- **Lengte**: `holstamBak` knipt de plaat in drie stukken (`bron.L`, `bron.R`): linkerkop, middenstuk (`n` keer, ook een
-  deel), rechterkop, met een overloop van `ov` bronpixels. Per stam een keer gebakken op bronmaat (`q._bak`), plus de
+- **Lengte**: `holstamBak` knipt de plaat in drie stukken (`bron.L`, `bron.R`): linkerkop, middenstuk (`ceil(n)` hele
+  stukken, elk `n / ceil(n)` zo breed: een afgeknipt stuk sloot boven niet aan op de rechterkop), rechterkop, met een overloop van `ov` bronpixels. Per stam een keer gebakken op bronmaat (`q._bak`), plus de
   dichte rand: per kolom alleen het bovenste 16% en onderste 10% van de schil.
 - **Grootte**: `HOLSTAM.hoog` (2,25 Amir) maal `s`. Bij s 1 ligt het plafond binnen op 357 en de bovenkant op 373
   (sprite-eenheden), dus bovenop kom je alleen vanaf iets hogers (de sprong haalt ruim 200). Bij s 0,45 is het plafond
   160: alleen gebukt erdoor, net als de kruipstam.
-- **Ligging**: de looplijn binnen (`bron.vloer`) valt op de grond, de onderkant zakt erdoor en wordt op `bron.knip`
-  afgeknipt, met een zachte schaduw op de snede: hij ligt half naar voren in het mos (Tom koos de helft tussen "in het mos"
-  en "helemaal naar voren").
+- **Ligging**: de looplijn binnen (`bron.vloer`) valt op de grond, en de plaat wordt vlak eronder (`bron.knip`, 14
+  bronpixels) grillig afgeknipt, met een zachte schaduw op de snede: hij ligt op de grondlaag, niet ervoor (Tom: eerst
+  lag hij te ver naar voren). Bovenop loop je op `bron.top` 118, in het mos, zodat je voeten nergens zweven.
 - **Botsing**: `holstamDak` geeft een onzichtbare zwevende laag (look 'geen', zoals `kruipstamDak`). readLevel zet hem
   erbij, de sandbox zelf (met `holstam: true`, zodat Weg hem weer vindt). Vijanden blijven op de grond (vloerBij kijkt pas
   naar een zwever vanaf 140 onder de bovenkant).
 - **Breedte**: in wereld-px, en die schaalt met het beeld (`nowScale`), net als een kei: zo valt de botsing precies op de
   plaat. Het dak (`holstamDak`, met `hq`) werkt `holstamUpdate` elk beeld bij. Met `anker: 'r'` is `x` de rechterkant in
   plaats van het midden, zodat een stam strak tegen iets vast ligt (de lange stam in Test 93 tegen de treden). Een kleine
-  stam (plafond onder Amir) heeft het dak en het vervagen pas 0,42 Amir binnen de opening: je loopt tot in de opening en
+  stam (plafond onder Amir) heeft het dak en het vervagen pas 0,16 Amir binnen de opening: je loopt tot in de opening en
   bukt daar.
 - **Lagen**: `holstamAchter` (na `hstamTeken`) tekent de binnenkant achter de personages, en de schil als Amir bovenop
   staat; `holstamVoor` (na `tonVoorTeken`, dus na alle vijanden) tekent anders de schil: een vijand in de stam zie je niet
   tot Amir erin loopt. Loopt Amir erin (`holstamBinnen`, in de eerste 7% vanaf een opening loopt het op), dan vervaagt de
-  voorkant helemaal en blijven de rand boven en de lip over zijn voeten dicht (`bron.lip`, 46 bronpixels boven de looplijn):
-  zo sta je erin.
+  voorkant helemaal en blijft de rand boven dicht; de onderrand begint onder de looplijn (`bron.lip` -6), zodat je voeten
+  altijd te zien zijn.
 - **Vuurvliegjes** (`vlieg: true`): binnen 0,5 donker in plaats van 0,3, en twaalf stipjes (`holstamVliegStap`) die
   zweven en knipperen. Een steek (`holstamUpdate`, op atkFrame), de lage zwaai (`holstamZwaai`, een keer per sweepId) of
   een vijand die sterft (`vijandDood`) roept `holstamSchrik` aan: hooguit vier in de buurt flitsen op, schieten weg met
