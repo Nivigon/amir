@@ -30,6 +30,8 @@
 //                                        startbudget, kopen, Ready, de ronde; de aankopen mee naar ronde 2 met goud erbij;
 //                                        het stof verblindt de ander zonder schade, de grondklap van de ander raakt
 //   node tools/mptest.js --zilverhart --stokken host   Silver Pride: de gast valt, de host legt het hart neer, de gast komt eruit
+//   node tools/mptest.js --sperenzien --spelers 2      de speren van een ander: zijn soort in de hand, de soorten op zijn rug
+//                                        en zijn gif, ook op een geworpen speer (--shots map: een schermafdruk van wat de host ziet)
 //   node tools/mptest.js --bennu --spelers 2           de veren van de speerspeler, de bol als schild, en de zelf-revive met hart en veren
 //   node tools/mptest.js --stokken gast  deze spelers kiezen in de lobby de stokken (ook host, gast2, of host,gast): kijkt na
 //                                        dat iedereen het weet, dat hun potje met stokken start zonder speer, en hun winkel;
@@ -173,6 +175,25 @@ async function zhProef(R){
 // Feathers of the Bennu (BN) en de zelf-revive: de gast valt, de host (met de speer) blaast de veren met G, de bol houdt een
 // vijand en een gifbal buiten, de gast staat op. Dan valt de gast met een hart in de tas (het klopt op zijn lijk) en met de
 // veren (de bol om zijn lijk), en is het geen game over zolang dat kan. node tools/mptest.js --bennu --spelers 2
+// --sperenzien: de gast draagt een Pathfinder in de hand, een Shield Piercer en Ardhi's Reach op de rug, met gif; de host
+// moet dat allemaal in de stand van de gast zien, en zijn eigen gif mag er niet door veranderen
+async function sperenZienProef(R){
+  const [H, G] = R;
+  for (const r of R) await r.page.evaluate(() => { godMode = true; MPC.reviveNa = 999; });
+  await H.page.evaluate(() => { world = -1500; ph = 0; facing = -1; gifHits = 0; });
+  await G.page.evaluate(() => { world = -1750; ph = 0; facing = 1; RUG_MAX = 2; spearFound = true; spear = true; speerBlauw = 'pathfinder';
+    rugSperen.length = 0; rugSperen.push({ blauw: 'piercer' }, { blauw: 'ardhi' }); gifHits = 7; pfAantal = () => 1; spAantal = () => 1; ardhiAantal = () => 1; });
+  meld(await tot(H.page, () => { const g = pvpAnderen().map(p => pvp.anders[p].g)[0];
+    return g && g.gi === 7 && Array.isArray(g.rg) && g.rg.length === 2 && [g.sp, ...g.rg].sort().join() === 'ardhi,pathfinder,piercer'; }, null, 6000),
+    'de host ziet bij de gast de drie speersoorten (een in de hand, twee op de rug) en gif (7 treffers)');
+  await wacht(1500);
+  meld(await H.page.evaluate(() => gifHits === 0 && gifBron.lijst.length === 0), 'het gif van de gast laat het gif en de druppels van de host met rust');
+  if (shots){ fs.mkdirSync(shots, { recursive: true }); await H.page.screenshot({ path: path.join(shots, 'speren_host.png') }); await G.page.screenshot({ path: path.join(shots, 'speren_gast.png') }); }
+  await G.page.evaluate(() => { jav = { x: -1600, h: 0, sa: 0.3, dir: -1, state: 'grond', t: 1, blauw: 'piercer', wob: 0, sag: 0, kantel: 0, los: 0 }; });
+  meld(await tot(H.page, () => { const g = pvpAnderen().map(p => pvp.anders[p].g)[0]; return g && g.j && g.j.b === 'piercer'; }, null, 4000), 'de host ziet de geworpen Shield Piercer van de gast');
+  await wacht(800);
+  if (shots) await H.page.screenshot({ path: path.join(shots, 'speren_worp_host.png') });
+}
 async function bnProef(R){
   const [H, G] = R, allen = R.map(r => r.page);
   for (const p of allen) await p.evaluate(() => { godMode = true; MPC.reviveNa = 999; });
@@ -1159,6 +1180,7 @@ async function elk(H, G){
   }
   if (args.includes('--winkel')){ await winkelProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--hl')){ await hlProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
+  if (args.includes('--sperenzien')){ await sperenZienProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--bennu')){ await bnProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--zilverhart')){ await zhProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--ep')){ await epProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
