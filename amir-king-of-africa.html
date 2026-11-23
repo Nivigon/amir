@@ -800,6 +800,9 @@
   #winkelui.coop .wkcoopknop.groot{grid-column:span 2;flex-direction:row;align-items:center;gap:14px;background:#3d2814;border-color:#a8743e}
   #winkelui.coop .wkcoopknop.groot .wkkaartbeeld{width:46%;height:72px;flex-shrink:0}
   .wkcoopknop .wkkaarttekst{display:flex;flex-direction:column;gap:3px}
+  .wkupg{align-self:flex-start;font-size:11px;font-weight:700;letter-spacing:.3px;padding:1px 6px;border-radius:3px;color:#f2c75a;border:1px solid rgba(242,199,90,.55);background:rgba(28,16,8,.45)}
+  .wkupg::before{content:'';display:inline-block;margin-right:5px;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:6px solid #f2c75a;vertical-align:1px}
+  .wkupg:empty{display:none}
   .wknieuw{align-self:flex-start;font-size:10px;font-weight:800;letter-spacing:1px;padding:2px 7px;border-radius:4px;background:#b8342a;color:#fff}
   #winkelui.coop #wkinfo{width:300px;flex-shrink:0;padding:12px 14px;gap:8px;background:#2f1f12;border-color:#6b5034;overflow-y:auto}
   #winkelui.coop #wkinfobeeld{display:flex;align-items:center;justify-content:center;height:92px;flex-shrink:0;border-radius:10px;background:#160d06;border:1px solid #4a3520}
@@ -2895,7 +2898,7 @@
           <button id="wkvgif" class="wkverkoop">Verkoop</button></div>
       </div>
       <div id="wkcoop"></div>
-      <div id="wkinfo"><div id="wkinfobeeld"></div><b id="wkinfonaam">Pick an item</b><i id="wkinfosfeer"></i><small id="wkinfobron"></small><span id="wkinfouitleg">Click an item to see what it does.</span><div id="wkdraag"></div><button id="wkinfokoop" class="weg">Buy</button></div>
+      <div id="wkinfo"><div id="wkinfobeeld"></div><b id="wkinfonaam">Pick an item</b><span id="wkinfoupg" class="wkupg"></span><i id="wkinfosfeer"></i><small id="wkinfobron"></small><span id="wkinfouitleg">Click an item to see what it does.</span><div id="wkdraag"></div><button id="wkinfokoop" class="weg">Buy</button></div>
       <div class="wktas">
         <span class="wktaskop">Jouw spullen</span>
         <div id="wkvakken"></div>
@@ -77145,6 +77148,16 @@ function mpcZeg(soort){
 }
 // het zijpaneel naast de prijslijst: wat je aanklikte, met de sfeertekst (schuin de bron eronder), wat het doet en Buy
 let mpcKeus = null;                                  // {id, q, aan}: het gekozen artikel
+// is een artikel een upgrade van iets wat je al hebt? Dan een kort label op de kaart en in het zijpaneel, zodat niemand
+// denkt dat het een los, extra wapen is (Ardhi's Reach werd op 23-11-2026 voor een losse speer aangezien). Een speersoort
+// maakt van een van je speren die soort; een artikel met eis bouwt voort op dat artikel
+const MPC_SPEER_UPGRADE = { pathfinder: 1, piercer: 1, ardhireach: 1 };
+function mpcUpgradeTekst(q){
+  if (MPC_SPEER_UPGRADE[q.k]) return 'Upgrades one of your spears';
+  if (!q.eis) return '';
+  const van = MPC_WINKEL.find(w => w.k === q.eis);
+  return van ? 'Upgrades your ' + van.naam : '';
+}
 function mpcInfoToon(){
   const k = mpcKeus, q = k && k.q, C = mpcWs();
   const zet = (id, s) => { document.getElementById(id).textContent = s || ''; };
@@ -77152,12 +77165,13 @@ function mpcInfoToon(){
   mpcDraagToon();
   if (!q || !mpcWinkelVoorMij(q)){
     document.getElementById('wkinfobeeld').innerHTML = '';
-    zet('wkinfonaam', 'Pick an item'); zet('wkinfosfeer'); zet('wkinfobron'); zet('wkinfouitleg', 'Click an item to see what it does. Double click buys it.');
+    zet('wkinfonaam', 'Pick an item'); zet('wkinfoupg'); zet('wkinfosfeer'); zet('wkinfobron'); zet('wkinfouitleg', 'Click an item to see what it does. Double click buys it.');
     koop.classList.add('weg'); return;
   }
   const trap = Array.isArray(q.prijs) ? (C.koop[q.k] || 0) : 0, heb = mpcWinkelHeb(q), niet = mpcWinkelNiet(q);
   document.getElementById('wkinfobeeld').innerHTML = mpcBeeld(q, k.aan);
   zet('wkinfonaam', q.naam);
+  zet('wkinfoupg', mpcUpgradeTekst(q));
   zet('wkinfosfeer', q.sfeer ? '“' + q.sfeer + '”' : '');
   zet('wkinfobron', q.bron || '');
   zet('wkinfouitleg', (k.aan != null && pvp.spelers.length > 2 ? 'To ' + mpSpelerNoem(k.aan, true) + '. ' : '')
@@ -77266,7 +77280,9 @@ function mpcWinkelToon(){
                       : mpcUitleg(q, trap);
       prijs.textContent = heb ? (Array.isArray(q.prijs) || q.k === 'pathfinder' || q.k === 'piercer' || q.k === 'ardhireach' ? 'Sold out' : 'Bought') : mpcWinkelPrijs(q) + ' gold';
       if (q.nieuw && !heb){ const n = document.createElement('span'); n.className = 'wknieuw'; n.textContent = 'NEW'; tekst.append(n); }
-      tekst.append(naam, uit, prijs);
+      const upg = mpcUpgradeTekst(q);
+      if (upg){ const u = document.createElement('span'); u.className = 'wkupg'; u.textContent = upg; tekst.append(naam, u, uit, prijs); }
+      else tekst.append(naam, uit, prijs);
       b.append(beeld, tekst);
       const id = q.k + (aan != null ? '_' + aan : '');
       if (mpcKeus && mpcKeus.id === id) b.classList.add('kies');
