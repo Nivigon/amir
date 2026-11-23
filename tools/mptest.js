@@ -848,6 +848,33 @@ async function elk(H, G){
   let los = true;
   for (const r of ramen) los = await tot(r.page, () => running && !laadWacht, null, 90000) && los;
   meld(los, 'de gast is geladen: iedereen los');
+  // --ronde N: de host springt naar ronde N (de volgende ronde is N); --geenwinkel: geen winkel tussendoor; --pauze s
+  if (opt('--ronde', null) || args.includes('--geenwinkel') || opt('--pauze', null))
+    await H.page.evaluate(([n, gw, pz]) => {
+      const C = pvp.coop, R = pvp.regels.coop;
+      if (gw) R.winkelNa = 9999;
+      if (pz != null) R.pauze = pz;
+      if (n){ C.ronde = n - 1; C.fase = 'wacht'; C.klok = 1; }
+    }, [Number(opt('--ronde', 0)), args.includes('--geenwinkel'), opt('--pauze', null) == null ? null : Number(opt('--pauze', null))]);
+  // --killer s: bij de host krijgt een vijand die langer dan s seconden leeft elke halve seconde een treffer van gast 1,
+  // zodat de rondes doorlopen (de spelers van de proef komen niet overal bij, zoals een meelman op de galerij)
+  if (opt('--killer', null)) await H.page.evaluate(s => {
+    setInterval(() => {
+      if (!pvp.coop || pvp.coop.fase === 'uit' || !pvp.spelers.includes(1)) return;
+      const nu = performance.now();
+      for (const q of MPC_LIJSTEN) if (!q.los) for (const o of q.l()){
+        if (!mpcLeeft(o)) continue;
+        o.__geboren = o.__geboren || nu;
+        if (nu - o.__geboren > s * 1000) try { mpcTrefferVanGast({ a: q.k, id: o.mpId, f: 'enemyTakeHit', p: 1 }); } catch (e) {}
+      }
+    }, 500);
+  }, Number(opt('--killer', 10)));
+  // --groei: elke 15 s per venster de beelden per seconde en de lijsten en caches die groeien
+  if (args.includes('--groei')) for (const r of ramen) await r.page.evaluate(namen => {
+    const G = window.__groei = { namen, n: 0, t: performance.now(), js: 0 };
+    const o = safeLoop;
+    safeLoop = function(now){ const a = performance.now(); o(now); G.js += performance.now() - a; G.n++; };
+  }, ["FOUT_GEZIEN", "laadOpen", "laadMis", "laadKapot", "stofStraal", "sand", "rocksL", "dwarrel", "holstamScherven", "losseSperen", "wapenrekken", "beetStukken", "goudapen", "fakkelVonken", "straalLijst", "straalMotes", "zhTauPlekken", "grains", "wdust", "rugSperen", "speerKopie", "prooiLijst", "prooiRanden", "vachtKlCache", "broekLapCache", "mkSkinBeeld", "mkLapCache", "critZak", "critFxLijst", "dust", "snowflakes", "weerDruppels", "mistStoten", "schildStof", "chips", "tonnen", "tonLens", "dkLijst", "dkCache", "waterRingen", "waterDruppels", "waterPlonzen", "splashes", "ravijnen", "stadNachtGloed", "fakkelLichten", "stadDeurWarmCache", "stadStroken", "stadDoorgangCache", "gifVijanden", "gifWacht", "gifFx", "gifPlas", "goudVliegers", "kisten", "runeGeraakt", "runeFlits", "runeSperen", "hppotions", "hppotionFx", "venom", "splat", "snakes", "lawaaiPulsen", "scorps", "panthers", "snowPuffs", "snowFx", "hyenas", "kooimannen", "vogels", "meelmannen", "meelzakken", "kruisbogen", "krbPijlen", "banVonken", "banDolken", "bandieten", "murKevers", "zweepmannen", "schildmannen", "bloedRand", "fosforSlangen", "fosforBrok", "fosforGroepen", "props", "grass", "scaleCache", "persKlad", "woedeVonken", "mpNaamBakken", "ravijnStenen"]);
   if (args.includes('--winkeleerst')){
     for (const r of ramen) meld(await tot(r.page, () => pvp.coop.inWinkel && binnenBij(world), null, 10000), r.wie + ': Start in the shop, ook ' + r.wie + ' staat in de winkel');
   }
@@ -1115,6 +1142,23 @@ async function elk(H, G){
       const l = MPC_LIJSTEN.filter(q => !q.los).flatMap(q => q.l().map(o => q.k + ':' + Math.round(o.x) + ':' + o.state + ':' + Math.round(o.base || 0) + ':' + (o.mpSoort || '-')));
       return { w: Math.round(world), lives, goud: pvp.coop.goud, kal: hppotionCarry, f: pvp.coop.fase, r: pvp.coop.ronde, ton: tonnen.filter(t => !t.weg).map(t => Math.round(t.x) + (t.revive ? 'R' : '')), rek: wapenrekken[0] && wapenrekken[0].n, l };
     })));
+    if (args.includes('--groei') && s >= (ramen.__groeiT || 15)){
+      ramen.__groeiT = (ramen.__groeiT || 15) + 15;
+      for (const r of ramen){
+        const g = await r.page.evaluate(() => {
+          const G = window.__groei, nu = performance.now(), sec = (nu - G.t) / 1000;
+          const uit = { fps: +(G.n / sec).toFixed(1), jsMs: +(G.js / Math.max(1, G.n)).toFixed(2), ronde: pvp.coop.ronde, fase: pvp.coop.fase,
+                        heap: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null, maat: {} };
+          G.n = 0; G.js = 0; G.t = nu;
+          for (const k of G.namen){ let v; try { v = eval(k); } catch (e) { continue; }
+            const n = v == null ? 0 : v instanceof Map || v instanceof Set ? v.size : Array.isArray(v) ? v.length : typeof v === 'object' ? Object.keys(v).length : 0;
+            if (n) uit.maat[k] = n; }
+          const C = pvp.coop; uit.maat['C.losWeg'] = C.losWeg.size; uit.maat['C.gezien'] = C.gezien.size;
+          return uit;
+        }).catch(e => ({ fout: e.message }));
+        console.log('groei ' + r.wie + ' ' + Math.round(s) + 's ' + JSON.stringify(g));
+      }
+    }
     if (H.laatst && H.laatst.eind) break;
     await new Promise(ok => setTimeout(ok, 100));
   }
