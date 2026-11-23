@@ -900,7 +900,8 @@ Het licht en het hart (`ZH.pomp`) zwellen op dezelfde tijden op (`zhSlagNu`, lub
 de brul van Tau lager gestemd, met een dreun eronder en galm (`sounds/zilverhart_brul.mp3`), op `ZH.brulVol` 4. De klap is een eigen
 dreun met een glinstering (`sounds/zilverhart_klap.mp3`); de klap van de zonnestraal (`zegelontdek.mp3`) zei "miss" (het is de
 misser van de kooiman). Alle drie spelen op de gedeelde AudioContext (`zhKlank`): boven 1 gaat het volume een compressor in en dan
-een begrenzer, zodat harder ook harder klinkt zonder te kraken.
+een begrenzer, zodat harder ook harder klinkt zonder te kraken. Later op verzoek: de klap uit (`ZH.klapVol` 0, alleen de brul) en
+het beeld schudt harder (`ZH.schok` 0,7).
 
 ### Feathers of the Bennu, de veren van de speerspeler (Test 94, 23-11-2026)
 
