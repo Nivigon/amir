@@ -535,6 +535,8 @@ brug moeten kunnen lopen.
   het plein al de trede van 28, 56 lager. Dan bleven de meelman en de duel-kooiman daar voorgoed staan, en hield een ronde
   van Co-op nooit op. Nu loopt `opstapTrap` de vloer ertussen na: alleen opstapjes, elk niet hoger dan `OPSTAP.max`, is
   geen rand (20-11-2026).
+- **De rol, de renstoot en de slagen** stoppen op de rand van een verhoging (`randOp`), maar een opstapje af telt niet als rand:
+  daar rol je gewoon vanaf, ook een hele trap af (op verzoek van de opdrachtgever).
 - De Maker-JSON houdt de vlag (`opstap: true`); in het palet van de Maker zit hij nog niet.
 
 Test 78 (Small steps) is het proefstuk: drie opstapjes van 28 naar een plein met een bandiet en een schildbandiet, drie
