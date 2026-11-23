@@ -22961,13 +22961,18 @@ const ZH = {
   neer: 0.42,             // s: Amir bukt om het hart neer te leggen
   legT: 0.24,             // s na het drukken: het hart ligt
   // af te stellen met de losse tool (een artifact buiten het spel); de getallen hier zijn wat er live staat
-  puls: 4.3,              // s pulseren na het neerleggen, dan de uitbarsting (twee keer een seconde langer, op verzoek)
+  puls: 3,                // s pulseren na het neerleggen, dan de uitbarsting
+  tempoA: 1.15,           // s tussen de eerste hartslagen
+  tempoB: 0.45,           // s tussen de laatste, vlak voor de uitbarsting (het hart klopt steeds sneller)
+  pomp: 0.15,             // zoveel zwelt het hart op bij elke slag
+  slagOff: 0,             // s: het beeld van de slag tegenover het geluid verschoven
   licht: 3,               // de straal van het licht om het hart, in harten
   lichtA: 0.9,            // hoe fel het licht is
   slagA: 0.5,             // hoeveel het licht opzwelt met elke slag
-  vol: 1,                 // het pulserende geluid (sounds/zilverhart_puls.mp3, uit ElevenLabs; het tempo volgt ZH.puls)
-  brulVol: 0,             // de brul bij de uitbarsting (sounds/zilverhart_brul.mp3); uit, op verzoek: hij paste er niet bij
-  klapVol: 1,             // de klap bij de uitbarsting (de klap van de zonnestraal)
+  vol: 1.5,               // de hartslag (sounds/zilverhart_slag.mp3: een lub-dub uit ElevenLabs, per slag opnieuw gespeeld)
+  brulVol: 4,             // de brul bij de uitbarsting (sounds/zilverhart_brul.mp3: de brul van Tau, lager en met dreun en galm);
+                          // boven 1 duwt hij hem een compressor in, dan klinkt hij voller en harder (zie zhKlank)
+  klapVol: 1,             // de klap bij de uitbarsting (sounds/zilverhart_klap.mp3: een dreun met een glinstering)
   tauA: 1,                // hoe zichtbaar Tau boven het hart is (0 is weg)
   flitsA: 0.55,           // hoe fel de witte flits over het hele beeld is
   schok: 0.42,            // zo hard schudt het beeld bij de uitbarsting
@@ -22984,22 +22989,60 @@ const ZH = {
   max: 1,                 // zoveel harten draag je tegelijk
   dummyStaat: 5           // Test 91: zo lang staat de oefenteamgenoot, dan ligt hij weer
 };
-let zhBrulGeluid = null, zhPulsGeluid = null, zhSchaal = 0.7, zhLijst = [], zhCarry = 0, zhOntwaakT = 0, zhNeerT = 0, zhEigenK = 1, zhHartImg = null, zhDummy = null, zhDummyBeeld = null;
+let zhSchaal = 0.7, zhLijst = [], zhCarry = 0, zhOntwaakT = 0, zhNeerT = 0, zhEigenK = 1, zhHartImg = null, zhDummy = null, zhDummyBeeld = null;
 const zhTauPlekken = [];
 function zhUitT(){ return ZH.legT + ZH.puls; }                        // de uitbarsting, gerekend vanaf het neerleggen
-const ZH_PULS_BRON = 3.27;                                                // s: de lengte van zilverhart_puls.mp3
-// het kloppen: het tempo van het geluid volgt ZH.puls, zodat het altijd vlak voor de uitbarsting ophoudt (de toonhoogte blijft)
-function zhPulsSpeel(){
-  if (!zhPulsGeluid || !wantSound || ZH.vol <= 0) return;
-  const a = zhPulsGeluid.pool[zhPulsGeluid.beurt++ % zhPulsGeluid.pool.length];
-  try { a.currentTime = 0; a.preservesPitch = true; a.playbackRate = Math.max(0.5, Math.min(4, ZH_PULS_BRON / ZH.puls)); } catch (e) {}
-  a.volume = Math.min(1, ZH.vol);
-  a.play().catch(() => {});
+// De hartslag: een echte lub-dub, herhaald met een afstand die van ZH.tempoA naar ZH.tempoB loopt, zodat het hart steeds
+// sneller klopt tot de uitbarsting. Het beeld (zhSlagNu) en het geluid volgen dezelfde tijden. In het bestand vallen
+// de lub en de dub op ZH_LUB en ZH_DUB.
+const ZH_LUB = 0.1, ZH_DUB = 0.35;
+function zhSlagTijden(){
+  const T = []; let t = 0;
+  while (t < ZH.puls - 0.3){ T.push(t); t += ZH.tempoA + (ZH.tempoB - ZH.tempoA) * (t / ZH.puls); }
+  return T;
+}
+function zhSlagNu(tl){
+  let s = 0;
+  for (const t0 of zhSlagTijden()) for (const [o, w] of [[ZH_LUB, 1], [ZH_DUB, 0.6]]){
+    const d = tl - ZH.slagOff - t0 - o;
+    if (d > -0.05 && d < 0.4) s = Math.max(s, w * (d < 0 ? 1 - (d / 0.05) ** 2 : Math.exp(-d / 0.09)));
+  }
+  return s;
+}
+// de geluiden van het hart op de gedeelde AudioContext (zoals het vuur van de fakkel), zodat het volume boven 1 mag
+const ZH_KLANK = { slag: 'sounds/zilverhart_slag.mp3', brul: 'sounds/zilverhart_brul.mp3', klap: 'sounds/zilverhart_klap.mp3' };
+const zhBuf = {};
+function zhKlankLaad(){
+  const ac = geluidAc(true); if (!ac) return;
+  for (const k in ZH_KLANK) if (!zhBuf[k]){
+    zhBuf[k] = 'laadt';
+    fetch(ZH_KLANK[k]).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+      .then(b => ac.decodeAudioData(b)).then(buf => { zhBuf[k] = buf; })
+      .catch(() => { delete zhBuf[k]; console.warn('ontbreekt: ' + ZH_KLANK[k]); });
+  }
+}
+// een geluid van het hart; met `vol` boven 1 gaat het eerst een compressor in (het zachte deel komt omhoog) en dan een
+// begrenzer, zodat harder ook echt harder klinkt zonder te kraken
+function zhKlank(k, vol){
+  if (!wantSound || vol <= 0) return;
+  const ac = acLoopt(), buf = zhBuf[k];
+  if (!ac || !buf || buf === 'laadt') return;
+  try {
+    const b = ac.createBufferSource(); b.buffer = buf;
+    const g = ac.createGain();
+    if (vol > 1){
+      const comp = ac.createDynamicsCompressor(), op = ac.createGain(), lim = ac.createDynamicsCompressor();
+      comp.threshold.value = -34; comp.knee.value = 8; comp.ratio.value = 12; comp.attack.value = 0.003; comp.release.value = 0.25;
+      op.gain.value = 3.2;
+      lim.threshold.value = -1; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.08;
+      g.gain.value = vol * vol; b.connect(g).connect(comp).connect(op).connect(lim).connect(ac.destination);
+    } else { g.gain.value = vol; b.connect(g).connect(ac.destination); }
+    b.start();
+  } catch (e) {}
 }
 function zhLaad(){
-  straalLaad();                                                         // Tau en zijn brul (tauImgs, straalGeluid)
-  if (!zhPulsGeluid) zhPulsGeluid = banStemmen('sounds/zilverhart_puls.mp3', 2);
-  if (!zhBrulGeluid) zhBrulGeluid = banStemmen('sounds/zilverhart_brul.mp3', 2);   // twee tegelijk: met drie spelers kunnen er twee harten kloppen
+  straalLaad();                                                         // Tau (tauImgs)
+  zhKlankLaad();
   if (!zhHartImg){ zhHartImg = new Image(); zetBron(zhHartImg, 'items/zilverhart/hart.png', () => console.warn('ontbreekt: zilverhart')); }
 }
 function zhLevelAan(){ return !!(level && level.zilverhart) && !pvp; }
@@ -23059,11 +23102,15 @@ function zhStap(dt){
   if (zhLevelAan()) zhDummyStap(dt);
   for (let i = zhLijst.length - 1; i >= 0; i--){
     const z = zhLijst[i]; z.t += dt;
-    if (!z.klank && z.t >= ZH.legT){ z.klank = true; zhPulsSpeel(); }   // het hart begint te kloppen
+    if (!z.op){                                                          // het hart klopt: elke slag zijn eigen lub-dub, steeds sneller
+      const T = zhSlagTijden(), tl = z.t - ZH.legT;
+      z.slagI = z.slagI || 0;
+      while (z.slagI < T.length && tl >= T[z.slagI]){ zhKlank('slag', ZH.vol * (0.7 + 0.3 * z.slagI / Math.max(1, T.length - 1))); z.slagI++; }
+    }
     if (!z.op && z.t >= zhUitT()){
       z.op = true;
-      if (zhBrulGeluid && ZH.brulVol > 0) banStemSpeel(zhBrulGeluid, ZH.brulVol);   // de brul (standaard uit)
-      if (straalGeluid && ZH.klapVol > 0) banStemSpeel(straalGeluid.burst, ZH.klapVol);   // de klap
+      zhKlank('brul', ZH.brulVol);                                       // de brul van Tau
+      zhKlank('klap', ZH.klapVol);                                       // de klap
       shake = Math.max(shake, ZH.schok); hitstop = Math.max(hitstop, ZH.stop);   // de klap: het beeld schudt, bij iedereen die het ziet
       if (z.voor === 'dummy' && zhDummy){ zhDummy.dood = false; zhDummy.x = z.x; zhDummy.h = z.h; zhDummy.staanT = 0; zhDummy.fl = z.x > world ? 0 : 1; }
       else if (pvp && z.voor === pvp.mij) zhOpstaan(z.x, z.h);
@@ -23125,14 +23172,12 @@ function zhTeken(groundY, scale, cx){
     const hH = A * ZH.hartH, im = zhHartImg && imgReady(zhHartImg) ? zhHartImg : null;
     const hw = im ? hH * im.naturalWidth / im.naturalHeight : hH * 0.66;
     const prog = Math.min(1, tl / ZH.puls);
-    // de hartslag: lub-dub, steeds sneller naarmate de uitbarsting nadert
-    const f = 1.1 + 1.6 * prog * prog, fase = (tl * f) % 1;
-    const slag = Math.exp(-Math.pow(fase / 0.07, 2)) + 0.6 * Math.exp(-Math.pow((fase - 0.24) / 0.07, 2));
+    const slag = te > 0 ? 0 : zhSlagNu(tl);                             // op de slagen van het geluid (zhSlagTijden)
     const weg = te > 0 ? Math.min(1, te / ZH.weg) : 0, aHart = 1 - weg;
     const cy = voet - hH * 0.5;
     // het licht: een cirkel zilverwit licht vanuit het midden van het hart, naar buiten steeds zwakker, die met elke slag
     // opzwelt en weer krimpt (lub-dub) en sterker wordt naarmate de uitbarsting nadert; in de uitbarsting zwelt hij in een keer
-    // op en vervaagt. De maten staan in ZH (licht, lichtA, slagA) en zijn af te stellen in de pauze (Silver Pride: tune)
+    // op en vervaagt. De maten staan in ZH (licht, lichtA, slagA), af te stellen in de losse tool (Silver Pride tuner)
     const R0 = hH, bcx = sx - 0.06 * hH, bcy = voet - 0.5 * hH;                   // het midden van het (iets schuine) hart
     const zwel = 1 + ZH.slagA * slag * (0.5 + 0.5 * prog);
     const lichtR = hH * ZH.licht * (0.75 + 0.25 * prog) * (te > 0 ? 1 + te * 2.5 : zwel);
@@ -23180,7 +23225,7 @@ function zhTeken(groundY, scale, cx){
     ctx.restore();
     // wie eruit komt: de oefenteamgenoot tekent zhDummy hierboven; in Co-op schaalt pvpTekenEen hem (zhKVoor)
     if (im && aHart > 0.01){
-      const k = (1 + 0.07 * slag * (1 - weg)) * (1 + weg * 0.25);
+      const k = (1 + ZH.pomp * slag * (1 - weg)) * (1 + weg * 0.25);   // het hart pompt mee met elke slag
       ctx.save();
       ctx.globalAlpha *= aHart;
       ctx.translate(sx, voet); ctx.rotate(-0.12); ctx.scale(k, k);

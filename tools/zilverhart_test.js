@@ -34,10 +34,6 @@ const srv = http.createServer((q, r) => {
     await page.waitForTimeout(6500);
     console.log('na het omvallen', await page.evaluate(() => ({ dood: zhDummy.dood })));
   }
-  await page.keyboard.press('Escape'); await page.waitForTimeout(600);
-  await page.evaluate(() => { const b = document.getElementById('pzzhbtn'); if (b) b.click(); });
-  await page.waitForTimeout(400); await schiet();
-  console.log('paneel:', await page.evaluate(() => getComputedStyle(document.getElementById('pzzhbtn')).display + ' ' + document.getElementById('pzzh').className));
   console.log(fouten.size ? [...fouten].join('\n') : 'geen fouten in de console');
   await browser.close(); srv.close();
 });
