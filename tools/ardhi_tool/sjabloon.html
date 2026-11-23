@@ -79,14 +79,14 @@ const SND_NAAM = { tink: 'Glazen tik', plop: 'Zachte plop', warm: 'Warme ontvang
 const SC = { A: 160, ax: 228, top: 282, ex: 545, voetE: 432 };
 const STD = {
   stijl: 'komeet', uit: 0.8, glim: 0.32, breek: 0.16, zweef: 0.3, vlucht: 1.5,
-  trek: 0.22, boog: 0.12, maat: 0.12, gloed: 0.6, slierten: 26, bolletjes: 5, staart: 26, bolMaat: 0.075,
+  trek: 0.22, boog: 0.12, maat: 0.12, gloed: 0.6, helder: 0.72, amber: 0.55, drupGloed: 0.5, slierten: 26, bolletjes: 5, staart: 26, bolMaat: 0.075,
   geluiden: { tink: { moment: 'glim', dt: 0, vol: 0.35 }, plop: { moment: 'poef', dt: 0, vol: 0.35 }, warm: { moment: 'aankomst', dt: -0.35, vol: 0.4 } }
 };
 const TIJD = [['uit', 'Gloed eruit', 0.2, 2, 0.05], ['glim', 'Glim', 0, 1, 0.02], ['breek', 'Poef', 0.05, 0.6, 0.01], ['zweef', 'Zweven', 0, 1.5, 0.05], ['vlucht', 'Vlucht', 0.4, 3, 0.05]];
-const LOOK = [['maat', 'Druppel', 0.05, 0.3, 0.01], ['trek', 'Hoogte druppel', 0, 0.6, 0.01], ['boog', 'Boog', 0, 0.6, 0.01], ['gloed', 'Gloed lijf', 0, 1, 0.05],
+const LOOK = [['maat', 'Druppel', 0.05, 0.3, 0.01], ['helder', 'Helderheid druppel', 0.3, 1.2, 0.02], ['amber', 'Kleur: goud tot amber', 0, 1, 0.05], ['drupGloed', 'Gloed om druppel', 0, 1, 0.05], ['trek', 'Hoogte druppel', 0, 0.6, 0.01], ['boog', 'Boog', 0, 0.6, 0.01], ['gloed', 'Gloed lijf', 0, 1, 0.05],
   ['slierten', 'Slierten', 6, 40, 1], ['bolMaat', 'Bolletje', 0.03, 0.15, 0.005], ['bolletjes', 'Mini-bolletjes', 0, 10, 1], ['staart', 'Staartlengte', 0, 50, 1]];
 const MOMENT = { start: 'Begin', glim: 'Glim', poef: 'Poef', aankomst: 'Aankomst' };
-const SLEUTEL = 'ardhi-heel-tool-v1';
+const SLEUTEL = 'ardhi-heel-tool-v2';
 let H = JSON.parse(JSON.stringify(STD));
 try { const o = JSON.parse(localStorage.getItem(SLEUTEL)); if (o){ Object.assign(H, o); H.geluiden = Object.assign({}, STD.geluiden, o.geluiden || {}); } } catch (e) {}
 const $ = id => document.getElementById(id), fmt = v => String(+(+v).toFixed(2)).replace('.', ',');
@@ -137,6 +137,19 @@ function lijnen(){
   const T = tijden(), max = T.eind; $('t').max = max.toFixed(2);
   $('lijnen').innerHTML = [['glim', 'Glim'], ['poef', 'Poef'], ['aankomst', 'Aankomst: leven']].map(([k, n]) => `<span style="left:${(T[k] / max * 100).toFixed(1)}%">${n}</span>`).join('');
 }
+function drupBak(img, helder, amber){   // de druppel donkerder en dieper van kleur (amber, als sap), een keer per stand gebakken
+  const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, c.width, c.height), q = d.data;
+  for (let i = 0; i < q.length; i += 4){
+    const L = (q[i] * 0.3 + q[i + 1] * 0.59 + q[i + 2] * 0.11) / 255;
+    const a = [Math.min(255, 255 * L * 1.15), 150 * L, 35 * L];
+    for (let j = 0; j < 3; j++) q[i + j] = Math.min(255, (q[i + j] * (1 - amber) + a[j] * amber) * helder);
+  }
+  g.putImageData(d, 0, 0); return c;
+}
+let drupK = null, drupKey = '';
+function drupNu(){ const k = H.helder + '|' + H.amber; if (drup.complete && drup.naturalWidth && k !== drupKey){ drupK = drupBak(drup, H.helder, H.amber); drupKey = k; } return drupK || drup; }
 // ---- het effect, zoals ardhiHeelTeken in het spel ----
 function zacht(x, y, r, a){
   if (a <= 0.01 || r <= 0.2) return;
@@ -175,11 +188,11 @@ function teken(t){
       zacht(sx0 + (bx - sx0) * Math.max(0, v - 0.08), sy0 + (by - sy0) * Math.max(0, v - 0.08), A * 0.014, Math.sin(u * Math.PI) * 0.4);
     }
     const vorm = Math.max(0, Math.min(1, (k - 0.45) / 0.5)), e = vorm * vorm * (3 - 2 * vorm);
-    zacht(bx, by, A * 0.06 * (0.4 + 0.6 * e) * (1 + 0.6 * br), (0.3 + 0.7 * e) * (1 - br));
+    zacht(bx, by, A * 0.06 * (0.4 + 0.6 * e) * (1 + 0.6 * br), (0.3 + 0.7 * e) * (1 - br) * H.drupGloed);
     if (e > 0 && br < 1 && drup.complete){
       ctx.globalCompositeOperation = 'source-over';
       const tril = k >= 1 ? Math.sin(t * 60) * A * 0.004 : 0, b = m * e * (1 + 0.25 * br) * (1 - br), h = b * asp;
-      ctx.globalAlpha = e * (1 - br); ctx.drawImage(drup, bx - b / 2 + tril, by - h / 2, b, h);
+      ctx.globalAlpha = e * (1 - br); ctx.drawImage(drupNu(), bx - b / 2 + tril, by - h / 2, b, h);
       ctx.globalCompositeOperation = 'lighter';
     }
     const gl = H.glim > 0 ? Math.max(0, Math.min(1, (t - H.uit) / H.glim)) : 0;
