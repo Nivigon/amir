@@ -15,6 +15,7 @@ Uit:
   items/winkel/ardhi.png (Ardhi's Grip), ardhireach.png, ardhiroots.png: de plaatjes in de winkel
 
 Gebruik:  python3 tools/ardhi_bak.py      (zet de regel die het print in ARDHI.speer)
+          python3 tools/ardhi_bak.py --speer   alleen de speer, bijvoorbeeld na een andere kleur in KLEUR
 Daarna:   python3 tools/stok_variant.py --rij 0 --uit stokken_ardhi --plaat design/ardhi/bron/stok_schoon.png --grip 70,120,40
           de map stokken_ardhi ook naar klein/karakters/amir/, en python3 tools/gen-offline-manifest.py
 """
@@ -25,6 +26,64 @@ from scipy import ndimage
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BRON = os.path.join(ROOT, 'design', 'ardhi', 'bron')
+
+
+# ---- Ardhi's Reach: de kleuren per zone, de ranken, de dikte en de rand ----
+# De speer wordt in zones verdeeld (hout, ranken, greep, bot), zodat elke kleur hier een regel is. None houdt de kleur
+# uit de Grok-plaat; een (r, g, b) kleurt die zone om met zijn eigen licht en schaduw (de helderheid ten opzichte van
+# het midden van de zone). Daarna krijgen de ranken een donkere contour (zodat ze in de hand niet wegvallen), wordt de
+# schacht dikker en komt de rand van de gewone speer erom, net als bij de Pathfinder (tools/pathfinder_speer.py).
+KLEUR = {
+    'hout':  None,              # de schacht
+    'rank':  (96, 168, 52),     # de ranken, feller dan de bron
+    'greep': (222, 205, 170),   # het leren bandje halverwege: bot-wit, zoals de klauw en de punt
+    'bot':   None,              # de klauw en de punt
+}
+RANK_CONTOUR = (38, 70, 22)     # de donkergroene lijn om de ranken
+RANK_DIK = 2                    # hoe dik die lijn is (px op de 624 lange speer)
+GREEP = (247, 309)              # waar het bandje zit, in x op de 624 lange speer
+DIKKER = 1.3                    # de schacht dikker (alleen in de hoogte)
+RAND_DIK = 2                    # de donkere omlijning (px)
+RAND_LIJN = (34, 26, 22); RAND_GLIM = (186, 183, 183, 78); RAND_SCHADUW = (0, 0, 0, 140)
+
+
+def zones(a):
+    """Per pixel de zone: rank (groen), bot (licht en ongekleurd), greep (het bandje) en de rest is hout."""
+    r, g, b, al = a[..., 0], a[..., 1], a[..., 2], a[..., 3]
+    vol = al > 60
+    rank = vol & (g > r * 1.08) & (g > b * 1.15)
+    lum = 0.3 * r + 0.59 * g + 0.11 * b
+    bot = vol & ~rank & (lum > 150) & (r - b < 70)
+    x = np.arange(a.shape[1])[None, :]
+    greep = vol & ~rank & ~bot & (x >= GREEP[0]) & (x < GREEP[1])
+    hout = vol & ~rank & ~bot & ~greep
+    return {'hout': hout, 'rank': rank, 'greep': greep, 'bot': bot}, lum
+
+
+def speer_kleur(im):
+    a = np.array(im).astype(float)
+    Z, lum = zones(a)
+    for naam, kl in KLEUR.items():
+        m = Z[naam]
+        if kl is None or not m.any(): continue
+        sch = np.clip(lum[m] / max(np.median(lum[m]), 1), 0.35, 1.6)
+        for i in range(3): a[..., i][m] = np.clip(kl[i] * sch, 0, 255)
+    # de contour om de ranken, ook een stukje erbuiten, dekkend
+    om = ndimage.binary_dilation(Z['rank'], iterations=RANK_DIK) & ~Z['rank'] & ~Z['bot']
+    a[om, :3] = RANK_CONTOUR; a[om, 3] = 255
+    return Image.fromarray(a.astype(np.uint8), 'RGBA')
+
+
+def speer_rand(im):
+    a = np.array(im).astype(np.int32); m = a[..., 3] > 128
+    lijn = m & ~ndimage.binary_erosion(m, iterations=RAND_DIK)
+    uit = np.zeros_like(a); uit[m] = a[m]; uit[m, 3] = 255; uit[lijn, :3] = RAND_LIJN
+    for x in range(a.shape[1]):
+        ys = np.where(m[:, x])[0]
+        if not len(ys): continue
+        if ys[0] > 0: uit[ys[0] - 1, x] = RAND_GLIM
+        if ys[-1] + 1 < a.shape[0]: uit[ys[-1] + 1, x] = RAND_SCHADUW
+    return Image.fromarray(uit.astype(np.uint8), 'RGBA')
 
 
 def magenta_alfa(a):
@@ -121,9 +180,14 @@ def speer():
     # schaal: even lang als javImg (624); de gewone speer is daar 19 dik, deze mag iets dikker
     s = 624 / im.width
     im = im.resize((624, max(1, round(im.height * s))), Image.LANCZOS)
+    # kleuren per zone, dan dikker, met een marge voor de rand, en de rand erom
+    im = speer_kleur(im)
+    im = im.resize((624, round(im.height * DIKKER)), Image.LANCZOS)
+    m = Image.new('RGBA', (624, im.height + 4)); m.alpha_composite(im, (0, 2)); im = speer_rand(m)
+    A = np.array(im)[..., 3] > 100; tipx = np.where(A.any(0))[0][-1]; tipy = np.where(A[:, tipx - 2])[0].mean(); s = 1
     d = os.path.join(ROOT, 'design', 'speer', 'ardhi'); os.makedirs(d, exist_ok=True)
     im.save(os.path.join(d, 'jav.png'), optimize=True)
-    return im, (623, round(tipy * s, 1)), dik * s
+    return im, (623, round(tipy, 1)), dik * DIKKER
 
 
 def hand(jav, tip):
@@ -191,6 +255,10 @@ def icoon(im, naam, hoek=35):
 
 
 def main():
+    import sys
+    if '--speer' in sys.argv:      # alleen de speer (na een andere KLEUR): jav.png, de hand en het winkelplaatje
+        jav, tip, dik = speer(); icoon(jav, 'ardhireach', 35); hand(jav, tip)
+        print("ARDHI.speer = { w: %d, h: %d, tipX: %d, tipY: %s }" % (jav.width, jav.height, tip[0], tip[1])); return
     st = stokplaat()
     icoon(st, 'ardhi', 40)
     jav, tip, dik = speer()
