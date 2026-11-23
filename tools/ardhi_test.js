@@ -51,9 +51,11 @@ const srv = http.createServer((q, r) => {
     for (let i = 0; i < sn; i++) s += ardhiKnikker('steek_bloom', sr, sn) ? 1 : 0;
     levensStart = () => 3; lives = 1; ardhiZakken = { worp: [false], worp_bloom: [true] };
     worpTref = true; jav = { blauw: 'ardhi', state: 'vlucht', t: 0 }; ardhiTreffer({ x: world - 200 }); worpTref = false; jav = null;
-    const r = { w, s, aan: ardhiBloom(), druppel: !!ardhiHeelNu, ader: typeof ardhiAderTeken === 'function' };
+    ardhiBloomVan = false; const ander = ardhiBloomTeken(); ardhiBloomVan = null;   // de speer van een teamgenoot zonder Bloom
+    const r = { w, s, aan: ardhiBloom(), druppel: !!ardhiHeelNu, ader: typeof ardhiAderTeken === 'function',
+      net: pvpSperenZend().ab === 1 && mkSpeerNu().ab === 1, ander };
     ardhiHeelNu = null; document.getElementById('sbardhibloom').click(); return r; });
-  ok("Ardhi's Bloom: 2 op 10 en 2 op 25 uit een eigen zak", bloom.w === 2 && bloom.s === 2 && bloom.aan && bloom.druppel && bloom.ader, bloom);
+  ok("Ardhi's Bloom: 2 op 10 en 2 op 25 uit een eigen zak, en over het netwerk (ab)", bloom.w === 2 && bloom.s === 2 && bloom.aan && bloom.druppel && bloom.ader && bloom.net && bloom.ander === false, bloom);
   await page.evaluate(() => { lives = 3; ardhiZakken = { steek: [true] }; atkFrame = 2; ardhiTreffer({ x: world - 200 }); atkFrame = -1; });
   ok('met volle levens geen druppel', await page.evaluate(() => !ardhiHeelNu));
   // de wortels: drie bandieten dicht bij elkaar

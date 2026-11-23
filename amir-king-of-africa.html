@@ -28261,7 +28261,7 @@ function javTeken(blauw, k, wind, windX, gif){
   }
   if (speerSoortId(blauw) === 'ardhi'){             // Ardhi's Reach: eigen art, even lang als de gewone speer
     ardhiLaad();
-    if (imgReady(ardhiImg)){ const P = ARDHI.speer; teken(ardhiImg, -P.tipX * k, -P.tipY * k, P.w * k, P.h * k); if (ardhiBloom()) ardhiAderTeken(P.tipX * k, P.h * k, wind === 1); return; }
+    if (imgReady(ardhiImg)){ const P = ARDHI.speer; teken(ardhiImg, -P.tipX * k, -P.tipY * k, P.w * k, P.h * k); if (ardhiBloomTeken()) ardhiAderTeken(ctx, -P.tipX * k, P.tipX * k, P.h * k, wind === 1); return; }
   }
   if (speerSoortId(blauw) === 'piercer'){                 // de Shield Piercer: hetzelfde doek als de Pathfinder, zonder vaantje
     spLaad();
@@ -28575,6 +28575,8 @@ function ardhiAantal(){
 function ardhiRoots(){ if (sandbox) return sbArdhi; const K = mpKoop(); return !!(K && K.ardhiroots); }
 let sbArdhiBloom = false;                         // de sandboxknop Ardhi's Bloom
 function ardhiBloom(){ if (sandbox) return sbArdhiBloom; const K = mpKoop(); return !!(K && K.ardhibloom); }
+let ardhiBloomVan = null;                         // tijdens het tekenen van de speren van een teamgenoot: zijn Bloom (ab), anders de mijne
+function ardhiBloomTeken(){ return ardhiBloomVan != null ? ardhiBloomVan : ardhiBloom(); }
 function ardhiTel(){
   const is = b => b === 'ardhi';
   let n = (spearFound && is(speerBlauw)) ? 1 : 0;
@@ -28584,14 +28586,15 @@ function ardhiTel(){
   for (const l of losseSperen) if (l.soort === 'eigen' && is(l.blauw)) n++;
   return n;
 }
-// Ardhi's Bloom op de speer: de aderen (ARDHI.bloom.aderen), in de ruimte van javTeken (de punt op 0, de schacht
-// naar -x, L lang en h dik); vlucht: een dun golvend spoor achter de speer
-function ardhiAderTeken(L, h, vlucht){
-  const A = ARDHI.bloom.aderen, t = performance.now() / 1000;
+// Ardhi's Bloom op de speer: de aderen (ARDHI.bloom.aderen) op doek g, langs de schacht van x0 (achter) L lang naar de
+// punt, h dik (de hoogte van het plaatje); vlucht: een dun golvend spoor achter de speer. javTeken (liggend, rug, worp) en
+// mkSpeerTeken (in de hand)
+function ardhiAderTeken(g0, x0, L, h, vlucht){
+  const ctx = g0, A = ARDHI.bloom.aderen, t = performance.now() / 1000;
   const kl = (l, a) => 'hsla(' + A.hue + ',70%,' + (l * A.licht * 100) + '%,' + a + ')';
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (let i = 0; i < A.n; i++){
-    const f = (t * A.tempo + i / A.n) % 1, a = Math.sin(f * Math.PI), x = -L + L * (0.05 + f * 0.9);
+    const f = (t * A.tempo + i / A.n) % 1, a = Math.sin(f * Math.PI), x = x0 + L * (0.05 + f * 0.9);
     for (const [r, s, l] of [[1.2, 1, 0.6], [0.35, 1.5, 0.85]]){
       const g = ctx.createRadialGradient(x, 0, 0, x, 0, h * r);
       g.addColorStop(0, kl(l, Math.min(1, A.sterk * s * a))); g.addColorStop(1, kl(l, 0));
@@ -28600,7 +28603,7 @@ function ardhiAderTeken(L, h, vlucht){
   }
   if (vlucht && A.spoor > 0){
     ctx.strokeStyle = kl(0.65, A.spoor); ctx.lineWidth = Math.max(1, h * 0.1); ctx.beginPath();
-    for (let i = 0; i <= 30; i++){ const x = -L * 0.9 - i * L * 0.03, y = Math.sin(i * 0.6 - t * 10) * h * 0.3 * (i / 30); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    for (let i = 0; i <= 30; i++){ const x = x0 + L * 0.1 - i * L * 0.03, y = Math.sin(i * 0.6 - t * 10) * h * 0.3 * (i / 30); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
     ctx.stroke();
   }
   ctx.restore();
@@ -29209,7 +29212,7 @@ function gifPuntenOp(g, im, x, y, w, h){
 }
 // hoe groen de speren van het gif zijn: vol groen zolang er gif op zit; hoeveel treffers er nog zijn staat in de actiebalk (BALK, 'gif')
 function gifSterkte(){ return gifHits > 0 ? 1 : 0; }
-function mkSpeerTeken(g, s, soortId, W, H, wind, gif){
+function mkSpeerTeken(g, s, soortId, W, H, wind, gif, bloom){
   const D = MK_LOS.data, pf = soortId === 'pathfinder', sp = soortId === 'piercer', ar = soortId === 'ardhi' && D.ar && D.ar[s.a];   // de Shield Piercer: eigen art op het doek van de Pathfinder (D.pf); Ardhi's Reach eigen hoeken (D.ar)
   const bron = mkSkinLaad(SKIN.soorten.mkuki + 'bron/' + (pf ? 'pf_' : sp ? 'sp_' : ar ? 'ar_' : 'amirspeer_') + s.a + '.png');
   if (!imgReady(bron)) return false;
@@ -29220,6 +29223,7 @@ function mkSpeerTeken(g, s, soortId, W, H, wind, gif){
   g.translate(s.cx * W, s.cy * H); g.rotate(s.r * Math.PI / 180);
   if (s.f) g.scale(-1, 1);
   g.drawImage(im, -w / 2, -h / 2, w, h);
+  if (ar && bloom) ardhiAderTeken(g, -w / 2, w, h, false);   // Ardhi's Bloom: de aderen, de punt rechts zoals in javTeken
   if (gif > 0){                                          // het gif: het staal van de speer in zijn hand zuurgroen
     const a0 = g.globalAlpha; g.globalAlpha = a0 * gif;
     g.drawImage(mkGifBeeld(im), -w / 2, -h / 2, w, h);
@@ -29254,10 +29258,11 @@ const BB_MEMO = { aan: true };
 // voor de stand naar de anderen: alleen als er iets anders dan de gewone speer in mijn hand zit
 function mkSpeerZend(){ const n = mkSpeerNu(); return n.s ? (n.s === 'pathfinder' ? { sp: n.s, vw: +n.w.toFixed(2) } : { sp: n.s }) : {}; }
 function mkSpeerNu(){ return { s: spearFound ? speerSoortId(speerBlauw) : null, w: speerSoortId(speerBlauw) === 'pathfinder' ? pfRugWind() : 0,
-  g: gifSterkte() }; }   // g: hoe groen van het gif (alleen mijn eigen speer)
+  g: gifSterkte(), ab: ardhiBloom() ? 1 : 0 }; }   // ab: Ardhi's Bloom (de aderen op de speer)   // g: hoe groen van het gif (alleen mijn eigen speer)
 // het hele frame: speer, lijf, boven, met de outfit; null als iets nog laadt (dan het gebakken frame)
 function mkLosBeeld(mk, rel, kl, speer, cv){
   const soortId = speer ? speer.s || null : null, wind = speer ? speer.w || 0 : 0, gif = speer ? speer.g || 0 : 0;
+  const bloom = soortId === 'ardhi' && speer && speer.ab > 0;   // Ardhi's Bloom: de aderen bewegen, dus niet onthouden
   if (gif > 0) mkGifPunt = null;                         // de druppel: mkSpeerTeken zet het opnieuw als er een speer in dit frame zit
   const D = MK_LOS.data, d = D && D.frames[rel];
   if (!d) { if (D === null) mkLosLaad(); return null; }
@@ -29269,7 +29274,7 @@ function mkLosBeeld(mk, rel, kl, speer, cv){
   if (!cv){ if (!mkLosCv) mkLosCv = document.createElement('canvas'); cv = mkLosCv; }
   // hetzelfde frame, dezelfde outfit en speer als de vorige keer op dit doek: het staat er al (BB_MEMO). Niet met gif of de
   // Pathfinder, want die veranderen per beeld (de groene gloed, het vaantje)
-  const memo = gif > 0 || soortId === 'pathfinder' ? null : 'l|' + mk.src + '|' + rel + '|' + kl.id + '|' + (soortId || '');
+  const memo = gif > 0 || soortId === 'pathfinder' || bloom ? null : 'l|' + mk.src + '|' + rel + '|' + kl.id + '|' + (soortId || '');
   if (memo && BB_MEMO.aan && cv._bbMemo === memo) return cv;
   cv._bbMemo = null;
   let heel = true;                                       // alles was binnen: dan mag het onthouden worden
@@ -29286,7 +29291,7 @@ function mkLosBeeld(mk, rel, kl, speer, cv){
       for (const c of [mkSpeerCv, mkSpeerCv2]) if (c.width !== W || c.height !== H){ c.width = W; c.height = H; }
       const s1 = mkSpeerCv.getContext('2d'), s2 = mkSpeerCv2.getContext('2d');
       s1.globalCompositeOperation = 'source-over'; s1.clearRect(0, 0, W, H);
-      if (!mkSpeerTeken(s1, d.s, soortId, W, H, wind, gif)) return null;
+      if (!mkSpeerTeken(s1, d.s, soortId, W, H, wind, gif, bloom)) return null;
       s1.globalCompositeOperation = 'destination-out'; s1.drawImage(weg, 0, 0, W, H);
       s1.globalCompositeOperation = 'source-over';
       if (d.s.b) g.drawImage(mkSpeerCv, 0, 0);
@@ -29297,8 +29302,8 @@ function mkLosBeeld(mk, rel, kl, speer, cv){
         s1.globalCompositeOperation = 'destination-out'; s1.drawImage(achter, 0, 0, W, H); s1.globalCompositeOperation = 'source-over';
         voor = () => g.drawImage(mkSpeerCv, 0, 0);
       }
-    } else if (d.s.b){ if (!mkSpeerTeken(g, d.s, soortId, W, H, wind, gif)) return null; }
-    else voor = () => mkSpeerTeken(g, d.s, soortId, W, H, wind, gif);
+    } else if (d.s.b){ if (!mkSpeerTeken(g, d.s, soortId, W, H, wind, gif, bloom)) return null; }
+    else voor = () => mkSpeerTeken(g, d.s, soortId, W, H, wind, gif, bloom);
   }
   g.drawImage(lijf, 0, 0); lap(lijf);
   if (voor && voor() === false) return null;
@@ -75239,6 +75244,7 @@ function pvpStap(rdt){
 function pvpSperenZend(){
   const o = {};
   if (gifHits > 0 && !stokAan()) o.gi = gifHits;
+  if (ardhiBloom() && !stokAan()) o.ab = 1;           // Ardhi's Bloom: de aderen op mijn Ardhi-speren, ook bij de anderen
   if (rugAan() && !stokAan() && !dead && rugSperen.length){ o.rg = rugSperen.map(r => r.blauw || 0); if (rugTrekT > 0) o.rt = +rugTrekT.toFixed(2); }
   return o;
 }
@@ -75249,8 +75255,9 @@ function pvpRugTeken(g, sx, voet, scale){
   const n0 = gifBron.lijst.length;
   ctx.save();
   ctx.globalAlpha = g.a == null ? 1 : g.a;
+  ardhiBloomVan = g.ab > 0;
   try { rugSperenTeken(g.rg.map(b => b || false), g.f, +g.rt || 0, sx, voet, scale, 0, 0, g.gi > 0 ? 1 : 0); }
-  finally { ctx.restore(); gifBron.lijst.length = n0; }
+  finally { ctx.restore(); gifBron.lijst.length = n0; ardhiBloomVan = null; }
 }
 function pvpBeeld(src){
   let im = pvp.beelden[src];
@@ -75288,7 +75295,8 @@ function pvpLosTeken(groundY, scale, cx){
       if (sx < -W || sx > W / viewZoom() + W) continue;
       ctx.save();
       ctx.translate(sx, gy - 6 * scale); ctx.scale(-zij, 1);
-      javTeken(b || false, kk, 'plat');
+      ardhiBloomVan = !!(pvp.anders[k].g && pvp.anders[k].g.ab > 0);   // zijn Bloom, niet de mijne
+      try { javTeken(b || false, kk, 'plat'); } finally { ardhiBloomVan = null; }
       ctx.restore();
     }
   }
@@ -75322,7 +75330,7 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
     const gifPunt = mkGifPunt;
     let kb;
     try { kb = broekBeeld(im, im, broekKleurVan(pvp.broek[p]), pvpBroekCv[p] || (pvpBroekCv[p] = document.createElement('canvas')),
-                         { s: typeof g.sp === 'string' && SPEER_SOORTEN[g.sp] ? g.sp : null, w: +g.vw || 0, g: g.gi > 0 ? 1 : 0 }); }
+                         { s: typeof g.sp === 'string' && SPEER_SOORTEN[g.sp] ? g.sp : null, w: +g.vw || 0, g: g.gi > 0 ? 1 : 0, ab: g.ab > 0 ? 1 : 0 }); }
     finally { mkGifPunt = gifPunt; }
     ctx.drawImage(g.hu > 0 ? amirRood(kb, Math.min(0.75, g.hu * 2)) : kb, 0, 0, w, h);
     ctx.restore();
@@ -75347,8 +75355,8 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
     const eigen = jav;
     const eigenGif = gifHits, n0 = gifBron.lijst.length;   // zijn gif op de punt en de druppel, niet het mijne
     jav = { x: j.x, h: j.h, sa: j.sa, dir: j.dir, state: j.st, t: j.t, blauw: j.b, wob: 0, sag: 0, kantel: 0, los: 0 };
-    gifHits = +g.gi || 0;
-    try { javSchacht(cx + (j.x - world), groundY - j.h * scale, scale); } finally { jav = eigen; gifHits = eigenGif; gifBron.lijst.length = n0; }
+    gifHits = +g.gi || 0; ardhiBloomVan = g.ab > 0;
+    try { javSchacht(cx + (j.x - world), groundY - j.h * scale, scale); } finally { jav = eigen; gifHits = eigenGif; gifBron.lijst.length = n0; ardhiBloomVan = null; }
   }
   if (pvp.coop) return;                             // Co-op: elkaar raken kan niet
   // de vorige plek van zijn speer altijd bijwerken, ook als ik onkwetsbaar ben of hieronder al geraakt word: anders

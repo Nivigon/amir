@@ -174,8 +174,10 @@ opdrachtgever (23-11-2026): de stok en de speer kozen hij uit Grok-platen, de na
   en worp 2 op 10 (`ARDHI.bloom`), uit eigen zakken (`worp_bloom`, `steek_bloom`), zodat aan- of uitzetten midden in een
   level de gewone zak niet raakt. De stokken (Ardhi's Grip) blijven 1 op 33. Het uiterlijk: de aderen (`ardhiAderTeken`,
   `ARDHI.bloom.aderen`), twee lichtgolven die over de schacht naar de punt lopen en in de worp een dun golvend spoor;
-  liggend, op de rug en in de worp (`javTeken`), nog niet in Amirs hand (de frames van `mkSpeerTeken` worden onthouden,
-  `BB_MEMO`, dus een bewegend effect vraagt daar meer werk). Afgesteld in de tool Ardhi Speergloed
+  liggend, op de rug, in de worp (`javTeken`) en in Amirs hand (`mkSpeerTeken` met `bloom`; dat frame wordt dan niet
+  onthouden, `BB_MEMO`, net als bij de Pathfinder). Ook de anderen zien het: Bloom gaat mee als `ab` in `pvpSperenZend`
+  en `mkSpeerNu`, en bij het tekenen van de speren van een teamgenoot (hand, rug, worp, liggend) zet `ardhiBloomVan` zijn
+  Bloom in plaats van de mijne (`ardhiBloomTeken`). Afgesteld in de tool Ardhi Speergloed
   (https://claude.ai/artifact/QBUSAumGJinm2vEuo3UZ4D, ook met sporen, puls, gloed en nevel om mee te spelen); de
   opdrachtgever koos alleen de aderen, voorlopig. Het winkelplaatje `items/winkel/ardhibloom.png`. Sandboxknop
   **Ardhi's Bloom** (zet Ardhi mee aan). Undo van Reach kan niet als dat je laatste Ardhi-speer is en je Roots of Bloom hebt.
