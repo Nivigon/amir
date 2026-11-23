@@ -25350,7 +25350,9 @@ function loadAny(paths){
 // ============================================================================
 const THR_DIRS = uniq([AMIR_OLD + 'speerworp/', AMIR + 'speerworp/', AMIR_GROOT + 'speerworp/']);
 const THR_N = 20, THR_FPS = 12;
-const THR_W = 984, THR_H = 814, THR_GROUND = 803, THR_ANCHOR = 330, THR_BODY = 620;
+const THR_W = 984, THR_H = 814, THR_GROUND = 803, THR_ANCHOR = 330, THR_BODY = 553;
+// THR_BODY: zoveel worpcanvas-pixels is een CHAR_H. Was 620, maar dan was Amir in de worp zo'n 11% kleiner dan als hij
+// stond: worpframe 0 (rechtop, 608 px van kruin tot voet) moet even groot zijn als de idle (276 sprite-pixels)
 const THR_S = CHAR_H / THR_BODY;         // van worpcanvas naar sprite-eenheden
 const THR_DRAW1 = 4;                     // eerste trap: tot hier trekt hij uit en daar wacht hij
 const THR_WIND = 6;                      // tweede trap: helemaal uitgetrokken, dan wordt het een boog
@@ -25469,7 +25471,10 @@ const RIG = { min: -30, max: 45, snel: 60, elleboog: 0.35, kop: 0.2, maxKop: 8, 
                                  { vuist: [322, 385], hoek: -16.57, tip: [648, 280] },
                                  { vuist: [325, 385], hoek: -16.86, tip: [638, 283] } ] },
   omlaag: { los: 2, gesplitst: [ { vuist: [457, 488], hoek: 42.36, tip: [695, 705] },
-                                 { vuist: [522, 565], hoek: 40.97, tip: [765, 776] } ] } };
+                                 { vuist: [522, 565], hoek: 40.97, tip: [765, 776] } ] },
+  // met een outfit van Mkuki (MK_OUTFIT): het lijf is het Mkuki-frame zelf, alleen de speer draait (rigMkBeeld). In de
+  // mikpose (frame 6) om het punt op de schacht bij de vuist, in de worp (frame 7 tot 9) om de vuist; worpcanvas-pixels
+  mk: { pose: { fr: 6, om: [176, 262] }, gewoon: [ { fr: 7, om: [260, 367] }, { fr: 8, om: [333, 362] }, { fr: 9, om: [326, 368] } ] } };
 let sbRigMik = false;                    // de knop Aim rig in de sandbox
 function rigMik(){ return sandbox ? sbRigMik : !!(level && level.rigMik); }
 let rigImgs = null;
@@ -25526,9 +25531,57 @@ function rigWorpBeeld(pad, i, h){
   return null;
 }
 const rigWorpLengte = pad => pad === 'gewoon' ? 13 : 2 + 2 + THR_OMW.op;
+// De rig met een outfit van Mkuki: de losse delen van de rig zijn de oude Amir (een smallere tekening dan Mkuki, en zonder
+// zijn outfit), dus hier tekent mkLosBeeld het Mkuki-frame (lijf, boven, outfitkleuren, de speersoort) met de speer
+// gedraaid naar de mikhoek h. fase 'pose' of 'gewoon' (de worp omlaag heeft geen Mkuki-frames: met Mkuki altijd de
+// gewone), i het worpframe van de rig. Ook voor een teamgenoot (pvpTekenEen), daarom kl, speer en cv als argument.
+// Geeft { tip } terug (de punt van de speer op het worpcanvas, of null), of null als er iets nog laadt.
+const rigMkCv = document.createElement('canvas');
+rigMkCv.complete = true;
+let rigMkStand = null;                   // wat rigMkCv nu toont, voor de anderen in Multiplayer (pvpVang)
+const rigMkAan = kl => !!(kl && kl.skin);
+function rigMkBeeld(fase, i, h, kl, speer, cv){
+  if (!rigMkAan(kl)) return null;
+  const D = MK_LOS.data;
+  if (!D){ if (D === null) mkLosLaad(); return null; }
+  const st = fase === 'pose' ? RIG.mk.pose : RIG.mk.gewoon[i];
+  const oud = thrImgs[Math.min(THR_N - 1, st ? st.fr : i + 7)];
+  const mk = oud && mkSkinVan(oud, kl.skin);
+  if (!mk) return null;
+  let uit, tip = null;
+  const d0 = D.frames[oud._skinRel];
+  if (st && d0 && d0.s){
+    const W = mk.naturalWidth, H = mk.naturalHeight, k = W / THR_W, s0 = d0.s;   // k: de kleine set is half zo groot
+    const c = rigDraai([s0.cx * W, s0.cy * H], [st.om[0] * k, st.om[1] * k], h - s0.r);
+    const L = s0.w * W / 2, a = h * Math.PI / 180;
+    uit = mkLosBeeld(mk, oud._skinRel, kl, speer, cv, Object.assign({}, d0, { s: Object.assign({}, s0, { cx: c[0] / W, cy: c[1] / H, r: h }) }));
+    tip = [(c[0] + L * Math.cos(a)) / k, (c[1] + L * Math.sin(a)) / k];
+  } else uit = broekBeeld(oud, oud, kl, cv, speer);   // vanaf frame 10: het frame zoals altijd (het lijf, zonder de veeg)
+  if (!uit || uit === oud) return null;
+  if (uit !== cv){                                   // broekBeeld gaf zijn eigen doek: overnemen
+    if (cv.width !== uit.width || cv.height !== uit.height){ cv.width = uit.width; cv.height = uit.height; }
+    const g = cv.getContext('2d'); g.clearRect(0, 0, cv.width, cv.height); g.drawImage(uit, 0, 0);
+  }
+  cv._bbMemo = null;
+  cv.complete = true; cv.naturalWidth = cv.width; cv.naturalHeight = cv.height;   // zodat het tekenen hem als een geladen worpframe ziet
+  return { tip };
+}
 // Elk beeld: het rig-canvas bijwerken voor de worp die loopt; geeft rigCv terug, of null als de rig niet aan de beurt is
 function rigBeeld(){
+  rigMkStand = null;
   if (!thr || !rigMik() || !rigImgs || !rigKlaar(rigImgs.lijf)) return null;
+  const kl = broekNu();
+  if (rigMkAan(kl)){                                 // Mkuki: zijn eigen frames, met de speer op de mikhoek
+    const fase = thr.rigW ? thr.rigW.pad : thr.held && thr.frame >= THR_WIND ? 'pose' : null;
+    const i = thr.rigW ? Math.floor(thr.rigW.t * RIG.fps) : 0, h = thr.rigH || 0;
+    const r = fase === 'pose' || fase === 'gewoon' ? rigMkBeeld(fase, i, h, kl, mkSpeerNu(), rigMkCv) : null;
+    if (r){
+      if (r.tip) thr.rigTip = r.tip;
+      amirSilCache.delete(rigMkCv); plichtCache.delete(rigMkCv);
+      rigMkStand = fase + '|' + i + '|' + h.toFixed(1);
+      return rigMkCv;
+    }
+  }
   amirSilCache.delete(rigCv); plichtCache.delete(rigCv);   // elk beeld een ander plaatje: schaduw en licht opnieuw bakken
   if (thr.rigW){ const t = rigWorpBeeld(thr.rigW.pad, Math.floor(thr.rigW.t * RIG.fps), thr.rigH || 0); if (t) thr.rigTip = t; return rigCv; }
   if (thr.held && thr.frame >= THR_WIND){ thr.rigTip = rigPose(thr.rigH || 0); return rigCv; }
@@ -26250,7 +26303,7 @@ function thrRelease(cancel){
   thr.losWacht = thr.wacht || 0;                   // hoe lang hij gespannen stond (MIK tril), want wacht begint opnieuw bij frame 7
   thr.omW = !!(thr.om >= THR_OMW.vanaf && worpOmlaag() && !thr.dubbel && thrOmWKlaar());   // de worp omlaag (THR_OMW)
   if (rigMik() && rigImgs && thr.frame >= THR_WIND && !thr.dubbel)   // de mik-rig (RIG): een eigen worp op de mikhoek
-    thr.rigW = { pad: (thr.rigH || 0) >= RIG.omlaagVanaf ? 'omlaag' : 'gewoon', t: 0 };
+    thr.rigW = { pad: (thr.rigH || 0) >= RIG.omlaagVanaf && !rigMkAan(broekNu()) ? 'omlaag' : 'gewoon', t: 0 };   // de worp omlaag heeft geen Mkuki-frames
   // bij de schaalworp staat de hoek vanaf nu vast: de speer gaat pas op THR_LOOSE weg
 }
 // Het frame dat bij een hoek hoort: het plaatje waarin de speer het dichtst bij die hoek staat.
@@ -29227,10 +29280,10 @@ function mkSpeerZend(){ const n = mkSpeerNu(); return n.s ? (n.s === 'pathfinder
 function mkSpeerNu(){ return { s: spearFound ? speerSoortId(speerBlauw) : null, w: speerSoortId(speerBlauw) === 'pathfinder' ? pfRugWind() : 0,
   g: gifSterkte() }; }   // g: hoe groen van het gif (alleen mijn eigen speer)
 // het hele frame: speer, lijf, boven, met de outfit; null als iets nog laadt (dan het gebakken frame)
-function mkLosBeeld(mk, rel, kl, speer, cv){
+function mkLosBeeld(mk, rel, kl, speer, cv, dEigen){   // dEigen: een eigen stand van de speer (de mik-rig, rigMkBeeld)
   const soortId = speer ? speer.s || null : null, wind = speer ? speer.w || 0 : 0, gif = speer ? speer.g || 0 : 0;
   if (gif > 0) mkGifPunt = null;                         // de druppel: mkSpeerTeken zet het opnieuw als er een speer in dit frame zit
-  const D = MK_LOS.data, d = D && D.frames[rel];
+  const D = MK_LOS.data, d = D && (dEigen || D.frames[rel]);
   if (!d) { if (D === null) mkLosLaad(); return null; }
   const b = SKIN_SRC.get.call(mk).replace(/\.png$/, '');
   const lijf = mkSkinLaad(b + '_lijf.png'), boven = d.b ? mkSkinLaad(b + '_boven.png') : null, sm = d.m ? mkSkinLaad(b + '_sm.png') : null;
@@ -29240,7 +29293,7 @@ function mkLosBeeld(mk, rel, kl, speer, cv){
   if (!cv){ if (!mkLosCv) mkLosCv = document.createElement('canvas'); cv = mkLosCv; }
   // hetzelfde frame, dezelfde outfit en speer als de vorige keer op dit doek: het staat er al (BB_MEMO). Niet met gif of de
   // Pathfinder, want die veranderen per beeld (de groene gloed, het vaantje)
-  const memo = gif > 0 || soortId === 'pathfinder' ? null : 'l|' + mk.src + '|' + rel + '|' + kl.id + '|' + (soortId || '');
+  const memo = gif > 0 || soortId === 'pathfinder' || dEigen ? null : 'l|' + mk.src + '|' + rel + '|' + kl.id + '|' + (soortId || '');
   if (memo && BB_MEMO.aan && cv._bbMemo === memo) return cv;
   cv._bbMemo = null;
   let heel = true;                                       // alles was binnen: dan mag het onthouden worden
@@ -60354,14 +60407,14 @@ function loop(now){
     sgDuikZet(w, h, groundY + lift - y);              // de sprintgreep: even voorover naar de speer (SPRINTGREEP)
     const gloedW = woedeGloed(), gloedZ = straalGloed(), gloed = Math.max(gloedW, gloedZ), zonKl = gloedZ > gloedW;   // de zonnestraal (STRAAL): goud in plaats van oranje
     if (gloed > 0){                                   // de woede: een warme gloed die als een vlam om zijn rand likt
-      const beeld = amirSteen > 0 ? fosforKopie(img, 'steen') : broekBeeld(vaanBlauw(img), img, undefined, null, mkSpeerNu());
+      const beeld = amirSteen > 0 ? fosforKopie(img, 'steen') : img === rigMkCv ? img : broekBeeld(vaanBlauw(img), img, undefined, null, mkSpeerNu());
       ctx.shadowColor = (zonKl ? 'rgba(255,196,40,' : 'rgba(255,120,30,') + (0.9 * gloed).toFixed(3) + ')';   // eerst ruim en diep oranje
       ctx.shadowBlur = CHAR_H * scale * (0.07 + 0.04 * gloed) * DPR;          // shadowBlur rekent in canvaspixels
       ctx.drawImage(beeld, 0, 0, w, h);
       ctx.shadowColor = (zonKl ? 'rgba(255,244,190,' : 'rgba(255,196,90,') + gloed.toFixed(3) + ')';           // dan een smal, lichter randje
       ctx.shadowBlur = CHAR_H * scale * 0.022 * DPR;
     }
-    const amirBeeld = amirSteen > 0 ? fosforKopie(img, 'steen') : broekBeeld(vaanBlauw(img), img, undefined, null, mkSpeerNu());   // door de fosforslang versteend; anders met de broekkleur (BROEK)
+    const amirBeeld = amirSteen > 0 ? fosforKopie(img, 'steen') : img === rigMkCv ? img : broekBeeld(vaanBlauw(img), img, undefined, null, mkSpeerNu());   // door de fosforslang versteend; anders met de broekkleur (BROEK)
     if (useRolW && ROL_WORP.smear > 0 && Math.abs(rwF - ROL_WORP.los) <= 1){
       // de smear: rond het loslaten een paar vage kopieen achter hem, zodat de worp snel oogt. Het beeld kijkt naar
       // links (ook gespiegeld, want de spiegeling zit al in de transformatie), dus achter hem is +x
@@ -75157,7 +75210,7 @@ function pvpBron(img){
 }
 // vlak voor Amirs lijf getekend wordt: wat de ander nodig heeft om hem net zo te tekenen, in sprite-eenheden vanaf zijn voeten
 function pvpVang(img, x, y, w, h, fl, pcx, voet, scale){
-  const im = pvpBron(img);
+  const im = img === rigMkCv && rigMkStand ? 'rig|' + rigMkStand : pvpBron(img);   // de mik-rig: de stand, de ander tekent hem zelf
   if (!im) return;                                   // een gebakken doek zonder bron: het vorige beeld blijft staan
   pvp.mijn = { im, dx: (x - pcx) / scale, dy: (y - voet) / scale, dw: w / scale, dh: h / scale, fl: fl ? 1 : 0, a: +ctx.globalAlpha.toFixed(2) };
 }
@@ -75265,10 +75318,21 @@ function pvpTeken(groundY, scale, cx, pbox, hitBy){
   else pvpBlindPlek(groundY, scale, cx);            // het Duel: waar ik sta, voor de sluier van het stof (pvpBlindNa)
 }
 const pvpBroekCv = {};                              // per slot een eigen doek voor zijn broekkleur (zie pvpTekenEen)
+// een teamgenoot die met de mik-rig mikt: zijn Mkuki-frame met de speer op zijn hoek, op zijn eigen doek; in een ander
+// tenue (of als er iets nog laadt) het gewone worpframe in zijn kleur
+function pvpRigBeeld(p, rigS, speer){
+  const cv = pvpBroekCv[p] || (pvpBroekCv[p] = document.createElement('canvas'));
+  const kl = broekKleurVan(pvp.broek[p]), fase = rigS[1], i = +rigS[2] || 0, h = +rigS[3] || 0;
+  if (rigMkBeeld(fase, i, h, kl, speer, cv)) return cv;
+  const oud = thrImgs[fase === 'pose' ? THR_WIND : Math.min(THR_N - 1, i + 7)];
+  return imgReady(oud) ? broekBeeld(oud, oud, kl, cv, speer) : null;
+}
 // een andere Amir, zijn speer, en (in het Duel) of zijn steek, zwaai of worp mijn Amir raakt
 function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
   const sx = cx + (g.x - world), voet = groundY - g.h * scale;
-  const im = g.im && pvpBeeld(g.im);
+  const rigS = typeof g.im === 'string' && g.im.startsWith('rig|') ? g.im.split('|') : null;   // hij mikt met de rig (rigMkBeeld)
+  const rigSp = rigS ? { s: typeof g.sp === 'string' && SPEER_SOORTEN[g.sp] ? g.sp : null, w: +g.vw || 0, g: g.gi > 0 ? 1 : 0 } : null;
+  const im = rigS ? pvpRigBeeld(p, rigS, rigSp) : g.im && pvpBeeld(g.im);
   const zhWacht = pvp.coop && g.d && zhLijst.some(z => z.voor === p && z.op);   // Silver Pride: al uit het hart, zijn stand komt nog
   if (im && !zhWacht && !bnTekentAnder(p)) pvpRugTeken(g, sx, voet, scale);   // zijn reserve-speren, achter zijn lijf
   if (im && !zhWacht && !bnTekentAnder(p)){          // Feathers of the Bennu: zijn ritueel tekent hem (bnTekenAmir)
@@ -75285,7 +75349,7 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
     // zijn speersoort, het vaantje en zijn gif (MK_LOS); mkGifPunt is de druppel van mijn eigen speer, die blijft van mij
     const gifPunt = mkGifPunt;
     let kb;
-    try { kb = broekBeeld(im, im, broekKleurVan(pvp.broek[p]), pvpBroekCv[p] || (pvpBroekCv[p] = document.createElement('canvas')),
+    try { kb = rigS ? im : broekBeeld(im, im, broekKleurVan(pvp.broek[p]), pvpBroekCv[p] || (pvpBroekCv[p] = document.createElement('canvas')),
                          { s: typeof g.sp === 'string' && SPEER_SOORTEN[g.sp] ? g.sp : null, w: +g.vw || 0, g: g.gi > 0 ? 1 : 0 }); }
     finally { mkGifPunt = gifPunt; }
     ctx.drawImage(g.hu > 0 ? amirRood(kb, Math.min(0.75, g.hu * 2)) : kb, 0, 0, w, h);

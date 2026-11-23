@@ -81,6 +81,22 @@ Test 72 (Aim rig) is een proefveld: een trap van 150 tot 600 hoog en weer terug,
 **Aim rig** onder Speerworp. Om de rig los van het spel te bekijken is er ook een artifact (Amir mik-rig proef).
 Nagekeken in Chromium: de hoeken -20, 0, 16, 37 en 45 gooien op die hoek, het pad wisselt op 28 graden, geen fouten.
 
+**Met een outfit van Mkuki** (`RIG.mk`, `rigMkBeeld`): de losse delen hierboven zijn de oude Amir, een smallere tekening
+zonder zijn outfit, dus met Mkuki (de standaard) kromp hij zodra hij ging mikken. Nu tekent `mkLosBeeld` het Mkuki-frame
+zelf (lijf, boven, outfitkleuren, de speersoort), met een eigen stand van de speer (`dEigen`): in de mikpose (frame 6)
+draait de speer om het punt op de schacht bij de vuist (`RIG.mk.pose.om`), in de worp (frame 7 tot 9) om de vuist
+(`RIG.mk.gewoon`), vanaf frame 10 het gewone frame. Lijf en hoofd draaien dan niet mee. De worp omlaag heeft geen
+Mkuki-frames, dus met Mkuki is het altijd de gewone worp. Het doek is `rigMkCv`; in Multiplayer gaat de stand mee als
+`rig|fase|i|hoek` (`rigMkStand`, `pvpVang`) en tekent de ander hem zelf (`pvpRigBeeld`). Zonder Mkuki de oude rig.
+
+## de maat van de worp (`THR_BODY`)
+
+`THR_S = CHAR_H / THR_BODY` zet het worpcanvas om naar sprite-eenheden. Dat was 620, en dan was Amir in elke worp (ook
+zonder rig, in elk level en in Co-op) zo'n 11% kleiner dan als hij stond. Nu 553: worpframe 0 (rechtop, 608 px van kruin
+tot voet) is even groot als de idle (276 sprite-pixels), in de oude set en in die van Mkuki. De speer vertrekt daardoor iets
+hoger en verder voor hem; `runecheck.js` gaf geen nieuwe FOUT, wel een LET OP bij de lage schijven (hoogte 190) in
+Test 6, 9 en 17: nog te raken, maar alleen de laatste 38 px liggen in beeld.
+
 ## De sprintgreep (kit-lijst W1, in de maak)
 
 In volle sprint (495 px/s) was het raam om E te drukken bij je speer maar ongeveer een tiende seconde. Met de
