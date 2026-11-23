@@ -7141,7 +7141,7 @@ const TEST_93 = {
   speerInHand: true,
   holstammen: [ {x: -1100, s: 1, n: 0.5, hol: {dx: -90, kruis: true}},
                 {x: -2945, anker: 'r', s: 1, n: 2.25, vlieg: true, hol: {dx: -700, inhoud: 'ruimte', kruis: true}},   // anker r: de rechterkant ligt vast tegen de treden
-                {x: -7600, s: 1.25, n: 0.6},
+                {x: -7600, s: 1.25, n: 0.6, hol: {dx: -330, inhoud: 'ingang', kruis: true}},   // een ingang: E kruipt in een hol met een kalebas
                 {x: -9800, s: 0.85, n: 0},
                 {x: -11100, s: 0.45, n: 0.3},
                 {x: -12550, s: 1, n: 1, hol: {dx: 40, inhoud: 'uitzicht', kruis: true}} ],   // hier breek je door de wand: uitzicht
@@ -7168,7 +7168,7 @@ const TEST_93 = {
   ends: [ {x: -13800} ],
   tips: [ { x: -80, t: 'Test level: hollow logs. Walk into one and its front turns see-through. A bandit waits inside with his back to you. Strike the bark inside: something glows behind a crack' },
           { x: -1950, t: 'Climb the steps and jump onto the long log. Fireflies live inside it: a strike scares them off' },
-          { x: -6500, t: 'A big one: walk through and fight the shield bandit inside' },
+          { x: -6500, t: 'A big one: fight the shield bandit inside, then break the marked spot low in the wall and press E to crawl into the den' },
           { x: -8700, t: 'Use the hanging log to get on top of this one' },
           { x: -10600, t: 'A small log: crouch to crawl through' },
           { x: -11900, t: 'The red crosses mark hidden spots. Strike this one four times from inside and look through' } ]
@@ -16621,8 +16621,10 @@ const HOLSTAM = {
          klein: 0.3, groot: 0.66,       // de breedte van een klein gat en van het hol, in Amir (bij s 1)
          kans: 0.3, max: 6, afstand: 0.32,   // af en toe een klein gat (kans per slag), hooguit zoveel, zoveel Amir uit elkaar
          holR: 0.42, holH: 0.48,        // binnen zoveel Amir van het hol telt een slag voor het hol; het midden op zoveel Amir hoog
-         uitzicht: 1.3, uitzichtH: 0.82, uitzichtKijk: 1.25,   // een gat met uitzicht is zoveel groter, en zit hoger; erdoor zie je het stuk achtergrond van uitzichtKijk Amir hoger (de kruinen)
+         uitzicht: 1.3, uitzichtH: 0.82,   // een gat met uitzicht is zoveel groter, en zit hoger; erdoor zie je gewoon de achtergrond op zijn plek
          zoek: 0.75,                    // zo lang graaft Amir in het hol voor hij iets vindt (s)
+         ingangH: 0.44, ingang: 1.35,   // een ingang (inhoud 'ingang'): laag bij de vloer en zoveel groter, E kruipt erin
+         hol: { breed: 900, ver: 3000, fade: 0.28 },   // het hol erachter: zoveel wereld-px breed, zo ver links van de klif, en de fade erheen (s)
          donker: 0.28,                  // de plaatjes binnen iets donkerder, zoals de binnenkant
          bij: 0.75,                     // E werkt binnen zoveel Amir van het open hol
          grav: 1500, rust: 2.2,         // de scherven: zwaartekracht, en zo lang blijven ze liggen voor ze vervagen
@@ -16701,9 +16703,9 @@ function holstamBak(q){
   return q._bak;
 }
 function holstamReset(){
-  holstamScherven = []; holstamLens = []; holstamKruim = [];
+  holstamScherven = []; holstamLens = []; holstamKruim = []; holstamFade = null;
   for (const q of holstamLijst()){
-    q.vaag = 0; q._slag = false; q.gaten = []; q.holStand = 0; q.holLeeg = false; q.holGezien = false; q.zoek = 0;
+    q.vaag = 0; q._slag = false; q.gaten = []; q.holStand = 0; q.holLeeg = false; q.holGezien = false; q.zoek = 0; q._den = null;
     if (q.vlieg) holstamVliegMaak(q); else q.vliegen = null;
   }
 }
@@ -16800,6 +16802,10 @@ function holstamUpdate(dt){
     if (q.vliegen) holstamVliegStap(q, dt);
   }
   holstamSchervenStap(dt);
+  holstamFadeStap(dt);
+  const d = holstamDenBij(world);
+  if (d && !d.hint && world > d.r - HOLSTAM.gat.bij * CHAR_H * nowScale() * 1.4){ d.hint = true; flashHint('E: climb out', 2200); }
+  if (d && world < d.r - HOLSTAM.gat.bij * CHAR_H * nowScale() * 2) d.hint = false;
 }
 // de lage zwaai schrikt ze ook op (een keer per zwaai)
 function holstamZwaai(id){
@@ -16831,17 +16837,11 @@ function holstamSchil(q, b, S){
 }
 // achter de personages: de binnenkant, en de schil als Amir bovenop staat
 function holstamAchter(groundY, scale, cx){
+  holstamDenTeken(groundY, scale, cx);
   for (const q of holstamLijst()){
     const b = holstamBak(q); if (!b) continue;
     const M = holstamMaat(q), S = holstamScherm(q, M, groundY, scale, cx); if (!holstamZichtbaar(S)) continue;
     const uit = holstamUitzichtNu(q, M, S, scale);
-    if (uit){                                        // het uitzicht: door het gat zie je de boomkruinen en de lucht (het stuk achtergrond erboven)
-      const T = ctx.getTransform(), D = HOLSTAM.gat.uitzichtKijk * CHAR_H * scale * T.d;
-      ctx.save(); ctx.clip(uit); ctx.setTransform(1, 0, 0, 1, 0, 0);
-      const c = ctx.canvas; ctx.filter = 'brightness(1.12) saturate(1.1)';
-      ctx.drawImage(c, 0, 0, c.width, c.height - D, 0, D, c.width, c.height - D);
-      ctx.restore();
-    }
     if (uit){ ctx.save(); const p = new Path2D(); p.rect(S.x - 50, S.y - 50, S.w + 100, S.knip - S.y + 100); p.addPath(uit); ctx.clip(p, 'evenodd'); holstamPlaat(b.binnen, S, 1); ctx.restore(); }
     else holstamPlaat(b.binnen, S, 1);
     holstamGatenTeken(q, M, S, scale);
@@ -16899,7 +16899,7 @@ function holstamGatBak(i){
 function holstamWX(q, M, lx){ return M.l + lx; }
 function holstamLX(q, M, wx){ return wx - M.l; }
 function holstamHolX(q, M){ return M.w / 2 + (Number(q.hol && q.hol.dx) || 0) * nowScale(); }
-function holstamHolH(q){ const h = q.hol && q.hol.h != null ? q.hol.h : q.hol && q.hol.inhoud === 'uitzicht' ? HOLSTAM.gat.uitzichtH : HOLSTAM.gat.holH; return h * CHAR_H * (Number(q.s) || 1); }
+function holstamHolH(q){ const h = q.hol && q.hol.h != null ? q.hol.h : q.hol && q.hol.inhoud === 'uitzicht' ? HOLSTAM.gat.uitzichtH : q.hol && q.hol.inhoud === 'ingang' ? HOLSTAM.gat.ingangH : HOLSTAM.gat.holH; return h * CHAR_H * (Number(q.s) || 1); }
 // een slag (hA: de hoogte van de speerpunt in Amir): alleen als Amir binnen in deze stam op de grond staat
 function holstamSlag(q, M, hA){
   if (!holstamImgs || !holstamImgs.gat) return;
@@ -17005,7 +17005,7 @@ function holstamKruisTeken(q, M, S, scale){
   }
   ctx.font = 'bold ' + Math.round(r * 0.9) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ff4a4a';
   ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 3;
-  const t = { kalebas: 'gourd', goud: 'gold', ruimte: 'hollow', uitzicht: 'view' }[wat] + ' (' + (q.holStand || 0) + '/4)';
+  const t = { kalebas: 'gourd', goud: 'gold', ruimte: 'hollow', uitzicht: 'view', ingang: 'den (E)' }[wat] + ' (' + (q.holStand || 0) + '/4)';
   ctx.strokeText(t, x, y - r * 1.5); ctx.fillText(t, x, y - r * 1.5);
   ctx.restore();
 }
@@ -17019,10 +17019,10 @@ function holstamGatenTeken(q, M, S, scale){
   for (const o of q.gaten || []) zet(holstamGatBak(1), o.x, o.h, G.klein * A * o.k, o.rot, o.f, 1);
   if (!q.hol) return;
   const hx = holstamHolX(q, M), hh = holstamHolH(q), st = q.holStand || 0, T = performance.now() / 1000, wat = q.hol.inhoud || 'kalebas';
-  const open = st >= 4, wGat = G.groot * A * (wat === 'uitzicht' ? G.uitzicht : 1);
+  const open = st >= 4, wGat = G.groot * A * (wat === 'uitzicht' ? G.uitzicht : wat === 'ingang' ? G.ingang : 1);
   if (open && wat === 'uitzicht') holstamUitzichtRand(q, S.x + hx, S.gy - hh * scale, wGat);   // het gat zelf is al uit de binnenkant geknipt
   else zet(holstamGatBak(st), hx, hh, wGat, 0, !!q.hol.f, st ? 1 : 0.9);
-  if (open && wat === 'ruimte'){                     // een ruimte erachter: dieper donker in het midden, met een vage achterwand
+  if (open && (wat === 'ruimte' || wat === 'ingang')){                     // een ruimte erachter: dieper donker in het midden, met een vage achterwand
     const cx0 = S.x + hx, cy0 = S.gy - hh * scale, r = wGat * 0.34, gr = ctx.createRadialGradient(cx0, cy0 + r * 0.15, 0, cx0, cy0, r);
     gr.addColorStop(0, 'rgba(0,0,0,0.92)'); gr.addColorStop(0.55, 'rgba(6,4,2,0.75)'); gr.addColorStop(1, 'rgba(10,6,3,0)');
     ctx.save(); ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(cx0, cy0, r, r * 1.08, 0, 0, Math.PI * 2); ctx.fill();
@@ -17127,13 +17127,25 @@ function holstamGatBij(){
 function holstamHolHint(q, M){
   if (q.zoek > 0){ q.zoek -= holstamDt; if (q.zoek <= 0) holstamVondst(q); return; }
   if (q.holGezien || !q.hol || q.holLeeg || (q.holStand || 0) < 4 || holstamGatBij() !== q) return;
-  q.holGezien = true; flashHint('E: reach into the hollow', 2600);
+  q.holGezien = true; flashHint(q.hol.inhoud === 'ingang' ? 'E: crawl into the den' : 'E: reach into the hollow', 2600);
 }
 // E: Amir graaft in het hol (geschraap, geritsel van blad en een tik hout, kruimels uit het gat), en na HOLSTAM.gat.zoek
 // vindt hij wat er zit (holstamVondst)
 let holstamDt = 0;
 function holstamGatE(){
+  if (holstamFade) return true;
+  const d = holstamDenBij(world);
+  if (d){                                            // in het hol: E bij de opening rechts kruipt weer naar buiten
+    if (world < d.r - HOLSTAM.gat.bij * CHAR_H * nowScale() * 1.4) return false;
+    holstamZoekGeluid(); holstamFadeStart(() => { world = d.terug; ph = terrainH(world); pvh = 0; onGround = true; facing = -1; });
+    return true;
+  }
   const q = holstamGatBij(); if (!q) return false;
+  if (q.hol.inhoud === 'ingang'){
+    const den = holstamDen(q);
+    holstamZoekGeluid(); holstamFadeStart(() => { den.terug = world; world = den.r - 0.6 * CHAR_H * nowScale(); ph = terrainH(world); pvh = 0; onGround = true; facing = -1; holstamDenVul(den); });
+    return true;
+  }
   const M = holstamMaat(q), wx = holstamWX(q, M, holstamHolX(q, M));
   q.zoek = HOLSTAM.gat.zoek;
   holstamZoekGeluid();
@@ -17158,6 +17170,63 @@ function holstamZoekGeluid(){
   } catch (e) {}
 }
 let holstamSnd = null;
+// ---- het hol achter een ingang: een eigen kamertje ver links van de klif (zoals binnen een huis, zie "binnen") ----
+// Per stam een strook van HOLSTAM.gat.hol.breed; Amir blijft tussen de wanden (holstamDenKlem), de camera kijkt erin
+// (binnenCamKlem), de klif telt er niet (endWall). Getekend in holstamAchter: zwart, met de binnenkant van de stam
+// gestrekt en donker, en daglicht van de opening rechts. Bij de eerste keer ligt er de vondst (een kalebas of een kist).
+function holstamDen(q){
+  if (q._den) return q._den;
+  const H0 = HOLSTAM.gat.hol, lijst = holstamLijst().filter(o => o.hol && o.hol.inhoud === 'ingang'), i = lijst.indexOf(q);
+  const klif = Math.min(...((level && level.cliffs) || [{ x: -20000 }]).map(c => c.x), ...((level && level.ends) || []).map(e => e.x));
+  const r = klif - H0.ver - Math.max(0, i) * (H0.breed + 2000);
+  return (q._den = { q, r, l: r - H0.breed, terug: q.x, gevuld: false });
+}
+function holstamDenBij(x){
+  for (const q of holstamLijst()) if (q._den && x >= q._den.l - 50 && x <= q._den.r + 50) return q._den;
+  return null;
+}
+function holstamDenKlem(d, halfW){ world = Math.max(d.l + halfW, Math.min(d.r - halfW, world)); }
+function holstamDenVul(d){
+  if (d.gevuld) return; d.gevuld = true;
+  const x = d.l + 0.3 * (d.r - d.l);
+  if (d.q.hol.vondst === 'kist'){ kistLaad(); kisten.push(kistMaak({ x, y: terrainH(x), vast: true, goud: d.q.hol.goud })); }
+  else spawnHppotion(x, terrainH(x));
+}
+let holstamFade = null;
+function holstamFadeStart(na){ holstamFade = { t: 0, na, klaar: false }; }
+function holstamFadeStap(dt){
+  if (!holstamFade) return;
+  const F = HOLSTAM.gat.hol.fade; holstamFade.t += dt;
+  if (!holstamFade.klaar && holstamFade.t >= F){ holstamFade.klaar = true; holstamFade.na(); camEase = null; }
+  if (holstamFade.t >= 2 * F) holstamFade = null;
+}
+function holstamFadeTeken(){
+  if (!holstamFade) return;
+  const F = HOLSTAM.gat.hol.fade, a = holstamFade.t < F ? holstamFade.t / F : 1 - (holstamFade.t - F) / F;
+  ctx.save(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.globalAlpha = Math.max(0, Math.min(1, a)); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); ctx.restore();
+}
+function holstamDenTeken(groundY, scale, cx){
+  const I = holstamImgs; if (!I || !imgReady(I.binnen)) return;
+  for (const q of holstamLijst()){
+    const d = q._den; if (!d) continue;
+    const xl = cx + (d.l - world), xr = cx + (d.r - world); if (xr < -W || xl > W / viewZoom() + W) continue;
+    const gy = groundY - terrainH(d.l) * scale, A = CHAR_H * scale, hoog = 1.7 * A;
+    ctx.save();
+    ctx.fillStyle = '#050302'; ctx.fillRect(xl - 3 * W, -3 * H, xr - xl + 6 * W, 6 * H);   // alles om het hol heen is aarde en donker
+    const w = (xr - xl) * 1.3, h = hoog / ((HOLSTAM.bron.vloer - HOLSTAM.bron.plafond) / HOLSTAM.bron.h);
+    ctx.filter = 'brightness(0.62) saturate(0.85)';
+    ctx.drawImage(I.binnen, (xl + xr) / 2 - w / 2, gy - HOLSTAM.bron.vloer / HOLSTAM.bron.h * h, w, h);
+    ctx.filter = 'none';
+    const gr = ctx.createRadialGradient(xr, gy - 0.4 * A, 0, xr, gy - 0.4 * A, (xr - xl) * 0.9);   // daglicht door de opening rechts
+    gr.addColorStop(0, 'rgba(255,214,150,0.4)'); gr.addColorStop(0.4, 'rgba(255,200,130,0.12)'); gr.addColorStop(1, 'rgba(255,200,130,0)');
+    ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = gr; ctx.fillRect(xl - 3 * W, -3 * H, xr - xl + 6 * W, 6 * H);
+    ctx.globalCompositeOperation = 'source-over';
+    const v = ctx.createLinearGradient(xl, 0, xr, 0);                 // de linkerkant loopt dood in het donker
+    v.addColorStop(0, 'rgba(5,3,2,0.95)'); v.addColorStop(0.35, 'rgba(5,3,2,0)'); ctx.fillStyle = v; ctx.fillRect(xl - 2, -3 * H, (xr - xl) * 0.5, 6 * H);
+    ctx.fillStyle = '#050302'; ctx.fillRect(xl - 3 * W, -3 * H, 3 * W + 2, 6 * H);   // links van het hol weer helemaal donker
+    ctx.restore();
+  }
+}
 function holstamSndMaak(){ if (!holstamSnd) holstamSnd = { veeg: banStemmen('sounds/stofveeg.mp3', 1), vind: banStemmen('sounds/zegelontdek.mp3', 1), breek: banStemmen('sounds/ton_breek.mp3', 1) }; return holstamSnd; }
 function holstamVondst(q){
   const M = holstamMaat(q), wx = holstamWX(q, M, holstamHolX(q, M)), g = terrainH(q.x), wat = q.hol.inhoud || 'kalebas';
@@ -21951,6 +22020,7 @@ function huisMargeStap(){
 }
 function endWall(){
   if (!level || !level.cliffs || !level.cliffs.length) return -Infinity;
+  if (holstamDenBij(world)) return -Infinity;      // in het hol van een holle stam
   if (level.binnen && binnenBij(world)) return -Infinity;   // binnen een huis (zie "binnen"): de muren van het huis, geen klif
   huisMargeStap();
   let m = -Infinity;
@@ -57654,6 +57724,7 @@ function loop(now){
   } else {
     const huis = binnenBij(world);                 // binnen een huis: de muren van het huis, niet de klif (zie "binnen")
     if (huis) binnenKlem(huis, halfWNow);
+    else if (holstamDenBij(world)) holstamDenKlem(holstamDenBij(world), halfWNow);   // in het hol van een holle stam (HOLSTAM.gat.hol)
     else {
       if (world + halfWNow > cliff.wall) world = cliff.wall - halfWNow;   // je komt er niet voorbij
       if (world - halfWNow < endWall()) world = endWall() + halfWNow;    // en ook niet voorbij je eigen klif
@@ -57892,6 +57963,8 @@ function loop(now){
     camEase = binnenCamKlem(huisC, camEase);   // en in het huis (zie "binnen")
     world = w0;
   }
+  const denC = holstamDenBij(pWorld);
+  if (denC){ if (camEase === null) camEase = pWorld; camEase = binnenCamKlem(denC, camEase); }   // en in het hol van een holle stam
   if (camEase !== null){ camSwap = pWorld; world = camEase; }
   scene(groundY);
   nepBasis = ctx.getTransform();                   // voor het nep-terrein van een masker (maskerNepTeken): de transform van voor de zoom
@@ -60046,6 +60119,7 @@ function loop(now){
     murcIntroTeken();                               // de opening van Murghtaan 3: balken en de naam
     tonLensTeken();                                 // en de stukken ton die daar tegen de lens vliegen, over de balken heen
     holstamLensTeken();                             // en de scherven van de holle stam die langs de camera vliegen
+    holstamFadeTeken();                             // en de fade naar het hol van een holle stam en terug
     bruLensTeken();                                 // het bloed op de lens als Nyundo in zijn knots valt
     stokLensTeken();                                // en de korte spetter van de stun-counter met de stokken (STOK.lens)
     exeStokLensTeken();                             // en de grote spat van de stokexecutie (EXE.stok.lens)
@@ -61429,7 +61503,7 @@ function readLevel(txt){
            // zwevende savannelagen: een dik savanneblok in de lucht, zie "zwevende savannelaag"
            kruipstammen: Array.isArray(o.kruipstammen) ? o.kruipstammen.map(q => ({ x: Number(q.x), s: Number(q.s) || 1 })) : undefined,
            holstammen: Array.isArray(o.holstammen) ? o.holstammen.map(q => ({ x: Number(q.x), s: Number(q.s) || 1, n: q.n != null ? Number(q.n) : undefined, vlieg: q.vlieg === true, anker: q.anker === 'r' ? 'r' : undefined,
-                                                                       hol: q.hol ? { dx: Number(q.hol.dx) || 0, inhoud: ['goud', 'ruimte', 'uitzicht'].includes(q.hol.inhoud) ? q.hol.inhoud : 'kalebas', goud: q.hol.goud != null ? Number(q.hol.goud) : undefined, f: !!q.hol.f, kruis: q.hol.kruis === true, h: q.hol.h != null ? Number(q.hol.h) : undefined } : undefined })) : undefined,   // de holle stam (HOLSTAM)
+                                                                       hol: q.hol ? { dx: Number(q.hol.dx) || 0, inhoud: ['goud', 'ruimte', 'uitzicht', 'ingang'].includes(q.hol.inhoud) ? q.hol.inhoud : 'kalebas', vondst: q.hol.vondst === 'kist' ? 'kist' : 'kalebas', goud: q.hol.goud != null ? Number(q.hol.goud) : undefined, f: !!q.hol.f, kruis: q.hol.kruis === true, h: q.hol.h != null ? Number(q.hol.h) : undefined } : undefined })) : undefined,   // de holle stam (HOLSTAM)
            zwevers: (o.zwevers || []).concat((o.kruipstammen || []).map(kruipstamDak)).concat((o.holstammen || []).map(q => holstamDak({ x: Number(q.x), s: Number(q.s) || 1, n: q.n, anker: q.anker }))).map(q => {
              const h = Number(q.h) || 0;
              let onder = q.onder != null ? Number(q.onder) : h - ZWEEF.dik;
