@@ -23815,6 +23815,7 @@ const BN = {
   oogFlits: 450, oogFlitsGrootte: 1, oogStralen: 6, oogGloed: 1, aura: 1, handGloed: 1,
   blaasVol: 0.55, blaasFrame: 64, vlaagVol: 0.8, zoemVol: 0.25, zoemToon: 110, muziekDemp: 0.35,
   naOnkw: 1,              // s nog onkwetsbaar nadat hij weer opstaat
+  zelf: { gloei: 0.9, op: 1.3, vlucht: 2.1, in: 1.2, ver: 650, hoog: 1.25, veren: 3 },   // de zelf-revive in Co-op (bnZelfTeken): s per stuk, hoe ver (in wereld bij schaal 0,7) en hoe hoog (Amir) ze zweven
   dummyStaat: 6,          // Test 94: zo lang staat de oefenteamgenoot, dan ligt hij weer
   sc0: 0.9435, ax0: 520, grond0: 640, voetX: 116, voetY: 320,   // de afstelmaat
   kleuren: [ ['Pink', ['#ff9fd0']], ['Opal', ['#9fd8ff', '#ff9fd0', '#c9a2ff']], ['Light blue', ['#9fd8ff']], ['Lilac', ['#c9a2ff']],
@@ -23898,22 +23899,50 @@ function bnGebruik(){
   if (MUZIEK[muziekNu]){ clearTimeout(bg.dempT); sndRamp(bg, MUZIEK[muziekNu].vol * BN.muziekDemp, 0.6, false); }   // de muziek gaat zachter
   bnZoemStart();
 }
-// Co-op: dood met de veren in de tas. Geen knielen (hij ligt); de bol komt om zijn lijk, de veren draaien, de vlaag, en hij
-// staat op waar hij lag (reviveZelfStap). De anderen zien het via het bericht 'bn' met zelf
+// Co-op: dood met de veren in de tas (reviveZelfStap). De veren gaan gloeien op zijn lijk, de lucht tilt ze rustig op (het
+// lijk vervaagt), ze zweven een stuk verder naar een veilige plek, en daar fadet hij weer levend in (BN.zelf, bnZelfTeken).
+// De plek kiest de dode zelf (bnZelfDoel) en stuurt hem mee in het bericht 'bn' met zelf, zodat iedereen dezelfde vlucht ziet
+function bnZelfDoel(){
+  const A = CHAR_H * nowScale(), links = endWall() + 260, rechts = cliffAt().wall - 260;
+  let dir = 0, best = 1500;                                       // weg van de dichtstbijzijnde vijand
+  for (const L of [...straatVijanden(), goudapen]) for (const v of L){
+    if (!v || v.dead || /^(dying|dood|dead|gone|weg)$/.test(v.state || '')) continue;
+    const d = Math.abs(v.x - world); if (d < best){ best = d; dir = v.x > world ? -1 : 1; }
+  }
+  if (!dir){                                                      // geen vijand dichtbij: naar een levende teamgenoot, anders vooruit
+    const p = pvpAnderen().find(q => pvpAnderNu(q) && !pvpAnderNu(q).d);
+    dir = p != null ? (pvpAnderNu(p).x > world ? 1 : -1) : -1;
+  }
+  for (const k of [dir, -dir]) for (const d of [BN.zelf.ver, BN.zelf.ver * 0.75, BN.zelf.ver * 1.25, BN.zelf.ver * 0.5]){
+    const x = world + k * d * A / CHAR_H / 0.7;
+    if (x > links && x < rechts && !inGap(x)) return { x, h: terrainH(x) };
+  }
+  return { x: world, h: ph };
+}
 function bnZelfStart(){
   bnLaad();
   bnCarry = Math.max(0, bnCarry - 1); balkHud && balkHud();
-  bnNu = { t: BN_T[BN_LOS] - 500, x: world, h: ph, f: facing, dir: facing === 1 ? 1 : -1, kl: bnKleur, voor: pvp.mij, zelf: true,
-           blaas: true, vlaag: false, gust: false, op: false };
-  if (!pvp.solo) pvpZend({ t: 'bn', voor: pvp.mij, zelf: 1, x: Math.round(world), h: Math.round(ph), f: facing, dir: bnNu.dir, kl: bnKleur });
-  bnZoemStart();
+  const D = bnZelfDoel();
+  bnNu = { zelf: true, z: 0, t: 0, x: world, h: ph, f: facing, tx: D.x, th: D.h, dir: D.x < world ? -1 : 1, kl: bnKleur, voor: pvp.mij };
+  if (!pvp.solo) pvpZend({ t: 'bn', voor: pvp.mij, zelf: 1, x: Math.round(world), h: Math.round(ph), f: facing, tx: Math.round(D.x), th: Math.round(D.h), kl: bnKleur });
 }
 // het bericht 'bn' van een teamgenoot: zijn ritueel speelt hier ook af, op zijn plek (bnStap, bnTekenAchter, bnTekenAmir)
 function bnVan(m){
   bnLaad();
-  const zelf = !!m.zelf, kl = Math.max(0, Math.min(BN.kleuren.length - 1, +m.kl || 0));
-  bnAnder.push({ p: m.p, voor: m.voor, zelf, t: zelf ? BN_T[BN_LOS] - 500 : 0, x: +m.x || 0, h: +m.h || 0, f: +m.f || 0,
-                 dir: +m.dir < 0 ? -1 : 1, kl, blaas: zelf, vlaag: false, gust: false, op: false });
+  const kl = Math.max(0, Math.min(BN.kleuren.length - 1, +m.kl || 0));
+  if (m.zelf){ bnAnder.push({ p: m.p, voor: m.voor, zelf: true, z: 0, t: 0, x: +m.x || 0, h: +m.h || 0, f: +m.f || 0, tx: +m.tx || 0, th: +m.th || 0,
+                              dir: +m.tx < +m.x ? -1 : 1, kl }); return; }
+  bnAnder.push({ p: m.p, voor: m.voor, zelf: false, t: 0, x: +m.x || 0, h: +m.h || 0, f: +m.f || 0,
+                 dir: +m.dir < 0 ? -1 : 1, kl, blaas: false, vlaag: false, gust: false, op: false });
+}
+// de tijden van de zelf-revive, vanaf de dood met de veren: gloeien, optillen, de vlucht, infaden
+const bnZT = () => { const Z = BN.zelf, a = Z.gloei, b = a + Z.op, c = b + Z.vlucht; return { a, b, c, d: c + Z.in }; };
+// hoe zichtbaar speler p nu is: zijn lijk vervaagt als de veren opstijgen, en waar hij opstaat fadet hij in (1: niets aan de hand)
+function bnZelfAlfa(p){
+  const b = [bnNu, ...bnAnder].find(q => q && q.zelf && q.voor === p); if (!b) return 1;
+  const T = bnZT();
+  if (b.z < T.c) return 1 - bnSm((b.z - T.a) / (T.b - T.a));
+  return bnSm((b.z - T.c) / (T.d - T.c));
 }
 // de zachte zoemtoon: aan bij ogen dicht, zwelt aan tot de flits, zakt dan onder de bol en dooft met de bol (WebAudio)
 function bnZoemStart(){
@@ -23956,6 +23985,7 @@ function bnStap(dt, sc){
 // een ritueel een stap verder: het mijne (eigen: onkwetsbaar, de muziek) of dat van een teamgenoot. Wie het terugbrengt
 // (voor) staat op zijn eigen scherm op: bij het blazen als de veren aankomen (bnWekT), zelf als de bol weg is
 function bnRitueelStap(b, dt, eigen){
+  if (b.zelf){ bnZelfStap(b, dt, eigen); return; }
   b.t += dt * 1000 * BN.tempo;
   const t = b.t;
   if (eigen && !b.zelf && t < bnEinde()){ invuln = Math.max(invuln, 0.2); invulnStil = Math.max(invulnStil, 0.2); }   // de bol beschermt hem: onkwetsbaar, zonder knipperen
@@ -23977,10 +24007,20 @@ function bnRitueelStap(b, dt, eigen){
     if (MUZIEK[muziekNu]) sndRamp(bg, MUZIEK[muziekNu].vol, 1.2, false);
   }
 }
+function bnZelfStap(b, dt, eigen){
+  const T = bnZT(), z0 = b.z; b.z += dt;
+  if (z0 < T.b && b.z >= T.b){ startGust(b.dir); }                    // de lucht neemt ze mee
+  if (!b.wek && b.z >= T.c){                                           // ze komen aan: hij staat op, en fadet in
+    b.wek = true;
+    if (bnGeluid) banStemSpeel(bnGeluid.vlaag, BN.vlaagVol * 0.7);
+    if (pvp && pvp.coop && b.voor === pvp.mij) zhOpstaan(b.tx, b.th, true, 'The Bennu feathers carried you back. Get away!');
+  }
+  if (b.z > T.d + 0.3) b.t = Infinity;                                 // klaar: bnStap haalt hem weg
+}
 // de bol in de wereld: het midden (x, en de hoogte boven de grond hc), de straal in x (r) en in hoogte (rh), en de voet (h).
 // De wereld-x telt als schermpixel, een hoogte maal sc (zie bnZet voor dezelfde omrekening bij het tekenen)
 function bnBolWereld(b, sc){
-  if (!bnMeta || b.t >= bnEinde()) return null;
+  if (!bnMeta || b.zelf || b.t >= bnEinde()) return null;
   const B = bnBol(b.t, b);
   if (B.R <= 1 || B.fade <= 0.05) return null;
   const s = (CHAR_H * sc / 321.5) / BN.sc0, fl = b.f === 1 ? -1 : 1;
@@ -24154,6 +24194,7 @@ function bnTekenAchter(groundY, scale, cx){
   for (const b of [...bnAnder, bnNu]) if (b) bnAchterEen(b, groundY, scale, cx);
 }
 function bnAchterEen(b, groundY, scale, cx){
+  if (b.zelf) return;                                                  // de zelf-revive heeft geen bol (bnZelfTeken)
   const t = b.t;
   bnCur = b;
   ctx.save();
@@ -24181,9 +24222,58 @@ function bnTekenAmir(groundY, scale, cx){
     ctx.restore();
   }
 }
+// de zelf-revive: drie veren op het lijk die gaan gloeien, rustig opstijgen, wiegend verderop zweven en daar om hem heen
+// draaien terwijl hij infadet, met een zachte gloed. In schermmaat: de wereld-x telt als pixel, een hoogte maal scale
+function bnZelfTeken(b, groundY, scale, cx){
+  const Z = BN.zelf, T = bnZT(), z = b.z, A = CHAR_H * scale, ms = z * 1000;
+  const blur = Math.hypot(ctx.getTransform().a, ctx.getTransform().b);
+  bnCur = b;
+  const lijkX = cx + (b.x - world) + (b.f === 1 ? -1 : 1) * 0.4 * A, lijkY = groundY - b.h * scale - 0.12 * A;
+  const doelX = cx + (b.tx - world), doelY = groundY - b.th * scale - 0.55 * A;
+  const hoogY = Math.min(lijkY, doelY) - Z.hoog * A + 0.4 * A;
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  for (let i = 0; i < Z.veren; i++){
+    const ph = i / Z.veren * Math.PI * 2, sp = (i - (Z.veren - 1) / 2) * 0.28 * A;
+    let x, y, ang, a = 1;
+    const gl = bnSm(z / T.a);
+    if (z < T.b){                                                      // gloeien, dan rustig optillen
+      const u = bnSm((z - T.a) / (T.b - T.a));
+      x = lijkX + sp * (1 - 0.4 * u) + Math.sin(ms * 0.002 + ph) * 0.06 * A * u;
+      y = lijkY - (lijkY - hoogY) * u + Math.sin(ms * 0.003 + ph) * 0.03 * A * u;
+      ang = (1 - u) * (0.1 * (i - 1)) + u * (-0.5 + 0.4 * Math.sin(ms * 0.002 + ph));
+      a = z < T.a ? 0.35 + 0.65 * gl : 1;
+    } else if (z < T.c){                                               // de vlucht: een zachte boog, achter elkaar, wiegend
+      const u = Math.min(1, Math.max(0, (z - T.b) / (T.c - T.b) - i * 0.06)), e = u * u * (3 - 2 * u);
+      x = lijkX + sp * 0.6 * (1 - e) + (doelX - lijkX) * e + Math.sin(ms * 0.003 + ph * 2) * 0.12 * A;
+      y = hoogY + (doelY - 0.5 * A - hoogY) * e - Math.sin(e * Math.PI) * 0.35 * A + Math.sin(ms * 0.004 + ph) * 0.08 * A;
+      ang = -0.4 * b.dir + 0.5 * Math.sin(ms * 0.0025 + ph);
+    } else {                                                           // aangekomen: om hem heen dwarrelen en vervagen
+      const u = Math.min(1, (z - T.c) / (T.d - T.c)), r = (0.45 - 0.15 * u) * A, an = ph + u * 4.2;
+      x = doelX + Math.cos(an) * r;
+      y = doelY - 0.5 * A * (1 - u) + Math.sin(an) * r * 0.35 + 0.2 * A * u;
+      ang = an + Math.PI / 2;
+      a = 1 - bnSm((u - 0.35) / 0.65);
+    }
+    if (a <= 0.01) continue;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    bnGloed(x, y, 0.32 * A, 0.35 * a * (0.4 + 0.6 * gl));                // de gloed om elke veer
+    ctx.restore();
+    bnVeer(x, y, 0.42 * A, ang, a, i % 3, ph, i, ms, blur);
+  }
+  if (z > T.c - 0.3){                                                  // een zachte gloed waar hij infadet
+    const u = Math.min(1, (z - (T.c - 0.3)) / (T.d - T.c + 0.3)), k = Math.sin(u * Math.PI);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    bnGloed(doelX, doelY, 0.9 * A, 0.4 * k);
+    ctx.restore();
+  }
+  ctx.restore();
+  bnCur = null;
+}
 // tekent een teamgenoot nu zijn ritueel (geknield, niet zijn gewone beeld)
 function bnTekentAnder(p){ return bnKlaar() && bnAnder.some(b => b.p === p && !b.zelf && b.t < bnEinde()); }
 function bnAmirEen(b, groundY, scale, cx){
+  if (b.zelf){ bnZelfTeken(b, groundY, scale, cx); return; }
   const t = b.t;
   bnCur = b;
   ctx.save();
@@ -59378,7 +59468,7 @@ function loop(now){
     zhTeken(groundY, scale, cx);                      // Silver Pride: het hart op de grond, zijn licht en wie eruit komt (ZH)
     const blink = invuln > 0 && invulnStil <= 0 && !dead && amirSteen <= 0 && Math.floor(invuln * 14) % 2 === 0;
     ctx.save();
-    ctx.globalAlpha = amirWeg || bnActief() ? 0 : (blink ? 0.45 : 1) * trapAlfa;   // Feathers of the Bennu: bnTekenAmir tekent hem
+    ctx.globalAlpha = amirWeg || bnActief() ? 0 : (blink ? 0.45 : 1) * trapAlfa * (pvp ? bnZelfAlfa(pvp.mij) : 1);   // Feathers of the Bennu: bnTekenAmir tekent hem, en de zelf-revive laat hem vervagen en infaden (bnZelfAlfa)
     if (useThrow) thrWachtZet(pcx, groundY + lift);   // wachten met de speer: ademen en trillen
     if (zhEigenK < 1){ ctx.translate(pcx, groundY + lift); ctx.scale(zhEigenK, zhEigenK); ctx.translate(-pcx, -(groundY + lift)); }   // Silver Pride: hij komt klein uit het hart
     ctx.translate(x, y);
@@ -73869,7 +73959,7 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
   if (im && !zhWacht && !bnTekentAnder(p)){          // Feathers of the Bennu: zijn ritueel tekent hem (bnTekenAmir)
     const w = g.dw * scale, h = g.dh * scale;
     ctx.save();
-    ctx.globalAlpha = g.a == null ? 1 : g.a;
+    ctx.globalAlpha = (g.a == null ? 1 : g.a) * bnZelfAlfa(p);   // de veren: zijn lijk vervaagt, waar hij opstaat fadet hij in
     const zk = zhKVoor(p);                             // Silver Pride: hij komt klein uit het hart en groeit (ZH)
     if (zk < 1){ ctx.translate(sx, voet); ctx.scale(zk, zk); ctx.translate(-sx, -voet); }
     ctx.translate(sx + g.dx * scale, voet + g.dy * scale);

@@ -166,9 +166,10 @@ async function bnProef(R){
   meld(await tot(H.page, () => dead && pvp.spelers.every(mpcDood), null, 4000), 'iedereen ligt');
   await wacht(1000);
   meld(await H.page.evaluate(() => pvp.coop.fase !== 'uit'), 'geen game over: de gast heeft de veren nog');
-  meld(await tot(G.page, () => bnNu && bnNu.zelf, null, 4000), 'de veren komen om zijn lijk');
+  meld(await tot(G.page, () => bnNu && bnNu.zelf, null, 4000), 'de veren gaan gloeien op zijn lijk');
   meld(await tot(H.page, () => bnAnder.some(b => b.zelf), null, 3000), 'de host ziet ze ook');
   meld(await tot(G.page, () => !dead && bnCarry === 0, null, 12000), 'de veren brengen hem zelf terug');
+  meld(await G.page.evaluate(() => { const b = bnNu; return !b || Math.abs(world - b.tx) < 3 && Math.abs(world - b.x) > 100; }), 'verderop, niet op zijn lijk');
   for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
 }
 async function epProef(R){

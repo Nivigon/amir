@@ -999,8 +999,12 @@ Op verzoek van de opdrachtgever:
 - **Het netwerk.** G (`bnToetsMag`, `bnGebruik`) stuurt `bn` (`{voor, x, h, f, dir, kl}`, in `MP_DOOR`); ieder speelt het
   ritueel af in `bnAnder` (`bnVan`), getekend op de plek van de blazer in zijn kleur (`bnCur`), en `pvpTekenEen` tekent zijn
   gewone beeld zolang niet (`bnTekentAnder`). Wie dood ligt staat op zijn eigen scherm op als de veren aankomen (`bnWekT`), waar
-  hij lag, zoals na het hart (3 s onkwetsbaar, zonder abilities). Zelf (`bnZelfStart`, `zelf: 1`): geen knielen, de bol om het lijk
-  (een eigen midden in `bnBol`), de veren, de vlaag, en opstaan als de bol weg is.
+  hij lag, zoals na het hart (3 s onkwetsbaar, zonder abilities).
+- **Zelf met de veren** (`bnZelfStart`, `bnZelfStap`, `bnZelfTeken`, `bnZelfAlfa`, `BN.zelf`; bijgesteld op verzoek): geen knielen
+  en geen bol. Drie veren gaan gloeien op het lijk (`gloei`), de lucht tilt ze rustig op terwijl het lijk vervaagt (`op`), ze
+  zweven wiegend in een boog verderop (`vlucht`, met de vlaag van het spel) en daar fadet hij weer levend in terwijl ze om hem
+  heen dwarrelen (`in`). De plek kiest de dode zelf (`bnZelfDoel`): `ver` weg van de dichtstbijzijnde vijand (anders naar een
+  levende teamgenoot), binnen de wanden, niet in een ravijn, op `terrainH`; hij gaat mee in het bericht (`tx`, `th`).
 - **De bol houdt alles buiten** (`bnSchild`, elke stap in `bnStap`, voor elke bol die loopt). `bnBolWereld` rekent de bol om
   naar de wereld (x 1:1, hoogte gedeeld door de schaal). Een vijand uit `straatVijanden()` en `goudapen` met zijn voeten in de
   bol schuift terug naar de rand en zijn `knock` naar binnen vervalt (alleen bij de host, die de vijanden bestuurt). Een
