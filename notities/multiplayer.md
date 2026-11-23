@@ -988,7 +988,39 @@ nog niet in de winkel van Co-op en nog niet over het netwerk.
 - **Instellingen:** uit het afstelbord "Feathers of the Bennu" (artifact), met de waarden van de opdrachtgever op 23-11-2026 (`BN`).
 - **Test 94** (Test levels): de oefenteamgenoot ligt op `level.bennu.x`, ver voor je; hij staat op als de veren aankomen, blijft
   `BN.dummyStaat` s staan en valt weer om. Geen vijanden (`vredig`), dus het terugduwen van vijanden door de bol zit er nog niet in.
-- **Nog te doen:** de winkel en het netwerk (zoals `zh`), het terugduwen van vijanden, het offline-manifest bijwerken.
+- **Nog te doen:** niets meer uit deze lijst; de winkel, het netwerk en de bol als schild zijn gebouwd (zie hieronder, "Live in Co-op").
+
+### Live in Co-op: de zelf-revive en de veren (23-11-2026)
+
+`reviveZelfStap`, `reviveZelfKan`, `reviveOnderweg`, `mpcReviveKomt`, `bnCarry`, `bnVan`, `bnZelfStart`, `bnRitueelStap`, `bnSchild`, `bnBolWereld`, `bnTik`
+
+Op verzoek van de opdrachtgever:
+- **Zelf terug, ook met teamgenoten.** Lig je dood met een hart of de veren in de tas, dan gaat het na `ZH.soloWacht` (2 s)
+  vanzelf, bij iedere speler zelf (`reviveZelfStap`, naast `zhStap`, niet meer alleen bij de host in solo). Het hart klopt op
+  de x en de hoogte van je lijk (`zhStart` met `zelf`, het bericht `zh` met `zelf: 1`), je staat daar op met een leven,
+  `ZH.soloOnkw` onkwetsbaar en met je abilities (`zhOpstaan(x, h, zelf)`). Brengt een teamgenoot je intussen al terug
+  (`reviveOnderweg`), dan blijft je eigen item in de tas. Leeft je teamgenoot en lig jij niet, dan werkt G zoals eerst.
+- **Geen game over zolang het kan.** De stand zegt `rz: 1` als je nog terugkomt; de host kijkt in `mpcDodenStap` met
+  `mpcReviveKomt` voor hij `mpcEinde` aanroept. `zhSoloStap` is weg.
+- **De veren in de winkel.** `bennu` in `MPC_WINKEL` (tab Team, `speer: true`, 35/50/65, solo 50/80/110), het plaatje
+  `items/bennu/veren.png` en het icoon `veren_icoon.png` (`tools/bennu_item.py`, de drie veren uit `verenset.png` in roze).
+  Silver Pride is weer alleen van de stokken, ook in solo (`mpcWinkelVoorMij`): met de speer krijg je de veren. In een
+  episode gaan ze mee in de tas (`tas.bn`).
+- **Het netwerk.** G (`bnToetsMag`, `bnGebruik`) stuurt `bn` (`{voor, x, h, f, dir, kl}`, in `MP_DOOR`); ieder speelt het
+  ritueel af in `bnAnder` (`bnVan`), getekend op de plek van de blazer in zijn kleur (`bnCur`), en `pvpTekenEen` tekent zijn
+  gewone beeld zolang niet (`bnTekentAnder`). Wie dood ligt staat op zijn eigen scherm op als de veren aankomen (`bnWekT`), waar
+  hij lag, zoals na het hart (3 s onkwetsbaar, zonder abilities).
+- **Zelf met de veren** (`bnZelfStart`, `bnZelfStap`, `bnZelfTeken`, `bnZelfAlfa`, `BN.zelf`; bijgesteld op verzoek): geen knielen
+  en geen bol. Drie veren gaan gloeien op het lijk (`gloei`), de lucht tilt ze rustig op terwijl het lijk vervaagt (`op`), ze
+  zweven wiegend in een boog verderop (`vlucht`, met de vlaag van het spel) en daar fadet hij weer levend in terwijl ze om hem
+  heen dwarrelen (`in`). De plek kiest de dode zelf (`bnZelfDoel`): `ver` weg van de dichtstbijzijnde vijand (anders naar een
+  levende teamgenoot), binnen de wanden, niet in een ravijn, op `terrainH`; hij gaat mee in het bericht (`tx`, `th`).
+- **De bol houdt alles buiten** (`bnSchild`, elke stap in `bnStap`, voor elke bol die loopt). `bnBolWereld` rekent de bol om
+  naar de wereld (x 1:1, hoogte gedeeld door de schaal). Een vijand uit `straatVijanden()` en `goudapen` met zijn voeten in de
+  bol schuift terug naar de rand en zijn `knock` naar binnen vervalt (alleen bij de host, die de vijanden bestuurt). Een
+  kruisboogbout, dolk, meelzak of gifbal die erin vliegt houdt op aan de rand met een rimpeling (`bnTik`), ook bij een gast,
+  want die vliegen daar zelf. De blazer was al onkwetsbaar in de bol.
+- **Proef:** `node tools/mptest.js --bennu --spelers 2`.
 
 ## De outfits van de stoktribe in Co-op en Survival (23-11-2026)
 

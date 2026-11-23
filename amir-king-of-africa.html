@@ -23609,21 +23609,29 @@ function zhLevelAan(){ return !!(level && level.zilverhart) && !pvp; }
 function zhToetsMag(){ return zhLevelAan() || (zhCarry > 0 && !(pvp && pvp.solo)); }   // solo werkt het hart vanzelf (zhSoloStap), G blijft van de woede
 // Co-op solo (bij de host, in mpcDodenStap): lig je dood met een hart in de tas, dan gaat het na ZH.soloWacht s vanzelf
 // kloppen op je lijk en sta je op met de uitbarsting. Zolang dat loopt is het geen game over (true)
-function zhSoloStap(){
-  if (!dead) return false;
-  if (zhLijst.some(z => z.voor === pvp.mij && !z.op)) return true;      // het hart klopt al
-  if (zhCarry <= 0) return false;
-  const C = pvp.coop;
-  if (C.t - (C.doodT[pvp.mij] ?? C.t) < ZH.soloWacht) return true;
-  zhCarry--; balkHud && balkHud();
-  zhStart(world, ph, pvp.mij);
-  return true;
+// Co-op en Co-op solo, bij iedere speler zelf: lig je dood met een hart of de veren in de tas, dan gaat het na ZH.soloWacht s
+// vanzelf: het hart klopt op de plek van je lijk (x en hoogte), of de veren komen in een bol om je heen (bnZelfStart). Een
+// teamgenoot die je intussen al terugbrengt gaat voor, dan blijft je eigen item in de tas. Zolang dit kan is het geen game
+// over: je stand zegt het met `rz` (mpcReviveKomt, bij de host).
+let reviveDoodT = 0;
+function reviveOnderweg(p){ return zhLijst.some(z => z.voor === p && !z.op) || bnBezig(p); }
+function reviveZelfKan(){ return zhCarry > 0 || bnCarry > 0 || reviveOnderweg(pvp.mij); }
+function reviveZelfStap(dt){
+  if (!pvp || !pvp.coop || !dead){ reviveDoodT = 0; return; }
+  reviveDoodT += dt;
+  if (reviveOnderweg(pvp.mij) || reviveDoodT < ZH.soloWacht) return;
+  if (zhCarry > 0){
+    zhCarry--; balkHud && balkHud();
+    const x = Math.round(world), h = Math.round(ph);
+    zhStart(x, h, pvp.mij, true);
+    if (!pvp.solo) pvpZend({ t: 'zh', voor: pvp.mij, x, h, zelf: 1 });
+  } else if (bnCarry > 0) bnZelfStart();
 }
 // de dode teamgenoot die het hart zou terugbrengen: de eerste die dood ligt en nog niet onderweg is
 function zhDodeVoor(){
   if (zhLevelAan()) return zhDummy && zhDummy.dood && !zhLijst.length ? 'dummy' : null;
   if (!pvp || !pvp.coop) return null;
-  return pvpAnderen().find(p => pvp.anders[p] && pvp.anders[p].g && pvp.anders[p].g.d && !zhLijst.some(z => z.voor === p)) ?? null;
+  return pvpAnderen().find(p => pvp.anders[p] && pvp.anders[p].g && pvp.anders[p].g.d && !reviveOnderweg(p)) ?? null;
 }
 function zhGebruik(){
   if (!running || paused || dead || won) return;
@@ -23641,21 +23649,23 @@ function zhGebruik(){
   zhStart(x, h, voor);
 }
 // een revive met het hart begint (hier, of na het bericht 'zh' van een teamgenoot)
-function zhStart(x, h, voor){
+function zhStart(x, h, voor, zelf){
   zhLaad();
   const vonken = [];
   for (let i = 0; i < 26; i++) vonken.push({ a: Math.random() * Math.PI * 2, r: 0.4 + Math.random() * 0.9, v: 0.4 + Math.random() * 0.7, o: Math.random() });
-  zhLijst.push({ x, h, voor, t: 0, brul: false, op: false, vonken });
+  zhLijst.push({ x, h, voor, zelf: !!zelf, t: 0, brul: false, op: false, vonken });
 }
-// de dode zelf: precies op het hart opstaan, ZH.onkw onkwetsbaar en zonder abilities
-function zhOpstaan(x, h){
+// de dode zelf: precies op het hart opstaan, ZH.onkw onkwetsbaar en zonder abilities. Bracht je eigen item je terug
+// (`zelf`, en altijd in solo), dan langer onkwetsbaar en mogen de abilities wel, om weg te komen. Ook voor de veren (BN)
+function zhOpstaan(x, h, zelf, tekst){
   if (!dead) return;
-  const solo = !!(pvp && pvp.solo);                                     // solo: langer onkwetsbaar en de abilities mogen, om weg te komen
+  const solo = !!(pvp && pvp.solo) || !!zelf;
   dead = false; lives = 1; hurt = 0; invuln = solo ? ZH.soloOnkw : ZH.onkw; world = x; ph = h; pvh = 0; zhOntwaakT = solo ? 0 : ZH.onkw;
+  reviveDoodT = 0;
   deadEl.classList.remove('on');
   drawLives(); hudToon();
   if (pvp && pvp.coop) delete pvp.coop.doodT[pvp.mij];
-  flashHint(solo ? 'A Silver Lion brought you back. Get away!' : 'A Silver Lion brought you back');
+  flashHint(tekst || (solo ? 'A Silver Lion brought you back. Get away!' : 'A Silver Lion brought you back'));
 }
 // hoe groot iemand nu is die uit het hart komt (1 als er niets loopt)
 function zhGroeiK(z){
@@ -23685,7 +23695,7 @@ function zhStap(dt){
       zhKlank('klap', ZH.klapVol);                                       // de klap
       shake = Math.max(shake, ZH.schok); hitstop = Math.max(hitstop, ZH.stop);   // de klap: het beeld schudt, bij iedereen die het ziet
       if (z.voor === 'dummy' && zhDummy){ zhDummy.dood = false; zhDummy.x = z.x; zhDummy.h = z.h; zhDummy.staanT = 0; zhDummy.fl = z.x > world ? 0 : 1; }
-      else if (pvp && z.voor === pvp.mij) zhOpstaan(z.x, z.h);
+      else if (pvp && z.voor === pvp.mij) zhOpstaan(z.x, z.h, z.zelf);
     }
     if (pvp && z.voor === pvp.mij && z.op) zhEigenK = zhGroeiK(z);
     if (z.t > zhDuur()) zhLijst.splice(i, 1);
@@ -23853,6 +23863,7 @@ const BN = {
   oogFlits: 450, oogFlitsGrootte: 1, oogStralen: 6, oogGloed: 1, aura: 1, handGloed: 1,
   blaasVol: 0.55, blaasFrame: 64, vlaagVol: 0.8, zoemVol: 0.25, zoemToon: 110, muziekDemp: 0.35,
   naOnkw: 1,              // s nog onkwetsbaar nadat hij weer opstaat
+  zelf: { gloei: 0.9, op: 1.3, vlucht: 2.1, in: 1.2, ver: 650, hoog: 1.25, veren: 3 },   // de zelf-revive in Co-op (bnZelfTeken): s per stuk, hoe ver (in wereld bij schaal 0,7) en hoe hoog (Amir) ze zweven
   dummyStaat: 6,          // Test 94: zo lang staat de oefenteamgenoot, dan ligt hij weer
   sc0: 0.9435, ax0: 520, grond0: 640, voetX: 116, voetY: 320,   // de afstelmaat
   kleuren: [ ['Pink', ['#ff9fd0']], ['Opal', ['#9fd8ff', '#ff9fd0', '#c9a2ff']], ['Light blue', ['#9fd8ff']], ['Lilac', ['#c9a2ff']],
@@ -23862,9 +23873,12 @@ const BN_GLOW = 44, BN_OPEN = 52, BN_LOS = 70, BN_N = 78;
 const bnDur = n => n < 15 ? 70 : n < 46 ? 55 : n < 52 ? 100 : n < 69 ? 55 : 80;
 const BN_T = []; { let a = 0; for (let n = 0; n < BN_N; n++){ BN_T.push(a); a += bnDur(n); } BN.anim = a; }
 let bnBeeld = null, bnMeta = null, bnNu = null, bnKleur = 0, bnTint = {}, bnDummy = null, bnGeluid = null, bnZoem = null;
+// Co-op: bnCarry de veren in de tas (de winkel, 'bennu'), bnAnder de rituelen van teamgenoten (bericht 'bn'), bnCur het ritueel
+// dat nu getekend wordt (zijn kleur en kant), bnTik waar iets tegen de bol sloeg
+let bnCarry = 0, bnAnder = [], bnCur = null, bnTik = [];
 const bnSm = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
 function bnLevelAan(){ return !!(level && level.bennu) && !pvp; }
-function bnPal(){ return BN.kleuren[bnKleur][1]; }
+function bnPal(){ return BN.kleuren[bnCur && bnCur.kl != null ? bnCur.kl : bnKleur][1]; }
 function bnHex(h){ return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); }
 function bnRgba(h, a){ return 'rgba(' + bnHex(h).join(',') + ',' + a + ')'; }
 function bnMix(h, t, f){ const a = bnHex(h), b = bnHex(t); return 'rgb(' + a.map((v, i) => Math.round(v + (b[i] - v) * f)).join(',') + ')'; }
@@ -23900,21 +23914,83 @@ const bnKlaar = () => bnBeeld && bnMeta && ['lijf', 'veer', 'oog', 'verenset'].e
 const bnEinde = () => BN.anim + BN.bolDuur * 1000;                  // de bol is weg, Amir staat weer op
 const bnVlaagT = () => bnEinde() - 1100;                            // de flinke vlaag: de veren gaan naar de teamgenoot
 const bnUit = () => bnEinde() + 2800;                               // dan is alles weg
-function bnActief(){ return !!bnNu && bnNu.t < bnEinde(); }
+function bnActief(){ return !!bnNu && !bnNu.zelf && bnNu.t < bnEinde(); }   // zelf (dood): zijn lijk blijft getekend, de bol eromheen
+const bnWekT = () => bnVlaagT() + BN.verenWeg * 1.6;               // de veren komen aan: de teamgenoot staat op
+// Co-op: mag G de veren blazen (in solo werken ze vanzelf, reviveZelfStap)
+function bnToetsMag(){ return bnLevelAan() || (bnCarry > 0 && !!(pvp && pvp.coop) && !pvp.solo); }
+// loopt er een ritueel voor speler p dat hem nog niet terugbracht
+function bnBezig(p){ return [bnNu, ...bnAnder].some(b => b && b.voor === p && !b.wek); }
+function bnDodeVoor(){
+  if (!pvp || !pvp.coop) return null;
+  return pvpAnderen().find(p => pvp.anders[p] && pvp.anders[p].g && pvp.anders[p].g.d && !reviveOnderweg(p)) ?? null;
+}
 function bnVast(){ return bnActief(); }
 function bnFrame(t){ if (t >= BN.anim) return BN_N - 1; let n = 0; while (n < BN_N - 1 && BN_T[n + 1] <= t) n++; return n; }
 function bnGebruik(){
   if (!running || paused || dead || won || bnNu) return;
+  const dl = bnLevelAan();
+  if (!dl && bnCarry <= 0) return;
   if (!onGround || jump || fell || hurt > 0 || atkFrame >= 0 || rol || amirVast()) return;
   if (bnDummy && !bnDummy.dood){ flashHint('Wait until your teammate is down again'); return; }
+  const voor = dl ? 'dummy' : bnDodeVoor();
+  if (voor == null){ flashHint('The feathers only work when a teammate is down'); return; }
   bnLaad();
   if (!bnKlaar()){ flashHint('The feathers are still loading'); return; }
-  const doelX = bnDummy ? bnDummy.x0 : world - 2000;
-  bnNu = { t: 0, x: world, h: ph, f: facing, dir: doelX < world ? -1 : 1, blaas: false, vlaag: false, gust: false, op: false };
+  const doelX = bnDummy ? bnDummy.x0 : pvpAnderNu(voor) ? pvpAnderNu(voor).x : world - 2000;
+  bnNu = { t: 0, x: world, h: ph, f: facing, dir: doelX < world ? -1 : 1, kl: bnKleur, voor, blaas: false, vlaag: false, gust: false, op: false };
+  if (!dl){
+    bnCarry = Math.max(0, bnCarry - 1); balkHud && balkHud();
+    pvpZend({ t: 'bn', voor, x: Math.round(world), h: Math.round(ph), f: facing, dir: bnNu.dir, kl: bnKleur });
+  }
   atkFrame = -1; thr = null;
   startGust(bnNu.dir);                                              // de wind steekt op, de kant op van de teamgenoot
   if (MUZIEK[muziekNu]){ clearTimeout(bg.dempT); sndRamp(bg, MUZIEK[muziekNu].vol * BN.muziekDemp, 0.6, false); }   // de muziek gaat zachter
   bnZoemStart();
+}
+// Co-op: dood met de veren in de tas (reviveZelfStap). De veren gaan gloeien op zijn lijk, de lucht tilt ze rustig op (het
+// lijk vervaagt), ze zweven een stuk verder naar een veilige plek, en daar fadet hij weer levend in (BN.zelf, bnZelfTeken).
+// De plek kiest de dode zelf (bnZelfDoel) en stuurt hem mee in het bericht 'bn' met zelf, zodat iedereen dezelfde vlucht ziet
+function bnZelfDoel(){
+  const A = CHAR_H * nowScale(), links = endWall() + 260, rechts = cliffAt().wall - 260;
+  let dir = 0, best = 1500;                                       // weg van de dichtstbijzijnde vijand
+  for (const L of [...straatVijanden(), goudapen]) for (const v of L){
+    if (!v || v.dead || /^(dying|dood|dead|gone|weg)$/.test(v.state || '')) continue;
+    const d = Math.abs(v.x - world); if (d < best){ best = d; dir = v.x > world ? -1 : 1; }
+  }
+  if (!dir){                                                      // geen vijand dichtbij: naar een levende teamgenoot, anders vooruit
+    const p = pvpAnderen().find(q => pvpAnderNu(q) && !pvpAnderNu(q).d);
+    dir = p != null ? (pvpAnderNu(p).x > world ? 1 : -1) : -1;
+  }
+  for (const k of [dir, -dir]) for (const d of [BN.zelf.ver, BN.zelf.ver * 0.75, BN.zelf.ver * 1.25, BN.zelf.ver * 0.5]){
+    const x = world + k * d * A / CHAR_H / 0.7;
+    if (x > links && x < rechts && !inGap(x)) return { x, h: terrainH(x) };
+  }
+  return { x: world, h: ph };
+}
+function bnZelfStart(){
+  bnLaad();
+  bnCarry = Math.max(0, bnCarry - 1); balkHud && balkHud();
+  const D = bnZelfDoel();
+  bnNu = { zelf: true, z: 0, t: 0, x: world, h: ph, f: facing, tx: D.x, th: D.h, dir: D.x < world ? -1 : 1, kl: bnKleur, voor: pvp.mij };
+  if (!pvp.solo) pvpZend({ t: 'bn', voor: pvp.mij, zelf: 1, x: Math.round(world), h: Math.round(ph), f: facing, tx: Math.round(D.x), th: Math.round(D.h), kl: bnKleur });
+}
+// het bericht 'bn' van een teamgenoot: zijn ritueel speelt hier ook af, op zijn plek (bnStap, bnTekenAchter, bnTekenAmir)
+function bnVan(m){
+  bnLaad();
+  const kl = Math.max(0, Math.min(BN.kleuren.length - 1, +m.kl || 0));
+  if (m.zelf){ bnAnder.push({ p: m.p, voor: m.voor, zelf: true, z: 0, t: 0, x: +m.x || 0, h: +m.h || 0, f: +m.f || 0, tx: +m.tx || 0, th: +m.th || 0,
+                              dir: +m.tx < +m.x ? -1 : 1, kl }); return; }
+  bnAnder.push({ p: m.p, voor: m.voor, zelf: false, t: 0, x: +m.x || 0, h: +m.h || 0, f: +m.f || 0,
+                 dir: +m.dir < 0 ? -1 : 1, kl, blaas: false, vlaag: false, gust: false, op: false });
+}
+// de tijden van de zelf-revive, vanaf de dood met de veren: gloeien, optillen, de vlucht, infaden
+const bnZT = () => { const Z = BN.zelf, a = Z.gloei, b = a + Z.op, c = b + Z.vlucht; return { a, b, c, d: c + Z.in }; };
+// hoe zichtbaar speler p nu is: zijn lijk vervaagt als de veren opstijgen, en waar hij opstaat fadet hij in (1: niets aan de hand)
+function bnZelfAlfa(p){
+  const b = [bnNu, ...bnAnder].find(q => q && q.zelf && q.voor === p); if (!b) return 1;
+  const T = bnZT();
+  if (b.z < T.c) return 1 - bnSm((b.z - T.a) / (T.b - T.a));
+  return bnSm((b.z - T.c) / (T.d - T.c));
 }
 // de zachte zoemtoon: aan bij ogen dicht, zwelt aan tot de flits, zakt dan onder de bol en dooft met de bol (WebAudio)
 function bnZoemStart(){
@@ -23944,29 +24020,88 @@ function bnZoemStop(){
   const z = bnZoem; bnZoem = null;
   try { z.g.gain.setTargetAtTime(0, z.ac.currentTime, 0.05); setTimeout(() => { z.osc.forEach(([o]) => o.stop()); z.lfo.stop(); z.g.disconnect(); }, 400); } catch (e){}
 }
-function bnStap(dt){
+function bnStap(dt, sc){
   if (bnLevelAan()) bnDummyStap(dt);
+  for (let i = bnAnder.length - 1; i >= 0; i--){ bnRitueelStap(bnAnder[i], dt, false); if (bnAnder[i].t > bnUit()) bnAnder.splice(i, 1); }
+  for (let i = bnTik.length - 1; i >= 0; i--){ bnTik[i].t += dt; if (bnTik[i].t > 0.45) bnTik.splice(i, 1); }
+  if (sc) bnSchild(sc);
   const b = bnNu; if (!b) return;
+  bnRitueelStap(b, dt, true);
+  bnZoemStap(b.t);
+  if (b.t > bnUit()){ bnNu = null; bnZoemStop(); }
+}
+// een ritueel een stap verder: het mijne (eigen: onkwetsbaar, de muziek) of dat van een teamgenoot. Wie het terugbrengt
+// (voor) staat op zijn eigen scherm op: bij het blazen als de veren aankomen (bnWekT), zelf als de bol weg is
+function bnRitueelStap(b, dt, eigen){
+  if (b.zelf){ bnZelfStap(b, dt, eigen); return; }
   b.t += dt * 1000 * BN.tempo;
   const t = b.t;
-  if (t < bnEinde()){ invuln = Math.max(invuln, 0.2); invulnStil = Math.max(invulnStil, 0.2); }   // de bol beschermt hem: onkwetsbaar, zonder knipperen
+  if (eigen && !b.zelf && t < bnEinde()){ invuln = Math.max(invuln, 0.2); invulnStil = Math.max(invulnStil, 0.2); }   // de bol beschermt hem: onkwetsbaar, zonder knipperen
   if (!b.blaas && t >= BN_T[BN.blaasFrame]){ b.blaas = true; if (bnGeluid) banStemSpeel(bnGeluid.blaas, BN.blaasVol); }
   if (!b.gust && t >= BN_T[BN_LOS]){ b.gust = true; startGust(b.dir); }   // bij het blazen: de vlaag van het spel, opnieuw
   if (!b.vlaag && t >= bnVlaagT()){
     b.vlaag = true; if (bnGeluid) banStemSpeel(bnGeluid.vlaag, BN.vlaagVol);
     startGust(b.dir);
-    if (bnDummy && bnDummy.dood){ bnDummy.wekT = (BN.verenWeg * 1.6) / 1000; }   // de veren zijn onderweg: straks staat hij op
+    if (eigen && bnDummy && bnDummy.dood){ bnDummy.wekT = (BN.verenWeg * 1.6) / 1000; }   // de veren zijn onderweg: straks staat hij op
   }
-  if (!b.op && t >= bnEinde()){
-    b.op = true; invuln = Math.max(invuln, BN.naOnkw); invulnStil = 0;   // hij staat weer, nog even onkwetsbaar (knippert)
+  if (!b.wek && t >= (b.zelf ? bnEinde() : bnWekT())){
+    b.wek = true;
+    if (pvp && pvp.coop && b.voor === pvp.mij)
+      zhOpstaan(world, ph, b.zelf, b.zelf ? 'The Bennu feathers brought you back. Get away!' : 'The Bennu feathers brought you back');
+  }
+  if (eigen && !b.op && t >= bnEinde()){
+    b.op = true;
+    if (!b.zelf){ invuln = Math.max(invuln, BN.naOnkw); invulnStil = 0; }   // hij staat weer, nog even onkwetsbaar (knippert)
     if (MUZIEK[muziekNu]) sndRamp(bg, MUZIEK[muziekNu].vol, 1.2, false);
   }
-  bnZoemStap(t);
-  if (t > bnUit()){ bnNu = null; bnZoemStop(); }
+}
+function bnZelfStap(b, dt, eigen){
+  const T = bnZT(), z0 = b.z; b.z += dt;
+  if (z0 < T.b && b.z >= T.b){ startGust(b.dir); }                    // de lucht neemt ze mee
+  if (!b.wek && b.z >= T.c){                                           // ze komen aan: hij staat op, en fadet in
+    b.wek = true;
+    if (bnGeluid) banStemSpeel(bnGeluid.vlaag, BN.vlaagVol * 0.7);
+    if (pvp && pvp.coop && b.voor === pvp.mij) zhOpstaan(b.tx, b.th, true, 'The Bennu feathers carried you back. Get away!');
+  }
+  if (b.z > T.d + 0.3) b.t = Infinity;                                 // klaar: bnStap haalt hem weg
+}
+// de bol in de wereld: het midden (x, en de hoogte boven de grond hc), de straal in x (r) en in hoogte (rh), en de voet (h).
+// De wereld-x telt als schermpixel, een hoogte maal sc (zie bnZet voor dezelfde omrekening bij het tekenen)
+function bnBolWereld(b, sc){
+  if (!bnMeta || b.zelf || b.t >= bnEinde()) return null;
+  const B = bnBol(b.t, b);
+  if (B.R <= 1 || B.fade <= 0.05) return null;
+  const s = (CHAR_H * sc / 321.5) / BN.sc0, fl = b.f === 1 ? -1 : 1;
+  return { x: b.x + fl * s * (B.cx - (BN.ax0 + BN.voetX * BN.sc0)), hc: b.h - (B.cy - BN.grond0) * s / sc, r: B.R * s, rh: B.R * s / sc, h: b.h };
+}
+// de bol houdt alles buiten: een vijand komt er niet in (hij schuift terug naar de rand) en een bout, dolk, meelzak of
+// gifbal die erin vliegt houdt op aan de rand, met een rimpeling (bnTik). De vijanden alleen bij wie ze bestuurt (de host,
+// of zonder Co-op); de projectielen vliegen ook bij een gast zelf, dus daar ook
+function bnSchild(sc){
+  const bollen = [];
+  for (const b of [bnNu, ...bnAnder]) if (b){ const W = bnBolWereld(b, sc); if (W) bollen.push(W); }
+  if (!bollen.length) return;
+  const stuur = !pvp || pvp.host || pvp.solo;
+  for (const W of bollen){
+    if (stuur) for (const L of [...straatVijanden(), goudapen]) for (const v of L){
+      if (!v || v.dead || v.exe || /^(dying|dood|dead|gone|weg)$/.test(v.state || '')) continue;
+      const vb = v.base || 0, dx = v.x - W.x;
+      if (Math.abs(dx) >= W.r || vb > W.hc + W.rh * 0.9 || vb < W.h - 40) continue;
+      const kant = dx === 0 ? (v.x >= W.x ? 1 : -1) : Math.sign(dx);
+      v.x = W.x + kant * W.r;                                         // terug naar de rand
+      if (typeof v.knock === 'number' && v.knock * kant < 0) v.knock = 0;
+    }
+    const raak = (o) => (((o.x - W.x) / W.r) ** 2 + ((o.h - W.hc) / W.rh) ** 2) < 1;
+    const stop = (L, vliegt) => { for (let i = L.length - 1; i >= 0; i--){ const o = L[i]; if (vliegt(o) && raak(o)){ bnTik.push({ x: o.x, h: o.h, t: 0, W }); L.splice(i, 1); } } };
+    stop(krbPijlen, o => o.st === 'vlieg');
+    stop(banDolken, o => !o.stuck && !o.lig);
+    stop(meelzakken, o => o.st === 'vlieg');
+    stop(venom, () => true);
+  }
 }
 function bnReset(){
   if (bnNu && MUZIEK[muziekNu]) sndRamp(bg, MUZIEK[muziekNu].vol, 0.3, false);
-  bnNu = null; bnZoemStop(); bnDummy = null;
+  bnNu = null; bnZoemStop(); bnDummy = null; bnAnder.length = 0; bnTik.length = 0; bnCur = null;
   if (bnLevelAan()){ bnLaad(); bnDummy = { x0: level.bennu.x, x: level.bennu.x, h: 0, dood: true, staanT: 0, wekT: -1, a: 1 }; }
 }
 // Test 94: de oefenteamgenoot ligt verderop. Komen de veren aan, dan staat hij op (knipperend onkwetsbaar), blijft
@@ -23982,7 +24117,7 @@ function bnDummyStap(dt){
 function bnZet(pcx, voet, scale){
   const A = CHAR_H * scale, k = A / 321.5, s = k / BN.sc0;
   ctx.translate(pcx, voet);
-  if (bnNu.f === 1) ctx.scale(-1, 1);
+  if (bnCur.f === 1) ctx.scale(-1, 1);
   ctx.scale(s, s);
   ctx.translate(-(BN.ax0 + BN.voetX * BN.sc0), -BN.grond0);
   return s;
@@ -24002,8 +24137,8 @@ function bnVeer(x, y, len, ang, a, type, ph, ci, t, blur){
   ctx.restore();
 }
 // de bol, de wind en de veren om hem heen: alles wat bij de tijd t hoort
-function bnBol(t){
-  const n = bnFrame(t), na = t - BN_T[BN_LOS], bb = bnMeta.bb[n];
+function bnBol(t, b){
+  const n = bnFrame(t), na = t - BN_T[BN_LOS], bb = b && b.zelf ? [120, 170, 400, 330] : bnMeta.bb[n];   // zelf: om het lijk op de grond (hij ligt achter zijn voet)
   const cx = bnFx((bb[0] + bb[2]) / 2), cy = bnFy((bb[1] + bb[3]) / 2);
   const need = Math.hypot((bb[2] - bb[0]) * BN.sc0, (bb[3] - bb[1]) * BN.sc0) / 2 * 1.08;
   const RF = BN.bolGrootte * BN.sc0 / 1.55;
@@ -24054,7 +24189,7 @@ function bnWindTeken(t, B){
 // per tekenpixel, zodat de weg over het scherm even snel is als in het bord)
 function bnBaan(voor, t, B, s, blur){
   if (B.na <= 0) return;
-  const k = Math.min(1, B.na / 500), N = BN.verAantal, dirL = bnNu.dir * (bnNu.f === 1 ? -1 : 1);
+  const k = Math.min(1, B.na / 500), N = BN.verAantal, dirL = bnCur.dir * (bnCur.f === 1 ? -1 : 1);
   for (let i = 0; i < N; i++){
     const ph = i / N * Math.PI * 2, a = ph + B.na * (0.0016 + (i % 5) * 0.0002) * BN.verSnel, sn = Math.sin(a);
     if ((sn > 0) !== voor) continue;
@@ -24069,7 +24204,7 @@ function bnBaan(voor, t, B, s, blur){
 // de drie veren uit zijn hand: de wind neemt ze meteen mee, de kant op van de teamgenoot
 function bnHandVeren(t, s, blur){
   const na = t - BN_T[BN_LOS], c = bnMeta.veer[69]; if (na <= 0 || !c) return;
-  const dirL = bnNu.dir * (bnNu.f === 1 ? -1 : 1), sx = bnFx(c[0]) - 20, sy = bnFy(c[1]);
+  const dirL = bnCur.dir * (bnCur.f === 1 ? -1 : 1), sx = bnFx(c[0]) - 20, sy = bnFy(c[1]);
   for (let i = 0; i < 3; i++){
     const p = na / BN.verenWeg; if (p > 2.5) continue; const g = p * p;
     bnVeer(sx + dirL * (p * (220 + 40 * i) + g * 700) / s, sy + (i * 14 - 14) / s - (p * (120 + 30 * i) - g * 40) / s + 18 * Math.sin(na * 0.01 + i * 2),
@@ -24103,48 +24238,121 @@ function bnTekenAchter(groundY, scale, cx){
     const blink = !d.dood && d.staanT < 3 && Math.floor(d.staanT * 14) % 2 === 0;
     zhPopTeken(sx, dv, scale, 1, d.dood, 0, d.a * (blink ? 0.45 : 1));
   }
-  const b = bnNu; if (!b || !bnKlaar()) return;
+  if (!bnKlaar()) return;
+  for (const b of [...bnAnder, bnNu]) if (b) bnAchterEen(b, groundY, scale, cx);
+}
+function bnAchterEen(b, groundY, scale, cx){
+  if (b.zelf) return;                                                  // de zelf-revive heeft geen bol (bnZelfTeken)
   const t = b.t;
+  bnCur = b;
   ctx.save();
   const s = bnZet(cx + (b.x - world), groundY - b.h * scale, scale), blur = Math.hypot(ctx.getTransform().a, ctx.getTransform().b);
-  const B = bnBol(t);
+  const B = bnBol(t, b);
   if (t < bnEinde()){
-    if (B.n >= BN_GLOW){ const k = Math.min(1, (t - BN_T[BN_GLOW]) / 500); ctx.save(); ctx.globalCompositeOperation = 'lighter'; bnGloed(bnFx(140), bnFy(190), 240 * BN.sc0 / 1.55, (0.22 * k + (B.na > 0 ? 0.06 : 0)) * BN.aura); ctx.restore(); }
+    if (B.n >= BN_GLOW && !b.zelf){ const k = Math.min(1, (t - BN_T[BN_GLOW]) / 500); ctx.save(); ctx.globalCompositeOperation = 'lighter'; bnGloed(bnFx(140), bnFy(190), 240 * BN.sc0 / 1.55, (0.22 * k + (B.na > 0 ? 0.06 : 0)) * BN.aura); ctx.restore(); }
     if (B.R > 1 && B.fade > 0) bnBolTeken(t, B, blur);
   }
   bnBaan(false, t, B, s, blur);
   ctx.restore();
+  bnCur = null;
 }
-// Amir zelf in de animatie (in plaats van zijn gewone beeld), en wat ervoor hoort: de ogen, de veren in zijn hand, de wind
+// Amir zelf in de animatie (in plaats van zijn gewone beeld), en wat ervoor hoort: de ogen, de veren in zijn hand, de wind.
+// Ook de rituelen van teamgenoten (pvpTekenEen tekent hun gewone beeld dan niet, bnTekentAnder), en de rimpelingen op de bol
 function bnTekenAmir(groundY, scale, cx){
-  const b = bnNu; if (!b || !bnKlaar()) return;
+  if (!bnKlaar()) return;
+  for (const b of [...bnAnder, bnNu]) if (b) bnAmirEen(b, groundY, scale, cx);
+  for (const k of bnTik){                                            // iets sloeg tegen de bol: een korte rimpeling op die plek
+    const u = k.t / 0.45, x = cx + (k.x - world), y = groundY - k.h * scale, r = (14 + 46 * u) * scale / 0.7;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(255,255,255,' + 0.8 * (1 - u) + ')'); g.addColorStop(0.5, bnRgba(bnPal()[0], 0.5 * (1 - u))); g.addColorStop(1, bnRgba(bnPal()[0], 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+}
+// de zelf-revive: drie veren op het lijk die gaan gloeien, rustig opstijgen, wiegend verderop zweven en daar om hem heen
+// draaien terwijl hij infadet, met een zachte gloed. In schermmaat: de wereld-x telt als pixel, een hoogte maal scale
+function bnZelfTeken(b, groundY, scale, cx){
+  const Z = BN.zelf, T = bnZT(), z = b.z, A = CHAR_H * scale, ms = z * 1000;
+  const blur = Math.hypot(ctx.getTransform().a, ctx.getTransform().b);
+  bnCur = b;
+  const lijkX = cx + (b.x - world) + (b.f === 1 ? -1 : 1) * 0.4 * A, lijkY = groundY - b.h * scale - 0.12 * A;
+  const doelX = cx + (b.tx - world), doelY = groundY - b.th * scale - 0.55 * A;
+  const hoogY = Math.min(lijkY, doelY) - Z.hoog * A + 0.4 * A;
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  for (let i = 0; i < Z.veren; i++){
+    const ph = i / Z.veren * Math.PI * 2, sp = (i - (Z.veren - 1) / 2) * 0.28 * A;
+    let x, y, ang, a = 1;
+    const gl = bnSm(z / T.a);
+    if (z < T.b){                                                      // gloeien, dan rustig optillen
+      const u = bnSm((z - T.a) / (T.b - T.a));
+      x = lijkX + sp * (1 - 0.4 * u) + Math.sin(ms * 0.002 + ph) * 0.06 * A * u;
+      y = lijkY - (lijkY - hoogY) * u + Math.sin(ms * 0.003 + ph) * 0.03 * A * u;
+      ang = (1 - u) * (0.1 * (i - 1)) + u * (-0.5 + 0.4 * Math.sin(ms * 0.002 + ph));
+      a = z < T.a ? 0.35 + 0.65 * gl : 1;
+    } else if (z < T.c){                                               // de vlucht: een zachte boog, achter elkaar, wiegend
+      const u = Math.min(1, Math.max(0, (z - T.b) / (T.c - T.b) - i * 0.06)), e = u * u * (3 - 2 * u);
+      x = lijkX + sp * 0.6 * (1 - e) + (doelX - lijkX) * e + Math.sin(ms * 0.003 + ph * 2) * 0.12 * A;
+      y = hoogY + (doelY - 0.5 * A - hoogY) * e - Math.sin(e * Math.PI) * 0.35 * A + Math.sin(ms * 0.004 + ph) * 0.08 * A;
+      ang = -0.4 * b.dir + 0.5 * Math.sin(ms * 0.0025 + ph);
+    } else {                                                           // aangekomen: om hem heen dwarrelen en vervagen
+      const u = Math.min(1, (z - T.c) / (T.d - T.c)), r = (0.45 - 0.15 * u) * A, an = ph + u * 4.2;
+      x = doelX + Math.cos(an) * r;
+      y = doelY - 0.5 * A * (1 - u) + Math.sin(an) * r * 0.35 + 0.2 * A * u;
+      ang = an + Math.PI / 2;
+      a = 1 - bnSm((u - 0.35) / 0.65);
+    }
+    if (a <= 0.01) continue;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    bnGloed(x, y, 0.32 * A, 0.35 * a * (0.4 + 0.6 * gl));                // de gloed om elke veer
+    ctx.restore();
+    bnVeer(x, y, 0.42 * A, ang, a, i % 3, ph, i, ms, blur);
+  }
+  if (z > T.c - 0.3){                                                  // een zachte gloed waar hij infadet
+    const u = Math.min(1, (z - (T.c - 0.3)) / (T.d - T.c + 0.3)), k = Math.sin(u * Math.PI);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    bnGloed(doelX, doelY, 0.9 * A, 0.4 * k);
+    ctx.restore();
+  }
+  ctx.restore();
+  bnCur = null;
+}
+// tekent een teamgenoot nu zijn ritueel (geknield, niet zijn gewone beeld)
+function bnTekentAnder(p){ return bnKlaar() && bnAnder.some(b => b.p === p && !b.zelf && b.t < bnEinde()); }
+function bnAmirEen(b, groundY, scale, cx){
+  if (b.zelf){ bnZelfTeken(b, groundY, scale, cx); return; }
   const t = b.t;
+  bnCur = b;
   ctx.save();
   const s = bnZet(cx + (b.x - world), groundY - b.h * scale, scale), blur = Math.hypot(ctx.getTransform().a, ctx.getTransform().b);
-  const B = bnBol(t), n = B.n, M = bnMeta, sx = (n % M.cols) * M.W, sy = Math.floor(n / M.cols) * M.H;
+  const B = bnBol(t, b), n = B.n, M = bnMeta, sx = (n % M.cols) * M.W, sy = Math.floor(n / M.cols) * M.H;
   const fx0 = BN.ax0, fy0 = BN.grond0 - 320 * BN.sc0, dw = M.W * BN.sc0, dh = M.H * BN.sc0;
   if (t < bnEinde()){
-    ctx.drawImage(bnBeeld.lijf, sx, sy, M.W, M.H, fx0, fy0, dw, dh);
-    if (n >= BN_OPEN){
-      const k = Math.min(1, (t - BN_T[BN_OPEN]) / 300);
-      ctx.save(); ctx.globalAlpha *= k; ctx.shadowColor = bnCyc(t, 1); ctx.shadowBlur = 24 * BN.oogGloed * blur;
-      for (let r = 0; r < 2; r++) ctx.drawImage(bnOogVel(), sx, sy, M.W, M.H, fx0, fy0, dw, dh);
-      ctx.restore();
-      const e = M.oog[n]; if (e) bnOogFlits(t - BN_T[BN_OPEN], bnFx(e[0]), bnFy(e[1]), t);
-    }
-    if (n < BN_LOS){
-      ctx.save();
-      if (n >= BN_GLOW){ const k = Math.min(1, (t - BN_T[BN_GLOW]) / 400); ctx.shadowColor = bnRgba(bnPal()[0], k); ctx.shadowBlur = (n < 52 ? 30 + 10 * Math.sin(t * 0.02) : 18) * k * BN.handGloed * blur; }
-      ctx.drawImage(bnGetint(bnBeeld.veer, bnPal()[0]), sx, sy, M.W, M.H, fx0, fy0, dw, dh);
-      ctx.restore();
-      const c = M.veer[n];
-      if (n >= BN_GLOW && n < 52 && c){ ctx.save(); ctx.globalCompositeOperation = 'lighter'; bnGloed(bnFx(c[0]), bnFy(c[1]), (70 + c[2] * 0.9) * BN.sc0 / 1.55, (0.5 + 0.15 * Math.sin(t * 0.02)) * BN.handGloed); ctx.restore(); }
+    if (!b.zelf){                                                    // zelf: hij ligt, zijn lijk is gewoon getekend
+      ctx.drawImage(bnBeeld.lijf, sx, sy, M.W, M.H, fx0, fy0, dw, dh);
+      if (n >= BN_OPEN){
+        const k = Math.min(1, (t - BN_T[BN_OPEN]) / 300);
+        ctx.save(); ctx.globalAlpha *= k; ctx.shadowColor = bnCyc(t, 1); ctx.shadowBlur = 24 * BN.oogGloed * blur;
+        for (let r = 0; r < 2; r++) ctx.drawImage(bnOogVel(), sx, sy, M.W, M.H, fx0, fy0, dw, dh);
+        ctx.restore();
+        const e = M.oog[n]; if (e) bnOogFlits(t - BN_T[BN_OPEN], bnFx(e[0]), bnFy(e[1]), t);
+      }
+      if (n < BN_LOS){
+        ctx.save();
+        if (n >= BN_GLOW){ const k = Math.min(1, (t - BN_T[BN_GLOW]) / 400); ctx.shadowColor = bnRgba(bnPal()[0], k); ctx.shadowBlur = (n < 52 ? 30 + 10 * Math.sin(t * 0.02) : 18) * k * BN.handGloed * blur; }
+        ctx.drawImage(bnGetint(bnBeeld.veer, bnPal()[0]), sx, sy, M.W, M.H, fx0, fy0, dw, dh);
+        ctx.restore();
+        const c = M.veer[n];
+        if (n >= BN_GLOW && n < 52 && c){ ctx.save(); ctx.globalCompositeOperation = 'lighter'; bnGloed(bnFx(c[0]), bnFy(c[1]), (70 + c[2] * 0.9) * BN.sc0 / 1.55, (0.5 + 0.15 * Math.sin(t * 0.02)) * BN.handGloed); ctx.restore(); }
+      }
     }
     bnWindTeken(t, B);
   }
   bnBaan(true, t, B, s, blur);
-  bnHandVeren(t, s, blur);
+  if (!b.zelf) bnHandVeren(t, s, blur);
   ctx.restore();
+  bnCur = null;
 }
 // in de trance: een treffer kost minder en duwt hem niet weg (hurtPlayer)
 function straalTranceSchadeK(){ return straalTrance ? STRAAL.trance.schade : 1; }
@@ -29664,7 +29872,7 @@ addEventListener('keydown', e => {
     startJump(); return;
   }
   if (e.key === 'q' || e.key === 'Q'){ drinkHppotion(); return; }
-  if ((e.key === 'g' || e.key === 'G') && bnLevelAan()){ if (!e.repeat) bnGebruik(); return; }   // Feathers of the Bennu: de veren blazen (BN, Test 94)
+  if ((e.key === 'g' || e.key === 'G') && bnToetsMag()){ if (!e.repeat) bnGebruik(); return; }   // Feathers of the Bennu: de veren blazen (BN, Test 94 en Co-op)
   if ((e.key === 'k' || e.key === 'K') && bnLevelAan()){ if (!e.repeat) bnKleurWissel(); return; }   // Test 94: de kleur van de veren wisselen
   if ((e.key === 'g' || e.key === 'G') && zhToetsMag()){ if (!e.repeat) zhGebruik(); return; }   // Silver Pride: het hart neerleggen (ZH)
   if (e.key === 'i' || e.key === 'I'){ if (!e.repeat) invUIOpen(); return; }   // de inventory (zie "inventory")
@@ -58431,8 +58639,9 @@ function loop(now){
   if (atkFrame < 0){ atkCombo = false; comboX = false; fcSoort = null; comboSinds += dt; atkStok = null; }   // de derde slag: hoe lang geleden de vorige steek klaar was (een afgebroken duw is ook voorbij)
   gkUpdate(dt);                                  // de grondklap: de golf, het stof en wie er wankelt (GK)
   straalUpdate(dt);                                 // de zonnestraal: mediteren, ontketend en uitgeput (STRAAL)
-  bnStap(dt);                                       // Feathers of the Bennu: de veren, de bol en de wind (BN)
+  bnStap(dt, scaleNow);                             // Feathers of the Bennu: de veren, de bol en de wind, en de bol houdt alles buiten (BN)
   zhStap(dt);                                       // Silver Pride: het hart, de uitbarsting en Tau (ZH)
+  reviveZelfStap(dt);                               // Co-op: dood met een hart of de veren in de tas, die brengen je terug
   if (atkFrame >= 0 && atkStok) stokStap(dt);                       // de stokken lopen op hun eigen ms per beeld (STOK)
   else if (atkFrame >= 0 && atkCombo) comboStap(dt);               // de derde slag loopt op zijn eigen ticks
   else if (atkFrame >= 0){
@@ -59307,7 +59516,7 @@ function loop(now){
     zhTeken(groundY, scale, cx);                      // Silver Pride: het hart op de grond, zijn licht en wie eruit komt (ZH)
     const blink = invuln > 0 && invulnStil <= 0 && !dead && amirSteen <= 0 && Math.floor(invuln * 14) % 2 === 0;
     ctx.save();
-    ctx.globalAlpha = amirWeg || bnActief() ? 0 : (blink ? 0.45 : 1) * trapAlfa;   // Feathers of the Bennu: bnTekenAmir tekent hem
+    ctx.globalAlpha = amirWeg || bnActief() ? 0 : (blink ? 0.45 : 1) * trapAlfa * (pvp ? bnZelfAlfa(pvp.mij) : 1);   // Feathers of the Bennu: bnTekenAmir tekent hem, en de zelf-revive laat hem vervagen en infaden (bnZelfAlfa)
     if (useThrow) thrWachtZet(pcx, groundY + lift);   // wachten met de speer: ademen en trillen
     if (zhEigenK < 1){ ctx.translate(pcx, groundY + lift); ctx.scale(zhEigenK, zhEigenK); ctx.translate(-pcx, -(groundY + lift)); }   // Silver Pride: hij komt klein uit het hart
     ctx.translate(x, y);
@@ -63169,6 +63378,10 @@ const BALK = [
   { id: 'zilverhart', toets: 'G', icoon: () => '<img class="klein" src="items/zilverhart/hart_icoon.png" alt="">', staat(){   // Silver Pride (ZH)
       const dl = zhLevelAan(), solo = !!(pvp && pvp.solo);                // solo: het hart werkt vanzelf, dus altijd klaar
       return { zien: dl || zhCarry > 0, klaar: solo || zhDodeVoor() != null, p: 1, tel: dl ? null : zhCarry, dim: !solo && zhDodeVoor() == null };
+    } },
+  { id: 'bennu', toets: 'G', icoon: () => '<img class="klein" src="items/bennu/veren_icoon.png" alt="">', staat(){   // Feathers of the Bennu (BN)
+      const solo = !!(pvp && pvp.solo), klaar = solo || bnDodeVoor() != null;
+      return { zien: bnCarry > 0, klaar, p: 1, tel: bnCarry, dim: !klaar };
     } },
   { id: 'schijn', toets: '', icoon: () => '<img alt="">', staat(){
       return { zien: tribeHeeft('feign_death'), klaar: true, p: 1, dim: schijnKeer <= 0 && schijnT <= 0 };
@@ -72718,7 +72931,7 @@ const pvpNu = () => performance.now() / 1000;
 // de vijandstand bevestigd heeft (vAk). Een gast heeft er een, naar de host (slot 0). Elk bericht draagt het slot van wie
 // het maakte (`p`); de host zet het zelf op wat binnenkomt (een gast kan niet voor een ander spreken) en stuurt wat de
 // andere gasten ook moeten weten door (MP_DOOR), en een bericht voor een gast (`naar`) alleen naar die. Zie notities/pvp.md.
-const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'naam', 'rek', 'symPak', 'zh', 'wkklaar', 'rematch', 'gk', 'blokK']);
+const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'naam', 'rek', 'symPak', 'zh', 'bn', 'wkklaar', 'rematch', 'gk', 'blokK']);
 function pvpGasten(){ return pvp ? Object.keys(pvp.peers).map(Number).filter(p => p !== 0) : []; }
 function pvpRelay(){ return !!pvp && Object.values(pvp.peers).some(pe => pe.conn.relay); }
 function pvpPeerNieuw(conn, p){
@@ -73753,7 +73966,7 @@ function pvpStap(rdt){
     pvp.zendT = 1 / (pvpRelay() ? PVP_RELAY.hz : PVP.hz);
     const j = jav && jav.state !== 'weg' ? { x: Math.round(jav.x), h: Math.round(jav.h), sa: +jav.sa.toFixed(3), dir: jav.dir, st: jav.state, t: +(jav.t || 0).toFixed(2), b: jav.blauw || 0, n: pvp.jn } : null;
     pvpZendSnel(Object.assign({ t: 's', q: ++pvp.qs, tm: +pvpNu().toFixed(3), ak: pvp.coop && !pvp.host && pvp.nets[0] ? pvp.nets[0].v.q : undefined, x: Math.round(playerX()), h: Math.round(ph), f: facing, hu: +hurt.toFixed(2),
-      sf: atkFrame, ss: atkStok || undefined, sl: steekLive() && !atkMes ? 1 : 0, sn: pvp.sn, sw: swFrame, wn: pvp.wn, j, l: lives, d: dead ? 1 : 0,
+      sf: atkFrame, ss: atkStok || undefined, sl: steekLive() && !atkMes ? 1 : 0, sn: pvp.sn, sw: swFrame, wn: pvp.wn, j, l: lives, d: dead ? 1 : 0, rz: pvp.coop && reviveZelfKan() ? 1 : undefined,
       iv: invuln > 0 ? 1 : 0, du: +duckT.toFixed(2), ds: +duckShare.toFixed(2), ...mkSpeerZend() }, pvp.mijn));   // iv, du en ds: de stand voor de vijanden van Co-op (mpcGastStand)
   }
   if (pvp.coop) mpcVriesWacht(rdt);                 // Co-op: een freeze die niet afloopt laat Amir niet voorgoed staan
@@ -73812,10 +74025,10 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
   const sx = cx + (g.x - world), voet = groundY - g.h * scale;
   const im = g.im && pvpBeeld(g.im);
   const zhWacht = pvp.coop && g.d && zhLijst.some(z => z.voor === p && z.op);   // Silver Pride: al uit het hart, zijn stand komt nog
-  if (im && !zhWacht){
+  if (im && !zhWacht && !bnTekentAnder(p)){          // Feathers of the Bennu: zijn ritueel tekent hem (bnTekenAmir)
     const w = g.dw * scale, h = g.dh * scale;
     ctx.save();
-    ctx.globalAlpha = g.a == null ? 1 : g.a;
+    ctx.globalAlpha = (g.a == null ? 1 : g.a) * bnZelfAlfa(p);   // de veren: zijn lijk vervaagt, waar hij opstaat fadet hij in
     const zk = zhKVoor(p);                             // Silver Pride: hij komt klein uit het hart en groeit (ZH)
     if (zk < 1){ ctx.translate(sx, voet); ctx.scale(zk, zk); ctx.translate(-sx, -voet); }
     ctx.translate(sx + g.dx * scale, voet + g.dy * scale);
@@ -73954,9 +74167,13 @@ const MPC_WINKEL = [
   { k: 'amulet', cat: 'charm',   naam: 'Gris-gris',                prijs: [40, 75, 110], uitleg: ['A charm against harm: 10% chance a hit costs you no life',
                                                                             'Stronger charm: 20% chance', 'Strongest charm: 30% chance'] },   // GRISGRIS
   { k: 'zilverhart', cat: 'team', nieuw: true, naam: 'Silver Pride',       prijs: [35, 50, 65], prijsSolo: [50, 80, 110], stok: true,
-    uitleg: 'Instantly revives your fallen co-op partner by crushing this rare heart of a Silver Lion. For 3 seconds they cannot be harmed, but cannot use abilities. Press G when a teammate is down. You carry one at a time',
+    uitleg: 'Instantly revives your fallen co-op partner by crushing this rare heart of a Silver Lion. For 3 seconds they cannot be harmed, but cannot use abilities. Press G when a teammate is down. If you fall yourself, the heart brings you back. You carry one at a time',
     uitlegSolo: 'When you fall, this rare heart of a Silver Lion brings you back a few seconds later with one life. For 4 seconds nothing can harm you: get away. You carry one at a time',
-    sfeer: 'Silver lions are never sighted. Rare, silver, and a blessing for a friend.' },   // Silver Pride (ZH): alleen met de stokken en een teamgenoot
+    sfeer: 'Silver lions are never sighted. Rare, silver, and a blessing for a friend.' },   // Silver Pride (ZH): de stokken, een teamgenoot terug of jezelf
+  { k: 'bennu', cat: 'team', nieuw: true, naam: 'Feathers of the Bennu',  prijs: [35, 50, 65], prijsSolo: [50, 80, 110], speer: true,
+    uitleg: 'Kneel and blow these feathers of the Bennu to your fallen co-op partner: they rise again. A sphere of air shields you while you blow, nothing gets in. If you fall yourself, the feathers bring you back. Press G when a teammate is down. You carry one at a time',
+    uitlegSolo: 'When you fall, these feathers of the Bennu gather around you in a sphere of air and bring you back with one life. For 4 seconds nothing can harm you: get away. You carry one at a time',
+    sfeer: 'The Bennu burns and rises from its own ashes. Its feathers remember how.' },   // Feathers of the Bennu (BN): de speer, de tegenhanger van Silver Pride
   { k: 'geef', cat: 'team',     naam: 'Give 5 gold',              prijs: 5,  uitleg: 'To your teammate' }   // met twee teamgenoten een knop per teamgenoot (mpcWinkelToon)
 ];
 // de map: het stadje van PvP, met een balkon hoog in het middenhuis (de deur voor de kruisboogschutters, niet te
@@ -74582,7 +74799,7 @@ function mpcVolgStap(rdt){
 // de beginnermodus uit de lobby (pvp.regels.coop.beginner): iedereen begint met de Gris-gris op trap 2 (GRISGRIS, 20%)
 function mpcBeginAmulet(){ return pvp && pvp.regels && pvp.regels.coop && pvp.regels.coop.beginner ? 2 : 0; }
 function mpCoopNieuw(){
-  zhCarry = 0;                                       // Silver Pride: een nieuw potje begint zonder hart
+  zhCarry = 0; bnCarry = 0;                          // Silver Pride en de veren: een nieuw potje begint zonder
   return { ronde: 0, fase: 'wacht', klok: MPC.eerst, rij: [], spawnKlok: 0, score: 0, kills: 0, t: 0, id: 0, tonId: 0,
            zak: [], goud: 0, reeks: { n: 0, t: -99 }, eind: null,
            doodT: {}, reviveTon: {}, symbolen: [], reviveRust: {}, symId: 0,   // per slot: sinds wanneer dood, zijn revive-ton, zijn symbool
@@ -74831,14 +75048,17 @@ function mpcHostStap(dt){
 }
 // de doden, bij de host: wie dood is wacht; na MPC.reviveNa komt er een revive-ton voor hem bij de dichtstbijzijnde
 // levende speler, een per dode. Wie niet meer dood is (of weg) heeft geen ton of symbool meer. Iedereen dood: game over
+// ligt er iemand dood die nog terugkomt: een hart of veren in zijn tas (zijn stand zegt `rz`), of er loopt er al een voor hem
+function mpcReviveKomt(){
+  return pvp.spelers.some(p => mpcDood(p) && (p === pvp.mij ? reviveZelfKan() : (reviveOnderweg(p) || !!(pvpAnderNu(p) && pvpAnderNu(p).rz))));
+}
 function mpcDood(p){ return p === 0 ? dead : !!(pvpAnderNu(p) && pvpAnderNu(p).d); }
 function mpcPlek(p){ return p === 0 ? { x: world, h: ph } : { x: pvpAnderNu(p).x, h: pvpAnderNu(p).h }; }
 function mpcDodenStap(){
   const C = pvp.coop, S = pvp.spelers;
   for (const p of S){ if (mpcDood(p)){ if (C.doodT[p] == null) C.doodT[p] = C.t; } else delete C.doodT[p]; }
   for (const k in C.doodT) if (!S.includes(+k)) delete C.doodT[k];
-  if (pvp.solo && zhSoloStap()) return;               // Co-op solo met Silver Pride: nog geen game over
-  if (S.every(mpcDood)){ mpcEinde(); return; }
+  if (S.every(mpcDood) && !mpcReviveKomt()){ mpcEinde(); return; }   // een hart of de veren brengen nog iemand terug: nog geen game over
   for (const k in C.reviveTon){                       // niet meer dood: weg met zijn ton
     if (C.doodT[k] != null) continue;
     const t = C.reviveTon[k]; delete C.reviveTon[k];
@@ -75153,7 +75373,8 @@ function mpCoopOntvang(m){
   if (m.t === 'rek'){ const r = wapenrekken[0]; if (r && r.n !== m.n){ r.uit = { i: Math.max(0, m.n), t: WAPENREK.uit }; r.n = m.n; } return true; }
   if (m.t === 'sym'){ if (!C.symbolen.some(S => S.id === m.id)) C.symbolen.push({ id: m.id, x: m.x, h: m.h, voor: m.voor }); return true; }
   if (m.t === 'symWeg'){ C.symbolen = C.symbolen.filter(S => S.id !== m.id); return true; }
-  if (m.t === 'zh'){ zhStart(+m.x || 0, +m.h || 0, m.voor); return true; }   // Silver Pride: een teamgenoot legde het hart neer (ZH)
+  if (m.t === 'zh'){ zhStart(+m.x || 0, +m.h || 0, m.voor, !!m.zelf); return true; }   // Silver Pride: een teamgenoot legde het hart neer, of het hart klopt op zijn eigen lijk (ZH)
+  if (m.t === 'bn'){ bnVan(m); return true; }        // Feathers of the Bennu: een teamgenoot blaast de veren, of ze halen hem zelf terug (BN)
   if (m.t === 'symPak'){
     C.symbolen = C.symbolen.filter(S => S.id !== m.id);
     mpcSymboolOp(m.voor);
@@ -75324,16 +75545,16 @@ function mpEpNieuw(C, oud, epI){
   C.ep.s0 = C.score; C.ep.k0 = C.kills; C.ep.t0 = C.t;
   // een episode met winkels: ieder houdt zijn goud, wat hij kocht en zijn tas (kalebassen, gif) over de levels heen; na
   // game over die van het begin van het level, na het slot weer niets
-  const tas = !o ? null : o.door ? { g: oud.goud, koop: oud.koop, kal: hppotionCarry, gif: gifCarry, zh: zhCarry }
+  const tas = !o ? null : o.door ? { g: oud.goud, koop: oud.koop, kal: hppotionCarry, gif: gifCarry, zh: zhCarry, bn: bnCarry }
             : (!o.alles && o.i === i) ? o.tas0 : null;
   if (tas){ C.goud = tas.g; C.koop = JSON.parse(JSON.stringify(tas.koop)); }
-  C.ep.tas0 = { g: C.goud, koop: JSON.parse(JSON.stringify(C.koop)), kal: tas ? tas.kal : 0, gif: tas ? tas.gif : 0, zh: tas ? tas.zh || 0 : 0 };
+  C.ep.tas0 = { g: C.goud, koop: JSON.parse(JSON.stringify(C.koop)), kal: tas ? tas.kal : 0, gif: tas ? tas.gif : 0, zh: tas ? tas.zh || 0 : 0, bn: tas ? tas.bn || 0 : 0 };
   pvp.levens = 3 + (C.koop.leven || 0);             // een gekocht extra leven geldt voor de rest van de episode
 }
 // na het laden van een level van de episode: de tas terug, en een gekocht speerslot weer erbij (en gevuld)
 function mpEpNaStart(){
   const C = pvp.coop, T = C.ep && C.ep.tas0; if (!T) return;
-  hppotionCarry = T.kal; gifCarry = T.gif; zhCarry = T.zh || 0; if (zhCarry) zhLaad();
+  hppotionCarry = T.kal; gifCarry = T.gif; zhCarry = T.zh || 0; if (zhCarry) zhLaad(); bnCarry = T.bn || 0; if (bnCarry) bnLaad();
   hppotionHud(); invHud();
   if (C.koop.slot && RUG_MAX > 0){ RUG_MAX++; if (!stokAan()) rugSperen.push({ blauw: false }); setSpearLabel(); }
 }
@@ -75817,7 +76038,7 @@ function mpcWinkelHeb(q){
   if (q.k === 'pathfinder') return pfAantal() >= 1 + RUG_MAX;   // een per speerplek (de hand en de rug), meer mag
   const K = pvp.coop.koop; return Array.isArray(q.prijs) ? (K[q.k] || 0) >= q.prijs.length : (q.k in K) && !!K[q.k]; }
 // de speerspullen (speer: true) ziet een stokspeler niet, en Hardwood sticks (stok: true) alleen hij
-function mpcWinkelVoorMij(q){ if (q.k === 'zilverhart' && pvp.solo) return true; return stokAan() ? !q.speer : !q.stok; }   // solo: Silver Pride voor elk wapen
+function mpcWinkelVoorMij(q){ return stokAan() ? !q.speer : !q.stok; }   // Silver Pride is van de stokken, de veren van de speer (ook solo)
 function mpcWinkelNiet(q){
   const C = pvp.coop, K = C.koop, handVol = spear || spearFound || rugTrekT > 0;
   let r = null;
@@ -75827,8 +76048,9 @@ function mpcWinkelNiet(q){
   else if (q.eis && !K[q.eis]) r = 'Buy ' + MPC_WINKEL.find(w => w.k === q.eis).naam + ' first.';
   else if (q.sluit && K[q.sluit]) r = 'You chose ' + MPC_WINKEL.find(w => w.k === q.sluit).naam + '.';   // een keuze: het een of het ander
   else if (q.k === 'kalebas' && lives >= levensStart()) r = 'Your lives are full.';
-  else if (q.k === 'zilverhart' && !mpcZhZien()) r = 'Only with a teammate.';
+  else if ((q.k === 'zilverhart' || q.k === 'bennu') && !mpcZhZien()) r = 'Only with a teammate.';
   else if (q.k === 'zilverhart' && zhCarry >= ZH.max) r = 'You already carry a Silver Pride.';
+  else if (q.k === 'bennu' && bnCarry >= ZH.max) r = 'You already carry the Feathers of the Bennu.';
   else if (q.k === 'speer' && (!rugAan() || (rugVol() && handVol))) r = 'Your hand and back are full.';
   else if (q.k === 'gif' && gifCarry >= 1 + RUG_MAX) r = 'One poison per spear slot (' + (1 + RUG_MAX) + ').';
   else if (q.k === 'gif' && invVol()) r = 'Your bag is full.';
@@ -75845,7 +76067,8 @@ function mpcWinkelKoop(q, aan){
   if (q.k === 'kalebas'){ lives++; drawLives(); }
   else if (q.k === 'speer'){ rugErbij(false); if (!spear && !spearFound && rugTrekT <= 0) rugTrekKlaar(); setSpearLabel(); }
   else if (q.k === 'gif'){ gifCarry++; invHud(); tekst = 'Poison in your bag. Press I to smear it on your spears.'; }
-  else if (q.k === 'zilverhart'){ K.zilverhart = (K.zilverhart || 0) + 1; zhCarry++; zhLaad(); tekst = pvp.solo ? 'Silver Pride in your bag. If you fall, it brings you back.' : 'Silver Pride in your bag. Press G when a teammate is down.'; }
+  else if (q.k === 'zilverhart'){ K.zilverhart = (K.zilverhart || 0) + 1; zhCarry++; zhLaad(); tekst = pvp.solo ? 'Silver Pride in your bag. If you fall, it brings you back.' : 'Silver Pride in your bag. Press G when a teammate is down. If you fall, it brings you back.'; }
+  else if (q.k === 'bennu'){ K.bennu = (K.bennu || 0) + 1; bnCarry++; bnLaad(); tekst = pvp.solo ? 'Feathers of the Bennu in your bag. If you fall, they bring you back.' : 'Feathers of the Bennu in your bag. Press G when a teammate is down. If you fall, they bring you back.'; }
   else if (q.k === 'leven'){ K.leven++; pvp.levens++; lives++; drawLives(); }
   else if (q.k === 'amulet'){ K.amulet++; tekst = 'Bought: ' + q.naam + '. ' + Math.round(grisGrisKans() * 100) + '% chance a hit costs you no life.'; }
   else if (q.k === 'pathfinder'){   // een Pathfinder erbij: hij komt op een gewone speer die je draagt (pfStap)
@@ -75867,7 +76090,7 @@ function mpcWinkelKoop(q, aan){
 // mpcUndoStand legt na het kopen vast hoe het ervoor staat, mpcUndoKan kijkt of dat nog zo is.
 let mpcLaatste = null;                               // {q, prijs, na}
 function mpcSperenTel(){ return (spearFound ? 1 : 0) + rugSperen.length; }
-function mpcUndoStand(){ return { lives, gif: gifCarry, speren: mpcSperenTel(), rugMax: RUG_MAX, pf: pfAantal(), zh: zhCarry }; }
+function mpcUndoStand(){ return { lives, gif: gifCarry, speren: mpcSperenTel(), rugMax: RUG_MAX, pf: pfAantal(), zh: zhCarry, bn: bnCarry }; }
 function mpcUndoKan(){
   const L = mpcLaatste; if (!L || !pvp || !pvp.coop || !pvp.coop.inWinkel) return false;
   const k = L.q.k, na = L.na;
@@ -75875,6 +76098,7 @@ function mpcUndoKan(){
   if (k === 'speer') return mpcSperenTel() === na.speren;
   if (k === 'gif') return gifCarry === na.gif && gifCarry > 0;
   if (k === 'zilverhart') return zhCarry === na.zh && zhCarry > 0;
+  if (k === 'bennu') return bnCarry === na.bn && bnCarry > 0;
   if (k === 'slot') return RUG_MAX === na.rugMax;
   if (k === 'pathfinder') return pfAantal() === na.pf && (speerBlauw === 'pathfinder' || rugSperen.some(r => r.blauw === 'pathfinder'));
   return true;
@@ -75893,6 +76117,7 @@ function mpcUndo(){
   }
   else if (k === 'gif'){ gifCarry--; invHud(); }
   else if (k === 'zilverhart'){ K.zilverhart = Math.max(0, (K.zilverhart || 0) - 1); zhCarry = Math.max(0, zhCarry - 1); }
+  else if (k === 'bennu'){ K.bennu = Math.max(0, (K.bennu || 0) - 1); bnCarry = Math.max(0, bnCarry - 1); }
   else if (k === 'pathfinder'){                       // een gedragen Pathfinder wordt weer gewoon, de rug eerst
     K.pathfinder = pfAantal() - 1;
     const r = rugSperen.find(x => x.blauw === 'pathfinder');
@@ -75969,6 +76194,7 @@ function mpcBeeld(q, aan){
     case 'pathfinder': return '<img src="design/speer/pathfinder/jav.png" alt="">';
     case 'kalebas': return '<img src="' + HPPOTION_SRC + '" alt="">';
     case 'geef': return mpcGeefBeeld(aan);
+    case 'bennu': return '<img src="items/bennu/veren.png" alt="">';   // Feathers of the Bennu: drie roze veren (tools/bennu_item.py)
     case 'zilverhart': return '<span class="zhbeeld"><img src="items/zilverhart/hart.png" alt=""><img class="zhmed" src="items/zilverhart/leeuw_medaillon.png" alt=""></span>';   // Silver Pride: het leeuwenmedaillon linksboven
   }
   return MPC_IKOON_IMG[q.k] ? '<img src="items/winkel/' + q.k + '.png" alt="">' : '';
@@ -75989,6 +76215,7 @@ function mpcDraagToon(){
   if (hppotionCarry) tas.push(hppotionCarry + (hppotionCarry > 1 ? ' gourds' : ' gourd'));
   if (gifCarry) tas.push(gifCarry + ' poison');
   if (zhCarry) tas.push('Silver Pride');
+  if (bnCarry) tas.push('Feathers of the Bennu');
   if (gifHits > 0) tas.push('poison on your spears');
   if (tas.length) h += '<small>In your bag: ' + tas.join(', ') + '</small>';
   el.innerHTML = h;
@@ -76002,7 +76229,7 @@ function mpcWinkelToon(){
   el.innerHTML = '';
   const anderen = pvp.spelers.filter(p => p !== pvp.mij);
   // de tabs: alleen die er iets voor jou in hebben
-  const tabs = MPC_WINKEL_CAT.filter(c => MPC_WINKEL.some(q => q.cat === c.k && mpcWinkelVoorMij(q) && (q.k !== 'geef' || anderen.length) && (q.k !== 'zilverhart' || mpcZhZien())));
+  const tabs = MPC_WINKEL_CAT.filter(c => MPC_WINKEL.some(q => q.cat === c.k && mpcWinkelVoorMij(q) && (q.k !== 'geef' || anderen.length) && ((q.k !== 'zilverhart' && q.k !== 'bennu') || mpcZhZien())));
   if (!tabs.some(c => c.k === mpcTab)) mpcTab = tabs.length ? tabs[0].k : 'wapen';
   const nav = document.getElementById('wktabs'); nav.innerHTML = '';
   for (const c of tabs){
@@ -76011,7 +76238,7 @@ function mpcWinkelToon(){
     b.onclick = () => { mpcTab = c.k; mpcKeus = null; mpcWinkelToon(); };
     nav.append(b);
   }
-  const lijst = MPC_WINKEL.filter(q => mpcWinkelVoorMij(q) && q.cat === mpcTab && (q.k !== 'zilverhart' || mpcZhZien()));   // Silver Pride met een teamgenoot, of solo voor jezelf
+  const lijst = MPC_WINKEL.filter(q => mpcWinkelVoorMij(q) && q.cat === mpcTab && ((q.k !== 'zilverhart' && q.k !== 'bennu') || mpcZhZien()));   // Silver Pride met een teamgenoot, of solo voor jezelf
   lijst.sort((a, b) => (b.nieuw ? 1 : 0) - (a.nieuw ? 1 : 0));   // het nieuwe artikel groot bovenaan
   for (const q of lijst){
     // Give 5 gold: een knop per teamgenoot (wkc_geef_<slot>), met twee teamgenoten de kleur van zijn broek erbij
