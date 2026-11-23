@@ -162,6 +162,13 @@ daarom in de wacht: bouw hem niet en stel hem niet voor, tot de opdrachtgever er
 de gratis openbare TURN-servers en het relais) blijft staan: het relais is ook het vangnet voor een laptop op een
 streng netwerk. Zie "Voor wie" in `notities/multiplayer.md`.
 
+**16. Kansen gaan met een knikkerzak.** Een kans in het spel (een crit, een leven terug, wat er uit een ton komt) trek
+je niet met `Math.random() < kans`, maar uit een knikkerzak (de marble bag): zoveel knikkers waarvan zoveel raak, zonder
+terugleggen, en een lege zak gaat geschud weer vol. Zo is 1 op 10 echt 1 op 10, zonder lange reeksen pech of geluk.
+Voorbeelden: `critZak` (True Flight), `mpcKnikker` (de tonnen van Co-op), `ardhiKnikker` (de Ardhi-wapens). Een verse zak
+per level. Oudere kansen die nog met `Math.random()` gaan (Gris-gris, Gold King) laat je staan tot de opdrachtgever
+erom vraagt; een nieuwe kans gaat altijd met een zak.
+
 ## Waar wat staat
 
 De HTML is opgedeeld met commentaarkoppen (`// ---- ... ----`). Zoek daarop, niet op
@@ -198,7 +205,11 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de speervolgorde: welke speersoort eerst in je hand zit (de inventory, Hold first), vanzelf de beste na oprapen en na een worp, Z wisselt | `speerVolgorde`, `speerSorteer`, `speerWissel`, `speerVoorop`, `rugSort`, `invSperenToon`, `pfAantal` | notities/speer-inventory.md |
 | de oude speer: gespalkt, drie keer te gebruiken, dan breekt hij; per stand slechter | `OUDE_SPEER`, `oudSoort`, `oudBreek`, `oudSteekStap` | notities/oude-speer.md |
 | de Pathfinder Spear: de speer uit de winkel van Co-op met het rode vaantje dat meewaait (op de rug, in de worp, liggend), en de prooi: een geworpen treffer markeert 3 s (rode rand, vaantje boven het hoofd, 20% trager, een half leven extra per treffer) | `PATHFINDER`, `PROOI`, `javTeken`, `pfVaanTeken`, `pfStap`, `prooiRaak`, `prooiGloed` | notities/speer.md |
+<<<<<<< HEAD
+| de Ardhi-wapens: Ardhi's Grip (stokken), Ardhi's Reach (speer) en Ardhi's Roots uit de winkel van Co-op; een treffer kan een leven teruggeven (knikkerzak: stok en steek 1 op 33, worp 1 op 10, een sapdruppel boven je hoofd), Roots zet wortels om twee vijanden in een groep (alleen op aarde); sandboxknop Ardhi, `tools/ardhi_test.js` | `ARDHI`, `ardhiStap`, `ardhiTreffer`, `ardhiKnikker`, `ardhiWortelRaak`, `ardhiAarde`, `ardhiVast` | notities/speer.md |
+=======
 | de Shield Piercer: de speer uit de winkel van Co-op met de zwarte naald en de ijzeren knol, door het schild heen (schildbandiet in een klap dood) uit een knikkerzak: verre worp 2 op 3, korte 1 op 3, steek en lage zwaai 1 op 8; de kansen van de speersoorten (ook de steek en zwaai van de Pathfinder), en het speervak links van de actiebalk (Z, de naam bij een wissel) | `SPEER_KANS`, `speerKansTrek`, `piercerDoor`, `spStap`, `pfMarkeert`, `SPVAK`, `spvakHud` | notities/speer.md, notities/speer-inventory.md |
+>>>>>>> origin/main
 | Silver Pride: het zilveren leeuwenhart uit de winkel van Co-op (alleen de stokken, met een teamgenoot, 35/50/65 goud, een tegelijk): G legt het neer, het pulseert, de dode teamgenoot komt eruit (klein naar groot) terwijl Tau in de lucht brult, dan 3 s onkwetsbaar zonder abilities; Test 91 met een oefenteamgenoot; `tools/mptest.js --zilverhart --stokken host`, `tools/zilverhart_test.js` | `ZH`, `zhGebruik`, `zhStart`, `zhStap`, `zhTeken`, `zhTauNa`, `zhOpstaan`, `zhOntwaakT`, `zhCarry`, `TEST_93` | notities/multiplayer.md |
 | Feathers of the Bennu: de veren-revive van de speerspeler (Mkuki): G, op een knie, de veren gloeien, ogen open met een flits, blazen, een luchtbol met veren in de wind, de vlaag van het spel neemt ze mee naar de teamgenoot verderop; in de winkel van Co-op (tab Team, met de speer), over het netwerk (`bn`), de bol houdt vijanden en projectielen buiten; Test 94 met een oefenteamgenoot, K wisselt de kleur; dood met het hart of de veren in de tas brengen ze je zelf terug; `tools/mptest.js --bennu --spelers 2` | `BN`, `bnGebruik`, `bnStap`, `bnSchild`, `bnVan`, `bnZelfStart`, `reviveZelfStap`, `mpcReviveKomt`, `TEST_94` | notities/multiplayer.md |
 | zicht: een vijand ziet je alleen als er niets tussen zit | `ZICHT`, `vijandZiet`, `zichtWaak` | notities/zicht.md |
@@ -611,6 +622,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **De stokken van Amir** (`karakters/amir/stokken/`, uit `bron/lijf/` en `bron/stok_grok.jpg`) → `tools/stok_bak.py` (zet de regels die het print in `STOK`: de canvasmaat en `slip`), daarna `gen-klein.py` en `gen-offline-manifest.py`; `gen-klein.py` schrijft ook andere kleine plaatjes opnieuw, zet die terug
 - **Tau, de leeuwenkop van de zonnestraal** (`karakters/amir/tau/`, uit de Grok-clip in `bron/`) → `tools/tau_leeuw.py`, daarna `gen-offline-manifest.py`; een ander aantal frames of een andere maat gaat in `TAU`
 - **Oude speer** (`design/speer/oud/`, uit de gewone speer) → `tools/oude_speer.py`, daarna `gen-offline-manifest.py`
+- **Ardhi-wapens** (`design/ardhi/`, `design/speer/ardhi/`, `bron/ar_<hoek>.png`, de winkelplaatjes) → `tools/ardhi_bak.py`, de stokken `tools/stok_variant.py --plaat design/ardhi/bron/stok_schoon.png --uit stokken_ardhi --rij 0` (kopieer de map naar `klein/karakters/amir/`), daarna `gen-offline-manifest.py`
 - **Pathfinder Spear** (`design/speer/pathfinder/`, uit de Grok-platen in `bron/`) → `tools/pathfinder_speer.py` (zet de regel die het print in `PATHFINDER`), daarna de Pathfinder in Amirs hand (`karakters/amir/mkuki_spel/bron/pf_<hoek>.png`) met `pathfinder()` uit `tools/mkuki_spel_los.py`, en `gen-offline-manifest.py`
 - **Shield Piercer** (`design/speer/piercer/jav.png` en de speer in Amirs hand, `karakters/amir/mkuki_spel/bron/sp_<hoek>.png`, uit `bron/speer.png`) → `tools/piercer_speer.py`, daarna `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`

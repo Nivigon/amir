@@ -21,6 +21,7 @@ Uit:
                                            hangt (die gaat niet mee in de stok maar slingert als slip aan de knoop)
 
 Gebruik:  python3 tools/stok_variant.py --rij 1 --uit stokken_klauw --grip 125,30,35
+          python3 tools/stok_variant.py --rij 0 --uit stokken_ardhi --plaat design/ardhi/bron/stok_grok.jpg --grip 70,120,40
           python3 tools/stok_variant.py --rij 3 --uit stokken_goud --slip 24,30,12
           --rij: welke stok van de plaat (0 is de bovenste); --grip: de kleur van de slippen
 Daarna:   de map ook naar klein/karakters/amir/ kopieren (de frames zijn lager dan de drempel van gen-klein.py, die
@@ -64,11 +65,14 @@ def sleutel(a):
     return np.dstack([r - ex, g, b - ex, al * 255])
 
 
+PLAAT = os.path.join(BRON, 'stokken_vet_grok.jpg')   # --plaat zet een andere plaat (een stok per rij, grip links)
+
+
 def nieuwe_stok(rij, k=1.0, kont=0.0):
     """De stok van rij `rij` uit de Grok-plaat, op de maat van de gewone stok: de grip waar die van de gewone zit, het
     uiteinde (bij de grip) even ver (plus kont: de stok in de ren is daar langer), de schacht zo dik als de gewone, en de kop (alles na de schacht) op zijn eigen
     verhouding erachter, voorbij de punt van de gewone stok. Geeft het beeld en de knoop vanaf zijn midden, zoals oude_stok."""
-    a = np.array(Image.open(os.path.join(BRON, 'stokken_vet_grok.jpg')).convert('RGB')).astype(float)
+    a = np.array(Image.open(PLAAT).convert('RGB')).astype(float)
     rgba = sleutel(a)
     fg = rgba[..., 3] > 128
     ys = np.where(fg.any(1))[0]
@@ -205,7 +209,10 @@ def main():
     ap.add_argument('--uit', default='stokken_klauw')
     ap.add_argument('--grip', default='125,30,35')
     ap.add_argument('--slip', default='24,30,12', help='w,h,piv van een kwast als slip (zet die ook in STOK.skins)')
+    ap.add_argument('--plaat', default=None, help='een andere Grok-plaat dan bron/stokken_vet_grok.jpg (pad vanaf de repo)')
     o = ap.parse_args()
+    global PLAAT
+    if o.plaat: PLAAT = os.path.join(ROOT, o.plaat)
     H = json.load(open(os.path.join(BRON, 'stokhoeken.json')))
     cache = {}
     def nieuw(k, kont=0):
