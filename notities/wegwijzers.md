@@ -167,11 +167,30 @@ lessen en alle afgekeurde versies staan in de projectnotitie `claude/holle_stam_
 - **Botsing**: `holstamDak` geeft een onzichtbare zwevende laag (look 'geen', zoals `kruipstamDak`). readLevel zet hem
   erbij, de sandbox zelf (met `holstam: true`, zodat Weg hem weer vindt). Vijanden blijven op de grond (vloerBij kijkt pas
   naar een zwever vanaf 140 onder de bovenkant).
+- **Breedte**: in wereld-px, en die schaalt met het beeld (`nowScale`), net als een kei: zo valt de botsing precies op de
+  plaat. Het dak (`holstamDak`, met `hq`) werkt `holstamUpdate` elk beeld bij. Met `anker: 'r'` is `x` de rechterkant in
+  plaats van het midden, zodat een stam strak tegen iets vast ligt (de lange stam in Test 93 tegen de treden). Een kleine
+  stam (plafond onder Amir) heeft het dak en het vervagen pas 0,42 Amir binnen de opening: je loopt tot in de opening en
+  bukt daar.
 - **Lagen**: `holstamAchter` (na `hstamTeken`) tekent de binnenkant achter de personages, en de schil als Amir bovenop
-  staat; `holstamVoor` (na `kzaalVoor`, dus voor Amir en de vijanden) tekent anders de schil. Loopt Amir erin
-  (`holstamBinnen`, in de eerste 7% vanaf een opening loopt het op), dan vervaagt de schil tot 22% en blijft de rand dicht.
-- **Vuurvliegjes** (`vlieg: true`): binnen 0,62 donker in plaats van 0,48, en twaalf stipjes (`holstamVliegStap`) die
+  staat; `holstamVoor` (na `tonVoorTeken`, dus na alle vijanden) tekent anders de schil: een vijand in de stam zie je niet
+  tot Amir erin loopt. Loopt Amir erin (`holstamBinnen`, in de eerste 7% vanaf een opening loopt het op), dan vervaagt de
+  voorkant helemaal en blijven de rand boven en de lip over zijn voeten dicht (`bron.lip`, 46 bronpixels boven de looplijn):
+  zo sta je erin.
+- **Vuurvliegjes** (`vlieg: true`): binnen 0,5 donker in plaats van 0,3, en twaalf stipjes (`holstamVliegStap`) die
   zweven en knipperen. Een steek (`holstamUpdate`, op atkFrame), de lage zwaai (`holstamZwaai`, een keer per sweepId) of
   een vijand die sterft (`vijandDood`) roept `holstamSchrik` aan: hooguit vier in de buurt flitsen op, schieten weg met
   een zigzag en sterke demping, blijven binnen de stam en vliegen dan door de dichtstbijzijnde opening naar buiten (omhoog
   of opzij). Na 4 tot 6,5 s komen ze rustig door een opening terug naar hun plek. Geen sporen: losse stipjes.
+
+### Gaten in de schors (`HOLSTAM.gat`)
+
+Een steek of lage zwaai binnen in de stam raakt de binnenwand op de speerpunt (`holstamSlag`). Elke slag spat scherven
+(bleke houtsplinters, schorsbrokken, mosplukjes, uit `design/regenwoud/holstam/gat/`, Grok-post 11874e58) en kruimels; af
+en toe (`kans` 0,3, hooguit 6) blijft er een klein gat. Met `hol: {dx, inhoud, goud}` op een stam zit er een verstopt hol
+in de wand: een haarscheur met af en toe een warme zweem, en vier slagen erop breken hem open (`gat_0` tot `gat_4`,
+Grok-post 1cc7330a, elk een stand). Bij de laatste slag schudt het beeld en vliegen er stukken in perspectief langs de
+camera (`holstamLens`, zoals de tonnen bij Nyundo, maar ze raken de lens niet). Dan gloeit het hol en E steekt je arm
+erin: een kalebas valt eruit, of met `inhoud: 'goud'` goud (`holstamGatE`, in `eDruk` na de kist). Sterf je, dan is alles
+weer dicht (`holstamReset`). Sandbox Terrein, Holle stam, **Met hol**; Test 93 heeft een hol in de eerste en de lange stam.
+
