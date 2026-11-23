@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ardhi heal-effect</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: een werkbank voor een game-effect, rustig en precies
+   IDEA: een afstelbank: het effect groot in beeld, de knoppen eronder als een mengpaneel
+   PICTURE: de echte scene uit het spel met het effect live erop
+   COLOUR and TYPE: aardebruin en nachtpaars, goud als accent (het licht van het effect); Inter Tight + Inter
+   LAYOUT: scene bovenaan met de tijdlijn eronder, dan drie kolommen: tijd, uiterlijk, geluid */
+:root{color-scheme:light dark;--bg:light-dark(#f3ece2,#17121a);--paneel:light-dark(#fffaf3,#221b26);--ink:light-dark(#2a1f19,#efe6da);--zacht:light-dark(#7a6656,#a8998c);--lijn:light-dark(#e2d6c6,#3a2f3f);--goud:#e8a630;--goud2:#ffd56a}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,sans-serif;overflow-x:clip}
+h1{font:700 26px/1.1 'Inter Tight',Inter,sans-serif;margin:0}
+.kop{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;padding:18px max(3vw,14px) 10px}
+.kop p{margin:0;color:var(--zacht)}
+.werk{padding:0 max(3vw,14px) 28px;max-width:1240px;margin:0 auto}
+.scene{position:relative;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:700/480}
+.scene canvas{position:absolute;inset:0;width:100%;height:100%}
+.balk{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0 6px}
+button,select{font:600 15px Inter,sans-serif;min-height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--lijn);background:var(--paneel);color:var(--ink);cursor:pointer}
+button.hoofd{background:var(--goud);border-color:var(--goud);color:#241505}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--goud2);outline-offset:2px}
+.tijd{flex:1 1 260px;display:flex;align-items:center;gap:10px}
+.tijd input{flex:1}
+.tijd output{font-variant-numeric:tabular-nums;min-width:4.6em;text-align:right}
+.lijnen{position:relative;height:22px;margin:0 0 14px}
+.lijnen span{position:absolute;top:0;font-size:12px;color:var(--zacht);white-space:nowrap;transform:translateX(-50%);border-left:1px solid var(--goud);padding-left:4px}
+.kolom{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media(max-width:900px){.kolom{grid-template-columns:minmax(0,1fr)}}
+fieldset{border:1px solid var(--lijn);border-radius:10px;background:var(--paneel);padding:12px 14px 6px;margin:0}
+legend{font:700 15px 'Inter Tight',sans-serif;padding:0 6px}
+.rij{display:grid;grid-template-columns:8.5em minmax(0,1fr) 3.6em;gap:8px;align-items:center;margin:6px 0}
+.rij label{font-size:14px}
+.rij output{font-size:13px;text-align:right;font-variant-numeric:tabular-nums;color:var(--zacht)}
+input[type=range]{width:100%;accent-color:var(--goud);height:30px}
+.geluid{border-top:1px solid var(--lijn);padding-top:8px;margin-top:8px}
+.geluid:first-of-type{border-top:0;margin-top:0;padding-top:0}
+.geluid .naam{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:600}
+.geluid select{min-height:36px;padding:0 8px;font-size:14px}
+.export{margin-top:14px}
+textarea{width:100%;min-height:96px;font:13px/1.4 ui-monospace,Menlo,monospace;background:var(--paneel);color:var(--ink);border:1px solid var(--lijn);border-radius:8px;padding:10px}
+.klein{font-size:13px;color:var(--zacht)}
+</style>
+</head>
+<body>
+<div class="kop"><h1>Ardhi: leven uit de vijand</h1><p>Speel het effect af, stel tijd, uiterlijk en geluid af, en kopieer de instellingen voor Claude.</p></div>
+<div class="werk">
+  <div class="scene"><canvas id="cv" width="1400" height="960"></canvas></div>
+  <div class="balk">
+    <button class="hoofd" id="speel">Afspelen</button>
+    <button id="lus" aria-pressed="false">Herhalen: uit</button>
+    <select id="tempo" aria-label="Tempo"><option value="1">Tempo 1x</option><option value="0.5">Tempo 0,5x</option><option value="0.25">Tempo 0,25x</option></select>
+    <div class="tijd"><input type="range" id="t" min="0" max="3.5" step="0.01" value="0" aria-label="Tijd"><output id="tuit">0,00 s</output></div>
+  </div>
+  <div class="lijnen" id="lijnen"></div>
+  <div class="kolom">
+    <fieldset id="fTijd"><legend>Tijd (seconden)</legend></fieldset>
+    <fieldset id="fLook"><legend>Uiterlijk</legend>
+      <div class="rij"><label for="stijl">Stijl</label><select id="stijl" style="grid-column:span 2"><option value="komeet">Komeet (staartje)</option><option value="bol">Bol</option><option value="wervel">Wervel</option></select></div>
+    </fieldset>
+    <fieldset id="fGeluid"><legend>Geluid</legend></fieldset>
+  </div>
+  <div class="export">
+    <div class="balk"><button class="hoofd" id="kopie">Kopieer instellingen</button><button id="reset">Terug naar standaard</button><span class="klein" id="melding"></span></div>
+    <textarea id="json" readonly aria-label="Instellingen als tekst"></textarea>
+  </div>
+</div>
+<script>
+{
+const IMG = { scene: '__SCENE__', drup: '__DRUP__' };
+const SND = { tink: '__TINK__', plop: '__PLOP__', warm: '__WARM__' };
+const SND_NAAM = { tink: 'Glazen tik', plop: 'Zachte plop', warm: 'Warme ontvangst' };
+// de scene (pixels van de 700 x 480 schermafdruk): Amir en de bandiet, en de maat van een Amir
+const SC = { A: 160, ax: 228, top: 282, ex: 545, voetE: 432 };
+const STD = {
+  stijl: 'komeet', uit: 0.8, glim: 0.32, breek: 0.16, zweef: 0.3, vlucht: 1.5,
+  trek: 0.22, boog: 0.12, maat: 0.12, gloed: 0.6, slierten: 26, bolletjes: 5, staart: 26, bolMaat: 0.075,
+  geluiden: { tink: { moment: 'glim', dt: 0, vol: 0.35 }, plop: { moment: 'poef', dt: 0, vol: 0.35 }, warm: { moment: 'aankomst', dt: -0.35, vol: 0.4 } }
+};
+const TIJD = [['uit', 'Gloed eruit', 0.2, 2, 0.05], ['glim', 'Glim', 0, 1, 0.02], ['breek', 'Poef', 0.05, 0.6, 0.01], ['zweef', 'Zweven', 0, 1.5, 0.05], ['vlucht', 'Vlucht', 0.4, 3, 0.05]];
+const LOOK = [['maat', 'Druppel', 0.05, 0.3, 0.01], ['trek', 'Hoogte druppel', 0, 0.6, 0.01], ['boog', 'Boog', 0, 0.6, 0.01], ['gloed', 'Gloed lijf', 0, 1, 0.05],
+  ['slierten', 'Slierten', 6, 40, 1], ['bolMaat', 'Bolletje', 0.03, 0.15, 0.005], ['bolletjes', 'Mini-bolletjes', 0, 10, 1], ['staart', 'Staartlengte', 0, 50, 1]];
+const MOMENT = { start: 'Begin', glim: 'Glim', poef: 'Poef', aankomst: 'Aankomst' };
+const SLEUTEL = 'ardhi-heel-tool-v1';
+let H = JSON.parse(JSON.stringify(STD));
+try { const o = JSON.parse(localStorage.getItem(SLEUTEL)); if (o){ Object.assign(H, o); H.geluiden = Object.assign({}, STD.geluiden, o.geluiden || {}); } } catch (e) {}
+const $ = id => document.getElementById(id), fmt = v => String(+(+v).toFixed(2)).replace('.', ',');
+const cv = $('cv'), ctx = cv.getContext('2d'), K = cv.width / 700;
+const scene = new Image(); scene.src = IMG.scene; const drup = new Image(); drup.src = IMG.drup;
+// ---- de knoppen ----
+function rij(doel, [k, naam, min, max, stap]){
+  const d = document.createElement('div'); d.className = 'rij';
+  d.innerHTML = `<label for="r_${k}">${naam}</label><input type="range" id="r_${k}" min="${min}" max="${max}" step="${stap}"><output id="o_${k}"></output>`;
+  doel.appendChild(d);
+  const i = d.querySelector('input'); i.value = H[k]; d.querySelector('output').textContent = fmt(H[k]);
+  i.addEventListener('input', () => { H[k] = +i.value; d.querySelector('output').textContent = fmt(i.value); bewaar(); });
+}
+TIJD.forEach(r => rij($('fTijd'), r)); LOOK.forEach(r => rij($('fLook'), r));
+$('stijl').value = H.stijl; $('stijl').onchange = e => { H.stijl = e.target.value; bewaar(); };
+for (const k in SND){
+  const g = H.geluiden[k], d = document.createElement('div'); d.className = 'geluid';
+  d.innerHTML = `<div class="naam"><span>${SND_NAAM[k]}</span><button id="p_${k}" style="min-height:36px">Speel los</button></div>
+    <div class="rij"><label for="m_${k}">Moment</label><select id="m_${k}"><option value="uit">Niet gebruiken</option>${Object.entries(MOMENT).map(([v, n]) => `<option value="${v}">${n}</option>`).join('')}</select><span></span></div>
+    <div class="rij"><label for="d_${k}">Verschuiven</label><input type="range" id="d_${k}" min="-1" max="1" step="0.05"><output id="od_${k}"></output></div>
+    <div class="rij"><label for="v_${k}">Volume</label><input type="range" id="v_${k}" min="0" max="1" step="0.05"><output id="ov_${k}"></output></div>`;
+  $('fGeluid').appendChild(d);
+  const m = d.querySelector('#m_' + k), dt = d.querySelector('#d_' + k), vol = d.querySelector('#v_' + k);
+  m.value = g.moment; dt.value = g.dt; vol.value = g.vol; d.querySelector('#od_' + k).textContent = fmt(g.dt); d.querySelector('#ov_' + k).textContent = fmt(g.vol);
+  m.onchange = () => { g.moment = m.value; bewaar(); };
+  dt.oninput = () => { g.dt = +dt.value; d.querySelector('#od_' + k).textContent = fmt(dt.value); bewaar(); };
+  vol.oninput = () => { g.vol = +vol.value; d.querySelector('#ov_' + k).textContent = fmt(vol.value); bewaar(); };
+  d.querySelector('#p_' + k).onclick = () => { laadAudio().then(() => speelGeluid(k, 0, g.vol || 0.5)); };
+}
+function bewaar(){ try { localStorage.setItem(SLEUTEL, JSON.stringify(H)); } catch (e) {} $('json').value = JSON.stringify(H, null, 1); lijnen(); }
+// ---- geluid ----
+let ac = null, buf = {};
+async function laadAudio(){
+  if (!ac){ ac = new (window.AudioContext || window.webkitAudioContext)(); }
+  if (ac.state === 'suspended') await ac.resume();
+  for (const k in SND) if (!buf[k]){ const r = await fetch(SND[k]); buf[k] = await ac.decodeAudioData(await r.arrayBuffer()); }
+}
+let bronnen = [];
+function speelGeluid(k, wacht, vol, rate){
+  if (!ac || !buf[k]) return;
+  const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = buf[k]; s.playbackRate.value = rate || 1; g.gain.value = vol;
+  s.connect(g).connect(ac.destination); s.start(ac.currentTime + Math.max(0, wacht)); bronnen.push(s);
+}
+function stopGeluid(){ for (const s of bronnen) try { s.stop(); } catch (e) {} bronnen = []; }
+// ---- de tijden ----
+function tijden(){ const Tg = H.uit, Tb = H.uit + H.glim, Tw = Tb + H.breek, Ts = Tw + H.zweef, Ta = Ts + H.vlucht; return { start: 0, glim: Tg, poef: Tb, Tw, Ts, aankomst: Ta, eind: Ta + 0.6 }; }
+function lijnen(){
+  const T = tijden(), max = T.eind; $('t').max = max.toFixed(2);
+  $('lijnen').innerHTML = [['glim', 'Glim'], ['poef', 'Poef'], ['aankomst', 'Aankomst: leven']].map(([k, n]) => `<span style="left:${(T[k] / max * 100).toFixed(1)}%">${n}</span>`).join('');
+}
+// ---- het effect, zoals ardhiHeelTeken in het spel ----
+function zacht(x, y, r, a){
+  if (a <= 0.01 || r <= 0.2) return;
+  ctx.globalAlpha = Math.min(1, a);
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, 'rgba(255,250,220,1)'); g.addColorStop(0.3, 'rgba(255,215,110,0.75)'); g.addColorStop(1, 'rgba(255,170,40,0)');
+  ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+}
+function teken(t){
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  if (scene.complete) ctx.drawImage(scene, 0, 0, cv.width, cv.height);
+  ctx.setTransform(K, 0, 0, K, 0, 0);
+  const A = SC.A, T = tijden(), Tb = T.poef, Tw = T.Tw, Ts = T.Ts, Ta = T.aankomst;
+  const ex = SC.ex, ey = SC.voetE - 0.55 * A, sx = SC.ax, topY = SC.top;
+  const bx = ex + Math.sign(sx - ex) * A * 0.14, by = ey - A * H.trek, ax = sx, ay = topY + A * 0.36;
+  const asp = drup.naturalHeight / drup.naturalWidth || 1.7, m = A * H.maat;
+  ctx.save();
+  if (t < Tw){
+    const k = Math.min(1, t / H.uit), br = Math.max(0, (t - Tb) / H.breek);
+    ctx.globalCompositeOperation = 'lighter';
+    const lg = Math.sin(Math.min(1, k * 1.15) * Math.PI) * (1 - br);
+    const voet = ey + A * 0.55, kopY = voet - A * 0.95, midY = (voet + kopY) / 2;
+    if (lg > 0.01){
+      ctx.globalAlpha = lg * H.gloed;
+      ctx.save(); ctx.translate(ex, midY); ctx.scale(0.42, 1);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, A * 0.58);
+      g.addColorStop(0, 'rgba(255,215,110,0.85)'); g.addColorStop(0.55, 'rgba(240,190,70,0.4)'); g.addColorStop(1, 'rgba(220,160,40,0)');
+      ctx.fillStyle = g; ctx.fillRect(-A * 0.58, -A * 0.58, A * 1.16, A * 1.16); ctx.restore();
+    }
+    for (let i = 0; i < H.slierten; i++){
+      const t0 = (i % 9) / 9 * 0.45, u = (k - t0) / 0.5; if (u < 0 || u > 1) continue;
+      const hy = ((i * 0.618) % 1), breed = A * (hy < 0.15 ? 0.07 : hy < 0.55 ? 0.17 : 0.12);
+      const sx0 = ex + Math.sin(i * 2.7) * breed, sy0 = kopY + A * 0.04 + hy * (voet - kopY - A * 0.06);
+      const v = u * u, x = sx0 + (bx - sx0) * v + Math.sin(u * 6 + i) * A * 0.02 * (1 - u), y = sy0 + (by - sy0) * v;
+      zacht(x, y, A * 0.022 * (1 - 0.4 * u), Math.sin(u * Math.PI) * 0.9);
+      zacht(sx0 + (bx - sx0) * Math.max(0, v - 0.08), sy0 + (by - sy0) * Math.max(0, v - 0.08), A * 0.014, Math.sin(u * Math.PI) * 0.4);
+    }
+    const vorm = Math.max(0, Math.min(1, (k - 0.45) / 0.5)), e = vorm * vorm * (3 - 2 * vorm);
+    zacht(bx, by, A * 0.06 * (0.4 + 0.6 * e) * (1 + 0.6 * br), (0.3 + 0.7 * e) * (1 - br));
+    if (e > 0 && br < 1 && drup.complete){
+      ctx.globalCompositeOperation = 'source-over';
+      const tril = k >= 1 ? Math.sin(t * 60) * A * 0.004 : 0, b = m * e * (1 + 0.25 * br) * (1 - br), h = b * asp;
+      ctx.globalAlpha = e * (1 - br); ctx.drawImage(drup, bx - b / 2 + tril, by - h / 2, b, h);
+      ctx.globalCompositeOperation = 'lighter';
+    }
+    const gl = H.glim > 0 ? Math.max(0, Math.min(1, (t - H.uit) / H.glim)) : 0;
+    if (gl > 0 && gl < 1){
+      const f = Math.sin(gl * Math.PI), gx = bx - m * 0.18 + m * 0.36 * gl, gy = by - m * asp * 0.22 + m * asp * 0.25 * gl;
+      ctx.save(); ctx.translate(gx, gy); ctx.rotate(gl * 0.6); ctx.globalAlpha = f;
+      for (const [w, h] of [[A * 0.09 * f, A * 0.007], [A * 0.007, A * 0.09 * f], [A * 0.04 * f, A * 0.005]]){
+        const l2 = ctx.createRadialGradient(0, 0, 0, 0, 0, Math.max(w, h)); l2.addColorStop(0, 'rgba(255,255,255,1)'); l2.addColorStop(1, 'rgba(255,240,200,0)');
+        ctx.fillStyle = l2; ctx.fillRect(-w, -h, w * 2, h * 2);
+      }
+      ctx.restore(); zacht(gx, gy, A * 0.02 * f, f);
+    }
+    if (br > 0){
+      zacht(bx, by, A * 0.16 * (0.5 + br), Math.sin(br * Math.PI) * 0.9);
+      for (let i = 0; i < 10; i++){ const h = i / 10 * Math.PI * 2, r = A * (0.04 + 0.13 * br); zacht(bx + Math.cos(h) * r, by + Math.sin(h) * r * 0.7, A * 0.012, 1 - br); }
+    }
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  if (t >= Tb && t < Ts + 0.08){
+    const k = Math.min(1, (t - Tb) / H.breek), wt = Math.max(0, t - Tw);
+    const puls = 1 + 0.15 * Math.sin(wt * 14), r = A * 0.07 * (0.6 + 0.4 * k) * puls, op = A * 0.04 * Math.min(1, wt / Math.max(0.01, H.zweef));
+    zacht(bx, by - op, r, t > Ts ? 1 - (t - Ts) / 0.08 : 1);
+    for (let i = 0; i < 6; i++){ const h = i / 6 * Math.PI * 2 + wt * 3, rr = A * (0.05 + 0.035 * Math.sin(wt * 5 + i)); zacht(bx + Math.cos(h) * rr, by - op + Math.sin(h) * rr * 0.6, A * 0.012, 0.8 * k); }
+  }
+  if (t >= Ts){
+    const sy0 = by - A * 0.04, ruw = Math.min(1, (t - Ts) / H.vlucht), q = ruw * ruw * (3 - 2 * ruw);
+    const pad = u => [bx + (ax - bx) * u, sy0 + (ay - sy0) * u - A * H.boog * Math.sin(Math.PI * u)];
+    const [x, y] = pad(q), st = H.stijl, nabij = Math.max(0, (q - 0.85) / 0.15);
+    if (st === 'komeet' && H.staart > 0) for (let j = H.staart; j >= 1; j--){ const [tx, ty] = pad(Math.max(0, q - j * 0.008)); zacht(tx, ty, A * 0.045 * (1 - j / (H.staart + 1)), 0.4 * (1 - j / (H.staart + 1))); }
+    if (st === 'wervel') for (let i = 0; i < 10; i++){ const qi = (i + 0.5) / 10, los = (q - qi) * H.vlucht; if (los < 0 || los > 0.5) continue; const [vx, vy] = pad(qi); zacht(vx + Math.sin(i * 2.3) * A * 0.05 * los, vy - A * 0.1 * los, A * 0.01, 0.9 * (1 - los / 0.5)); }
+    const n = st === 'wervel' ? H.bolletjes + 2 : H.bolletjes, rb = A * (st === 'wervel' ? 0.17 * (1 - 0.5 * q) : 0.11) * (1 - nabij), achter = [], voor = [];
+    for (let i = 0; i < n; i++){ const h = t * (st === 'wervel' ? 7 : 4.5) + i / n * Math.PI * 2, kant = Math.sin(h);
+      (kant < 0 ? achter : voor).push({ x: x + Math.cos(h) * rb, y: y + kant * rb * 0.45 + Math.sin(t * 3 + i) * A * 0.008, r: A * 0.024 * (0.8 + 0.3 * kant), a: 0.7 + 0.3 * kant }); }
+    for (const b of achter) zacht(b.x, b.y, b.r, b.a);
+    if (ruw < 1 || t < Ta + 0.05) zacht(x, y, A * H.bolMaat * (1 + 0.1 * Math.sin(t * 9)), ruw < 1 ? 1 : Math.max(0, 1 - (t - Ta) / 0.05));
+    for (const b of voor) zacht(b.x, b.y, b.r, b.a);
+  }
+  const gi = t > Ta - 0.1 ? Math.max(0, 1 - Math.abs(t - Ta - 0.15) / 0.45) : 0;
+  if (gi > 0){ ctx.globalAlpha = gi; const gg = ctx.createRadialGradient(ax, ay, 0, ax, ay, A * 0.34);
+    gg.addColorStop(0, 'rgba(255,238,160,0.85)'); gg.addColorStop(0.4, 'rgba(225,205,90,0.35)'); gg.addColorStop(1, 'rgba(160,190,60,0)');
+    ctx.fillStyle = gg; ctx.fillRect(ax - A * 0.34, ay - A * 0.34, A * 0.68, A * 0.68); }
+  ctx.restore();
+}
+// ---- afspelen ----
+let t = 0, loopt = false, vorige = 0, lus = false;
+function start(){
+  laadAudio().then(() => {
+    stopGeluid(); t = 0; loopt = true; vorige = performance.now(); $('speel').textContent = 'Stop';
+    const T = tijden(), sp = +$('tempo').value;
+    for (const k in H.geluiden){ const g = H.geluiden[k]; if (g.moment === 'uit' || !(g.vol > 0)) continue; speelGeluid(k, (T[g.moment] + g.dt) / sp, g.vol, sp); }
+  }).catch(() => { $('melding').textContent = 'Geluid kon niet starten in deze weergave.'; });
+}
+function stop(){ loopt = false; stopGeluid(); $('speel').textContent = 'Afspelen'; }
+$('speel').onclick = () => loopt ? stop() : start();
+$('lus').onclick = e => { lus = !lus; e.target.textContent = 'Herhalen: ' + (lus ? 'aan' : 'uit'); e.target.setAttribute('aria-pressed', lus); };
+$('t').oninput = e => { if (loopt) stop(); t = +e.target.value; };
+function stap(nu){
+  if (loopt){ t += (nu - vorige) / 1000 * +$('tempo').value; const T = tijden();
+    if (t >= T.eind){ if (lus){ start(); } else { t = T.eind; stop(); } } }
+  vorige = nu; $('t').value = t; $('tuit').textContent = fmt(t) + ' s';
+  teken(t); requestAnimationFrame(stap);
+}
+$('kopie').onclick = () => { const s = JSON.stringify(H); (navigator.clipboard ? navigator.clipboard.writeText(s) : Promise.reject()).then(() => { $('melding').textContent = 'Gekopieerd. Plak het in de chat bij Claude.'; }, () => { $('json').select(); $('melding').textContent = 'Kopieer de tekst hieronder en plak hem in de chat.'; }); };
+$('reset').onclick = () => { H = JSON.parse(JSON.stringify(STD)); bewaar(); location.reload(); };
+bewaar(); requestAnimationFrame(stap);
+}
+</script>
+</body>
+</html>

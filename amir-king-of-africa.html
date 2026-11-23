@@ -28160,7 +28160,10 @@ function prooiTeken(sx, topY, s, scale){
 const ARDHI = {
   speer: { w: 624, h: 56, tipX: 623, tipY: 26.9 },      // design/speer/ardhi/jav.png, de punt rechts (tools/ardhi_bak.py)
   kans: { stok: [1, 33], steek: [1, 33], worp: [1, 10] },   // de knikkerzak: zoveel raak op zoveel knikkers (3%, 3%, 10%)
-  heel: { stijl: 'komeet', geluid: false, uit: 0.8, glim: 0.32, breek: 0.16, zweef: 0.3, vlucht: 1.5, trek: 0.22, boog: 0.12, maat: 0.12 },   // geluid: false tot er goede geluiden zijn; uit: de gloed uit zijn lijf die de druppel vormt;   // stijl: 'bol' (een bolletje met mini-bolletjes eromheen), 'komeet' (met een staartje) of 'wervel' (de bolletjes trekken in, vonkjes blijven achter);   // uit de vijand trekken, barsten, zweven, de lichtstroom naar Amir (het leven als hij binnen is); zo hoog boven zijn borst, zo hoog de boog en zo groot de druppel (in Amir)
+  heel: { stijl: 'komeet', geluid: true,
+    // de geluiden (uit ElevenLabs, afgesteld in de tool Ardhi heal-effect): per geluid het moment (start, glim, poef, aankomst),
+    // een verschuiving in seconden en het volume; tink is sounds/ardhi_glim.mp3, plop ardhi_plop.mp3, warm ardhi_heel.mp3
+    geluiden: { tink: { moment: 'glim', dt: 0, vol: 0.35 }, plop: { moment: 'poef', dt: 0, vol: 0.35 }, warm: { moment: 'aankomst', dt: -0.35, vol: 0.4 } }, uit: 0.8, glim: 0.32, breek: 0.16, zweef: 0.3, vlucht: 1.5, trek: 0.22, boog: 0.12, maat: 0.12 },   // geluid: false tot er goede geluiden zijn; uit: de gloed uit zijn lijf die de druppel vormt;   // stijl: 'bol' (een bolletje met mini-bolletjes eromheen), 'komeet' (met een staartje) of 'wervel' (de bolletjes trekken in, vonkjes blijven achter);   // uit de vijand trekken, barsten, zweven, de lichtstroom naar Amir (het leven als hij binnen is); zo hoog boven zijn borst, zo hoog de boog en zo groot de druppel (in Amir)
   wortel: { duur: 1.6, n: 2, bereik: 2.2, groei: 0.28, zak: 0.35, maat: 0.8 }   // de wortels: zo lang vast, zoveel vijanden, binnen zoveel Amir, groeien, wegzakken, breedte (in Amir)
 };
 let ardhiImg = null, ardhiDrup = null, ardhiRing = null, ardhiSnd = null;
@@ -28169,7 +28172,7 @@ function ardhiLaad(){
   ardhiImg = loadQuiet(['design/speer/ardhi/jav.png']);
   ardhiDrup = loadQuiet(['design/ardhi/druppel_los.png']);   // de kale druppel, zonder de blaadjes en het plasje
   ardhiRing = loadQuiet(['design/ardhi/ring.png']);
-  ardhiSnd = { heel: banStemmen('sounds/ardhi_heel.mp3', 2), plop: banStemmen('sounds/ardhi_plop.mp3', 2), wortel: banStemmen('sounds/ardhi_wortel.mp3', 3) };
+  ardhiSnd = { warm: banStemmen('sounds/ardhi_heel.mp3', 2), plop: banStemmen('sounds/ardhi_plop.mp3', 2), tink: banStemmen('sounds/ardhi_glim.mp3', 2), wortel: banStemmen('sounds/ardhi_wortel.mp3', 3) };
 }
 let sbArdhi = false;                              // de sandboxknop Ardhi's Reach (met Roots)
 let ardhiGast = null;                             // tijdens een treffer van een gast (mpcTrefferVanGast): zijn Ardhi-worp met Roots
@@ -28286,10 +28289,14 @@ function ardhiStap(dt){
         lives = Math.min(levensStart(), lives + 1); drawLives();
         if (typeof mpCoopAan === 'function' && mpCoopAan() && typeof mpCoopHud === 'function') mpCoopHud();
       }
-      if (ardhiSnd && ARDHI.heel.geluid) banStemSpeel(ardhiSnd.heel, 0.8);
     }
     if (p.t < H.uit && p.s && Number.isFinite(p.s.x)){ p.vx = p.s.x; p.vh = (p.s.base || 0) + CHAR_H * 0.55; }   // hij komt uit de vijand, ook als die beweegt
-    if (!p.knal && p.t >= H.uit + H.glim){ p.knal = true; if (ardhiSnd && ARDHI.heel.geluid) banStemSpeel(ardhiSnd.plop, 0.7); }   // de druppel barst: een vloeibare plop
+    if (H.geluid && ardhiSnd){                       // de geluiden, elk op zijn moment (ARDHI.heel.geluiden)
+      const M = { start: 0, glim: H.uit, poef: H.uit + H.glim, aankomst: H.uit + H.glim + H.breek + H.zweef + H.vlucht };
+      p.klank = p.klank || {};
+      for (const k in H.geluiden){ const g = H.geluiden[k]; if (p.klank[k] || !(k in ardhiSnd) || !(g.moment in M)) continue;
+        if (p.t >= M[g.moment] + g.dt){ p.klank[k] = true; if (g.vol > 0) banStemSpeel(ardhiSnd[k], g.vol); } }
+    }
     if (p.t >= H.uit + H.glim + H.breek + H.zweef + H.vlucht + 0.6 || dead) ardhiHeelNu = null;
   }
   const gast = typeof mpcGast === 'function' && mpcGast();
