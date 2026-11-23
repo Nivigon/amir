@@ -23685,6 +23685,7 @@ function zhOpstaan(x, h, zelf, tekst){
   deadEl.classList.remove('on');
   drawLives(); hudToon();
   if (pvp && pvp.coop) delete pvp.coop.doodT[pvp.mij];
+  tlog.terugHoe = /Bennu/.test(tekst || '') ? 'veren' : 'silverpride';   // de tester-logging: waardoor hij terugkwam (TLOG)
   flashHint(tekst || (solo ? 'A Silver Lion brought you back. Get away!' : 'A Silver Lion brought you back'));
 }
 // hoe groot iemand nu is die uit het hart komt (1 als er niets loopt)
@@ -59021,6 +59022,7 @@ function winLevel(){
   nb.textContent = hasNext ? 'Volgende level: ' + levelList[levelIdx + 1].name : 'Volgende level (komt nog)';
   if (levelList === TUT_LEVELS){ nb.textContent = 'Tutorial complete'; tutGehaald(); }   // geen volgend level, wel het vinkje op de knop
   document.getElementById('win').classList.add('on');
+  if (typeof tlogFbToon === 'function') tlogFbToon('Level complete');   // de tester-logging: hoe was het (TLOG)
   tribeNaLevel(() => {                            // eerst de nieuwe ability van je tribe
     if (!hasNext) verhaalToon(() => {}, true);    // dan het slot van het verhaal, over het winscherm heen
   });
@@ -65014,6 +65016,7 @@ function tlogCoop(){
 function tlogBron(naam){
   if (!tlog.potje){ tlog.hint = null; return; }
   tlog.bron = naam || tlogOorzaak();
+  const G = tlog.potje.geraakt; G[tlog.bron] = (G[tlog.bron] || 0) + 1;   // elke treffer, per bron (alleen geteld, mee in de regel)
 }
 // een treffer midden in loop (de slangen, de schorpioenen, de pijlen...) zegt vooraf wie het is: tlogHint('snakes'); hurtPlayer(...)
 // De hint geldt alleen voor die ene klap: tlogStap wist hem elk beeld
@@ -65052,28 +65055,84 @@ function tlogDichtste(){
 }
 // elk beeld: een nieuwe poging begint zodra er gespeeld wordt, en sluit bij doodgaan of uitspelen
 function tlogStap(){
-  const nu = performance.now(), stap = Math.min(0.25, Math.max(0, (nu - (tlog.t || nu)) / 1000));   // geen sprong na een pauze
+  const nu = performance.now(), ruw = Math.max(0, (nu - (tlog.t || nu)) / 1000), stap = Math.min(0.25, ruw);   // geen sprong na een pauze
   tlog.t = nu; tlog.hint = null;
+  if (tlogFbEl && tlogFbEl.classList.contains('on') && running && !won && !(mpCoopAan() && pvp.coop.fase === 'uit')) tlogFbDicht();   // er wordt weer gespeeld
   if (!tlogAan() || !running || !(level || sbArena) || (sandbox && !sbArena)) return;   // de sandbox niet, de Survival-arena's wel
   if (laadWacht) return;                             // achter het laadscherm (en in Co-op wachten op de rest) telt nog niet
-  if (tlog.potje && !paused) tlog.potje.tijd += stap;
+  if (tlog.potje && !paused){
+    const P = tlog.potje;
+    P.tijd += stap;
+    // de beeldsnelheid: het gemiddelde en de slechtste seconde van deze poging (niets versturen, alleen tellen)
+    if (ruw > 0 && ruw < 1){
+      P.fps.n++; P.fps.t += ruw; P.fps.sn++; P.fps.st += ruw;
+      if (P.fps.st >= 1){ P.fps.min = Math.min(P.fps.min, P.fps.sn / P.fps.st); P.fps.sn = 0; P.fps.st = 0; }
+    }
+    tlogMoves(P);
+  }
   if (!tlog.potje){
     if (dead || won) return;
     const naam = tlogLevelNaam();
     if (naam !== tlog.doodLevel){ tlog.doodLevel = naam; tlog.doden = 0; tlog.poging = 0; }
     tlog.poging++;
-    tlog.potje = { t0: performance.now(), level: naam, tijd: 0, ronde: pvp ? pvp.ronde : 0 };   // ronde: die van het Duel bij de start (bij het herstarten telt hij al door)
+    tlog.potje = { t0: performance.now(), level: naam, tijd: 0, ronde: pvp ? pvp.ronde : 0,   // ronde: die van het Duel bij de start (bij het herstarten telt hij al door)
+                   moves: {}, geraakt: {}, fps: { n: 0, t: 0, sn: 0, st: 0, min: Infinity } };
+    // Co-op: weer op na een dood is een revive; hoe lang hij lag en waardoor hij terugkwam gaat mee in de regel van deze poging
+    if (tlog.doodT0 && mpCoopAan()) tlog.potje.terug = { na: Math.round((nu - tlog.doodT0) / 1000), hoe: tlog.terugHoe || '?' };
+    tlog.doodT0 = 0; tlog.terugHoe = null;
+    tlog.st = {}; tlogMoves(tlog.potje, true);
     tlog.bron = null;
     return;
   }
   if (won) tlogAf('uit');
   else if (dead) tlogAf('dood');
 }
+// wat de speler doet, per poging geteld: elk beeld een paar vergelijkingen (een move begint als zijn toestand aan gaat).
+// eerst: alleen de stand onthouden, niet tellen (een rol die al liep bij het begin telt niet)
+function tlogMoves(P, eerst){
+  const s = tlog.st, M = P.moves;
+  const tel = (k, aan) => { aan = !!aan; if (aan && !s[k] && !eerst) M[k] = (M[k] || 0) + 1; s[k] = aan; };
+  try {
+    tel('steek', atkFrame >= 0 && !atkCombo && !atkStok);
+    tel('stokslag', atkFrame >= 0 && atkStok && atkStok !== 'grondklap');
+    tel('draaislag', atkCombo);
+    tel('zwaai', swFrame >= 0);
+    tel('rol', rol);
+    tel('grondklap', gkFase);
+    tel('stof', stofA);
+    tel('sluip', sneakRegie);
+    tel('blok', stokBlokOp());
+    tel('meditatie', straalTrance);
+    if (jav && jav !== s.jav && !eerst) M.worp = (M.worp || 0) + 1;
+    s.jav = jav;
+    if (s.kal != null && hppotionCarry < s.kal && !eerst) M.drink = (M.drink || 0) + (s.kal - hppotionCarry);
+    s.kal = hppotionCarry;
+  } catch (e) {}
+}
+// een aankoop in de winkel van Co-op of het Duel: mee in de volgende regel die weggaat (undo: met een min ervoor)
+function tlogKoop(k, prijs, undo){
+  if (!tlogAan()) return;
+  (tlog.koop || (tlog.koop = [])).push((undo ? '-' : '') + k + ':' + prijs + (mpCoopAan() ? '@r' + pvp.coop.ronde : ''));
+}
+// alleen wat er gebeurd is, zonder nullen, zodat extra kort blijft
+function tlogVast(velden){
+  const P = tlog.potje;
+  if (P){
+    if (Object.keys(P.moves).length) velden.moves = P.moves;
+    if (Object.keys(P.geraakt).length) velden.geraakt = P.geraakt;
+    if (P.fps.t > 1) velden.fps = { gem: Math.round(P.fps.n / P.fps.t), min: P.fps.min < Infinity ? Math.round(P.fps.min) : Math.round(P.fps.n / P.fps.t) };
+    if (P.terug) velden.terug = P.terug;
+  }
+  if (tlog.koop && tlog.koop.length){ velden.koop = tlog.koop.join(' '); tlog.koop = []; }
+  return velden;
+}
 // de poging dicht en de regel weg; reden: uit, dood, herstart, menu of weg (het tabblad dicht)
 function tlogAf(reden, beacon){
   const p = tlog.potje;
   if (!p) return;
+  const vast = tlogVast({});
   tlog.potje = null;
+  if (reden === 'dood' && mpCoopAan()) tlog.doodT0 = performance.now();   // om te meten hoe lang hij ligt tot een revive
   if (reden === 'herstart' && pvp && !mpCoopAan()) reden = dead ? 'dood' : 'ronde-gewonnen';   // het Duel: een nieuwe ronde begint, levend = gewonnen
   if (reden === 'dood') tlog.doden++;
   const duur = p.tijd;                               // alleen deze poging, zonder de pauzes (mkStat.tijd telde door over het hele level)
@@ -65087,7 +65146,7 @@ function tlogAf(reden, beacon){
   if (pvp && p.ronde && !mpCoopAan()) velden.ronde = p.ronde;   // het Duel; Co-op zet zijn eigen ronde (tlogCoop)
   if (sandbox && sbArena && sbArenaCfg.g) velden.golf = sbArenaCfg.g.nr;
   if (gameTempo !== 1) velden.tempo = gameTempo;                // het tempo uit de pauze-instellingen, als het niet 100% is
-  tlogStuur(velden, beacon);
+  tlogStuur(Object.assign(velden, vast), beacon);
 }
 addEventListener('pagehide', () => tlogAf('weg', true));
 // Co-op: het potje is voorbij (iedereen dood). Een regel "eind" met de ronde, de score, de kills en de tijd van het team,
@@ -65098,8 +65157,53 @@ function tlogCoopEind(e){
   tlogStuur(Object.assign(tlogInfo(), tlogCoop(), {
     soort: 'eind', duur_s: e.tijd, uitgespeeld: false, doden: tlog.doden, kills: e.kills, plek_x: Math.round(world),
     ronde: e.ronde, score: e.score, ...(e.ep ? { epLevel: e.ep.i + 1, epAlles: e.ep.alles } : {}),
-  }));
+  }, tlogVast({})));
+  tlogFbToon('Game over, round ' + e.ronde);
 }
+// ---- de vraag na het potje (TLOG): sterren en een zin, alleen voor een tester, na game over in Co-op en na een gewonnen level.
+// Een eigen regel 'feedback'. Typen in het vak gaat niet naar het spel (R zou anders opnieuw starten)
+var tlogFbEl = null, tlogFbSter = 0, tlogFbWat = '';
+function tlogFbBouw(){
+  if (tlogFbEl) return tlogFbEl;
+  const st = document.createElement('style');
+  st.textContent = '#tlogfb{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:60;display:none;background:rgba(20,14,8,.92);' +
+    'border:1px solid #c9a24a;border-radius:10px;padding:10px 14px;color:#f3e6c8;font:14px/1.3 sans-serif;width:min(420px,92vw);box-shadow:0 4px 18px rgba(0,0,0,.5)}' +
+    '#tlogfb.on{display:block}#tlogfb b{display:block;margin-bottom:6px}#tlogfb .st{display:flex;gap:4px;margin-bottom:6px}' +
+    '#tlogfb .st button{background:none;border:0;font-size:26px;cursor:pointer;color:#6b5a3a;padding:0 2px}#tlogfb .st button.aan{color:#f2c14e}' +
+    '#tlogfb textarea{width:100%;box-sizing:border-box;height:52px;resize:none;background:#2a2016;color:#f3e6c8;border:1px solid #6b5a3a;border-radius:6px;padding:5px;font:13px sans-serif}' +
+    '#tlogfb .kn{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}#tlogfb .kn button{background:#c9a24a;color:#20160a;border:0;border-radius:6px;padding:5px 12px;cursor:pointer;font-weight:bold}' +
+    '#tlogfb .kn button.sl{background:none;color:#cdb98f;font-weight:normal}';
+  document.head.append(st);
+  const el = tlogFbEl = document.createElement('div');
+  el.id = 'tlogfb';
+  el.innerHTML = '<b>How was that?</b><div class="st"></div><textarea maxlength="300" placeholder="What was hardest? (optional)"></textarea>' +
+    '<div class="kn"><button class="sl">Skip</button><button class="zend">Send</button></div>';
+  const rij = el.querySelector('.st');
+  for (let i = 1; i <= 5; i++){
+    const b = document.createElement('button'); b.textContent = '\u2605'; b.title = i + ' / 5';
+    b.onclick = () => { tlogFbSter = i; rij.querySelectorAll('button').forEach((x, j) => x.classList.toggle('aan', j < i)); };
+    rij.append(b);
+  }
+  const vak = el.querySelector('textarea');
+  for (const t of ['keydown', 'keyup', 'keypress']) vak.addEventListener(t, e => e.stopPropagation());   // het spel hoort niets van het typen
+  el.querySelector('.sl').onclick = () => tlogFbDicht();
+  el.querySelector('.zend').onclick = () => {
+    const tekst = vak.value.trim();
+    if (tlogFbSter || tekst) tlogStuur(Object.assign(tlogInfo(), tlogCoop(), { soort: 'feedback', sterren: tlogFbSter || '', tekst, over: tlogFbWat }));
+    tlogFbDicht();
+  };
+  document.body.append(el);
+  return el;
+}
+function tlogFbToon(wat){
+  if (!tlogAan()) return;
+  const el = tlogFbBouw();
+  tlogFbSter = 0; tlogFbWat = wat || '';
+  el.querySelectorAll('.st button').forEach(x => x.classList.remove('aan'));
+  el.querySelector('textarea').value = '';
+  el.classList.add('on');
+}
+function tlogFbDicht(){ if (tlogFbEl){ tlogFbEl.classList.remove('on'); const v = tlogFbEl.querySelector('textarea'); if (document.activeElement === v) v.blur(); } }
 // het rolscherm
 const rolEl = document.getElementById('menuRol'), rolNaamEl = document.getElementById('rolnaam'), rolFoutEl = document.getElementById('rolfout');
 // wat alleen de designer ziet (body.designer): het Test Lab, en in de pauze Talents kiezen, Arena instellen,
@@ -76009,6 +76113,7 @@ function mpcSymboolStap(){
 function mpcSymboolOp(voor){ playHppotionDrinkSound(); flashHint('Revive!'); pvp.coop.reviveRust[voor] = pvp.coop.t + 3; }
 function mpcOpstaan(x, h){
   if (!dead) return;
+  tlog.terugHoe = 'revive';                           // een teamgenoot pakte zijn symbool (TLOG)
   dead = false; lives = 1; hurt = 0; invuln = 2; world = pvp.coop.ep ? mpEpNaast(x, h) : x + (x > mpcKaart().midden ? -70 : 70); ph = h; pvh = 0;
   deadEl.classList.remove('on');
   drawLives(); hudToon();
@@ -76829,6 +76934,7 @@ function mpcWinkelIn(geheim){
   for (const t of tonnen) if (t.revive) t.weg = true;
   C.reviveTon = {};
   if (dead){                                          // wie dood was staat hier gratis op
+    tlog.terugHoe = 'winkel';
     dead = false; lives = 1; hurt = 0; deadEl.classList.remove('on');
     drawLives(); hudToon();
   }
@@ -76936,6 +77042,7 @@ function mpcWinkelKoop(q, aan){
   if (reden){ winkelSchud(mpcKeus && mpcKeus.q === q && document.activeElement && document.activeElement.id === 'wkinfokoop' ? 'wkinfokoop' : 'wkc_' + q.k + (aan != null ? '_' + aan : ''), reden); return; }
   const prijs = mpcWinkelPrijs(q);
   C.goud -= prijs;
+  tlogKoop(q.k, prijs);                               // de tester-logging: wat hij kocht, in welke ronde (TLOG)
   let tekst = 'Bought: ' + q.naam + '.';
   if (q.k === 'kalebas' && pvp.dw){ hppotionCarry++; hppotionHud(); tekst = 'A gourd in your bag. Press Q in a fight for one life back.'; }   // het Duel: tussen de rondes zijn je levens toch vol
   else if (q.k === 'kalebas'){ lives++; drawLives(); }
@@ -76993,6 +77100,7 @@ function mpcUndo(){
   if (!C || !L) return;
   if (!mpcUndoKan()){ winkelSchud('wkundo', 'You already used it, so the trader will not take it back.'); return; }
   const K = C.koop, k = L.q.k;
+  tlogKoop(k, L.prijs != null ? L.prijs : '', true);   // de tester-logging: teruggebracht (TLOG)
   if (k === 'kalebas' && pvp.dw){ hppotionCarry--; hppotionHud(); }
   else if (k === 'kalebas'){ lives--; drawLives(); }
   else if (k === 'leven'){ K.leven--; pvp.levens--; lives--; drawLives(); }
