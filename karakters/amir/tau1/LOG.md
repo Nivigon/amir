@@ -110,3 +110,11 @@ IoU per kop 0,90 tot 0,95. De prompt (`tau_kopr`) kreeg twee aanvullingen na fou
 - grondklap (26): klaar. Grondklap 17 haalde IoU 0,80 (de stok voor het hoofd beweegt in Grok), de kap zelf zit goed.
 
 Alle stoksets zijn nu in de kap: 196 frames in 33 Grok-generaties.
+
+## De schaduw onder de kap terug (23 nov)
+
+Tom: bij bijna alle stoksets viel het gezicht tegen, je zag ineens zijn hele gezicht in plaats van de zwarte schaduw uit
+het ontwerp. Nu een vaste schaduw in code (`schaduw` in `tau.py`, maten in `SCHADUW`): het gezicht binnen de kap van
+de rand van de kap tot net onder het oog bijna zwart, met een zachte rand; het oog gloeit amber met een klein halo; mond
+en kin houden hun licht. Geen oog te vinden (profiel): een vaste diepte van 11 px onder de rand. Alle tien stoksets
+opnieuw gemaakt, platen en gifs bijgewerkt. Rugaanzichten blijven zonder.

@@ -512,6 +512,73 @@ TAU_KRAS = (208, 162, 108)   # goudbeige zoals op de referentie
 PALET = {'tau': TAU, 'wit': WIT, 'zwart': ZWART}
 
 
+SCHADUW = {'vast': 11, 'diep': 0.16, 'onder_oog': 4, 'zacht': 2.5, 'gloed': 0.45, 'gloed_r': 2.5}
+
+
+def schaduw(beeld, z, K):
+    """De vaste schaduw onder de kap uit het ontwerp (tau_kap_ontwerp.md): het gezicht onder de rand van de kap tot net
+    onder het oog bijna zwart, het oog gloeit amber in die schaduw; mond en kin houden hun licht. In place."""
+    rand = K & ((z == 1) | (z == 4))
+    huid = K & (z == 0) & (beeld[..., 3] > 0)
+    # het oog: een klein amber vlekje binnen de kap dat aan het gezicht grenst (niet de grip, niet de vachtknoopjes)
+    oog = np.zeros(z.shape, bool)
+    lab, n = nd.label(K & (z == 5))
+    bij = nd.binary_dilation(huid, iterations=2)
+    tand = nd.distance_transform_edt(~(K & (z == 4))) if (K & (z == 4)).any() else np.full(z.shape, 99.)
+    for g in range(1, n + 1):
+        w = lab == g
+        ring = nd.binary_dilation(w, iterations=2) & ~w & (beeld[..., 3] > 0)
+        vacht = (z[ring] == 1).mean() if ring.any() else 1
+        if 2 <= w.sum() <= 90 and (w & bij).any() and tand[w].min() <= 16 and vacht < 0.3:
+            oog |= w
+    if not oog.any():                                  # Grok kleurde het oog niet fel genoeg voor zone 5: het warme lichte vlekje
+        H_, S_, V_ = hsv(beeld[..., :3])
+        warm = huid & (H_ > 15) & (H_ < 55) & (S_ > 0.45) & (V_ > 0.5) & (tand <= 16)
+        lab, n = nd.label(warm)
+        for g in range(1, n + 1):
+            w = lab == g
+            if 2 <= w.sum() <= 90:
+                oog |= w
+    if oog.any():                                      # de ogen liggen op een hoogte: alleen wat bij het bovenste hoort
+        lab, n = nd.label(oog)
+        cy = nd.center_of_mass(oog, lab, range(1, n + 1))
+        top = min(c[0] for c in cy)
+        oog = np.isin(lab, [g + 1 for g in range(n) if cy[g][0] - top <= 12])
+    gezicht = huid & ~oog
+    if not oog.any():
+        # geen oog te vinden: in profiel of rugaanzicht. Met tanden en gezicht in de kap toch de schaduw, een vaste diepte
+        if not (K & (z == 4)).any() or not gezicht.any():
+            return
+    if not oog.any():
+        afst = nd.distance_transform_edt(~rand)
+        w = np.where(gezicht, np.clip((SCHADUW['vast'] - afst) / SCHADUW['zacht'] + 0.5, 0, 1), 0)
+        diep = np.array([0.20, 0.13, 0.12]) * 255
+        b = beeld[..., :3].astype(float)
+        b = b * (1 - w[..., None]) + np.minimum(b, diep[None, None]) * w[..., None]
+        beeld[..., :3] = np.clip(b, 0, 255).astype(np.uint8)
+        return
+    if not gezicht.any():
+        return
+    afst = nd.distance_transform_edt(~rand)
+    oy = np.where(oog)
+    D = afst[oy].max() + SCHADUW['onder_oog']
+    yb = oy[0].max() + SCHADUW['onder_oog']
+    Y = np.arange(z.shape[0])[:, None] * np.ones((1, z.shape[1]))
+    # zachte rand: weegt af over 'zacht' px voorbij de grens, op afstand en op hoogte
+    wa = np.clip((D - afst) / SCHADUW['zacht'] + 0.5, 0, 1)
+    wy = np.clip((yb - Y) / SCHADUW['zacht'] + 0.5, 0, 1)
+    w = np.where(gezicht, np.minimum(wa, wy), 0)
+    diep = np.array([0.20, 0.13, 0.12]) * 255 * SCHADUW['diep'] / 0.16
+    b = beeld[..., :3].astype(float)
+    b = b * (1 - w[..., None]) + np.minimum(b, diep[None, None]) * w[..., None]
+    # het oog gloeit: amber, met een klein halo in de schaduw
+    halo = np.clip(1 - nd.distance_transform_edt(~oog) / SCHADUW['gloed_r'], 0, 1) * (w > 0.3) * SCHADUW['gloed']
+    amber = np.array([255, 170, 40], float)
+    b = b * (1 - halo[..., None]) + amber[None, None] * halo[..., None]
+    b[oog] = np.maximum(b[oog], np.array([255, 190, 70]) * 0.95)
+    beeld[..., :3] = np.clip(b, 0, 255).astype(np.uint8)
+
+
 def maak(naam, set_, i):
     """Eindframe: origineel + kap (Grok) + krassen (getekend) + stokken (origineel). Schrijft spelbeeld, zones en
     voorbeeld-recolours; geeft dict met de beelden."""
@@ -546,6 +613,8 @@ def maak(naam, set_, i):
     # paarse zweem in de kap (schaduw onder de kap) naar donkerbruin
     pz = K & (z == 0) & (beeld[..., 3] > 0) & (H > 250) & (H < 335) & (S > 0.2)
     beeld[pz, :3] = (np.array([0.55, 0.36, 0.30])[None] * (V[pz, None] * 255)).astype(np.uint8)
+    schaduw(beeld, z, K)
+    H, S, V = hsv(beeld[..., :3])
     Vrel = np.zeros(z.shape)
     Vrel[(z == 1) & K] = V[(z == 1) & K] / VREF[1]
     Vrel[(z == 1) & ~K] = V[(z == 1) & ~K] / VREF_ORIG[1]
