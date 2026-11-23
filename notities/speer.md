@@ -174,7 +174,7 @@ opdrachtgever (23-11-2026): de stok en de speer kozen hij uit Grok-platen, de na
   draagt de soort `ardhi` (`ardhiStap`). Liggend, op de rug en in de worp `javTeken` met `design/speer/ardhi/jav.png`, in
   Amirs handen `mkSpeerTeken` met `bron/ar_<hoek>.png` en `ar` in `los.json`. In de speervolgorde na de Pathfinder.
 - **Leven terug**: een treffer met een Ardhi-wapen trekt een knikker (`ardhiKnikker`, zie "kansen" in CLAUDE.md):
-  stok 1 op 33, steek 1 op 33, geworpen speer 1 op 10 (`ARDHI.kans`). Raak: een gloed trekt in slierten uit het lijf
+  stok 1 op 33, steek 1 op 25 (de draaislag van Full Circle telt als steek), geworpen speer 1 op 10 (`ARDHI.kans`). Raak: een gloed trekt in slierten uit het lijf
   van de vijand en vormt boven zijn borst een kleine sapdruppel, die even trilt, een laatste glim krijgt (`ARDHI.heel.glim`) en poef doet in een bolletje licht dat
   even zweeft (de geluiden uit ElevenLabs: `sounds/ardhi_glim.mp3` (glazen tik, bij de glim), `ardhi_plop.mp3` (zachte plop, bij de poef) en
   `ardhi_heel.mp3` (warme ontvangst, net voor de aankomst), zacht, met moment, verschuiving en volume in
@@ -186,6 +186,17 @@ opdrachtgever (23-11-2026): de stok en de speer kozen hij uit Grok-platen, de na
   vertraging). `ardhiHeelTeken`, alles uit `p.t`, de maten in `ARDHI.heel`, `design/ardhi/druppel_los.png`. Een eerdere versie (een druppel die boven je hoofd
   oplicht, of in je hoofd valt) vond de opdrachtgever niets. Met
   volle levens trekt hij geen knikker. Een gast krijgt het leven bij zichzelf (`mpcHitDoor`), de host en solo in `gifRaak`.
+- **Ardhi's Bloom** (`ardhibloom`, Spears, 45, na Ardhi's Reach, naast Roots): de kans van de speer verdubbeld, steek 2 op 25
+  en worp 2 op 10 (`ARDHI.bloom`), uit eigen zakken (`worp_bloom`, `steek_bloom`), zodat aan- of uitzetten midden in een
+  level de gewone zak niet raakt. De stokken (Ardhi's Grip) blijven 1 op 33. Het uiterlijk: de aderen (`ardhiAderTeken`,
+  `ARDHI.bloom.aderen`), twee lichtgolven die over de schacht naar de punt lopen en in de worp een dun golvend spoor;
+  liggend, op de rug, in de worp (`javTeken`) en in Amirs hand (`mkSpeerTeken` met `bloom`; dat frame wordt dan niet
+  onthouden, `BB_MEMO`, net als bij de Pathfinder). Ook de anderen zien het: Bloom gaat mee als `ab` in `pvpSperenZend`
+  en `mkSpeerNu`, en bij het tekenen van de speren van een teamgenoot (hand, rug, worp, liggend) zet `ardhiBloomVan` zijn
+  Bloom in plaats van de mijne (`ardhiBloomTeken`). Afgesteld in de tool Ardhi Speergloed
+  (https://claude.ai/artifact/QBUSAumGJinm2vEuo3UZ4D, ook met sporen, puls, gloed en nevel om mee te spelen); de
+  opdrachtgever koos alleen de aderen, voorlopig. Het winkelplaatje `items/winkel/ardhibloom.png`. Sandboxknop
+  **Ardhi's Bloom** (zet Ardhi mee aan). Undo van Reach kan niet als dat je laatste Ardhi-speer is en je Roots of Bloom hebt.
 - **Ardhi's Roots** (`ardhiroots`, Spears, 50, na Ardhi's Reach): raakt een geworpen Ardhi-speer een vijand met
   anderen bij zich (binnen `ARDHI.wortel.bereik` Amir, op dezelfde hoogte), dan staan de twee dichtstbijzijnde
   (de geraakte telt mee) `ARDHI.wortel.duur` seconden vast. De vine-ring (`design/ardhi/ring.png`) schiet van onder
