@@ -22838,6 +22838,62 @@ function fcOpenDoel(){
   return null;
 }
 function fcOpenZet(s){ s.fcOpenTot = bavKlok + FC.openT * 1000; }   // hij sloeg mis: even open
+// Van de galerij geslagen (op verzoek van de opdrachtgever): de terugslag van de draaislag stopt niet aan de rand van
+// een galerij of dak in de stad, maar slaat de vijand eraf, naar de straat eronder. Alleen als die plek veilig is:
+// gewone grond (geen ravijn, geen kraam, geen lagere galerij, geen gang), niet voorbij een wand of de levelgrens, niet
+// in een huis, en niet voorbij de lijn van een hinderlaag die nog dicht is. Anders blijft hij aan de rand staan, zoals
+// eerst. De bandiet en de schildbandiet; in de val is hij niet te raken en daarna staat hij even stil (FC_VAL.rust).
+const FC_VAL = {
+  voor: 90,     // zo ver voorbij de rand (bovenop zijn halve lijf) komt hij neer (wereld-px)
+  min: 60,      // zoveel lager moet de grond liggen, anders is het geen val
+  v0: 240,      // een klein wipje omhoog als hij van de rand slaat
+  g: 2600,      // de valversnelling, zoals BAN_DROP
+  rust: 0.7     // zo lang ligt hij na de landing even stil (s)
+};
+// waar hij neerkomt als de terugslag hem in richting dir van zijn galerij slaat, of null als dat niet veilig kan
+function fcValLanding(s, dir, halfL, plats, cliff){
+  if (!stadAan() || !dir) return null;
+  const b0 = s.base || 0;
+  // de galerij of het dak waar hij op staat (niet een terras of zwever); de rand ervan, niet zijn voeten, is waar hij afgaat
+  let P = null;
+  for (const p of stadVloeren()) if (s.x > p.left && s.x < p.right && Math.abs(p.topH - b0) <= STAD.vijandMarge && (!P || p.topH > P.topH)) P = p;
+  if (!P) return null;
+  const rand = dir > 0 ? P.right : P.left;
+  if (Math.abs(rand - s.x) > halfL * 2 + 220) return null;         // de rand ligt nog ver weg: hier hield iets anders hem tegen
+  const x = rand + dir * (halfL + FC_VAL.voor);
+  const b = vloerBij(x, b0 - FC_VAL.min);
+  if (!(b < b0 - FC_VAL.min)) return null;                         // niet lager: geen val
+  const t = terrainH(x);
+  if (Math.abs(b - t) > 1 || t < -1) return null;                  // geen gewone grond (een lagere galerij, kooi, zwever, gang)
+  if (gatOp(x, b) || inGap(x) || gatOp(x + dir * halfL, b)) return null;   // een ravijn of put
+  if (holteAt(x)) return null;                                     // boven een gang: liever niet
+  for (let k = 0; k <= 4; k++) if (banGjKraam(s.x + (x + dir * halfL - s.x) * k / 4)) return null;   // geen kraam onderweg of eronder
+  if (binnenBij(x) || binnenBij(s.x)) return null;                // in een huis nooit
+  if (hardBlocked({ x: s.x, base: b }, x, plats, cliff, 80)) return null;   // wand, levelgrens of een trede tussen
+  if (hardBlocked({ x: s.x, base: b }, x + dir * halfL, plats, cliff, 80)) return null;
+  if (typeof hinderNu === 'function' && hinder){                   // de hinderlaag van Co-op: nooit voorbij een lijn die nog dicht is
+    const i = hinderNu();
+    if (i >= 0 && x < hinderGrens(i) + halfL) return null;
+  }
+  return { x, base: b };
+}
+// van de rand af: zijn vloer wordt meteen de grond beneden, s.air de hoogte erboven (zoals de galerijsprong)
+function fcValStart(s, L){
+  const h0 = (s.base || 0) - L.base, v0 = FC_VAL.v0, g = FC_VAL.g;
+  s.valX0 = s.x; s.valX1 = L.x; s.valT = 0;
+  s.valDuur = (v0 + Math.sqrt(v0 * v0 + 2 * g * h0)) / g;
+  s.base = L.base; s.air = h0; s.airV = -v0;
+}
+// de val, per beeld; geeft true op het beeld dat hij neerkomt
+function fcValStap(s, dt){
+  s.valT += dt;
+  s.airV += FC_VAL.g * dt; s.air -= s.airV * dt;
+  s.x = s.valX0 + (s.valX1 - s.valX0) * Math.min(1, s.valT / (s.valDuur || 1));
+  if (s.air > 0) return false;
+  s.air = 0; s.airV = 0; s.x = s.valX1; s.valX1 = null;
+  puffWorld(s.x, 8, 0, 1.2, s.base || 0);
+  return true;
+}
 // Crushing Circle, ook samen met rondom (kracht_rond, alleen in de winkel van Co-op)
 function fcKracht(){ return fcSoort === 'kracht' || fcSoort === 'kracht_rond'; }
 // rondom (Co-op): de draaislag raakt iedereen om Amir heen (MPC.rond), ook achter hem
@@ -50543,6 +50599,10 @@ function updateBandiet(s, dt, plats, cliff){
     return;
   }
 
+  if (s.valX1 != null){                              // van de galerij geslagen (FC_VAL): hij valt in zijn pose, landt met stof
+    if (fcValStap(s, dt)){ banStofWolk(s.x, s.base || 0, 8, 0, 1.4); s.rust = Math.max(s.rust, FC_VAL.rust); banSet(s, 'run'); }
+    return;
+  }
   if (s.dropping){                                   // van boven de arena in: hij valt in de run-pose en landt met stof
     banAnim(s, dt);
     s.airV += BAN_DROP.g * dt;
@@ -50583,8 +50643,13 @@ function updateBandiet(s, dt, plats, cliff){
   if (s.vrij){ banAnim(s, dt); return; }
   // de terugstoot van een treffer dooft uit
   if (s.knock !== 0){
-    if (!banMove(s, s.knock * dt, plats, cliff)) s.knock = 0;
-    else { s.knock *= Math.pow(0.02, dt); if (Math.abs(s.knock) < 4) s.knock = 0; }
+    if (!banMove(s, s.knock * dt, plats, cliff)){
+      // de draaislag aan de rand van een galerij of dak: hij slaat eraf, als hij beneden veilig neerkomt (FC_VAL)
+      const L = s.fcVal ? fcValLanding(s, Math.sign(s.knock), BAN_LIJF.half * banScale(), plats, cliff) : null;
+      s.knock = 0; s.fcVal = false;
+      if (L){ fcValStart(s, L); return; }
+    }
+    else { s.knock *= Math.pow(0.02, dt); if (Math.abs(s.knock) < 4){ s.knock = 0; s.fcVal = false; } }
   }
 
   // de galerijsprong van de chaser (zie BAN_GJ): aan de rand hurken, afzetten, vallen, landen, opkijken
@@ -50810,6 +50875,7 @@ function hitBandiet(s){
   const terug = comboTerugNu();                    // de derde slag als terugslag: ver weg en even stil (COMBO.terug)
   const T = comboT();                              // Full Circle zonder Crushing Circle: de kleine terugslag (FC.terug)
   s.knock = (s.x < playerX() ? -1 : 1) * (terug ? T.v : BAN_KNOCK);   // altijd bij jou vandaan
+  s.fcVal = terug;                                 // de draaislag: aan de rand van een galerij slaat hij eraf (FC_VAL)
   if (s.hp > 0){ if (s.bloed) bloedSnedeZet(s); s.flash = 0.3; s.inv = BAN_INV_T; banSet(s, 'run'); s.rust = terug ? T.rust : BAN_NA_HIT; s.traag = terug ? T.traag : 0; s.traagMax = s.traag; s.traagK = 1; return true; }
   s.deadFace = s.face;                                // de kant waar hij op keek: zo valt hij
   banSet(s, 'dood'); s.flash = 0.3; s.lig = 0;        // de doodanimatie speelt nu (63 frames)
@@ -55093,6 +55159,10 @@ function updateSchildman(s, dt, plats, cliff){
   if (s.wraak > 0) s.wraak = Math.max(0, s.wraak - dt);
   if (s.open > 0) s.open = Math.max(0, s.open - dt);      // na een parade van Amirs schild: even zonder dekking
   s.t += dt;
+  if (s.valX1 != null){                                  // van de galerij geslagen (FC_VAL): hij valt in zijn flinch en landt met stof
+    if (fcValStap(s, dt)){ const zS = schbScale(); steenStof(s.x - 70 * zS, s.x + 70 * zS, s.base || 0, 1.0, (s.base || 0) + 60); s.stil = Math.max(s.stil || 0, FC_VAL.rust); }
+    return;
+  }
   s.base = opstapVolg(s, vloerBij(s.x, s.base), dt);   // over een opstapje glijdend
   // het dek draagt hem in elke stand: vloerBij kent het takeldek niet, dus anders viel hij midden in een sprong,
   // treffer of vault naar de grond en zette de loop hem daarna weer bovenop (Beleg 1)
@@ -55109,9 +55179,13 @@ function updateSchildman(s, dt, plats, cliff){
   if (s.state === 'flinch'){                               // de geraakt-reactie: hij twist naar de camera en schuift terug
     schbAnim(s, dt);
     if (s.knockV !== 0){                                   // de knockback: naar achteren, maar nooit over een kei of ravijn (regel 7)
-      schbMove(s, s.knockV * dt, plats, cliff);
+      if (!schbMove(s, s.knockV * dt, plats, cliff) && s.fcVal){   // de draaislag aan de rand van een galerij of dak: eraf (FC_VAL)
+        const L = fcValLanding(s, Math.sign(s.knockV), SCHB_LIJF.half * schbScale(), plats, cliff);
+        s.fcVal = false;
+        if (L){ s.knockV = 0; fcValStart(s, L); return; }
+      }
       s.knockV *= Math.pow(0.02, dt);                      // dooft snel uit
-      if (Math.abs(s.knockV) < 12) s.knockV = 0;
+      if (Math.abs(s.knockV) < 12){ s.knockV = 0; s.fcVal = false; }
     }
     if (s.frame >= SCHB.flinchN - 1 && s.acc >= (SCHB.flinchDur[SCHB.flinchN - 1] || 0)){
       schbSet(s, 'loop'); s.cool = Math.max(s.cool, SCHB.flinchCool);
@@ -55200,6 +55274,7 @@ function updateSchildmannen(dt, plats, cliff){
 function hitSchildman(s, wijze, richting){               // wijze: 'steek', 'worp', 'zwaai' of 'pijl' (de steek en de worp kunnen een executie worden, zie EXE); richting: bij een pijl de kant waarheen hij vloog
   if (s.state === 'weg' || s.exe || (s.inv > 0 && !(comboX && wijze === 'steek'))) return false;   // dood (s.exe) of weg: niets meer te raken; de duw gaat door zijn korte onkwetsbaarheid
   if (schbOnaantastbaar(s)) return false;                 // in de sprong is hij onaantastbaar
+  if (s.air > 0) return false;                            // van de galerij geslagen (FC_VAL): in de val niet te raken
   if (comboX && wijze === 'steek'){                       // de duw (DUW): geen schade, ook door zijn dekking; hij wankelt ver terug
     if (s.duwId === duwId) return false;
     s.duwId = duwId; duwRaak = true; lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);
@@ -55253,6 +55328,7 @@ function hitSchildman(s, wijze, richting){               // wijze: 'steek', 'wor
     s.knockV = (wijze === 'pijl' ? richting : Math.sign(s.x - playerX() || 1)) * SCHB.flinchDuw   // bij Amir vandaan, of mee met de bout
              * (wijze !== 'pijl' && comboTerugNu() ? comboT().schb : 1);   // de derde slag als terugslag duwt hem verder
     s.naTerug = wijze !== 'pijl' && comboTerugNu(); s.naTerugRust = comboT().schbRust;      // en daarna staat hij even in zijn wacht
+    s.fcVal = s.naTerug;                                  // de draaislag: aan de rand van een galerij slaat hij eraf (FC_VAL)
     const zS = schbScale();
     steenStof(s.x - 70 * zS, s.x + 70 * zS, s.base || 0, 1.0, (s.base || 0) + 60);   // stofwolk onder zijn voeten
     puffWorld(s.x, 6, 0, 0.9, s.base || 0);
@@ -61452,13 +61528,14 @@ function loop(now){
         const bodyX = cx + (s.x - world);
         if (bodyX < -SCHB.w * gs - W || bodyX > W / viewZoom() + W + SCHB.w * gs) continue;
         if (!s.geroepen && bodyX > -SCHB.w * gs && bodyX < W){ s.geroepen = true; schbGrom(); }   // de grom zodra hij echt in beeld komt
-        const voeten = groundY - (s.base || 0) * scale;
+        const grondV = groundY - (s.base || 0) * scale;
+        const voeten = grondV - (s.air || 0) * scale;    // van de galerij geslagen (FC_VAL): zo hoog hangt hij nog boven de straat
         ctx.save();                                       // schaduw: een eenvoudige ellips op de grond
         ctx.globalAlpha = 0.24 * Math.max(0, s.alpha != null ? s.alpha : 1);
         ctx.fillStyle = '#1d140f';
         ctx.beginPath();
         const ligt = (s.exe && s.exe.bew === 'val') ? Math.min(1, s.exe.frame / 15) : 0;   // valt hij, dan wordt de schaduw breder
-        ctx.ellipse(bodyX, voeten, SCHB_LIJF.half * gs * (1.05 + 1.2 * ligt), SCHB_LIJF.half * gs * 0.16, 0, 0, Math.PI * 2);
+        ctx.ellipse(bodyX, grondV, SCHB_LIJF.half * gs * (1.05 + 1.2 * ligt), SCHB_LIJF.half * gs * 0.16, 0, 0, Math.PI * 2);
         ctx.fill(); ctx.restore();
         ctx.save();
         ctx.globalAlpha = Math.max(0, s.alpha != null ? s.alpha : 1);
