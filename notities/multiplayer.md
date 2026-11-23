@@ -901,3 +901,29 @@ de brul van Tau lager gestemd, met een dreun eronder en galm (`sounds/zilverhart
 dreun met een glinstering (`sounds/zilverhart_klap.mp3`); de klap van de zonnestraal (`zegelontdek.mp3`) zei "miss" (het is de
 misser van de kooiman). Alle drie spelen op de gedeelde AudioContext (`zhKlank`): boven 1 gaat het volume een compressor in en dan
 een begrenzer, zodat harder ook harder klinkt zonder te kraken.
+
+### Feathers of the Bennu, de veren van de speerspeler (Test 94, 23-11-2026)
+
+`BN`, `bnGebruik`, `bnStap`, `bnTekenAchter`, `bnTekenAmir`, `bnBol`, `bnZoemStart`, `bnKleurWissel`, `bnDummy`, `TEST_94`
+
+Op verzoek van de opdrachtgever: de tegenhanger van Silver Pride voor Amir met de speer (Mkuki). Nu alleen in Test 94 (Test levels),
+nog niet in de winkel van Co-op en nog niet over het netwerk.
+- **Het verloop (G):** Amir zakt op een knie en pakt drie veren van zijn heup, legt ze op zijn hand met de andere hand erop en sluit zijn
+  ogen (frame 44: de veren gloeien, een zachte zoemtoon zwelt aan), opent ze (frame 52: een flits met stralen, de ogen gloeien egaal
+  zonder pupil zoals bij Aang) en blaast (frame 70). Vanaf het begin staat er een luchtbol om hem heen (altijd om zijn hele lijf, `bnBol`),
+  hij is onkwetsbaar en staat vast (`bnVast` in `amirVast`). Bij het blazen zet de bol uit, er draaien zes veren om hem heen (de drie
+  Grok-veren uit `verenset.png`, elk 49 standen van een draai om de lengteas) en de windvlaag van het spel steekt op (`startGust`, de kant
+  op van de teamgenoot). Als de bol verdwijnt (`bnVlaagT`) komt een flinke vlaag met de roep van de Bennu (`sounds/bennu_vlaag.mp3`),
+  de veren waaien weg en de teamgenoot staat verderop, op een veilige plek en niet per se in beeld, weer op. Daarna nog `BN.naOnkw` s
+  onkwetsbaar. De muziek gaat zolang naar `BN.muziekDemp`.
+- **Beeld:** `karakters/amir/mkuki_spel/bennu/`: `lijf.png`, `veer.png` (de veren in zijn hand, grijs), `oog.png` (het wit van de ogen),
+  78 frames in 13 kolommen van 218x334, en `meta.json` (per frame het midden van de veren, de ogen en de omtrek van zijn lijf). De frames
+  komen uit twee Grok-clips (posts 050ea3a1 en f216f556); de veren en de ogen worden live gekleurd. Alle effecten (bol, lichtstrepen,
+  stipjes, gloed, flits) worden getekend in de maat van het afstelbord en met `bnZet` op Amir gezet.
+- **Kleuren:** `BN.kleuren` (Pink, Opal, Light blue, Lilac, Gold, Silver); in Test 94 wisselt K. Pink is de keuze van de opdrachtgever.
+- **Geluid:** `sounds/bennu_blazen.mp3` op frame `BN.blaasFrame`, `sounds/bennu_vlaag.mp3` bij de vlaag (allebei ElevenLabs), de windvlaag
+  van het spel (`playWind` via `startGust`) en een zoemtoon in WebAudio (`bnZoemStart`, `BN.zoemToon`).
+- **Instellingen:** uit het afstelbord "Feathers of the Bennu" (artifact), met de waarden van de opdrachtgever op 23-11-2026 (`BN`).
+- **Test 94** (Test levels): de oefenteamgenoot ligt op `level.bennu.x`, ver voor je; hij staat op als de veren aankomen, blijft
+  `BN.dummyStaat` s staan en valt weer om. Geen vijanden (`vredig`), dus het terugduwen van vijanden door de bol zit er nog niet in.
+- **Nog te doen:** de winkel en het netwerk (zoals `zh`), het terugduwen van vijanden, het offline-manifest bijwerken.
