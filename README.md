@@ -1009,7 +1009,8 @@ dan klinkt dat hoger en droger, zodat je hoort dat die treffer niet telde. De pa
 bovenin beeld. Is hij dood, dan blijft zijn lijk na de doodanimatie nog zeven seconden liggen en dan vervaagt het en is het weg. Dat geldt overal, in elk level en in de sandbox, zodat de grond in een lang gevecht niet vol lijken komt te liggen.
 
 Bij die laatste klap zakt hij op zijn knieen en valt hij voorover, uit dezelfde tekeningen als de
-executie. Gooi je hem dood, dan zit je speer in zijn borst en ligt hij na de val naast hem op de grond,
+executie. Gooi je hem dood, dan klinkt er een bloedspetter, zit je speer in zijn borst (de speer die je gooide:
+ook een Pathfinder, Shield Piercer of Ardhi's Reach zie je zo in hem zitten) en ligt hij na de val naast hem op de grond,
 klaar om op te pakken; steek je hem dood of raak je hem met de lage zwaai, dan houd je je speer gewoon in
 de hand. De oude dood, waarbij hij achterover viel en zijn eigen speer uit zijn hand liet vallen, is eruit.
 
