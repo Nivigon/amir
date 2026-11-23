@@ -143,3 +143,29 @@ alleen buiten de hand: in de hand volgt hij de plaatsing uit de animeer tool.
   boven zijn hoofd (`prooiTeken`, vanuit `vijandHpBalk`), knipperend in de laatste seconde, feller op een extra treffer.
 - **Sandbox:** Speer en spullen, Gif, **Pathfinder Spear** (`sbPathfinder`).
 
+
+## De Ardhi-wapens: Ardhi's Grip, Ardhi's Reach en Ardhi's Roots (`ARDHI`, `ardhiStap`, `ardhiTreffer`, `ardhiWortelRaak`)
+
+Hout met levende ranken en een botklauw, uit de winkel van Co-op (ardhi is Swahili voor aarde). Op verzoek van de
+opdrachtgever (23-11-2026): de stok en de speer kozen hij uit Grok-platen, de namen, de kansen en de wortels ook.
+
+- **Ardhi's Grip** (`ardhi`, Sticks, 80, na Hardwood): de derde keuze naast Lion Claw en Gold King (`sluit` is nu ook een
+  lijst). Slaat als Hardwood (`stokHoutNu` geeft 4), de skin is `STOK.skins.ardhi` (`karakters/amir/stokken_ardhi/`).
+- **Ardhi's Reach** (`ardhireach`, Spears, 40, een per speerplek): net als de Pathfinder wordt een gewone speer die je
+  draagt de soort `ardhi` (`ardhiStap`). Liggend, op de rug en in de worp `javTeken` met `design/speer/ardhi/jav.png`, in
+  Amirs handen `mkSpeerTeken` met `bron/ar_<hoek>.png` en `ar` in `los.json`. In de speervolgorde na de Pathfinder.
+- **Leven terug**: een treffer met een Ardhi-wapen trekt een knikker (`ardhiKnikker`, zie "kansen" in CLAUDE.md):
+  stok 1 op 33, steek 1 op 33, geworpen speer 1 op 10 (`ARDHI.kans`). Raak: een sapdruppel boven Amirs hoofd die
+  oplicht (`ardhiHeelTeken`, `design/ardhi/druppel.png`, `sounds/ardhi_heel.mp3`), op het felst het leven erbij. Met
+  volle levens trekt hij geen knikker. Een gast krijgt het leven bij zichzelf (`mpcHitDoor`), de host en solo in `gifRaak`.
+- **Ardhi's Roots** (`ardhiroots`, Spears, 50, na Ardhi's Reach): raakt een geworpen Ardhi-speer een vijand met
+  anderen bij zich (binnen `ARDHI.wortel.bereik` Amir, op dezelfde hoogte), dan staan de twee dichtstbijzijnde
+  (de geraakte telt mee) `ARDHI.wortel.duur` seconden vast. De vine-ring (`design/ardhi/ring.png`) schiet van onder
+  omhoog om hun voeten en zakt weer weg (`ardhiWortelTeken`, `sounds/ardhi_wortel.mp3`). Vast is: zijn x terug na alle
+  vijand-updates (`ardhiVast`). Alleen op aarde (`ardhiAarde`): niet op een dak, galerij, houten vloer, brug, kooi of
+  takeldek, en niet op `rots` of `plein`. Geen bazen. De host beslist; een gast meldt het met `ar` en krijgt `wortel`.
+- **Sandbox**: de knop **Ardhi** (Gif-rij): de speer wordt Ardhi's Reach met Roots, de stokken Ardhi's Grip.
+- **Proefrit**: `node tools/ardhi_test.js [map]` (knikkerzak, druppel en leven, wortels en vast, stokken).
+- **Art**: `python3 tools/ardhi_bak.py` uit `design/ardhi/bron/` (screenshots 1:1 van de Grok-originelen; de druppel
+  en de ring kwamen van zwart: de druppel met alfa uit de helderheid, de ring met zwart van buitenaf weggevuld), en de
+  stokframes met `tools/stok_variant.py --plaat design/ardhi/bron/stok_schoon.png --uit stokken_ardhi --rij 0`.
