@@ -405,6 +405,7 @@ rollen, trap, bukken, sluipen, idle) en alle outfits: nergens meer dan 3% paars 
 na (die gebruikt de stokspeler niet).
 
 Nu alleen in **Test 92: Lion pelts** (`vacht: true` naast `broekKeuze`): bij elke start en na R kies je een van de zes
-outfits, het voorbeeld is het staande stokframe. Op verzoek gaan ze ook naar Co-op en Survival (nog niet gebouwd). Open
-punt daarvoor: het masker wordt in het spel berekend, de eerste keer dat een frame getekend wordt (een paar tientallen ms
-per frame); voor Co-op beter vooraf bakken per frame (zoals `<frame>_zones.png` bij Mkuki).
+outfits, het voorbeeld is het staande stokframe. Sinds 23-11-2026 ook in Co-op, Co-op solo en City Survival (de lobby,
+`MP_VACHT`), met de maskers vooraf gebakken in `karakters/amir_vacht/` (`tools/vacht_bak.js`, `VACHT_BAK`): zie "De outfits
+van de stoktribe in Co-op en Survival" in `notities/multiplayer.md`. Een wijziging aan `vachtMasker`, `BROEK` of `VACHT`
+vraagt dus opnieuw bakken.

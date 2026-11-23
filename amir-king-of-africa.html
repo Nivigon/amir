@@ -3882,7 +3882,7 @@ function skinWissel(){                              // elk bekend Amir-plaatje n
     SKIN_SRC.set.call(im, s);
     try {                                           // wat van het oude plaatje gemaakt was (schaduw, licht, kleur)
       amirSilCache.delete(im); plichtCache.delete(im); speerMaskCache.delete(im); scaleCache.delete(im);
-      for (const m of broekLapCache.values()) m.delete(im);
+      for (const m of broekLapCache.values()) m.w.delete(im);
       for (const m of speerKopie.values()) m.delete(im);
     } catch (_){}
   }
@@ -27994,10 +27994,15 @@ function vachtMasker(p, w, h){
   }
   return { m, hsv };
 }
-const broekLapCache = new Map();                         // kleur-id -> WeakMap(plaatje -> {cv, x, y} of null)
+const broekLapCache = new Map();                         // kleur-id -> {w: WeakMap(plaatje -> lapje), n: Map(framenaam -> lapje)}; een lapje is {cv, x, y, w} of null
 // na een keuze: de lapjes van kleuren die niemand draagt weg (het voorbeeld in het keuzescherm bakte ze ook)
 function broekOpruim(houd){ for (const id of [...broekLapCache.keys()]) if (!houd.includes(id)) broekLapCache.delete(id); }
-function broekKleurVan(id){ return BROEK.kleuren.find(k => k.id === id) || MK_OUTFIT.lijst.find(k => k.id === id) || null; }
+// een broekkleur (BROEK, Test 73), een outfit van Mkuki (MK_OUTFIT) of een outfit van de stoktribe (VACHT; Homefinder is het
+// tenue zoals het is, dus geen lapje)
+function broekKleurVan(id){
+  if (VACHT.outfits.some(k => k.id === id)) return id === VACHT.outfits[0].id ? null : vachtKl(id);
+  return BROEK.kleuren.find(k => k.id === id) || MK_OUTFIT.lijst.find(k => k.id === id) || null;
+}
 // Amir met de speer is Mkuki, in Outfit 1 (MK_OUTFIT); met de stokken het oude tenue (geen lapje). In Multiplayer de keuze
 // uit de lobby, in een level met broekKeuze (Test 73) de broek uit dat scherm.
 function broekNu(){
@@ -28293,102 +28298,237 @@ function mkLap(img, kl){
   cache.set(img, lap);
   return lap;
 }
+// de maskers van een frame: welke pixels broek zijn (mk, 0 tot 1) en welke vacht (vm, 0 of 1, of null zonder vacht). Uit het
+// originele plaatje berekend; voor een outfit van de stoktribe gebakken in karakters/amir_vacht/ (tools/vacht_bak.js, die
+// precies deze functie aanroept), zodat het spel dit zware werk (tientallen ms per frame) niet meer zelf doet.
+function broekMaskers(p, w, h, kl){
+  const [t0, t1] = BROEK.tint, n = w * h;
+  const vacht = kl.vacht ? vachtMasker(p, w, h) : null;   // de leeuwenvacht (VACHT), van het originele plaatje
+  const mk = new Float32Array(n), tv = new Float32Array(n);
+  for (let j = 0, i = 0; j < n; j++, i += 4){
+    if (!p[i + 3]) continue;
+    const r = p[i] / 255, gr = p[i + 1] / 255, b = p[i + 2] / 255;
+    const mx = Math.max(r, gr, b), mn = Math.min(r, gr, b), dd = mx - mn;
+    const s = mx > 0 ? dd / mx : 0;
+    let t = 0;
+    if (dd > 0) t = (mx === r ? ((gr - b) / dd + 6) % 6 : mx === gr ? (b - r) / dd + 2 : (r - gr) / dd + 4) * 60;
+    mk[j] = kl.geenBroek ? 0 : Math.min(1, Math.max(0, (s - BROEK.sat) / 0.06)) * Math.min(1, Math.max(0, Math.min(t - t0, t1 - t) / 10));
+    tv[j] = t;
+  }
+  // de rand: wat binnen BROEK.rand px van doorzichtig ligt is geen broek (die heeft daar een donkere contour), maar
+  // het restje magenta om de sluipframes of een dunne speerpunt; dat blijft van het origineel
+  // Met een outfit van de stoktribe (kl.vacht) kleurt de echt paarse rand wel mee (anders blijft er een paarse lijn om een
+  // zwarte broek); alleen het magenta van de key-rand (tint 300 en hoger) blijft. Daar is geen speer, dus geen speerpunt.
+  const R = BROEK.rand;
+  for (let j = 0; j < n; j++){
+    if (mk[j] <= 0 || (kl.vacht && tv[j] < 300)) continue;
+    const x = j % w, y = (j - x) / w;
+    rand: for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++){
+      const xx = x + dx, yy = y + dy;
+      if (xx < 0 || yy < 0 || xx >= w || yy >= h || p[(yy * w + xx) * 4 + 3] < 128){ mk[j] = 0; break rand; }
+    }
+  }
+  // alleen grote samenhangende stukken zijn broek: in de executie hebben armen en vuisten een paarse zweem, en
+  // een losse vuist of hand is een klein eilandje naast de broek (BROEK.eiland: als deel van het grootste stuk)
+  const stukVan = new Int32Array(n).fill(-1), maten = [], stapel = [];
+  for (let j0 = 0; j0 < n; j0++){
+    if (mk[j0] <= 0 || stukVan[j0] >= 0) continue;
+    const id = maten.length; let tal = 0;
+    stukVan[j0] = id; stapel.push(j0);
+    while (stapel.length){
+      const j = stapel.pop(); tal++;
+      const x = j % w, y = (j - x) / w;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++){
+        const xx = x + dx, yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+        const q = yy * w + xx;
+        if (mk[q] > 0 && stukVan[q] < 0){ stukVan[q] = id; stapel.push(q); }
+      }
+    }
+    maten.push(tal);
+  }
+  const grootste = maten.length ? Math.max(...maten) : 0;
+  const eiland = kl.vacht ? VACHT.eiland : BROEK.eiland;   // met de stokken: het achterbeen achter een stok is een los stuk, en geen vuist
+  for (let j = 0; j < n; j++) if (mk[j] > 0 && maten[stukVan[j]] < grootste * eiland) mk[j] = 0;
+  return { mk, vm: vacht ? vacht.m : null };
+}
+// de kleur op de maskers: de broek in de kleur van kl (eerst naar de idle getrokken), de vacht met de tint verschoven (de
+// donkere contour en de vlekjes blijven). Schrijft in p; geeft de rechthoek om wat er gekleurd is, of null.
+function broekKleur(p, w, h, kl, mk, vm){
+  // alles in de lus zelf, zonder losse arrays of hulpfuncties per pixel: dat kostte het meeste (een frame in een paar ms)
+  const n = w * h;
+  // de mediaan van de broek in deze frame (verzadiging en helderheid), om naar die van de idle te trekken (BROEK.ref)
+  const hs = new Uint32Array(64), hv = new Uint32Array(64);
+  let tel = 0;
+  for (let j = 0, i = 0; j < n; j++, i += 4){
+    if (mk[j] < 1 || p[i + 3] <= 230) continue;
+    const r = p[i], gr = p[i + 1], b = p[i + 2];
+    const mx = r > gr ? (r > b ? r : b) : (gr > b ? gr : b), mn = r < gr ? (r < b ? r : b) : (gr < b ? gr : b);
+    const s = mx > 0 ? (mx - mn) / mx : 0, v = mx / 255;
+    hs[Math.min(63, s * 64 | 0)]++; hv[Math.min(63, v * 64 | 0)]++; tel++;
+  }
+  const mediaan = hist => { let k = 0; for (let b = 0; b < 64; b++){ k += hist[b]; if (k * 2 >= tel) return (b + 0.5) / 64; } return 0.5; };
+  const fs = tel > 50 ? BROEK.ref.s / mediaan(hs) : 1, fv = tel > 50 ? BROEK.ref.v / mediaan(hv) : 1;
+  const Vk = kl.vacht, d0 = VACHT.donker[0], dd = VACHT.donker[1] - VACHT.donker[0];
+  const bh = (kl.h || 0) / 60, bk = Math.floor(bh) % 6, bf = bh - Math.floor(bh);   // de broektint ligt vast
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let j = 0, i = 0; j < n; j++, i += 4){
+    const a = p[i + 3], m = mk[j];
+    const vacht = a && m <= 0 && vm && vm[j];
+    if (!vacht && (!a || m <= 0)){ if (a) p[i + 3] = 0; continue; }
+    const r = p[i] / 255, gr = p[i + 1] / 255, b = p[i + 2] / 255;
+    const mx = r > gr ? (r > b ? r : b) : (gr > b ? gr : b), mn = r < gr ? (r < b ? r : b) : (gr < b ? gr : b), df = mx - mn;
+    const s = mx > 0 ? df / mx : 0;
+    let k, f, ns, nv;
+    if (vacht){                                     // vacht: de tint verschoven, de donkere contour en vlekjes blijven
+      let t = df > 0 ? (mx === r ? ((gr - b) / df + 6) % 6 : mx === gr ? (b - r) / df + 2 : (r - gr) / df + 4) * 60 : 0;
+      t = (t + Vk.dh) % 360; if (t < 0) t += 360;
+      const hh = t / 60; k = Math.floor(hh) % 6; f = hh - Math.floor(hh);
+      ns = s * Vk.s; if (ns > 1) ns = 1; nv = mx * Vk.v; if (nv > 1) nv = 1;
+    } else {                                        // broek: de tint vast, verzadiging en helderheid (naar de idle getrokken) opgeschaald
+      k = bk; f = bf;
+      ns = s * fs * kl.s; if (ns > 1) ns = 1; nv = mx * fv * kl.v; if (nv > 1) nv = 1;
+    }
+    const q1 = nv * (1 - ns), q2 = nv * (1 - ns * f), q3 = nv * (1 - ns * (1 - f));
+    let R, G, B;
+    if (k === 0){ R = nv; G = q3; B = q1; } else if (k === 1){ R = q2; G = nv; B = q1; } else if (k === 2){ R = q1; G = nv; B = q3; }
+    else if (k === 3){ R = q1; G = q2; B = nv; } else if (k === 4){ R = q3; G = q1; B = nv; } else { R = nv; G = q1; B = q2; }
+    if (vacht){
+      let wv = (mx - d0) / dd; if (wv < 0) wv = 0; else if (wv > 1) wv = 1;
+      p[i] = p[i] * (1 - wv) + R * 255 * wv; p[i + 1] = p[i + 1] * (1 - wv) + G * 255 * wv; p[i + 2] = p[i + 2] * (1 - wv) + B * 255 * wv;
+    } else { p[i] = R * 255; p[i + 1] = G * 255; p[i + 2] = B * 255; p[i + 3] = a * m; }
+    const x = j % w, y = (j - x) / w;
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  return x1 >= 0 ? { x0, y0, x1, y1 } : null;
+}
+// ---- de gebakken maskers van de outfits van de stoktribe (VACHT_BAK) ----
+// Per frame van Amir een plaatje met dezelfde naam in karakters/amir_vacht/ (tools/vacht_bak.js): rood is de broek (0 tot
+// 255), groen de vacht; zwart en ondoorzichtig, zodat de kanalen exact blijven. Alleen de rechthoek om broek en vacht:
+// lijst.json geeft per frame [x, y, breedte, hoogte, breedte van het hele frame], en alleen dat stuk wordt gekleurd.
+// Een frame met een masker kost in het spel alleen het kleuren (een paar ms), en warmBouw doet ook dat al achter het
+// laadscherm voor de outfits die meespelen (vachtWarmTaken). Een frame zonder masker rekent het zoals eerst.
+// De lapjes van een outfit staan op de framenaam (img._skinRel), niet op het plaatje: zo geldt een lapje ook voor het plaatje
+// van een teamgenoot (pvpBeeld, een eigen Image) en voor de kleine set (het lapje onthoudt zijn breedte, broekBeeld schaalt).
+const VACHT_BAK = { dir: 'karakters/amir_vacht/', lijst: null, klaar: false, beeld: new Map() };
+function vachtBakLijst(){
+  if (!VACHT_BAK.lijst){
+    VACHT_BAK.lijst = new Map();                     // framenaam -> [x, y, breedte, hoogte, breedte van het frame]
+    laadJsonOpen++;                                  // de laadpoort wacht erop
+    fetch(VACHT_BAK.dir + 'lijst.json').then(r => r.ok ? r.json() : {}).then(l => { for (const x in l) VACHT_BAK.lijst.set(x, l[x]); })
+      .catch(() => {}).then(() => { VACHT_BAK.klaar = true; laadJsonOpen--; if (VACHT_BAK.wil) vachtBakVoor(VACHT_BAK.wil); });
+  }
+  return VACHT_BAK.lijst;
+}
+// de maskers van deze frames alvast laden (de frames die er een hebben); komt de lijst nog, dan zodra hij er is
+function vachtBakVoor(rels){
+  if (!VACHT_BAK.klaar){ VACHT_BAK.wil = rels; vachtBakLijst(); return; }
+  VACHT_BAK.wil = null;
+  for (const rel of rels) if (VACHT_BAK.lijst.has(rel)) vachtBakBeeld(rel);
+}
+function vachtBakBeeld(rel){
+  let im = VACHT_BAK.beeld.get(rel);
+  if (!im){ im = new Image(); im.decoding = 'async'; im.src = VACHT_BAK.dir + rel; VACHT_BAK.beeld.set(rel, im); }
+  return im;
+}
+// De taken voor warmBouw: per outfit van de stoktribe die in Multiplayer meespeelt (pvp.broek, ook die van een teamgenoot)
+// elk frame dat een stokspeler kan tonen een keer kleuren, achter het laadscherm. Op de framenaam, dus ook voor het plaatje
+// van de teamgenoot. Eerst de stokken, dan de rest van zijn frames; wat alleen met de speer bestaat slaan we over.
+// (gebukt en kruipend heeft de stokspeler eigen sets, stokken/bukken en stokken/sluipen: de speerloze van beweging/ niet)
+const VACHT_WARM_NIET = /speer|idle_sp|rol\/(met|worp|monnik)|sneakaanval|speerstrike|combo|stofsweep|beweging\/(sluipen|bukken)/;
+function vachtWarmTaken(){
+  const kls = [];
+  if (pvp && pvp.broek) for (const p of pvp.spelers || []){
+    const kl = broekKleurVan(pvp.broek[p]);
+    if (kl && kl.vacht && !kls.includes(kl)) kls.push(kl);
+  }
+  if (!kls.length) return [];
+  vachtBakLijst();
+  stokLaad();                                        // ook als ik zelf de speer heb: de frames van de stokspeler
+  const beelden = new Map();                         // framenaam -> een plaatje (de kleine en de grote set geven hetzelfde lapje)
+  for (const set in stokBank) for (const im of stokBank[set]) if (im && im._skinRel) beelden.set(im._skinRel, im);
+  for (const im of SKIN.imgs) if (im._skinRel && !beelden.has(im._skinRel) && !VACHT_WARM_NIET.test(im._skinRel)) beelden.set(im._skinRel, im);
+  vachtBakVoor([...beelden.keys()]);               // de maskers meteen laden, zodat de laadpoort erop wacht (laadOpen)
+  const rij = [];
+  for (const kl of kls) for (const [rel, im] of beelden) rij.push(() => {
+    if (!VACHT_BAK.klaar || !im.complete) return false;
+    if (!im.naturalWidth || (VACHT_BAK.lijst.size && !VACHT_BAK.lijst.has(rel))) return;   // ontbreekt, of geen broek of vacht
+    broekLap(im, kl);
+    const C = broekLapCache.get(kl.id);
+    if (!(C && C.n.has(rel))) return false;          // het masker komt nog binnen
+  });
+  return rij;
+}
+// Al in de lobby: zolang iemand daar staat te kiezen kleuren we in elk beeld een paar ms van de outfits die nu gedragen
+// worden (vachtWarmTaken), zodat er achter het laadscherm weinig over is. Wisselt iemand van outfit, dan begint de rij
+// opnieuw en gaan de lapjes van een outfit van de stoktribe die niemand meer draagt weg (geheugen).
+const VACHT_LOBBY = { budget: 4, sleutel: '', rij: [] };
+function vachtLobbyStap(){
+  if (!pvp || !pvp.broek) return;
+  const sleutel = (pvp.spelers || []).map(p => pvp.broek[p]).join();
+  if (sleutel !== VACHT_LOBBY.sleutel){
+    VACHT_LOBBY.sleutel = sleutel;
+    const draag = (pvp.spelers || []).map(p => broekKleurVan(pvp.broek[p])).filter(kl => kl && kl.vacht).map(kl => kl.id);
+    for (const o of VACHT.outfits) if (!draag.includes(o.id + '_vacht')) broekLapCache.delete(o.id + '_vacht');
+    VACHT_LOBBY.rij = vachtWarmTaken();
+  }
+  const R = VACHT_LOBBY.rij, grens = performance.now() + VACHT_LOBBY.budget;
+  let wacht = 0;
+  while (R.length && performance.now() < grens && wacht < R.length){
+    const taak = R.shift(); let uit;
+    try { uit = taak(); } catch (e){}
+    if (uit === false){ R.push(taak); wacht++; } else wacht = 0;
+  }
+}
 function broekLap(img, kl){
-  let cache = broekLapCache.get(kl.id);
-  if (!cache){ cache = new WeakMap(); broekLapCache.set(kl.id, cache); }
-  let lap = cache.get(img);
+  let C = broekLapCache.get(kl.id);
+  if (!C){ C = { w: new WeakMap(), n: new Map() }; broekLapCache.set(kl.id, C); }
+  // een outfit: op de framenaam (VACHT_BAK), behalve als een skin dit frame vervangt (SKIN: dan is het plaatje een ander)
+  const rel = kl.vacht && img._skinRel && !skinPad(img._skinOrig, img._skinRel) ? img._skinRel : null;
+  let lap = rel ? C.n.get(rel) : C.w.get(img);
   if (lap !== undefined) return lap;
+  let mi = null, vak = null;
+  if (rel){
+    const L = vachtBakLijst();
+    if (!VACHT_BAK.klaar) return null;               // de lijst komt nog: even het oude tenue, de volgende keer wel
+    if (L.has(rel)){
+      mi = vachtBakBeeld(rel); vak = L.get(rel);
+      if (!imgReady(mi)){ if (mi.complete && !mi.naturalWidth) L.delete(rel); return null; }   // kapot: dan zelf rekenen
+    }
+  }
   lap = null;
   try {
-    const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+    // het stuk dat we kleuren: met een masker alleen zijn rechthoek (in de kleine set naar zijn maat geschaald), anders alles
+    let ox = 0, oy = 0, w = W, h = H;
+    if (mi){
+      const k = W / vak[4];
+      ox = Math.max(0, Math.floor(vak[0] * k)); oy = Math.max(0, Math.floor(vak[1] * k));
+      w = Math.min(W - ox, Math.ceil((vak[0] + vak[2]) * k) - ox); h = Math.min(H - oy, Math.ceil((vak[1] + vak[3]) * k) - oy);
+    }
     const c = document.createElement('canvas'); c.width = w; c.height = h;
     const g = c.getContext('2d', { willReadFrequently: true });
-    g.drawImage(img, 0, 0);
+    let mk, vm;
+    if (mi){                                         // gebakken: de maskers lezen
+      const k = W / vak[4];
+      g.drawImage(mi, vak[0] * k - ox, vak[1] * k - oy, vak[2] * k, vak[3] * k);
+      const z = g.getImageData(0, 0, w, h).data;
+      mk = new Float32Array(w * h); vm = new Uint8Array(w * h);
+      for (let j = 0, i = 0; j < w * h; j++, i += 4){ mk[j] = z[i] / 255; vm[j] = z[i + 1] > 127 ? 1 : 0; }
+      g.clearRect(0, 0, w, h);
+    }
+    g.drawImage(img, ox, oy, w, h, 0, 0, w, h);
     const d = g.getImageData(0, 0, w, h), p = d.data;
-    const [t0, t1] = BROEK.tint, n = w * h;
-    const vm = kl.vacht ? vachtMasker(p, w, h) : null;   // de leeuwenvacht (VACHT), van het originele plaatje
-    const mk = new Float32Array(n), sv = new Float32Array(n), vv = new Float32Array(n), tv = new Float32Array(n);
-    const hs = new Uint32Array(64), hv = new Uint32Array(64);   // voor de mediaan van de broek in deze frame
-    let tel = 0;
-    for (let j = 0, i = 0; j < n; j++, i += 4){
-      if (!p[i + 3]) continue;
-      const r = p[i] / 255, gr = p[i + 1] / 255, b = p[i + 2] / 255;
-      const mx = Math.max(r, gr, b), mn = Math.min(r, gr, b), dd = mx - mn;
-      const s = mx > 0 ? dd / mx : 0;
-      let t = 0;
-      if (dd > 0) t = (mx === r ? ((gr - b) / dd + 6) % 6 : mx === gr ? (b - r) / dd + 2 : (r - gr) / dd + 4) * 60;
-      const m = kl.geenBroek ? 0 : Math.min(1, Math.max(0, (s - BROEK.sat) / 0.06)) * Math.min(1, Math.max(0, Math.min(t - t0, t1 - t) / 10));
-      mk[j] = m; sv[j] = s; vv[j] = mx; tv[j] = t;
-      if (m >= 1 && p[i + 3] > 230){ hs[Math.min(63, s * 64 | 0)]++; hv[Math.min(63, mx * 64 | 0)]++; tel++; }
-    }
-    // de rand: wat binnen BROEK.rand px van doorzichtig ligt is geen broek (die heeft daar een donkere contour), maar
-    // het restje magenta om de sluipframes of een dunne speerpunt; dat blijft van het origineel
-    // Met een outfit van de stoktribe (kl.vacht) kleurt de echt paarse rand wel mee (anders blijft er een paarse lijn om een
-    // zwarte broek); alleen het magenta van de key-rand (tint 300 en hoger) blijft. Daar is geen speer, dus geen speerpunt.
-    const R = BROEK.rand;
-    for (let j = 0; j < n; j++){
-      if (mk[j] <= 0 || (kl.vacht && tv[j] < 300)) continue;
-      const x = j % w, y = (j - x) / w;
-      rand: for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++){
-        const xx = x + dx, yy = y + dy;
-        if (xx < 0 || yy < 0 || xx >= w || yy >= h || p[(yy * w + xx) * 4 + 3] < 128){ mk[j] = 0; break rand; }
-      }
-    }
-    // alleen grote samenhangende stukken zijn broek: in de executie hebben armen en vuisten een paarse zweem, en
-    // een losse vuist of hand is een klein eilandje naast de broek (BROEK.eiland: als deel van het grootste stuk)
-    const stukVan = new Int32Array(n).fill(-1), maten = [], stapel = [];
-    for (let j0 = 0; j0 < n; j0++){
-      if (mk[j0] <= 0 || stukVan[j0] >= 0) continue;
-      const id = maten.length; let tal = 0;
-      stukVan[j0] = id; stapel.push(j0);
-      while (stapel.length){
-        const j = stapel.pop(); tal++;
-        const x = j % w, y = (j - x) / w;
-        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++){
-          const xx = x + dx, yy = y + dy;
-          if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
-          const q = yy * w + xx;
-          if (mk[q] > 0 && stukVan[q] < 0){ stukVan[q] = id; stapel.push(q); }
-        }
-      }
-      maten.push(tal);
-    }
-    const grootste = maten.length ? Math.max(...maten) : 0;
-    const eiland = kl.vacht ? VACHT.eiland : BROEK.eiland;   // met de stokken: het achterbeen achter een stok is een los stuk, en geen vuist
-    for (let j = 0; j < n; j++) if (mk[j] > 0 && maten[stukVan[j]] < grootste * eiland) mk[j] = 0;
-    const mediaan = hist => { let k = 0; for (let b = 0; b < 64; b++){ k += hist[b]; if (k * 2 >= tel) return (b + 0.5) / 64; } return 0.5; };
-    const fs = tel > 50 ? BROEK.ref.s / mediaan(hs) : 1, fv = tel > 50 ? BROEK.ref.v / mediaan(hv) : 1;
-    let x0 = w, y0 = h, x1 = -1, y1 = -1;
-    for (let j = 0, i = 0; j < n; j++, i += 4){
-      const a = p[i + 3], m = mk[j];
-      if (a && m <= 0 && vm && vm.m[j]){              // vacht: de tint verschoven, de donkere contour en vlekjes blijven
-        const V = kl.vacht, ht = vm.hsv[j * 3], hs = vm.hsv[j * 3 + 1], hv = vm.hsv[j * 3 + 2];
-        const wv = Math.min(1, Math.max(0, (hv - VACHT.donker[0]) / (VACHT.donker[1] - VACHT.donker[0])));
-        const ns = Math.min(1, hs * V.s), nv = Math.min(1, hv * V.v), hh = (((ht + V.dh) % 360) + 360) % 360 / 60;
-        const f = hh - Math.floor(hh), q1 = nv * (1 - ns), q2 = nv * (1 - ns * f), q3 = nv * (1 - ns * (1 - f));
-        const rgb = [[nv, q3, q1], [q2, nv, q1], [q1, nv, q3], [q1, q2, nv], [q3, q1, nv], [nv, q1, q2]][Math.floor(hh) % 6];
-        p[i] = p[i] * (1 - wv) + rgb[0] * 255 * wv; p[i + 1] = p[i + 1] * (1 - wv) + rgb[1] * 255 * wv; p[i + 2] = p[i + 2] * (1 - wv) + rgb[2] * 255 * wv;
-        const x = j % w, y = (j - x) / w;
-        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
-        continue;
-      }
-      if (!a || m <= 0){ p[i + 3] = 0; continue; }
-      // de nieuwe kleur: de tint vast, verzadiging en helderheid van het origineel (eerst naar de idle getrokken) opgeschaald
-      const ns = Math.min(1, sv[j] * fs * kl.s), nv = Math.min(1, vv[j] * fv * kl.v), hh = kl.h / 60;
-      const f = hh - Math.floor(hh), q1 = nv * (1 - ns), q2 = nv * (1 - ns * f), q3 = nv * (1 - ns * (1 - f));
-      const rgb = [[nv, q3, q1], [q2, nv, q1], [q1, nv, q3], [q1, q2, nv], [q3, q1, nv], [nv, q1, q2]][Math.floor(hh) % 6];
-      p[i] = rgb[0] * 255; p[i + 1] = rgb[1] * 255; p[i + 2] = rgb[2] * 255; p[i + 3] = a * m;
-      const x = j % w, y = (j - x) / w;
-      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
-    }
-    if (x1 >= 0){
+    if (!mi) ({ mk, vm } = broekMaskers(p, w, h, kl));
+    const r = broekKleur(p, w, h, kl, mk, vm);
+    if (r){
       g.putImageData(d, 0, 0);
-      const cv = document.createElement('canvas'); cv.width = x1 - x0 + 1; cv.height = y1 - y0 + 1;
-      cv.getContext('2d').drawImage(c, x0, y0, cv.width, cv.height, 0, 0, cv.width, cv.height);
-      lap = { cv, x: x0, y: y0 };
+      const cv = document.createElement('canvas'); cv.width = r.x1 - r.x0 + 1; cv.height = r.y1 - r.y0 + 1;
+      cv.getContext('2d').drawImage(c, r.x0, r.y0, cv.width, cv.height, 0, 0, cv.width, cv.height);
+      lap = { cv, x: ox + r.x0, y: oy + r.y0, w: W };
     }
   } catch (e){ lap = null; }
-  cache.set(img, lap);
+  if (rel) C.n.set(rel, lap); else C.w.set(img, lap);
   return lap;
 }
 // basis: wat er getekend zou worden (vaanBlauw en zo), img: het originele frame waar de broek uit komt
@@ -28424,7 +28564,7 @@ function broekBeeld(basis, img, kl = broekNu(), cv = null, speer = null){
   g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
   g.clearRect(0, 0, bw, bh);
   g.drawImage(basis, 0, 0, bw, bh);
-  const k = bw / (img.naturalWidth || img.width);       // een kleine set: het lapje schaalt mee
+  const k = bw / (lap.w || img.naturalWidth || img.width);   // een kleine set: het lapje schaalt mee (lap.w: een lapje op de framenaam, misschien uit de andere set)
   g.drawImage(lap.cv, lap.x * k, lap.y * k, lap.cv.width * k, lap.cv.height * k);
   return cv;
 }
@@ -42639,6 +42779,8 @@ function warmBouw(){
       return kapot(muurImg) ? undefined : false;
     });
   }
+  // Multiplayer: de outfits van de stoktribe die meespelen alvast kleuren, elk frame een keer (vachtWarmTaken)
+  rij.push(...vachtWarmTaken());
   return rij;
 }
 function restart(){
@@ -72745,32 +72887,34 @@ function mpLobbyOpen(){
   mpNaamVeld(); mpBroekToon(); mpWapenToon(); mpBroekStart();
 }
 function mpLobbyDicht(){ pvpEl('menuPvp').classList.remove('lobby'); pvpEl('start').classList.remove('mplobby', 'mpsolo'); pvpEl('menuPvp').querySelector('.epititle').textContent = 'Multiplayer'; }
-// ---- de broekkleur in Multiplayer: naast de lobby je eigen Amir, de pijltjes wisselen de kleur van zijn broek ----
-// Zoals de broekkeuze van Test 73 (BROEK), plus het eigen paars van Amir (geen lapje, het origineel). Ieder kiest zelf,
-// los van wie host is, en een kleur die een ander al draagt sla je over. Kiezen twee tegelijk dezelfde, dan houdt het
-// laagste slot hem (de host eerst) en schuift de ander door naar de eerste vrije. Standaard paars, rood en turkoois.
-// Je keuze blijft bewaard op dit apparaat (amir.mpbroek).
+// ---- de outfit in Multiplayer: naast de lobby je eigen Amir, de pijltjes wisselen zijn outfit ----
+// Ieder kiest zelf, los van wie host is, en een outfit die een ander al draagt sla je over. Kiezen twee tegelijk dezelfde,
+// dan houdt het laagste slot hem (de host eerst) en schuift de ander door naar de eerste vrije. Je keuze blijft bewaard op
+// dit apparaat. In de code heet het nog "broek" (pvp.broek, mpBroek...), van toen het alleen een broekkleur was.
 // Met de speer ben je Mkuki en kies je een van de zes outfits (MK_OUTFIT, bewaard in amir.mpoutfit, standaard Outfit 1,
-// 3 en 4 per slot); met de stokken het oude tenue met de broekkleuren. Wissel je van wapen, dan wissel je mee van lijst
-// (mpBroekPas). Het bericht blijft {t: 'broek', id}: de id zegt of het een outfit of een broek is.
-const MP_BROEK_OUD = [{ id: 'paars', naam: 'Purple' }].concat(BROEK.kleuren.map(k => ({ id: k.id, naam: k.naam })));
+// 3 en 4 per slot); met de stokken een van de zes outfits van de stoktribe, broek en leeuwenvacht samen (VACHT, bewaard in
+// amir.mpvacht, standaard per slot MP_VACHT_STANDAARD). Wissel je van wapen, dan wissel je mee van lijst (mpBroekPas). Het
+// bericht blijft {t: 'broek', id}: de id zegt welke outfit het is. De oude broekkleuren (amir.mpbroek) zijn er niet meer.
+const MP_VACHT = VACHT.outfits.map(k => ({ id: k.id, naam: k.naam }));
 const MP_OUTFIT = MK_OUTFIT.lijst.map(k => ({ id: k.id, naam: k.naam }));
-const MP_BROEK = MP_BROEK_OUD.concat(MP_OUTFIT);
+const MP_BROEK = MP_VACHT.concat(MP_OUTFIT);
 function mpBroekNaam(id){ const k = MP_BROEK.find(b => b.id === id); return k ? k.naam : ''; }
-const MP_BROEK_STANDAARD = ['paars', 'rood', 'turq'];   // per slot: de host, de eerste en de tweede gast
+// per slot (de host, de eerste en de tweede gast) drie outfits die je in een gevecht meteen uit elkaar houdt: een andere
+// broek (paars, ossenbloed, indigo) en een andere vacht (tawny, goud, wit)
+const MP_VACHT_STANDAARD = ['homefinder', 'firedancer', 'icewarder'];
 const MP_OUTFIT_STANDAARD = ['mk1', 'mk3', 'mk4'];
-function mpBroekLijst(w){ return (w || (pvp && pvp.mij != null && pvp.wapen[pvp.mij]) || mpWapenEigen()) === 'stok' ? MP_BROEK_OUD : MP_OUTFIT; }
+function mpBroekLijst(w){ return (w || (pvp && pvp.mij != null && pvp.wapen[pvp.mij]) || mpWapenEigen()) === 'stok' ? MP_VACHT : MP_OUTFIT; }
 function mpBroekEigen(slot, w){
   const L = mpBroekLijst(w), outfit = L === MP_OUTFIT;
   let id = null;
-  try { id = localStorage.getItem(outfit ? 'amir.mpoutfit' : 'amir.mpbroek'); } catch (e){}
-  return L.some(b => b.id === id) ? id : (outfit ? MP_OUTFIT_STANDAARD : MP_BROEK_STANDAARD)[slot] || L[0].id;
+  try { id = localStorage.getItem(outfit ? 'amir.mpoutfit' : 'amir.mpvacht'); } catch (e){}
+  return L.some(b => b.id === id) ? id : (outfit ? MP_OUTFIT_STANDAARD : MP_VACHT_STANDAARD)[slot] || L[0].id;
 }
 function mpBroekZet(id){
   if (!pvp || id === pvp.broek[pvp.mij]) return;
   pvp.broekVan = pvp.broek[pvp.mij]; pvp.broekT0 = performance.now();
   pvp.broek[pvp.mij] = id;
-  try { localStorage.setItem(MP_OUTFIT.some(b => b.id === id) ? 'amir.mpoutfit' : 'amir.mpbroek', id); } catch (e){}
+  try { localStorage.setItem(MP_OUTFIT.some(b => b.id === id) ? 'amir.mpoutfit' : 'amir.mpvacht', id); } catch (e){}
   pvpZend({ t: 'broek', id });
   mpBroekToon(); mpTeamToon();
 }
@@ -72813,6 +72957,7 @@ let mpBroekLoopt = false;
 const mpBroekA = document.createElement('canvas'), mpBroekB = document.createElement('canvas');
 function mpBroekStart(){
   broekVbLaad();
+  vachtBakLijst();                                  // welke frames een gebakken masker hebben (VACHT_BAK), alvast voor de outfits van de stoktribe
   if (mpBroekLoopt) return;
   mpBroekLoopt = true;
   const cv = pvpEl('mpbrcv'), g = cv.getContext('2d');
@@ -72829,6 +72974,7 @@ function mpBroekStart(){
       if (f >= 1) pvp.broekVan = null;
     }
     mpTeamTeken(now);
+    vachtLobbyStap();                                // de outfits van de stoktribe alvast kleuren (VACHT_LOBBY)
     requestAnimationFrame(stap);
   };
   requestAnimationFrame(stap);
@@ -72838,7 +72984,8 @@ function mpBroekStart(){
 // MP_DOOR, en een nieuwe gast krijgt de namen in pvpGastErbij). Zonder naam heet je naar je broek ("Fire red"). Of je de
 // namen boven de hoofden ziet kiest ieder zelf, met het vinkje onder de naam (amir.mpnamen, standaard aan).
 const MP_NAAM = { max: 14,
-  kleur: { paars: '#a070e8', rood: '#ec4a36', oranje: '#f39433', goud: '#eec24f', turq: '#3fd0c6', wit: '#f4eedf', zwart: '#3a3a40',
+  // de outfits van de stoktribe: de kleur van hun broek, behalve waar die wegvalt (Dawnbreaker zwart: zijn blonde vacht)
+  kleur: { homefinder: '#a070e8', icewarder: '#5b6ee8', dawnbreaker: '#e6c878', firedancer: '#b8323a', mosscleaver: '#9aa04a', showstopper: '#e8303a',
     ...Object.fromEntries(MK_OUTFIT.lijst.map(k => [k.id, k.stip])) } };   // de outfits van Mkuki: hun opvallendste kleur
 function mpNaamSchoon(n){ return String(n == null ? '' : n).replace(/[\u0000-\u001f\u007f-\u009f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, MP_NAAM.max); }
 function mpNaamEigen(){ let n = ''; try { n = localStorage.getItem('amir.mpnaam') || ''; } catch (e){} return mpNaamSchoon(n); }
@@ -72898,7 +73045,7 @@ let mpTeamSleutel = '';
 function mpTeamToon(){
   if (!pvp || pvp.mij == null) return;
   const doos = pvpEl('mpteam');
-  const rij = pvp.spelers.map(p => ({ p, ik: p === pvp.mij, naam: pvp.naam[p] || '', broek: pvp.broek[p] || 'paars', wapen: pvp.wapen[p] || 'speer',
+  const rij = pvp.spelers.map(p => ({ p, ik: p === pvp.mij, naam: pvp.naam[p] || '', broek: pvp.broek[p] || 'homefinder', wapen: pvp.wapen[p] || 'speer',
                                       host: p === 0, klaar: p !== 0 && !!pvp.klaarVan[p] }));
   const sleutel = JSON.stringify(rij);
   if (sleutel === mpTeamSleutel && doos.childElementCount === rij.length) return;
@@ -72908,7 +73055,7 @@ function mpTeamToon(){
     const k = document.createElement('div');
     const flits = pvp.teamFlits && pvp.teamFlits.p === r.p && performance.now() - pvp.teamFlits.t < 150;
     k.className = 'mpkaart' + (r.ik ? ' ik' : '') + (r.host ? ' host' : '') + (r.klaar ? ' klaar' : '') + (flits ? ' wissel' : '');
-    k.style.setProperty('--kl', MP_NAAM.kleur[r.broek] || MP_NAAM.kleur.paars);
+    k.style.setProperty('--kl', MP_NAAM.kleur[r.broek] || MP_NAAM.kleur.homefinder);
     const cv = document.createElement('canvas'); cv.width = 184; cv.height = 232; cv.dataset.p = r.p;
     const nm = document.createElement('b'); nm.textContent = (r.naam || mpBroekNaam(r.broek) || 'Player ' + (r.p + 1)) + (r.ik ? ' (you)' : '');
     const br = document.createElement('span'), stip = document.createElement('i');
@@ -72972,7 +73119,7 @@ function mpNaamTeken(p, sx, y, scale, a){
   ctx.font = '800 ' + fs + 'px Archivo, "Helvetica Neue", Arial, sans-serif';
   if ('letterSpacing' in ctx) ctx.letterSpacing = Math.round(fs * 0.06) + 'px';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const w = ctx.measureText(naam).width, h = fs * 1.5, pad = fs * 0.7, kl = MP_NAAM.kleur[pvp.broek[p]] || MP_NAAM.kleur.paars;
+  const w = ctx.measureText(naam).width, h = fs * 1.5, pad = fs * 0.7, kl = MP_NAAM.kleur[pvp.broek[p]] || MP_NAAM.kleur.homefinder;
   const bx = sx - w / 2 - pad, bw = w + pad * 2, by = y - h / 2;
   ctx.fillStyle = 'rgba(14,8,3,0.62)';
   ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(bx, by, bw, h, h / 2); else ctx.rect(bx, by, bw, h); ctx.fill();
