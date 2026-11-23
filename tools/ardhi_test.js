@@ -1,6 +1,6 @@
 // Proefrit voor de Ardhi-wapens (ARDHI) in de sandbox: de speer wordt Ardhi's Reach, de knikkerzak geeft precies 1 op 10
 // (worp), 1 op 25 (steek) en 1 op 33 (stok), de druppel uit de vijand geeft een leven terug, een geworpen Ardhi-speer zet wortels om twee
-// bandieten in een groep (en ze staan vast), en de stokken krijgen Ardhi's Grip.
+// bandieten in een groep (en ze staan vast), de stokken krijgen Ardhi's Grip, en Ardhi's Bloom verdubbelt de kans van de speer.
 // node tools/ardhi_test.js [map voor de afdrukken]
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -43,6 +43,17 @@ const srv = http.createServer((q, r) => {
   await page.waitForTimeout(900); await schiet('puntjes');
   await page.waitForFunction(() => !ardhiHeelNu, null, { timeout: 10000 }).catch(() => {});
   ok('het leven kwam erbij', await page.evaluate(() => lives === 2 && !ardhiHeelNu), await page.evaluate(() => lives));
+  // Ardhi's Bloom: de speer trekt uit een eigen zak met dubbel zoveel raak, de stokken niet
+  const bloom = await page.evaluate(() => {
+    ardhiHeelNu = null; ardhiZakken = {}; document.getElementById('sbardhibloom').click();
+    let w = 0, s = 0; const [wr, wn] = ARDHI.bloom.worp, [sr, sn] = ARDHI.bloom.steek;
+    for (let i = 0; i < wn; i++) w += ardhiKnikker('worp_bloom', wr, wn) ? 1 : 0;
+    for (let i = 0; i < sn; i++) s += ardhiKnikker('steek_bloom', sr, sn) ? 1 : 0;
+    levensStart = () => 3; lives = 1; ardhiZakken = { worp: [false], worp_bloom: [true] };
+    worpTref = true; jav = { blauw: 'ardhi', state: 'vlucht', t: 0 }; ardhiTreffer({ x: world - 200 }); worpTref = false; jav = null;
+    const r = { w, s, aan: ardhiBloom(), druppel: !!ardhiHeelNu, ader: typeof ardhiAderTeken === 'function' };
+    ardhiHeelNu = null; document.getElementById('sbardhibloom').click(); return r; });
+  ok("Ardhi's Bloom: 2 op 10 en 2 op 25 uit een eigen zak", bloom.w === 2 && bloom.s === 2 && bloom.aan && bloom.druppel && bloom.ader, bloom);
   await page.evaluate(() => { lives = 3; ardhiZakken = { steek: [true] }; atkFrame = 2; ardhiTreffer({ x: world - 200 }); atkFrame = -1; });
   ok('met volle levens geen druppel', await page.evaluate(() => !ardhiHeelNu));
   // de wortels: drie bandieten dicht bij elkaar

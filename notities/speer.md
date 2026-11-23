@@ -170,6 +170,15 @@ opdrachtgever (23-11-2026): de stok en de speer kozen hij uit Grok-platen, de na
   vertraging). `ardhiHeelTeken`, alles uit `p.t`, de maten in `ARDHI.heel`, `design/ardhi/druppel_los.png`. Een eerdere versie (een druppel die boven je hoofd
   oplicht, of in je hoofd valt) vond de opdrachtgever niets. Met
   volle levens trekt hij geen knikker. Een gast krijgt het leven bij zichzelf (`mpcHitDoor`), de host en solo in `gifRaak`.
+- **Ardhi's Bloom** (`ardhibloom`, Spears, 45, na Ardhi's Reach, naast Roots): de kans van de speer verdubbeld, steek 2 op 25
+  en worp 2 op 10 (`ARDHI.bloom`), uit eigen zakken (`worp_bloom`, `steek_bloom`), zodat aan- of uitzetten midden in een
+  level de gewone zak niet raakt. De stokken (Ardhi's Grip) blijven 1 op 33. Het uiterlijk: de aderen (`ardhiAderTeken`,
+  `ARDHI.bloom.aderen`), twee lichtgolven die over de schacht naar de punt lopen en in de worp een dun golvend spoor;
+  liggend, op de rug en in de worp (`javTeken`), nog niet in Amirs hand (de frames van `mkSpeerTeken` worden onthouden,
+  `BB_MEMO`, dus een bewegend effect vraagt daar meer werk). Afgesteld in de tool Ardhi Speergloed
+  (https://claude.ai/artifact/QBUSAumGJinm2vEuo3UZ4D, ook met sporen, puls, gloed en nevel om mee te spelen); de
+  opdrachtgever koos alleen de aderen, voorlopig. Het winkelplaatje `items/winkel/ardhibloom.png`. Sandboxknop
+  **Ardhi's Bloom** (zet Ardhi mee aan). Undo van Reach kan niet als dat je laatste Ardhi-speer is en je Roots of Bloom hebt.
 - **Ardhi's Roots** (`ardhiroots`, Spears, 50, na Ardhi's Reach): raakt een geworpen Ardhi-speer een vijand met
   anderen bij zich (binnen `ARDHI.wortel.bereik` Amir, op dezelfde hoogte), dan staan de twee dichtstbijzijnde
   (de geraakte telt mee) `ARDHI.wortel.duur` seconden vast. De vine-ring (`design/ardhi/ring.png`) schiet van onder

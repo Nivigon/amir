@@ -2179,6 +2179,7 @@
         <button id="sbpathfinder">Pathfinder Spear: uit</button>
         <button id="sbpiercer">Shield Piercer: uit</button>
         <button id="sbardhi">Ardhi: uit</button>
+        <button id="sbardhibloom">Ardhi's Bloom: uit</button>
         <span class="hint">I opent de inventory. Een gifspeer vergiftigt de volgende 10 treffers: mensen en hyena's verliezen elke 3 s een leven, een baas eenmalig een half. Zet de health-balk aan om het te zien aflopen. In de sandbox is de winkel gratis</span>
       </div>
       <div class="row">
@@ -28260,7 +28261,7 @@ function javTeken(blauw, k, wind, windX, gif){
   }
   if (speerSoortId(blauw) === 'ardhi'){             // Ardhi's Reach: eigen art, even lang als de gewone speer
     ardhiLaad();
-    if (imgReady(ardhiImg)){ const P = ARDHI.speer; teken(ardhiImg, -P.tipX * k, -P.tipY * k, P.w * k, P.h * k); return; }
+    if (imgReady(ardhiImg)){ const P = ARDHI.speer; teken(ardhiImg, -P.tipX * k, -P.tipY * k, P.w * k, P.h * k); if (ardhiBloom()) ardhiAderTeken(P.tipX * k, P.h * k, wind === 1); return; }
   }
   if (speerSoortId(blauw) === 'piercer'){                 // de Shield Piercer: hetzelfde doek als de Pathfinder, zonder vaantje
     spLaad();
@@ -28540,6 +28541,10 @@ function prooiTeken(sx, topY, s, scale){
 const ARDHI = {
   speer: { w: 624, h: 77, tipX: 623, tipY: 37.5 },      // design/speer/ardhi/jav.png, de punt rechts (tools/ardhi_bak.py)
   kans: { stok: [1, 33], steek: [1, 25], worp: [1, 10] },   // de knikkerzak: zoveel raak op zoveel knikkers (3%, 4%, 10%); de draaislag van Full Circle telt als steek
+  // Ardhi's Bloom ('ardhibloom', na Ardhi's Reach, naast Roots): de kans van de speer verdubbeld, eigen zakken (ardhiKnikker
+  // met '_bloom'); de stokken (Ardhi's Grip) niet. Aderen: lichtgolven die over de speer naar de punt lopen, en in de worp
+  // een dun golvend spoor; afgesteld in de tool Ardhi Speergloed (https://claude.ai/artifact/QBUSAumGJinm2vEuo3UZ4D)
+  bloom: { steek: [2, 25], worp: [2, 10], aderen: { n: 2, tempo: 0.35, sterk: 0.16, spoor: 0.3, hue: 108, licht: 0.75 } },
   heel: { stijl: 'komeet', geluid: true,
     // de geluiden (uit ElevenLabs, afgesteld in de tool Ardhi heal-effect): per geluid het moment (start, glim, poef, aankomst),
     // een verschuiving in seconden en het volume; tink is sounds/ardhi_glim.mp3, plop ardhi_plop.mp3, warm ardhi_heel.mp3
@@ -28568,6 +28573,8 @@ function ardhiAantal(){
   return (K && K.ardhireach) || 0;
 }
 function ardhiRoots(){ if (sandbox) return sbArdhi; const K = mpKoop(); return !!(K && K.ardhiroots); }
+let sbArdhiBloom = false;                         // de sandboxknop Ardhi's Bloom
+function ardhiBloom(){ if (sandbox) return sbArdhiBloom; const K = mpKoop(); return !!(K && K.ardhibloom); }
 function ardhiTel(){
   const is = b => b === 'ardhi';
   let n = (spearFound && is(speerBlauw)) ? 1 : 0;
@@ -28576,6 +28583,27 @@ function ardhiTel(){
   if (jav2 && is(jav2.blauw)) n++;
   for (const l of losseSperen) if (l.soort === 'eigen' && is(l.blauw)) n++;
   return n;
+}
+// Ardhi's Bloom op de speer: de aderen (ARDHI.bloom.aderen), in de ruimte van javTeken (de punt op 0, de schacht
+// naar -x, L lang en h dik); vlucht: een dun golvend spoor achter de speer
+function ardhiAderTeken(L, h, vlucht){
+  const A = ARDHI.bloom.aderen, t = performance.now() / 1000;
+  const kl = (l, a) => 'hsla(' + A.hue + ',70%,' + (l * A.licht * 100) + '%,' + a + ')';
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < A.n; i++){
+    const f = (t * A.tempo + i / A.n) % 1, a = Math.sin(f * Math.PI), x = -L + L * (0.05 + f * 0.9);
+    for (const [r, s, l] of [[1.2, 1, 0.6], [0.35, 1.5, 0.85]]){
+      const g = ctx.createRadialGradient(x, 0, 0, x, 0, h * r);
+      g.addColorStop(0, kl(l, Math.min(1, A.sterk * s * a))); g.addColorStop(1, kl(l, 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, 0, h * r, 0, 7); ctx.fill();
+    }
+  }
+  if (vlucht && A.spoor > 0){
+    ctx.strokeStyle = kl(0.65, A.spoor); ctx.lineWidth = Math.max(1, h * 0.1); ctx.beginPath();
+    for (let i = 0; i <= 30; i++){ const x = -L * 0.9 - i * L * 0.03, y = Math.sin(i * 0.6 - t * 10) * h * 0.3 * (i / 30); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 // een knikker uit zak `naam` met `raak` van de `n` knikkers raak; leeg is geschud weer vol
 function ardhiKnikker(naam, raak, n){
@@ -28599,8 +28627,9 @@ function ardhiTreffer(s){
   if (gifTikNu || !s || dead || ardhiHeelNu) return;
   const b = ardhiBron(); if (!b) return;
   if (!(lives > 0) || lives >= levensStart()) return;   // vol: geen knikker, die bewaart de zak voor als je hem nodig hebt
-  const [raak, n] = ARDHI.kans[b];
-  if (!ardhiKnikker(b, raak, n)) return;
+  const bloom = b !== 'stok' && ardhiBloom();      // Ardhi's Bloom: de speer trekt uit een zak met dubbel zoveel raak
+  const [raak, n] = (bloom ? ARDHI.bloom : ARDHI.kans)[b];
+  if (!ardhiKnikker(bloom ? b + '_bloom' : b, raak, n)) return;
   ardhiLaad();
   ardhiHeelNu = { t: 0, gaf: false, s, vx: s.x, vh: (s.base || 0) + CHAR_H * 0.55 };   // waar de druppel uit hem komt (zolang hij eruit getrokken wordt volgt hij de vijand)
 }
@@ -72986,6 +73015,13 @@ document.getElementById('sbardhi').onclick = e => {
   e.target.textContent = 'Ardhi: ' + (sbArdhi ? 'aan' : 'uit');
   flashHint(sbArdhi ? "Ardhi: een speer is Ardhi's Reach (met Roots), de stokken zijn Ardhi's Grip; een treffer kan een leven teruggeven (knikkerzak)" : 'Weer de gewone speer en stokken'); cv.focus();
 };
+// Ardhi's Bloom: de dubbele kans en de aderen op de speer; zet Ardhi zelf mee aan
+document.getElementById('sbardhibloom').onclick = e => {
+  sbArdhiBloom = !sbArdhiBloom;
+  if (sbArdhiBloom && !sbArdhi) document.getElementById('sbardhi').click();
+  e.target.textContent = "Ardhi's Bloom: " + (sbArdhiBloom ? 'aan' : 'uit');
+  flashHint(sbArdhiBloom ? "Ardhi's Bloom: steek 2 op 25, worp 2 op 10, en de aderen op de speer" : "Ardhi's Bloom uit: weer 1 op 25 en 1 op 10"); cv.focus();
+};
 // ---- de Shield Piercer: aan en uit (zie "de Shield Piercer") ----
 document.getElementById('sbpiercer').onclick = e => {
   sbPiercer = !sbPiercer; spStap();
@@ -75419,6 +75455,7 @@ const MPC_WINKEL = [
   { k: 'ardhireach', cat: 'wapen', nieuw: true, naam: "Ardhi's Reach",   prijs: 40, uitleg: "One of your spears becomes Ardhi's Reach. Every stab has a small chance to give you a life back, a thrown hit a bigger one. One per spear slot", speer: true,
     sfeer: 'The root does not ask the rain to come. It waits, and drinks.', bron: 'Mama Ardhi, root-keeper of the Mkuki' },   // ARDHI, zie "de Ardhi-wapens"
   { k: 'ardhiroots', cat: 'wapen', nieuw: true, naam: "Ardhi's Roots",   prijs: 50, uitleg: "Your thrown Ardhi's Reach makes roots burst from the earth: hit an enemy in a group and the two closest are held in place for a moment. Only on earth, not on wood or stone", eis: 'ardhireach', speer: true },   // ARDHI.wortel
+  { k: 'ardhibloom', cat: 'wapen', nieuw: true, naam: "Ardhi's Bloom",   prijs: 45, uitleg: "Living sap runs through your Ardhi's Reach: twice the chance that a stab or a thrown hit gives you a life back. Not for the sticks", eis: 'ardhireach', speer: true },   // ARDHI.bloom
   { k: 'hout', cat: 'wapen',     naam: 'Hardwood sticks',          prijs: 40, uitleg: 'Your strikes hit harder: 0.75 of a life instead of 0.5', stok: true },   // STOK.schadeHout
   { k: 'klauw', cat: 'wapen',    naam: 'Lion Claw sticks',         prijs: 80, uitleg: 'White bone sticks with a lion claw: your strikes tear for a full life', eis: 'hout', sluit: ['goud', 'ardhi'], stok: true },   // STOK.schadeKlauw, STOK.skins.klauw
   { k: 'goud', cat: 'wapen',     naam: 'Gold King sticks',         prijs: 80, uitleg: 'Black sticks with a golden lion head: half your strikes on a shield break off two pieces', eis: 'hout', sluit: ['klauw', 'ardhi'], stok: true },   // STOK.goudSchild, STOK.skins.goud
@@ -77407,7 +77444,7 @@ function mpcUndoKan(){
   if (k === 'slot') return RUG_MAX === na.rugMax;
   if (k === 'pathfinder') return pfAantal() === na.pf && (speerBlauw === 'pathfinder' || rugSperen.some(r => r.blauw === 'pathfinder'));
   if (k === 'piercer') return spAantal() === na.sp && (speerBlauw === 'piercer' || rugSperen.some(r => r.blauw === 'piercer'));
-  if (k === 'ardhireach') return ardhiAantal() === na.ar && (speerBlauw === 'ardhi' || rugSperen.some(r => r.blauw === 'ardhi')) && !(mpKoop().ardhiroots && ardhiAantal() === 1);
+  if (k === 'ardhireach') return ardhiAantal() === na.ar && (speerBlauw === 'ardhi' || rugSperen.some(r => r.blauw === 'ardhi')) && !((mpKoop().ardhiroots || mpKoop().ardhibloom) && ardhiAantal() === 1);
   return true;
 }
 function mpcUndo(){
@@ -77487,7 +77524,7 @@ function mpcInfoToon(){
   koop.onclick = () => mpcWinkelKoop(q, k.aan);
 }
 // het plaatje van een artikel: de speren, de kalebas en Silver Pride uit hun eigen map, de rest uit items/winkel/ (Grok, in de stijl van de winkelspullen; de stokken zijn de echte stokken uit het spel)
-const MPC_IKOON_IMG = { fc: 1, kracht: 1, rond: 1, slot: 1, gif: 1, leven: 1, amulet: 1, hout: 1, klauw: 1, goud: 1, slam: 1, ardhi: 1, ardhiroots: 1 };
+const MPC_IKOON_IMG = { fc: 1, kracht: 1, rond: 1, slot: 1, gif: 1, leven: 1, amulet: 1, hout: 1, klauw: 1, goud: 1, slam: 1, ardhi: 1, ardhiroots: 1, ardhibloom: 1 };
 // Give 5 gold: de kleuren van een outfit als stipjes achter zijn naam. Mkuki uit zijn zones (broek, schort, riem), Outfit 1
 // is de skin zelf; de stoktribe: broek en leeuwenvacht
 const MPC_SET_KLEUR = { mk1: ['#3c3839', '#bb8e63', '#88231f'],
