@@ -92,7 +92,7 @@ Bazen (panter, baviaan, Nyundo, Murghtaan) staan er niet in (regel 12, en de opd
 
 `MP_BROEK`, `mpBroekZet`, `mpBroekVrij`, `mpBroekAnder`, `mpBroekStart`, `pvp.broek`
 
-Links naast de lobby (`#mpamir`, een kind van `#start`, zichtbaar met de klasse `mplobby` op `#start`) staat je eigen Amir
+Links naast de lobby (`#mpamir`, in `#mplinks`, een kind van `#start`, zichtbaar met de klasse `mplobby` op `#start`) staat je eigen Amir
 in de idle, met pijltjes ernaast, zoals de broekkeuze van Test 73 (`BROEK`, `broekBeeld`). De lijst is het eigen paars van
 Amir (geen lapje) plus `BROEK.kleuren`. Ieder kiest zelf, ook een gast; `{t: 'broek', id}` gaat naar de anderen bij het
 openen van de lobby en bij elke wissel (een gast via de host). Een kleur die een ander draagt slaan de pijltjes over. Kiezen
@@ -121,8 +121,15 @@ loopt, en `pvpTeken` tekent de ander in de zijne. Geldt in Co-op en in Duel, wan
 - **Het team.** In de lobby onder de spelersregel (`#mpteam`, niet solo) per speler een heldenkaart (de opdrachtgever koos
   uit drie varianten, 19-11-2026): zijn Amir in de idle in een gloed van zijn broekkleur (`--kl`, uit `MP_NAAM.kleur`), met de
   stokken het staande stokframe (wie rechts van jou staat kijkt naar links), de naam in hoofdletters, broek en wapen, en
-  onderaan een strook Host, Ready of Not ready. Je eigen kaart heeft een gouden rand eromheen. Getekend in de lus van het
+  onderaan een strook Host, Ready of Not ready. Getekend in de lus van het
   voorbeeld (`mpTeamTeken` in `mpBroekStart`), opnieuw opgebouwd alleen als er iets verandert (`mpTeamSleutel`).
+- **De indeling: team links, instellingen rechts** (de opdrachtgever koos uit drie mockups, 23-11-2026). Links staat het
+  hele team op een rij (`#mplinks`, `#mpteamrij`): je eigen vak (`#mpamir`) groot, met onderaan je eigen strook Host,
+  Ready of Not ready (`#mpikstatus`), en ernaast de kaarten van de anderen (`#mpteam`, je eigen kaart staat er niet meer
+  in), en zolang er plek is een lege kaart **Open slot** met de code (`.mpkaart.leeg`; in Duel tot twee spelers). De ping
+  staat eronder. Rechts alleen de instellingen, zonder grote titel en zonder eigen scrollbalk: Co-op Survival in twee
+  kolommen (`.mpkol`: links de regels en het licht, rechts de vijanden). Op 1280x720 past alles zonder scrollen; het
+  paneel centreert met `safe center`, zodat te hoge inhoud nooit meer boven uit beeld valt.
 - **Live meekijken.** Elke klik van een ander op zijn broekpijltjes of wapenknop komt meteen over (`broek`, `wapen`). Zijn
   kaart licht dan even op in zijn kleur (`.wissel`, `pvp.teamFlits`) en zijn Amir vloeit over van de oude naar de nieuwe
   keuze (`mpTeamWissel`, `pvp.teamOud`, net zo lang als je eigen voorbeeld, `BROEK_VB.over`).
