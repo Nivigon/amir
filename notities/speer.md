@@ -182,6 +182,14 @@ opdrachtgever (23-11-2026): de stok en de speer kozen hij uit Grok-platen, de na
   en de ring kwamen van zwart: de druppel met alfa uit de helderheid, de ring met zwart van buitenaf weggevuld), en de
   stokframes met `tools/stok_variant.py --plaat design/ardhi/bron/stok_schoon.png --uit stokken_ardhi --rij 0`.
 
+**De kleuren van Ardhi's Reach** (23-11-2026, op verzoek): in de hand viel hij weg tegen het zand (een dunne bruine schacht,
+fijne ranken). `tools/ardhi_bak.py` bouwt hem nu vanuit de Grok-plaat in zones (`zones`: hout, rank, greep, bot), met per zone
+een kleur in `KLEUR` bovenin het script (None houdt de kleur van de bron): de ranken feller met een donkergroene contour
+(`RANK_CONTOUR`, `RANK_DIK`), de greep halverwege bot-wit, de schacht 1,3 keer dikker (`DIKKER`) en de rand van de gewone speer
+erom (`RAND_DIK`, zoals bij de Pathfinder). Een andere kleur is een regel in `KLEUR` en dan `python3 tools/ardhi_bak.py --speer`:
+dat maakt `jav.png` (worp, rug, liggend), de speer in de hand (`ar_<hoek>.png`, `los.json`) en het winkelplaatje opnieuw, en
+print de regel voor `ARDHI.speer` (de hoogte verandert met `DIKKER`).
+
 ## de Shield Piercer: door het schild heen (`SPEER_KANS`, `spStap`, `piercerDoor`, `piercerFx`, `sbPiercer`)
 
 Gevraagd (23-11-2026): nog een speer voor de winkel van Co-op, die door een schild gaat, en er uniek uitziet. Uit een Grok-plaat
