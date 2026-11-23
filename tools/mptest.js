@@ -27,6 +27,7 @@
 //                                        passende vertraging (ms) de gemiddelde afwijking in px (lager is vloeiender en klopt beter)
 //   node tools/mptest.js --duel --spelers 2   het Duel: allebei in de ronde, de gast valt, de ronde naar de host, ronde 2
 //   node tools/mptest.js --zilverhart --stokken host   Silver Pride: de gast valt, de host legt het hart neer, de gast komt eruit
+//   node tools/mptest.js --bennu --spelers 2           de veren van de speerspeler, de bol als schild, en de zelf-revive met hart en veren
 //   node tools/mptest.js --stokken gast  deze spelers kiezen in de lobby de stokken (ook host, gast2, of host,gast): kijkt na
 //                                        dat iedereen het weet, dat hun potje met stokken start zonder speer, en hun winkel;
 //                                        de outfits van de stoktribe (per slot een andere standaard, het kaartje, een keuze die
@@ -115,6 +116,59 @@ async function zhProef(R){
   await wacht(3500);
   const ow = await G.page.evaluate(() => zhOntwaakT);
   meld(ow === 0 || await tot(G.page, () => zhOntwaakT === 0, null, 3000), 'na 3 s mag hij weer alles (na 3,5 s nog ' + ow.toFixed(2) + ' s)');
+  for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
+}
+// Feathers of the Bennu (BN) en de zelf-revive: de gast valt, de host (met de speer) blaast de veren met G, de bol houdt een
+// vijand en een gifbal buiten, de gast staat op. Dan valt de gast met een hart in de tas (het klopt op zijn lijk) en met de
+// veren (de bol om zijn lijk), en is het geen game over zolang dat kan. node tools/mptest.js --bennu --spelers 2
+async function bnProef(R){
+  const [H, G] = R, allen = R.map(r => r.page);
+  for (const p of allen) await p.evaluate(() => { godMode = true; MPC.reviveNa = 999; });
+  await H.page.evaluate(() => { world = -1500; ph = 0; facing = -1; });
+  await G.page.evaluate(() => { world = -2200; ph = 0; });
+  await wacht(800);
+  await G.page.evaluate(() => { godMode = false; invuln = 0; lives = 1; hurtPlayer(true); });
+  meld(await tot(H.page, () => pvpAnderen().some(p => pvp.anders[p].g && pvp.anders[p].g.d), null, 6000), 'de host ziet de gast dood liggen');
+  meld(await H.page.evaluate(() => { bnCarry = 1; bnLaad(); return mpcWinkelVoorMij(MPC_WINKEL.find(q => q.k === 'bennu')) && !mpcWinkelVoorMij(MPC_WINKEL.find(q => q.k === 'zilverhart')); }), 'de veren staan in de winkel van de speerspeler, het hart niet');
+  await tot(H.page, () => bnKlaar(), null, 8000);
+  await H.page.evaluate(() => { cv.focus(); bnGebruik(); });
+  meld(await H.page.evaluate(() => !!bnNu && bnCarry === 0 && bnNu.voor !== 'dummy'), 'het ritueel loopt en de veren zijn uit de tas');
+  meld(await tot(G.page, () => bnAnder.length === 1 && !bnAnder[0].zelf, null, 3000), 'de gast krijgt het bericht');
+  await tot(H.page, () => bnNu && bnNu.t > BN_T[BN_LOS] + 600, null, 8000);
+  const sch = await H.page.evaluate(() => {
+    const W = bnBolWereld(bnNu, nowScale()); if (!W) return 'geen bol';
+    const v = { x: W.x + 5, base: 0, state: 'loop', hp: 3 }; bandieten.push(v);
+    const g = { x: W.x - W.r * 0.5, h: W.hc, vx: 0, vh: 0, age: 0, trail: [] }; venom.push(g);
+    bnSchild(nowScale());
+    const uit = Math.abs(v.x - W.x) >= W.r - 1, weg = !venom.includes(g);
+    bandieten.splice(bandieten.indexOf(v), 1);
+    return uit && weg ? 'ok' : 'vijand ' + (uit ? 'buiten' : 'binnen') + ', gif ' + (weg ? 'weg' : 'binnen') + ' (r ' + Math.round(W.r) + ')';
+  });
+  meld(sch === 'ok', 'de bol duwt een vijand naar de rand en houdt een gifbal tegen (' + sch + ')');
+  meld(await tot(G.page, () => !dead && lives === 1 && invuln > 1, null, 12000), 'de veren brengen de gast terug');
+  meld(await tot(H.page, () => !bnNu, null, 8000), 'het ritueel van de host is klaar');
+  // zelf: met een hart in de tas
+  await G.page.evaluate(() => { zhCarry = 1; zhLaad(); world = -2300; ph = 0; });
+  await wacht(400);
+  const lijkX = await G.page.evaluate(() => Math.round(world));
+  await G.page.evaluate(() => { invuln = 0; lives = 1; hurtPlayer(true); });
+  meld(await tot(G.page, () => dead, null, 3000), 'de gast valt met een hart in de tas');
+  meld(await tot(H.page, () => zhLijst.some(z => z.zelf), null, 6000), 'het hart klopt op zijn lijk, ook bij de host');
+  const hartX = await G.page.evaluate(() => { const z = zhLijst.find(z => z.zelf); return z ? z.x : null; });
+  const lijkNu = await G.page.evaluate(() => Math.round(world));
+  meld(await tot(G.page, () => !dead && zhCarry === 0 && zhOntwaakT === 0 && invuln > 2, null, 8000), 'hij staat zelf op, met zijn abilities');
+  meld(hartX != null && Math.abs(hartX - lijkNu) < 3 && Math.abs(await G.page.evaluate(() => Math.round(world)) - lijkNu) < 3, 'het hart lag op zijn lijk en hij staat daar op (' + lijkX + ' voor de val, lijk ' + lijkNu + ', hart ' + hartX + ')');
+  // zelf: met de veren, en iedereen dood: nog geen game over
+  await G.page.evaluate(() => { bnCarry = 1; bnLaad(); });
+  await tot(G.page, () => bnKlaar(), null, 8000);
+  await wacht(3000);
+  for (const p of allen) await p.evaluate(() => { godMode = false; invuln = 0; lives = 1; hurtPlayer(true); });
+  meld(await tot(H.page, () => dead && pvp.spelers.every(mpcDood), null, 4000), 'iedereen ligt');
+  await wacht(1000);
+  meld(await H.page.evaluate(() => pvp.coop.fase !== 'uit'), 'geen game over: de gast heeft de veren nog');
+  meld(await tot(G.page, () => bnNu && bnNu.zelf, null, 4000), 'de veren komen om zijn lijk');
+  meld(await tot(H.page, () => bnAnder.some(b => b.zelf), null, 3000), 'de host ziet ze ook');
+  meld(await tot(G.page, () => !dead && bnCarry === 0, null, 12000), 'de veren brengen hem zelf terug');
   for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
 }
 async function epProef(R){
@@ -1008,6 +1062,7 @@ async function elk(H, G){
   }
   if (args.includes('--winkel')){ await winkelProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--hl')){ await hlProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
+  if (args.includes('--bennu')){ await bnProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--zilverhart')){ await zhProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--ep')){ await epProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--elk')){ await elk(H, G); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
