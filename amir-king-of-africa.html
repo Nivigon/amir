@@ -1894,6 +1894,16 @@
         <button data-spawn="fosfor">3 fosforslangen</button>
       </div>
       <div class="row">
+        <label>Groepen</label>
+        <button data-sbgroep="bandiet">4 bandieten</button>
+        <button data-sbgroep="schildman">3 schildbandieten</button>
+        <button data-sbgroep="kooiman">3 kooimannen</button>
+        <button data-sbgroep="hyena1">3 hyena's</button>
+        <button data-sbgroep="groen">4 zandslangen</button>
+        <button id="sbscheid" class="on">Uit elkaar</button>
+        <span class="hint">zet een groep van dezelfde soort op precies dezelfde plek neer. Uit elkaar aan: ze glijden uit elkaar, zodat je ziet dat het er meer zijn, maar wie in zijn aanval zit (de sprong van de schildbandiet, de smash van de kooiman, de uitval van de hyena, de beet van de slang) blijft staan en de ander schuift. Uit: ze staan op elkaar, zoals het was</span>
+      </div>
+      <div class="row">
         <label>Hyena's</label>
         <button id="sbhyomkeer" class="on">Draaien om</button>
         <span class="hint">aan: na hun uitval draaien ze net buiten beeld om en komen terug (de norm). Uit: de oude manier, ze rennen het level uit</span>
@@ -44865,6 +44875,8 @@ function updateSnakes(dt, plats, halfWNow, cliff){
     if (Math.abs(s.x - world) > W * 2 + 1600 && !straatAan()) s.state = 'gone';
     if (s.state === 'gone') snakes.splice(i, 1);
   }
+  if (snakes.length > 1)
+    scheidMobs(snakes.filter(o => o.kind === 'groen'), SLANG_SCHEID * CHAR_H * amirSchaal(), slangScheidMove, dt, plats, cliff, slangScheidHouding);
 }
 
 function snakeSScale(){
@@ -46638,6 +46650,7 @@ function updateHyenas(dt, plats, cliff){
     if (Math.abs(s.x - world) > W * 2 + 1600) s.state = 'gone';
     if (s.state === 'gone') hyenas.splice(i, 1);
   }
+  scheidMobs(hyenas, HY_SCHEID * CHAR_H * amirSchaal(), hyMove, dt, plats, cliff, hyScheidHouding);
 }
 function updateHyena(s, dt, plats, cliff){
   if (achterMasker(s.x, s.base) || s.sneakVast) return;                    // bevroren achter een masker dat er nog ligt
@@ -46788,7 +46801,7 @@ function hitHyena(s){
   return true;
 }
 
-// ---------- groepen vijanden uit elkaar houden (kooiman, bandiet) ---------
+// ---------- groepen vijanden uit elkaar houden (bandiet, kooiman, schildbandiet, hyena, zandslang) ---------
 // Zachte scheiding: maten lopen door elkaar heen, maar krijgen een klein duwtje uit elkaar zodat ze
 // niet precies op dezelfde plek staan. Geen harde wand en geen wachten, dus ze blijven allemaal op je
 // af komen; ze stapelen alleen niet meer. De duw gaat via hun eigen move (met de botsing), dus nooit
@@ -46800,6 +46813,7 @@ const MOB_SCHEID_HOOG = 40;   // scheelt hun vloer meer dan dit, dan staan ze ni
 // (verdoofd, blind, in zijn terugstoot): dan geen scheiding met hem, de ander loopt gewoon langs hem heen.
 // Anders duwde een rennende bandiet een gestunde maat voor zich uit naar Amir toe en kon hij hem nooit inhalen.
 function scheidMobs(list, gap, move, dt, plats, cliff, houding){
+  if (!mobScheidAan) return;                       // de sandbox kan het uitzetten (Uit elkaar), om het verschil te zien
   const ease = Math.min(1, MOB_SCHEID_K * dt);
   for (let i = 0; i < list.length; i++){
     const a = list[i];
@@ -46825,6 +46839,52 @@ function scheidMobs(list, gap, move, dt, plats, cliff, houding){
       if (fa) move(a, -dir * duw * fa, plats, cliff);
     }
   }
+}
+
+let mobScheidAan = true;      // in elk level aan; alleen de sandboxknop Uit elkaar zet het uit
+// De afstand voor de soorten die later bij de scheiding kwamen, in Amir (CHAR_H * amirSchaal()). De bandiet (BAN_SCHEID)
+// en de kooiman (KOOI_SCHEID) houden hun eigen maat in canvaspixels; die komt op ongeveer 1,0 en 1,1 Amir.
+const SCHB_SCHEID  = 0.9;     // de schildbandiet: met zijn schild breder dan zijn lijf
+const HY_SCHEID    = 0.8;     // de hyena: zijn lijf is zo'n Amir lang, een stuk overlap mag, zolang je de tweede kop ziet
+const SLANG_SCHEID = 0.75;    // de zandslang: plat en lang, dus wat dichter op elkaar dan een mens
+
+// De houdingen per soort (zie scheidMobs): 1 wie in zijn aanval zit schuift niet, zodat een vaste sprongbaan, een
+// klapzone of een beet niet verspringt (de ander krijgt de hele duw), en 2 wie uitgeschakeld of geregisseerd is doet
+// niet mee (de ander loopt langs hem heen).
+// De kooiman: alleen slepen en duwen is los; de smash, de stamp, het openen, het herstel en de parade staan vast, anders
+// schoof de klapzone van de smash mee (die rekent vanaf s.x). Het duel met de vogel staat in zijn regie.
+function kooiScheidHouding(s){
+  if (s.verblind > 0 || s.stokStun > 0 || (kooiVries > 0 && s === kooiVriesS)) return 2;
+  if (s.duel && !s.vogelGedaan) return 1;
+  return s.state === 'drag' || s.state === 'duw' ? 0 : 1;
+}
+// De schildbandiet: in de sprong (strike, vault) zet de engine zijn x elk beeld vast op de baan van leapVan naar
+// leapDoel, en in de tell ligt zijn landing al vast (schbMik). Een duw daar werd overschreven of verschoof zijn afzet.
+// Ook in de flinch (zijn eigen terugstoot) en het bijkomen daarna (stil) blijft hij staan. Zo landt de voorste altijd
+// op de speerpunt, en wordt alleen een rustig lopende maat opzij gezet.
+function schbScheidHouding(s){
+  if (s.state === 'exe' || s.verblind > 0 || s.stokStun > 0) return 2;
+  if (s.state === 'strike' || s.state === 'vault' || s.state === 'flinch' || s.stil > 0) return 1;
+  return 0;
+}
+// De hyena: de telegraaf en de storm (richting vast) schuiven niet. Wie wegrent, nog buiten beeld wacht of bij de roedel
+// van Murghtaan hoort (die staat al getrapt, gapPlus en murcRoedelRij) doet niet mee.
+function hyScheidHouding(s){
+  if (s.state === 'weg' || s.wacht > 0 || s.murcRoedel || s.verblind > 0) return 2;
+  return s.state === 'telegraaf' || s.state === 'storm' ? 1 : 0;
+}
+// De zandslang: wachten en bijten staan vast (de beet hangt aan s.x, en wie wacht werd anders buiten bijtafstand
+// geduwd en ging weer kruipen). Patrouille, blind en sterven doen niet mee. De spuwers (zwart, knock) houden zelf
+// afstand en de fosforslangen hebben hun eigen spreiding (FOSFOR.achter); die blijven erbuiten.
+function slangScheidHouding(s){
+  if (s.state === 'dying' || s.state === 'patrouille' || s.verblind > 0) return 2;
+  return s.state === 'wait' || s.state === 'bite' ? 1 : 0;
+}
+// een slang heeft geen eigen move: dezelfde botsing als zijn terugstoot (regel 7, nooit over een kei of ravijn)
+function slangScheidMove(s, stap, plats, cliff){
+  const nx = s.x + stap;
+  if (knockBlocked(s, nx, plats, cliff, SNK_W * snakeSScale() * 0.45, 60)) return false;
+  s.x = nx; return true;
 }
 
 // ---------- de kooiman ----------------------------------------------------
@@ -47325,7 +47385,7 @@ function updateKooimannen(dt, plats, cliff){
     updateKooiman(s, dt, plats, cliff);
     if (s.state === 'weg') kooimannen.splice(i, 1);
   }
-  scheidMobs(kooimannen, KOOI_SCHEID * kooiScale(), kooiMove, dt, plats, cliff);
+  scheidMobs(kooimannen, KOOI_SCHEID * kooiScale(), kooiMove, dt, plats, cliff, kooiScheidHouding);
 }
 function updateKooiman(s, dt, plats, cliff){
   if (achterMasker(s.x, s.base) || s.sneakVast) return;                     // bevroren achter een masker dat er nog ligt
@@ -54045,6 +54105,7 @@ function updateSchildmannen(dt, plats, cliff){
     updateSchildman(s, dt, plats, cliff);
     if (s.state === 'weg'){ schildmannen.splice(i, 1); if (level && level.herhaal) exeHerhaalNodig = true; }
   }
+  scheidMobs(schildmannen, SCHB_SCHEID * CHAR_H * amirSchaal(), schbMove, dt, plats, cliff, schbScheidHouding);
   exeHerhaalStap(dt);
 }
 function hitSchildman(s, wijze, richting){               // wijze: 'steek', 'worp', 'zwaai' of 'pijl' (de steek en de worp kunnen een executie worden, zie EXE); richting: bij een pijl de kant waarheen hij vloog
@@ -69358,6 +69419,14 @@ sbMkillBtn.onclick = () => {
   cv.focus();
 };
 sandboxEl.querySelectorAll('button[data-spawn]').forEach(b => b.onclick = () => sbSpawn(b.dataset.spawn));
+// een groep van een soort op dezelfde plek (sbSpawn kiest elke keer dezelfde x), om het uit elkaar gaan te bekijken
+const SB_GROEP_N = { bandiet: 4, schildman: 3, kooiman: 3, hyena1: 3, groen: 4 };
+sandboxEl.querySelectorAll('button[data-sbgroep]').forEach(b => b.onclick = () => {
+  const k = b.dataset.sbgroep;
+  for (let i = 0; i < (SB_GROEP_N[k] || 3); i++) sbSpawn(k);
+  cv.focus();
+});
+document.getElementById('sbscheid').onclick = e => { mobScheidAan = !mobScheidAan; e.currentTarget.classList.toggle('on', mobScheidAan); cv.focus(); };
 // De kooiman los bekijken: AI uit speelt alleen de gekozen set.
 let sbKooiVrij = false;
 const sbKooiBtn = document.getElementById('sbkooivrij');
