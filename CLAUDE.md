@@ -431,6 +431,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `zonnestralen` | bundels zonlicht om met de stokken in te mediteren: `[{x, h}]` (zie "de zonnestraal" in `notities/stokken.md`; alleen Test 77) |
 | `onstKeuze` | `true`: aan het begin en na R kies je Lives of Invulnerable (`duoKeuze.onst`); de stoklevels |
 | `vacht` | `true` (naast `broekKeuze`): bij elke start en na R kies je een van de zes outfits voor de stokken, broek en leeuwenvacht samen (`VACHT.outfits`, alleen Test 92, zie "de outfits van de stoktribe" in `notities/stokken.md`) |
+| `wapenKeuze` | `false`: dit testlevel laat niet kiezen. Standaard kies je in elk level uit een testreeks (niet de tutorial) aan het begin en na R Mkuki met de speer of Bhubesi met de stokken, behalve als het level al `stokken` of `geenSpeer` heeft (`wapenKeuzeAan`, `wapenKeuzeLevel`, in het scherm van `duoKeuze`) |
 | `vredig` | `true`: geen vijanden, en ook geen vrije slangen of kalebassen die het spel anders bij lege `spawns` stuurt (Test 67) |
 | `rocks` | keien om op te springen: `{x, s}` |
 | `tonnen` | houten tonnen die breken: `{x, y, f, kalebas}`, of `put`/`luifel`/`kraam` met `a` (Amir van die put, losse luifel of kraam) in plaats van `x`; hoger op met `dak` (een dak of galerij van de stad, met `a` vanaf het midden van dat dak) of `zwever: true` (zie `notities/tonnen.md`) |

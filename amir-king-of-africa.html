@@ -3119,6 +3119,7 @@
     <div class="dkrij">Murghtaan<small>Lives: his bites cost lives as usual. Invulnerable: you take the hits but never lose a life, to learn the timing</small><div id="dkmurconst"></div></div>
     <div class="dkrij">Slam range<small>Jump, hold down and strike: how far the wave rolls in front of Amir</small><div id="dkgkbereik"></div></div>
     <div class="dkrij">Slam damage<small>Damage of the wave on every enemy it reaches (right under Amir half a hit more). Every hit pushes them back</small><div id="dkgkschade"></div></div>
+    <div class="dkrij">Weapon<small>Mkuki fights with the spear: thrust, throw and the low sweep. Bhubesi fights with two sticks: strikes, block on C, the counter and the ground slam</small><div id="dkwapen"></div></div>
     <div class="dkrij">Amir<small>Lives: hits cost lives as usual. Invulnerable: you take the hits but never lose a life</small><div id="dkonst"></div></div>
     <div class="dkrij">Slam dust<small>Current: a burst of dust at the sticks and lower puffs along the wave. Growing crest: the wave throws up dust that gets higher the further it rolls, and ends in a plume. Crown and ring: the dust sprays up in a V and a low ring rolls away over the ground, also towards you and away from you</small><div id="dkgkstof"></div></div>
     <div class="dkrij">Counter<small>Hold C to block with your sticks. Strike while blocking, or right after, for the spinning counter. Stun: he stands dazed for 2 seconds and is thrown back. Normal hit: just the damage</small><div id="dkstokcounter"></div></div>
@@ -16636,7 +16637,7 @@ const HOLSTAM = {
   gat: { scherven: { hout: 6, schors: 9, mos: 3 },   // design/regenwoud/holstam/gat/: gat_0..4 en de scherven
          klein: 0.3, groot: 0.66,       // de breedte van een klein gat en van het hol, in Amir (bij s 1)
          kans: 0.3, max: 6, afstand: 0.32,   // af en toe een klein gat (kans per slag), hooguit zoveel, zoveel Amir uit elkaar
-         holR: 0.42, holH: 0.48,        // binnen zoveel Amir van het hol telt een slag voor het hol; het midden op zoveel Amir hoog
+         holR: 0.7, holH: 0.48,        // binnen zoveel Amir van het hol telt een slag voor het hol; het midden op zoveel Amir hoog
          uitzicht: 1.3, uitzichtH: 0.82,   // een gat met uitzicht is zoveel groter, en zit hoger; erdoor zie je gewoon de achtergrond op zijn plek
          zoek: 0.75,                    // zo lang graaft Amir in het hol voor hij iets vindt (s)
          ingangH: 0.44, ingang: 1.35,   // een ingang (inhoud 'ingang'): laag bij de vloer en zoveel groter, E kruipt erin
@@ -16902,6 +16903,16 @@ function holstamVoor(groundY, scale, cx){
 // (een kalebas, of goud). Elke slag spat scherven (bleke houtsplinters, schorsbrokken, mos) en kruimels; op het hol vliegen
 // er ook een paar in perspectief langs de camera (holstamLens, net als de tonnen bij Nyundo, maar ze raken de lens niet).
 let holstamScherven = [], holstamLens = [], holstamKruim = [];
+// een donkerder kopie van een plaatje, een keer gebakken (een ctx.filter per beeld per scherf liet het spel haperen)
+function holstamDonker(im, licht, extra){
+  if (licht >= 1 && !extra) return im;
+  if (!imgReady(im) && !(im instanceof HTMLCanvasElement)) return im;
+  const k = licht + (extra || ''); im._donker = im._donker || {};
+  if (im._donker[k]) return im._donker[k];
+  const c = document.createElement('canvas'); c.width = im.naturalWidth || im.width; c.height = im.naturalHeight || im.height;
+  const g = c.getContext('2d'); g.filter = 'brightness(' + licht + ')' + (extra ? ' ' + extra : ''); g.drawImage(im, 0, 0);
+  return (im._donker[k] = c);
+}
 function holstamGatBak(i){
   const I = holstamImgs; if (!I || !I.gat || !imgReady(I.gat[i])) return null;
   I.gatBak = I.gatBak || [];
@@ -16933,7 +16944,7 @@ function holstamSlag(q, M, hA){
   const A = CHAR_H * sc;
   if (q.hol && !q.holLeeg && q.holStand < 4 && !(q.hol.inhoud === 'uitzicht' && q.holStand >= 4)){
     const hx = holstamHolX(q, M), hh = holstamHolH(q);
-    if (Math.abs(lx - hx) < G.holR * A * nowScale() && Math.abs(h - hh) < 0.38 * A){
+    if (Math.abs(lx - hx) < G.holR * A * nowScale() && Math.abs(h - hh) < 0.6 * A){
       q.holStand++;
       const st = q.holStand, wx = holstamWX(q, M, hx);
       holstamSpat(q, wx, hh, 5 + st * 2, kant);
@@ -17076,8 +17087,7 @@ function holstamSchervenTeken(q, groundY, scale, cx){
     const a = s.ligt ? Math.max(0, 1 - Math.max(0, s.rust - G.rust) / 0.8) : 1; if (a <= 0) continue;
     const w = s.maat * scale, h = w * s.im.naturalHeight / s.im.naturalWidth;
     ctx.save(); ctx.globalAlpha *= a; ctx.translate(cx + (s.x - world), gy - s.h * scale); ctx.rotate(s.rot);
-    if (s.licht < 1) ctx.filter = 'brightness(' + s.licht + ')';
-    ctx.drawImage(s.im, -w / 2, -h / 2, w, h); ctx.restore();
+    ctx.drawImage(holstamDonker(s.im, s.licht), -w / 2, -h / 2, w, h); ctx.restore();
   }
   ctx.save();
   for (const k of holstamKruim){
@@ -17236,9 +17246,7 @@ function holstamDenTeken(groundY, scale, cx){
     ctx.save();
     ctx.fillStyle = '#050302'; ctx.fillRect(xl - 3 * W, -3 * H, xr - xl + 6 * W, 6 * H);   // alles om het hol heen is aarde en donker
     const w = (xr - xl) * 1.3, h = hoog / ((HOLSTAM.bron.vloer - HOLSTAM.bron.plafond) / HOLSTAM.bron.h);
-    ctx.filter = 'brightness(0.62) saturate(0.85)';
-    ctx.drawImage(I.binnen, (xl + xr) / 2 - w / 2, gy - HOLSTAM.bron.vloer / HOLSTAM.bron.h * h, w, h);
-    ctx.filter = 'none';
+    ctx.drawImage(holstamDonker(I.binnen, 0.62, 'saturate(0.85)'), (xl + xr) / 2 - w / 2, gy - HOLSTAM.bron.vloer / HOLSTAM.bron.h * h, w, h);
     const gr = ctx.createRadialGradient(xr, gy - 0.4 * A, 0, xr, gy - 0.4 * A, (xr - xl) * 0.9);   // daglicht door de opening rechts
     gr.addColorStop(0, 'rgba(255,214,150,0.4)'); gr.addColorStop(0.4, 'rgba(255,200,130,0.12)'); gr.addColorStop(1, 'rgba(255,200,130,0)');
     ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = gr; ctx.fillRect(xl - 3 * W, -3 * H, xr - xl + 6 * W, 6 * H);
@@ -42609,6 +42617,7 @@ function warmBouw(){
 function restart(){
   tlogAf('herstart');                              // de tester-logging: een lopende poging dicht (TLOG); na dood of uitspelen is hij al dicht
   stokTribeLevel(level);                            // de stoktribe: dit level met de stokken (voor laadPoort, zodat ze binnen zijn)
+  wapenKeuzeLevel(level);                           // de Test levels: de speer of de stokken, zoals gekozen
   if (tribeStok()) stokLaadLevel(level);
   if (levelLaadLater && !sandbox){ levelLaadLater = false; laadLevel(level); }   // licht klaargezet (setLevel): nu alsnog laden
   laadPoort();                                      // pas verder als alles binnen is (zie laadpoort)
@@ -55307,13 +55316,33 @@ const duoKeuze = (() => {
            onst: k.onst === 'onst' ? 'onst' : 'leven',   // de stoklevels (onstKeuze): levens of onsterfelijk
            gkBereik: ['kort', 'middel', 'lang'].includes(k.gkBereik) ? k.gkBereik : 'middel',   // de grondklap: hoe ver de golf rolt (Test 76)
            gkSchade: ['licht', 'middel', 'zwaar'].includes(k.gkSchade) ? k.gkSchade : 'licht',
-           gkStof: ['nu', 'kam', 'kroon'].includes(k.gkStof) ? k.gkStof : 'kam' };   // het stof van de grondklap (Test 76)   // en hoeveel schade hij doet   // de stokken: de counter na een blok als stun of als gewone treffer (Test 74)
+           gkStof: ['nu', 'kam', 'kroon'].includes(k.gkStof) ? k.gkStof : 'kam',
+           wapen: k.wapen === 'stok' ? 'stok' : 'speer' };   // de Test levels: Mkuki met de speer of Bhubesi met de stokken (wapenKeuzeAan)   // het stof van de grondklap (Test 76)   // en hoeveel schade hij doet   // de stokken: de counter na een blok als stun of als gewone treffer (Test 74)
 })();
 const duoKeuzeEl = document.getElementById('duokeuze');
 let duoKeuzeVerder = null, duoKeuzeDoor = false;
 function duoKeuzeOpen(){ return duoKeuzeEl.classList.contains('on'); }
+// ---- de wapenkeuze in de Test levels: Mkuki (de speer) of Bhubesi (de stokken) ----
+// Een level uit een testreeks (niet de tutorial) laat aan het begin en na R kiezen met welk wapen je speelt, tenzij het
+// level al met de stokken speelt, geen speer heeft, of wapenKeuze: false heeft. De stokken zetten wat de stoktribe ook
+// zet (stokken, geen speer, geen rug, de grondklap); terug naar de speer zet de oude waarden terug (wapenKeuzeLevel).
+function wapenKeuzeVrij(lv){
+  if (!lv) return false;
+  if (lv._wapenVrij === undefined) lv._wapenVrij = !lv.stokken && !lv.geenSpeer && lv.wapenKeuze !== false;
+  return lv._wapenVrij;
+}
+function wapenKeuzeAan(){
+  return !!(level && !sandbox && !pvp && !mkTestActief && testReeks(levelList) && levelList !== TUT_LEVELS && wapenKeuzeVrij(level));
+}
+function wapenKeuzeLevel(lv){
+  if (!lv || !wapenKeuzeVrij(lv)) return;
+  if (!lv._wapenOud) lv._wapenOud = { stokken: lv.stokken, geenSpeer: lv.geenSpeer, rugMax: lv.rugMax, grondklap: lv.grondklap };
+  const stok = wapenKeuzeAan() && duoKeuze.wapen === 'stok';
+  if (stok){ lv.stokken = true; lv.geenSpeer = true; lv.rugMax = 0; lv.grondklap = true; stokLaadLevel(lv); }
+  else Object.assign(lv, lv._wapenOud);
+}
 function duoKeuzeDuo(){ return !!(level && level.duoArena && level.duoArena.keuze); }
-function duoKeuzeNodig(){ return !!(level && (duoKeuzeDuo() || level.zweepKeuze || level.comboKeuze || level.mikKeuze || level.murcKeuze || level.broekKeuze || level.stokKeuze || level.gkKeuze || level.onstKeuze) && !sandbox && !duoKeuzeDoor); }
+function duoKeuzeNodig(){ return !!(level && (duoKeuzeDuo() || wapenKeuzeAan() || level.zweepKeuze || level.comboKeuze || level.mikKeuze || level.murcKeuze || level.broekKeuze || level.stokKeuze || level.gkKeuze || level.onstKeuze) && !sandbox && !duoKeuzeDoor); }
 function duoKeuzeBouw(){
   const rij = (id, lijst, veld) => {
     const el = document.getElementById(id); el.innerHTML = '';
@@ -55332,6 +55361,7 @@ function duoKeuzeBouw(){
   rij('dkmurchy', [[0, 'None'], [1, 'One'], [2, 'Two']], 'murcHy');
   rij('dkstokcounter', [['stun', 'Stun and knock back'], ['gewoon', 'Normal hit']], 'stokCounter');
   rij('dkonst', [['leven', 'Lives'], ['onst', 'Invulnerable']], 'onst');
+  rij('dkwapen', [['speer', 'Mkuki (spear)'], ['stok', 'Bhubesi (sticks)']], 'wapen');
   rij('dkgkbereik', [['kort', 'Short'], ['middel', 'Medium'], ['lang', 'Long']], 'gkBereik');
   rij('dkgkschade', [['licht', '0.5 (base)'], ['middel', '1'], ['zwaar', '1.5']], 'gkSchade');
   rij('dkgkstof', [['nu', 'Current'], ['kam', 'Growing crest'], ['kroon', 'Crown and ring']], 'gkStof');
@@ -55340,11 +55370,11 @@ function duoKeuzeBouw(){
   toon('dksalvo', duoKeuzeDuo()); toon('dkniveau', duoKeuzeDuo()); toon('dkzweep', !!(level && level.zweepKeuze));
   toon('dkcombo', !!(level && level.comboKeuze)); toon('dkmik', !!(level && level.mikKeuze));
   toon('dkmurconst', !!(level && level.murcKeuze)); toon('dkmurchy', !!(level && level.murcKeuze));
-  toon('dkstokcounter', !!(level && level.stokKeuze)); toon('dkonst', !!(level && level.onstKeuze));
+  toon('dkstokcounter', !!(level && level.stokKeuze)); toon('dkonst', !!(level && level.onstKeuze)); toon('dkwapen', wapenKeuzeAan());
   toon('dkgkbereik', !!(level && level.gkKeuze)); toon('dkgkschade', !!(level && level.gkKeuze)); toon('dkgkstof', !!(level && level.gkKeuze));
   const broek = !!(level && level.broekKeuze);
   document.getElementById('dkbroekrij').style.display = broek ? '' : 'none';
-  document.getElementById('dktitel').textContent = broek ? (level.vacht ? 'Choose your outfit' : 'Choose your trousers') : 'Instellingen';
+  document.getElementById('dktitel').textContent = broek ? (level.vacht ? 'Choose your outfit' : 'Choose your trousers') : wapenKeuzeAan() ? 'Choose your weapon' : 'Instellingen';
   document.getElementById('dkstart').textContent = broek ? 'Choose' : 'Start level';
   duoKeuzeStand();
 }
@@ -55358,6 +55388,7 @@ function duoKeuzeStand(){
   for (const b of duoKeuzeEl.querySelectorAll('#dkmurchy button')) b.classList.toggle('on', b.dataset.w === String(duoKeuze.murcHy));
   for (const b of duoKeuzeEl.querySelectorAll('#dkstokcounter button')) b.classList.toggle('on', b.dataset.w === duoKeuze.stokCounter);
   for (const b of duoKeuzeEl.querySelectorAll('#dkonst button')) b.classList.toggle('on', b.dataset.w === duoKeuze.onst);
+  for (const b of duoKeuzeEl.querySelectorAll('#dkwapen button')) b.classList.toggle('on', b.dataset.w === duoKeuze.wapen);
   for (const b of duoKeuzeEl.querySelectorAll('#dkgkbereik button')) b.classList.toggle('on', b.dataset.w === duoKeuze.gkBereik);
   for (const b of duoKeuzeEl.querySelectorAll('#dkgkschade button')) b.classList.toggle('on', b.dataset.w === duoKeuze.gkSchade);
   for (const b of duoKeuzeEl.querySelectorAll('#dkgkstof button')) b.classList.toggle('on', b.dataset.w === duoKeuze.gkStof);
@@ -60934,8 +60965,8 @@ function pauseGame(){
   document.getElementById('pztalents').style.display = RUN.tribeId && !sandbox ? '' : 'none';   // de boom van je tribe
   document.getElementById('pzkeuze').style.display = level && level.talentKeuze && !sandbox ? '' : 'none';
   const pzDuo = document.getElementById('pzduo');
-  pzDuo.style.display = (duoKeuzeDuo() || (level && (level.zweepKeuze || level.comboKeuze || level.mikKeuze || level.murcKeuze || level.broekKeuze || level.stokKeuze || level.onstKeuze || level.gkKeuze))) && !sandbox ? '' : 'none';
-  pzDuo.textContent = duoKeuzeDuo() ? 'Arena instellen' : level && level.mikKeuze ? 'Aiming: choose a version' : level && level.broekKeuze ? 'Choose your trousers' : level && level.murcKeuze ? 'Murghtaan: lives and hyenas' : level && level.stokKeuze ? 'Sticks: the counter' : level && (level.onstKeuze || level.gkKeuze) ? 'Sticks: settings' : 'Zweepman: welke versie';
+  pzDuo.style.display = (duoKeuzeDuo() || wapenKeuzeAan() || (level && (level.zweepKeuze || level.comboKeuze || level.mikKeuze || level.murcKeuze || level.broekKeuze || level.stokKeuze || level.onstKeuze || level.gkKeuze))) && !sandbox ? '' : 'none';
+  pzDuo.textContent = duoKeuzeDuo() ? 'Arena instellen' : wapenKeuzeAan() && !(level.zweepKeuze || level.comboKeuze || level.mikKeuze || level.murcKeuze || level.broekKeuze) ? 'Choose your weapon' : level && level.mikKeuze ? 'Aiming: choose a version' : level && level.broekKeuze ? 'Choose your trousers' : level && level.murcKeuze ? 'Murghtaan: lives and hyenas' : level && level.stokKeuze ? 'Sticks: the counter' : level && (level.onstKeuze || level.gkKeuze) ? 'Sticks: settings' : 'Zweepman: welke versie';
   document.getElementById('pzmesbtn').style.display = tribeHeeft('jackal_fang') ? '' : 'none';   // alleen met het mes
   if (!tribeHeeft('jackal_fang')) document.getElementById('pzmes').classList.remove('on');
   mesAfstelToon();
