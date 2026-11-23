@@ -1043,6 +1043,14 @@ doek steekt van het huis af de straat in; wie erop landt wordt van het huis af w
   en op het lage huis 2, nu strak tegen huis 1, tegen de muur van huis 1 (`h` 926 boven dak 771, `worp` 1,4, je stuurt naar
   het dak van 1100). Vroeger hing die tweede tegen de muur van huis 3 en gooide hij je over het hele lage dak; recht omhoog
   met sturen haalt die afstand niet. Nagemeten op 852x393, 1280x720 en 1920x1080.
+- **De kuil** (`STAD_SPRINGDOEK.kuil`, `stadDoekDiep`, `stadKuilRecht`, het tweede deel van `stadLuifelVoor`): op de rechte
+  doek stond Amir op de bovenrand, met zijn voeten helemaal in beeld. Nu net als bij de strakke luifel: hij staat `kuil.amir`
+  van `kuil.diep` lager (in `stadLuifelPlats`), de doek zakt rond hem in (een klok van `kuil.breed` Amir, in kolommen in
+  `stadLuifelTeken`), en na Amir tekent `stadLuifelVoor` de doek nog een keer, maar `kuil.voor` zo diep ingezakt, in een vak
+  rond hem vanaf `kuil.rand` boven zijn voeten. Zo vallen zijn voeten tot de enkels achter de voorrand. Aan de paal zit de
+  doek vast: over `kuil.vast` bron-px loopt de kuil naar nul, anders scheurde de doek daar in twee lagen. `stadKuilStap`
+  houdt `kuilOp` ook voor de rechte doek bij, dus ook daar geen harde schaduw van Amir. De schuine doek en de luifel bij
+  de put krijgen dit niet: daar sta je nooit op, je wordt meteen weggeworpen.
 - **Kozijn** (`kozijn: true`, alleen met `recht`): de losse luifel boven een raam. Geen paal: die is uit het gebakken plaatje
   geknipt (`stadLuifelBeeld(kleur, onder, true, kaal)`) en er loopt niets naar `voet`. De schoor steunt tegen de muur, en
   onder de doek staat een smalle houten lat met een vensterbankje, de zijkant van een kozijn (in `stadLuifelTeken`). De regel

@@ -36341,7 +36341,8 @@ function stadLuifelPlats(p, scale, out){
     const y = lm.recht ? O[O.length - 1][1] : (O[j][1] + O[j + 1][1]) / 2;     // recht: overal op de hoogte van het lage eind
     const hh = th + lm.bh(y) - lm.zak((O[j][0] + O[j + 1][0]) / 2);
     if (lm.recht){                                 // de rechte springdoek veert zoals de doek van een kraam (stadVeer)
-      out.push({ x: (l + r) / 2, left: l, right: r, topH: hh, base: hh, wPx: r - l, hPx: 0, thin: true, stad: 'luifel', veer: true,
+      const kh = hh - STAD_SPRINGDOEK.kuil.amir * stadDoekDiep(p);   // je staat in de kuil, niet op de bovenrand (zie "de kuil")
+      out.push({ x: (l + r) / 2, left: l, right: r, topH: kh, base: kh, wPx: r - l, hPx: 0, thin: true, stad: 'luifel', veer: true,
                  springdoek: p, id: 'springdoek', grijp: STAD.kraamGrijp * CHAR_H });
       continue;
     }
@@ -40833,8 +40834,20 @@ const STAD_SPRINGDOEK = {
   kleuren: { indigo: { hue: 185, sat: 1.3, licht: 0.9 } },
   onder: { licht: 0.42, sat: 0.8 },     // de onderkant van de doek: dezelfde doek, donker
   dik: 0.09,                            // zo ver (in Amir, maal maat) ligt de onderrand onder de doek, bij het lage eind; bij de paal 0,4 daarvan
-  schoor: [30, 72, 282, 292]            // in de bron: onder deze lijn (van x0,y0 naar x1,y1) zit de schoor, geen doek
+  schoor: [30, 72, 282, 292],          // in de bron: onder deze lijn (van x0,y0 naar x1,y1) zit de schoor, geen doek
+  // de kuil van de rechte springdoek (zie "de kuil" in notities/stad.md): waar Amir staat zakt de doek diep in (diep, in Amir
+  // bij maat 0,85), hij staat amir x diep lager dan de bovenrand, en na Amir valt de voorrand (voor x diep ingezakt, vanaf rand
+  // Amir boven zijn voeten) over zijn voeten. breed: de breedte van de klok in Amir, uit: zo snel veert de doek terug (s),
+  // vast: over zoveel bron-px vanaf de paal loopt de kuil naar nul (daar zit de doek vast, anders scheurde hij in twee lagen)
+  kuil: { diep: 0.14, amir: 0.6, voor: 0.15, rand: 0.06, breed: 0.3, uit: 0.15, vast: 220 }
 };
+// de diepte van de kuil in sprite-eenheden, mee met de maat van de doek
+function stadDoekDiep(p){ return STAD_SPRINGDOEK.kuil.diep * CHAR_H * Math.min(1, (p.maat || 1) / 0.85); }
+// de kuil van een rechte springdoek: rust 1 als Amir erop staat, daarna veert hij in kuil.uit terug
+function stadKuilRecht(p){
+  const rust = p.kuilOp ? 1 : p.kuilUit != null ? Math.max(0, 1 - (stadNu() - p.kuilUit) / STAD_SPRINGDOEK.kuil.uit) : 0;
+  return { rust, x: p.kuilX != null ? p.kuilX : (stadAmirX != null ? stadAmirX : world) };
+}
 function stadKleurMat(hue, sat){        // de kleurmatrix van hue-rotate en saturate (zoals in CSS)
   const a = Math.cos(hue * Math.PI / 180), b = Math.sin(hue * Math.PI / 180);
   const H = [0.213 + 0.787 * a - 0.213 * b, 0.715 - 0.715 * a - 0.715 * b, 0.072 - 0.072 * a + 0.928 * b,
@@ -40900,7 +40913,7 @@ let stadAmirX = null;
 function stadKuilStap(){
   stadAmirX = world;
   if (!stadAan()) return;
-  const lijst = (level.stad.luifels || []).filter(q => q.stijl === 'strak');
+  const lijst = (level.stad.luifels || []).filter(q => q.stijl === 'strak' || q.recht);   // ook de rechte springdoek heeft een kuil
   if (!lijst.length) return;
   const d = onGround && !dead ? stadDoekOnder() : null;
   for (const p of lijst){
@@ -41029,8 +41042,20 @@ function stadLuifelVoor(groundY, scale, cx){
     const L = STAD.plein.luifelStrak, A = CHAR_H * scale, D = stadKuilDiep(p) * A * K.amp, sg = stadKuilBreed(L) * A, kx = cx + (K.x - world);
     stadLuifelStrakKolommen(p, stadLuifelMaat(p, scale), groundY, scale, cx, stadLuifelDip(D, kx, sg), true);
   }
+  // de rechte springdoek: de doek opnieuw, minder diep ingezakt, in een vak rond Amir vanaf net boven zijn voeten
+  if (!stadKlaar('luifel')) return;
+  const K = STAD_SPRINGDOEK.kuil, A = CHAR_H * scale;
+  for (const p of (level.stad.luifels || [])){
+    if (!p.recht || p.stijl === 'strak') continue;
+    const kr = stadKuilRecht(p); if (kr.rust < 0.05) continue;
+    const kx = cx + (kr.x - world), sg = K.breed * A, voet = groundY - ph * scale - K.rand * A;
+    ctx.save(); ctx.beginPath(); ctx.rect(kx - 2.5 * sg, voet, 5 * sg, 4 * H); ctx.clip();
+    stadLuifelTeken(p, groundY, scale, cx, () => true, K.voor);
+    ctx.restore();
+  }
 }
-function stadLuifelTeken(p, groundY, scale, cx, zicht){
+// voor: alleen de doek zelf, met de kuil zoveel keer zo diep (de voorrand na Amir, zie stadLuifelVoor)
+function stadLuifelTeken(p, groundY, scale, cx, zicht, voor){
   if (p.stijl === 'strak' && p.gevel != null){ stadLuifelStrakTeken(p, groundY, scale, cx, zicht); return; }
   if (!stadKlaar('luifel')) return;
   const lm = stadLuifelMaat(p, scale), L = lm.L, sx = cx + (lm.left - world);
@@ -41043,9 +41068,15 @@ function stadLuifelTeken(p, groundY, scale, cx, zicht){
   const tegenToren = ((level.stad.pleinpoorten) || []).some(pp => {
     const m = stadPleinPoortMaat(pp, scale); return paalX > m.left + 0.05 * A && paalX < m.right - 0.05 * A;
   });
+  // de kuil waar Amir op de rechte doek staat: een klok rond zijn plek (scherm-x), diep in de doek, minder diep in de voorrand
+  const kr = lm.recht ? stadKuilRecht(p) : null, kD = kr && kr.rust > 0.01 ? stadDoekDiep(p) * scale * kr.rust * (voor != null ? voor : 1) : 0;
+  const kx = kr ? cx + (kr.x - world) : 0, ksg = STAD_SPRINGDOEK.kuil.breed * A;
+  const vast = bx => { const u = Math.max(0, Math.min(1, (bx - L.paal[1]) / STAD_SPRINGDOEK.kuil.vast)); return u * u * (3 - 2 * u); };   // aan de paal zit de doek vast
+  const kuilY = bx => kD ? kD * vast(bx) * Math.exp(-Math.pow((sx + (lm.kant > 0 ? lm.w - bx * lm.fs : bx * lm.fs) - kx) / ksg, 2)) : 0;
   ctx.save();
   if (lm.kant > 0){ ctx.translate(sx + lm.w, 0); ctx.scale(-1, 1); } else ctx.translate(sx, 0);
-  if (kaal){                                      // de zijkant van het kozijn: een smalle lat tegen de muur, onder de luifel
+  if (voor != null){}                             // de voorrand: geen paal, geen kozijn
+  else if (kaal){                                      // de zijkant van het kozijn: een smalle lat tegen de muur, onder de luifel
     const yc = top + STAD.plein.luifel.opp[L.opp.length - 1][1] * lm.fs, x0 = 4 * lm.fs, lb = 0.07 * A, lh = 0.8 * A;
     ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(x0 + lb, yc + 0.04 * A, 0.035 * A, lh);   // schaduw op de muur
     ctx.fillStyle = '#5a3a20'; ctx.fillRect(x0, yc, lb, lh);
@@ -41059,11 +41090,11 @@ function stadLuifelTeken(p, groundY, scale, cx, zicht){
     if (p.gevel != null && yv > yb + 60 * lm.fs) ctx.drawImage(im, 0, (288 + zs) * q, 50 * q, 50 * q, 0, yv - 62 * lm.fs, 50 * lm.fs, 50 * lm.fs);
   }
   const t = p.luifelT != null ? stadNu() - p.luifelT : 9, buig = t < L.duur;
-  if (buig || lm.zakH){                           // in stroken: de doek buigt mee na een landing, en een springdoek zakt door
-    const amp = buig ? L.dip * A * Math.exp(-t * 6) * Math.cos(t * 22) : 0, van = L.paal[1], kolom = lm.zakH ? 40 : 24, bw = (L.w - van) / kolom;
-    const dy = j => amp * Math.sin(Math.PI * (j + 0.5) / kolom) + lm.zak(van + (j + 0.5) * bw) * scale;
-    ctx.drawImage(im, 0, 0, van * q, Lh * q, 0, top, van * lm.fs, lm.h);
-    if (lm.zakH){                                 // de onderrand: dezelfde doek, donker, iets lager en naar het lage eind dikker
+  if (buig || lm.zakH || kD){                     // in stroken: de doek buigt mee na een landing, een springdoek zakt door, en de kuil
+    const amp = buig ? L.dip * A * Math.exp(-t * 6) * Math.cos(t * 22) : 0, van = L.paal[1], kolom = kD ? 90 : lm.zakH ? 40 : 24, bw = (L.w - van) / kolom;
+    const dy = j => amp * Math.sin(Math.PI * (j + 0.5) / kolom) + lm.zak(van + (j + 0.5) * bw) * scale + kuilY(van + (j + 0.5) * bw);
+    if (voor == null) ctx.drawImage(im, 0, 0, van * q, Lh * q, 0, top, van * lm.fs, lm.h);
+    if (lm.zakH && voor == null){                                 // de onderrand: dezelfde doek, donker, iets lager en naar het lage eind dikker
       const on = stadLuifelBeeld(p.kleur, true, lm.recht, kaal), qo = stadQ(on, 1), dik = STAD_SPRINGDOEK.dik * A * lm.mt * (lm.recht ? 0.6 : 1);
       for (let j = 0; j < kolom; j++){
         const bx = van + j * bw, u = lm.recht ? 1 : (j + 0.5) / kolom;   // recht: overal even dik
