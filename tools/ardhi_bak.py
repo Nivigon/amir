@@ -9,6 +9,7 @@ Uit:
   design/ardhi/bron/stok_schoon.png      de stokplaat op zuiver magenta, voor tools/stok_variant.py (--plaat)
   design/speer/ardhi/jav.png             de speer zoals javImg: punt rechts op (w-1, midden van de schacht)
   design/ardhi/druppel.png               de sapdruppel met zijn gloed (alfa uit het zwart)
+  design/ardhi/druppel_los.png           de kale druppel (zonder blaadjes en plasje), die in het spel valt
   design/ardhi/ring.png                  de vine-ring met aarde, het plantje bij de voeten van een geroote vijand
   karakters/amir/mkuki_spel/bron/ar_<hoek>.png en 'ar' in los.json: de speer in Amirs hand, zoals de Pathfinder
   items/winkel/ardhi.png (Ardhi's Grip), ardhireach.png, ardhiroots.png: de plaatjes in de winkel
@@ -164,6 +165,23 @@ def effecten():
         print(naam, im.size)
 
 
+def druppel_los():
+    """De kale druppel (design/ardhi/druppel_los.png): alleen het goud van de druppel, zonder de blaadjes en zonder het
+    plasje eronder (geknipt op de smalste rij onder de buik). Die valt in het spel in Amirs hoofd."""
+    a = np.array(Image.open(os.path.join(ROOT, 'design', 'ardhi', 'druppel.png')).convert('RGBA')).astype(float)
+    r, g, al = a[..., 0], a[..., 1], a[..., 3]
+    goud = (r >= 0.85 * g) & (al > 110)
+    lab, n = ndimage.label(goud)
+    k = np.argmax(ndimage.sum(goud, lab, range(1, n + 1))) + 1
+    m = ndimage.binary_dilation(ndimage.binary_fill_holes(lab == k), iterations=3)
+    a[..., 3] = al * np.clip(ndimage.gaussian_filter(m.astype(float), 2.0) * 1.3, 0, 1)
+    ys, xs = np.where(a[..., 3] > 10)
+    a = a[ys.min() - 3:ys.max() + 4, xs.min() - 3:xs.max() + 4]
+    w = (a[..., 3] > 120).sum(1); buik = int(np.argmax(w)); nek = buik + int(np.argmin(w[buik:buik + 120]))
+    a = a[:nek + 4]; a[-10:, :, 3] *= np.linspace(1, 0, 10)[:, None]
+    Image.fromarray(a.astype(np.uint8)).save(os.path.join(ROOT, 'design', 'ardhi', 'druppel_los.png'), optimize=True)
+
+
 def icoon(im, naam, hoek=35):
     im = im.rotate(hoek, expand=True, resample=Image.BICUBIC)
     bb = im.getbbox(); im = im.crop(bb)
@@ -181,6 +199,7 @@ def main():
     print("ARDHI.speer = { w: %d, h: %d, tipX: %d, tipY: %s }" % (jav.width, jav.height, tip[0], tip[1]))
     hand(jav, tip)
     effecten()
+    druppel_los()
     ring = Image.open(os.path.join(ROOT, 'design', 'ardhi', 'ring.png'))
     icoon(ring, 'ardhiroots', 0)
 

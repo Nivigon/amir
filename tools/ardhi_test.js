@@ -1,5 +1,5 @@
 // Proefrit voor de Ardhi-wapens (ARDHI) in de sandbox: de speer wordt Ardhi's Reach, de knikkerzak geeft precies 1 op 10
-// (worp) en 1 op 33 (steek, stok), de druppel geeft een leven terug, een geworpen Ardhi-speer zet wortels om twee
+// (worp) en 1 op 33 (steek, stok), de druppel uit de vijand geeft een leven terug, een geworpen Ardhi-speer zet wortels om twee
 // bandieten in een groep (en ze staan vast), en de stokken krijgen Ardhi's Grip.
 // node tools/ardhi_test.js [map voor de afdrukken]
 const { chromium } = require('playwright');
@@ -40,8 +40,8 @@ const srv = http.createServer((q, r) => {
   // het leven terug: de druppel
   await page.evaluate(() => { levensStart = () => 3; lives = 1; ardhiZakken = { worp: [true] }; worpTref = true; jav = { blauw: 'ardhi', state: 'vlucht', t: 0 }; ardhiTreffer({ x: world - 200 }); worpTref = false; jav = null; });
   ok('een raak knikker zet de druppel', await page.evaluate(() => !!ardhiHeelNu));
-  await page.waitForTimeout(450); await schiet('druppel_licht');
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(900); await schiet('puntjes');
+  await page.waitForFunction(() => !ardhiHeelNu, null, { timeout: 10000 }).catch(() => {});
   ok('het leven kwam erbij', await page.evaluate(() => lives === 2 && !ardhiHeelNu), await page.evaluate(() => lives));
   await page.evaluate(() => { lives = 3; ardhiZakken = { steek: [true] }; atkFrame = 2; ardhiTreffer({ x: world - 200 }); atkFrame = -1; });
   ok('met volle levens geen druppel', await page.evaluate(() => !ardhiHeelNu));
