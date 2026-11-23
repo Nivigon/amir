@@ -195,8 +195,12 @@ erin: Amir graaft even (`HOLSTAM.gat.zoek`, geschraap van `stofveeg.mp3`, een ti
 droog blad, `holstamZoekGeluid`), en dan valt er een kalebas uit (met `zegelontdek.mp3`), of met `inhoud: 'goud'` goud
 (`holstamGatE`, `holstamVondst`). Met `inhoud: 'ruimte'` is het een lege ruimte erachter (dieper donker met ringen van de
 nerf, E vindt alleen blad en botten), met `inhoud: 'uitzicht'` breek je dwars door de wand: het gat (een grillige
-veelhoek, `holstamUitzichtVorm`) wordt uit de binnenkant geknipt en toont het stuk achtergrond `uitzichtKijk` Amir hoger
-(lucht en kruinen), met de bast eromheen (`holstamUitzichtRand`) en daglicht naar binnen; geen E. Een uitzicht zit hoger
+veelhoek, `holstamUitzichtVorm`) wordt uit de binnenkant geknipt en je ziet de gewone achtergrond op zijn plek, met de
+bast eromheen (`holstamUitzichtRand`) en daglicht naar binnen; geen E. Met `inhoud: 'ingang'` zit het gat laag bij de vloer
+(`ingangH`) en groter, en E kruipt erin: een fade (`holstamFade`) naar een eigen hol ver links van de klif (`holstamDen`,
+`HOLSTAM.gat.hol`), net als binnen een huis een strook met eigen wanden (`holstamDenKlem`), camera (`binnenCamKlem`) en
+zonder klif (`endWall`). Daar ligt de vondst (`vondst`: een kalebas, of `'kist'` een schatkist), en E bij de opening rechts
+brengt je terug. Een uitzicht zit hoger
 (`uitzichtH` 0,82, of eigen `h` in Amir). De laatste slag breekt met `ton_breek.mp3`. `kruis: true` (alleen een testlevel)
 zet een rood kruis met de soort en de stand erbij. Sterf je, dan is alles
 weer dicht (`holstamReset`). Sandbox Terrein, Holle stam, **Met hol**; Test 93 heeft een hol in de eerste en de lange stam.
