@@ -155,10 +155,11 @@ opdrachtgever (23-11-2026): de stok en de speer kozen hij uit Grok-platen, de na
   draagt de soort `ardhi` (`ardhiStap`). Liggend, op de rug en in de worp `javTeken` met `design/speer/ardhi/jav.png`, in
   Amirs handen `mkSpeerTeken` met `bron/ar_<hoek>.png` en `ar` in `los.json`. In de speervolgorde na de Pathfinder.
 - **Leven terug**: een treffer met een Ardhi-wapen trekt een knikker (`ardhiKnikker`, zie "kansen" in CLAUDE.md):
-  stok 1 op 33, steek 1 op 33, geworpen speer 1 op 10 (`ARDHI.kans`). Raak: een kleine sapdruppel wordt uit het lijf
-  van de vijand getrokken en barst met een plop (`sounds/ardhi_plop.mp3`) in een bolletje licht dat even zweeft; dan
-  komt het bolletje in een heel lichte boog op Amir af met mini-bolletjes die eromheen zweven (`ARDHI.heel.stijl`:
-  `bol`, of `komeet` met een staartje, of `wervel` waarin de bolletjes intrekken en vonkjes achterblijven; een eerdere
+  stok 1 op 33, steek 1 op 33, geworpen speer 1 op 10 (`ARDHI.kans`). Raak: een gloed trekt in slierten uit het lijf
+  van de vijand en vormt boven zijn borst een kleine sapdruppel, die even trilt en poef doet in een bolletje licht dat
+  even zweeft (de geluiden `sounds/ardhi_plop.mp3` en `ardhi_heel.mp3` staan uit met `ARDHI.heel.geluid`, op verzoek); dan
+  komt het bolletje in een heel lichte boog op Amir af met mini-bolletjes die eromheen zweven (`ARDHI.heel.stijl`, gekozen: `komeet`, met een staartje;
+  of `bol` met een staartje, of `wervel` waarin de bolletjes intrekken en vonkjes achterblijven; een eerdere
   lichtstroom in een grote boog vond de opdrachtgever te veel boog) en vloeit zijn borst in, en pas dan het leven
   (`sounds/ardhi_heel.mp3`). Ruim twee seconden in totaal, bewust: je ziet het leven aankomen (de opdrachtgever wilde die
   vertraging). `ardhiHeelTeken`, alles uit `p.t`, de maten in `ARDHI.heel`, `design/ardhi/druppel_los.png`. Een eerdere versie (een druppel die boven je hoofd
