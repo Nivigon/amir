@@ -36722,7 +36722,7 @@ function stadGierTeken(x, y, s, op){
   ctx.closePath(); ctx.fill();
 }
 
-let stadAchterRand = null, stadAchterCam = 0;         // de rand van achterTot in het laatste beeld (null: geen grens)
+let stadAchterRand = null, stadAchterCam = 0, stadAchterZoom = 1, stadAchterRijen = [];         // de rand van achterTot in het laatste beeld (null: geen grens)
 function stadAchter(sc, horizonY, groundY){
   if (!stadKlaar('gevel')) return;
   const S = level.stad, seed = S.seed || 1, f0 = stadGevelF(nowScale());
@@ -36732,19 +36732,23 @@ function stadAchter(sc, horizonY, groundY){
   // achterTot: de rand op het scherm is de muur van de voorste rij, en daar houden alle rijen op (elk op een muur van
   // zichzelf, rechts daarvan). Eerst had elke rij zijn eigen rand op zijn eigen parallax: dan liep de verste rij verder
   // door dan de voorste, en onder die verste huizen zag je de nevel als een plat blauw vak tussen de huizen
-  let grensRand = null;
+  let grensRand = null, grensHuis = Infinity;       // grensHuis: de linkermuur van het meest linkse huis aan de straat
   if (grens != null){
     const RL = STAD.rijen[STAD.rijen.length - 1], G = STAD.gevel, hw = 970 * f0 * RL.s, stap = hw * (G.muur[1] - G.muur[0]) / 970 - 2;
-    // de rand ligt nooit rechts van de linkermuur van het meest linkse huis in de straat: anders hield de verte op boven
-    // een laag huis aan de straat (Ishmul, op de brug) en zag je daar blauwe lucht tussen de huizen. Afgerond naar rechts
-    // op een muur valt hij dan achter dat huis
-    let doel = W / 2 + (grens - world) * RL.par;
-    const sc = nowScale();
-    for (const g of (S.gevels || [])) doel = Math.min(doel, W / 2 + (stadGevelMaat(g, sc).left - world));
-    const off = -world * RL.par, k = Math.ceil((doel - (off - W * 0.25)) / stap);
-    grensRand = off + k * stap - W * 0.25 - 1;
+    // de rand van achterTot op een muur van de verste rij: die schuift met die rij mee, dus daar houdt steeds hetzelfde huis op
+    const basis = -world * RL.par - W * 0.25 - 1;
+    grensRand = basis + Math.ceil((W / 2 + (grens - world) * RL.par - basis) / stap) * stap;
+    // maar nooit rechts van de linkermuur van het meest linkse huis in de straat: anders hield de verte op boven een laag
+    // huis aan de straat (Ishmul, op de brug) en zag je daar blauwe lucht tussen de huizen. Die muur schuift sneller dan de
+    // verte, dus hier is de rand niet afgerond: het huis in de verte dat hij doorsnijdt vaagt weg (stadAchterRijRand), in
+    // plaats van dat er bij elke muur een heel huis in een keer verdwijnt
+    // De verte staat buiten de zoom (viewZoom), de huizen aan de straat erin: hun muur op het scherm is dus
+    // W / 2 + (x - world) * zoom
+    const sc = nowScale(), zoom = viewZoom();
+    for (const g of (S.gevels || [])) grensHuis = Math.min(grensHuis, W / 2 + (stadGevelMaat(g, sc).left - world) * zoom);
+    grensRand = Math.min(grensRand, grensHuis);
   }
-  stadAchterRand = grensRand; stadAchterCam = world;  // voor tools/stadlucht.js: waar de verte op het scherm ophoudt, en de camera van dat beeld
+  stadAchterRand = grensRand; stadAchterCam = world; stadAchterZoom = viewZoom();  // voor tools/stadlucht.js: waar de verte op het scherm ophoudt, en de camera van dat beeld
   if (S.lucht) stadLucht(S.lucht, V, seed, groundY);   // gloed en wolken, achter het paleis en de huizen (Ishmul)
   // het paleis in de verte, met nevel voorgebakken
   if (stadKlaar('paleis')){
@@ -36764,15 +36768,29 @@ function stadAchter(sc, horizonY, groundY){
   if (S.lucht && S.lucht.vogels === 'wit') stadReigers(voeten[0], seed);   // witte reigers in plaats van de gieren (Ishmul)
   else stadVerteGieren(voeten[0], seed);           // gieren boven de stad (zie "de verte van de stad")
   // achterTot (Ishmul): links van die wereld-x houdt de stad in de verte op, daar is lucht boven de savanne. Per rij op
-  // zijn eigen parallax, en afgerond op de muur tussen twee huizen, zodat geen huis half afgeknipt wordt
+  // de eerste muur rechts van de rand, en het huis dat de rand doorsnijdt vaagt weg (stadAchterRijRand)
   const grensX = R => grensRand;                       // dezelfde rand voor elke rij (zie grensRand)
   // onder de verste rij: de stad loopt door in de nevel tot de grond
   ctx.fillStyle = neveltekst;
   const nevelL = grens == null ? 0 : Math.max(0, grensX(STAD.rijen[0]));
   ctx.fillRect(nevelL, voeten[0] - 2, W - nevelL, groundY - voeten[0] + 4);
   STAD.rijen.forEach((R, rij) => {
-    if (grens != null){ ctx.save(); }
-    try { stadAchterRij(R, rij, V, voeten, f0, seed, groundY, grens, grensX); } finally { if (grens != null) ctx.restore(); }
+    if (grens == null){ stadAchterRij(R, rij, V, voeten, f0, seed, groundY); return; }
+    // rechts van de eerste muur van deze rij voorbij de rand: de huizen heel. Het huis dat de rand doorsnijdt: alleen het
+    // stuk rechts van de rand, zo doorzichtig als het deel dat er nog van over is. Schuift de rand een muur voorbij, dan is
+    // dat huis net helemaal te zien of net helemaal weg, dus er springt niets
+    const r = stadAchterRijRand(R, f0, grensRand);
+    const sl = Math.max(grensRand, grensHuis);
+    stadAchterRijen[rij] = { gx: r.gx, a: r.a, sl };     // voor tools/stadlucht.js: springt er een huis in de verte
+    ctx.save();
+    try { ctx.beginPath(); ctx.rect(r.gx, -H * 4, W * 6, H * 10); ctx.clip(); stadAchterRij(R, rij, V, voeten, f0, seed, groundY); }
+    finally { ctx.restore(); }
+    // alleen achter de huizen aan de straat (vanaf grensHuis, sl): links daarvan, boven de savanne, stonden anders spookhuizen
+    if (r.a > 0.01 && r.gx - sl > 0.5){
+      ctx.save();
+      try { ctx.beginPath(); ctx.rect(sl, -H * 4, r.gx - sl, H * 10); ctx.clip(); ctx.globalAlpha = r.a; stadAchterRij(R, rij, V, voeten, f0, seed, groundY); }
+      finally { ctx.restore(); }
+    }
   });
 }
 // ---- het achterbeeld: een landschap in de verte waar de stad ophoudt (achterTot, Ishmul) ----
@@ -36808,17 +36826,20 @@ function stadAchterBeeld(AB, V, rechts, groundY){
   }
   ctx.restore();
 }
-function stadAchterRij(R, rij, V, voeten, f0, seed, groundY, grens, grensX){
+// achterTot: de eerste muur van een rij op of rechts van de rand d (gx), en hoeveel van het huis ervoor nog rechts van d
+// ligt (a, van 0 tot 1)
+function stadAchterRijRand(R, f0, d){
+  const hw = 970 * f0 * R.s, G = STAD.gevel, stap = hw * (G.muur[1] - G.muur[0]) / 970 - 2;
+  const basis = -world * R.par - W * 0.25 - 1, gx = basis + Math.ceil((d - basis) / stap - 1e-6) * stap;
+  return { gx, a: Math.max(0, Math.min(1, (gx - d) / stap)) };
+}
+function stadAchterRij(R, rij, V, voeten, f0, seed, groundY){
   {
     // onder de voorste rij: als de camera meeklimt (een galerij, een dak) zakt de straat onder uit beeld en kom je
     // onder die rij in de lichte nevel. Daar loopt een stoffige straat in de verte door (STAD.verteStraat)
     const hw = 970 * f0 * R.s, G = STAD.gevel, stap = hw * (G.muur[1] - G.muur[0]) / 970 - 2;   // muur tegen muur, de balken steken over
     const m0 = hw * G.muur[0] / 970;
     const off = -world * R.par;                            // wereld naar links: de rij schuift naar rechts
-    if (grens != null){                                     // de grens van achterTot, op de muur tussen twee huizen
-      const k = Math.ceil((grensX(R) - (off - W * 0.25)) / stap), gx = off + k * stap - W * 0.25 - 1;
-      ctx.beginPath(); ctx.rect(gx, -H * 4, W * 6, H * 10); ctx.clip();
-    }
     // na de grens: links van achterTot staan geen huizen, dus ook geen straat in de verte (daar ligt het achterbeeld)
     if (rij === STAD.rijen.length - 1 && groundY > voeten[rij]){
       ctx.fillStyle = V.straat; ctx.fillRect(0, voeten[rij] - 2, W, groundY - voeten[rij] + 4);

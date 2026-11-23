@@ -216,8 +216,10 @@ Met `stad.achterTot` houden de rijen huizen in de verte op een grens op, en link
 script laadt elk level met `achterTot` (ook de Co-op maps, of een level uit de Maker) in Chromium, loopt de camera in
 stappen van 40 over de hele straat en kijkt per beeld of er tussen de linkermuur van de stad en de rand van de verte
 (`stadAchterRand`, met de camera van dat beeld, `stadAchterCam`) een stuk in beeld is dat geen huis aan de straat dekt.
-Dat is lucht waar de stad hoort, en dan meldt hij FOUT. Draai hem na een wijziging aan `stadAchter`, `STAD.rijen` of
-een level met `achterTot`.
+Dat is lucht waar de stad hoort, en dan meldt hij FOUT. Hij rekent met de zoom (`stadAchterZoom`): de verte staat buiten
+de zoom, de huizen aan de straat erin. Hij meldt ook FOUT als de rand van een rij huizen in de verte in een stap verder
+springt dan de camera schoof (`stadAchterRijen`): dan verdwijnt of verschijnt er een huis in een keer. Draai hem na een
+wijziging aan `stadAchter`, `STAD.rijen` of een level met `achterTot`.
 
 ```
 node tools/stadlucht.js                    alle levels met achterTot, op vier schermen

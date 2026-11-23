@@ -587,10 +587,15 @@ De tweede map van Co-op Survival, uitgewerkt in een mockup met de opdrachtgever 
   Alle rijen huizen in de verte houden op dezelfde plek op, op de muur van de voorste rij (`grensRand` in `stadAchter`):
   eerst had elke rij zijn eigen rand, liep de verste rij verder door en zag je onder die huizen de nevel als een plat blauw
   vak tussen de huizen. Ook het paleis vaagt weg voor het die rand bereikt, anders zweefde het boven de savanne.
-  Die rand ligt nooit rechts van de linkermuur van het meest linkse huis aan de straat (`doel` in `stadAchter`): door de
-  parallax lag hij, met de camera op de brug, rechts van het lage huis op de linkeroever, en daarboven zag je blauwe lucht
-  waar de stad hoort. Afgerond naar rechts op een muur valt hij nu achter dat huis. `tools/stadlucht.js` loopt de camera
-  over de straat op vier schermen en meldt FOUT op elke plek waar tussen de huizen lucht te zien is (`stadAchterRand`).
+  Die rand ligt nooit rechts van de linkermuur van het meest linkse huis aan de straat (`grensHuis` in `stadAchter`): door
+  de parallax lag hij, met de camera op de brug, rechts van het lage huis op de linkeroever, en daarboven zag je blauwe
+  lucht waar de stad hoort. Let op de zoom: de verte staat buiten `viewZoom`, de huizen aan de straat erin, dus die muur
+  staat op `W / 2 + (x - world) * zoom`. Die muur schuift sneller dan de verte, dus daar is de rand niet afgerond: per rij
+  zijn de huizen heel vanaf de eerste muur rechts van de rand, en het huis dat de rand doorsnijdt staat er alleen achter de
+  huizen aan de straat, zo doorzichtig als het deel dat er nog van over is (`stadAchterRijRand`). Eerst sprong de rand bij
+  elke muur een heel huis op, en verdween er een huis in de verte in een keer in de lucht (boven het dak en in de steeg).
+  `tools/stadlucht.js` loopt de camera over de straat op vier schermen en meldt FOUT op elke plek waar tussen de huizen
+  lucht te zien is (`stadAchterRand`) en waar een huis in de verte verspringt (`stadAchterRijen`).
 - **De lucht** (`lucht: {wolken, vogels, gloed}` in `stad`, `STAD_LUCHT`, `stadLucht`, `luchtWolken`, `stadReigers`): wolken
   uit Grok in de stijl van de rotsen (`design/stad/verte/wolk_1..8.png`, gefacetteerd, middaglicht), witte reigers in een
   losse V in plaats van de gieren (met een dun grijs randje, zodat ze ook voor een wolk te zien zijn), en een warme gloed
