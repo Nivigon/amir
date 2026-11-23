@@ -833,7 +833,10 @@ layouts" (rechts een paneel, links blijft de winkelkamer met de marktman zichtba
   Bovenin `Shop` en je goud (`#wkgoud`), dan de tabs (`#wktabs`, `MPC_WINKEL_CAT`: Spears of Sticks voor een stokspeler,
   Supplies, Charms & life, Team alleen met een teamgenoot). Elk artikel in `MPC_WINKEL` heeft een `cat`; een artikel met
   `nieuw: true` (nu de Pathfinder) staat als brede kaart bovenaan met NEW.
-- **Kaarten** met een plaatje (`mpcBeeld`): de echte speer, de Pathfinder, de kalebas en het gif; de rest een eenvoudig icoon
+- **Kaarten** met een plaatje (`mpcBeeld`): de echte speer, de Pathfinder, de kalebas en Silver Pride uit hun eigen map, de rest uit
+  `items/winkel/` (`MPC_IKOON_IMG`): Grok-plaatjes in de stijl van de winkelspullen (mat, aardetinten, met de speer en het gifflesje
+  uit het spel), en de drie stokken zijn de echte stokken uit het spel, gekruist. Give 5 gold toont de goudstukken van de teller met
+  de outfit van wie het krijgt: zijn naam en zijn kleuren als stipjes (`mpcGeefBeeld`, `MPC_SET_KLEUR`, `mpcSetKleuren`)
   (`MPC_IKOON`, `mpcStokIkoon`), plek voor echte art later.
 - **Het zijpaneel** (`mpcInfoToon`): het item groot (`#wkinfobeeld`), sfeertekst, uitleg, **You carry** (`mpcDraagToon`: je
   speren in hand en op de rug zoals in de inventory, en je tas) en Buy (bij de Pathfinder "Buy another" als je er al een hebt).
