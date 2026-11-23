@@ -986,6 +986,10 @@ nog niet in de winkel van Co-op en nog niet over het netwerk.
 - **Geluid:** `sounds/bennu_blazen.mp3` op frame `BN.blaasFrame`, `sounds/bennu_vlaag.mp3` bij de vlaag (allebei ElevenLabs), de windvlaag
   van het spel (`playWind` via `startGust`) en een zoemtoon in WebAudio (`bnZoemStart`, `BN.zoemToon`).
 - **Instellingen:** uit het afstelbord "Feathers of the Bennu" (artifact), met de waarden van de opdrachtgever op 23-11-2026 (`BN`).
+- **Bijgesteld (23-11-2026):** Amir in de animatie was 11% kleiner dan zijn gewone beeld: `bnZet` en `bnBolWereld` namen een frame van
+  321,5 px als `CHAR_H`, maar het gewone beeld van Amir is 279 eenheden hoog bij `CHAR_H` 251. Nu `BN.amirPx` (289), zodat hij even groot
+  blijft (de bol en de veren groeien mee). En in de bol staat hij echt vast: een slag van een bandiet of de duw van een schildbandiet zette
+  `knock` ook als hij onkwetsbaar was, en dan schoof hij weg; nu is `knock` 0 en `world` de plek van het ritueel zolang `bnActief()`.
 - **Test 94** (Test levels): de oefenteamgenoot ligt op `level.bennu.x`, ver voor je; hij staat op als de veren aankomen, blijft
   `BN.dummyStaat` s staan en valt weer om. Geen vijanden (`vredig`), dus het terugduwen van vijanden door de bol zit er nog niet in.
 - **Nog te doen:** niets meer uit deze lijst; de winkel, het netwerk en de bol als schild zijn gebouwd (zie hieronder, "Live in Co-op").
