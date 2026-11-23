@@ -411,6 +411,16 @@ absolute getallen zijn lager dan op een laptop; de verhoudingen zeggen wel iets.
   Niet met gif of de Pathfinder, die veranderen per beeld. Nagemeten: 321 van 321 beelden gelijk aan een vers opgebouwd
   doek. En het naambordje (`mpNaamTeken`) wordt een keer gebakken (`mpNaamBak`) in plaats van elk beeld tekst met een
   omlijning. Samen ruim een beeld per seconde erbij in de meting van The Dye Yard.
+- **Lag die met de rondes oploopt (gerepareerd, 23-11-2026):** met drie spelers werd Survival rond ronde 18 traag. Oorzaak:
+  `updateScorps` werkt ook het stof en de steentjes van de hele wereld bij (`updateWereldStof`: `wdust`, `grains`, de
+  stofstraal), en bij een gast doet de wikkel `mpcUpdate` niets. Bij een gast verdween dus geen wolkje meer: in de meting
+  liep `wdust` op van 240 naar 860 in vijf minuten, en elk wolkje werd elk beeld getekend. Bij de host liep het stof met
+  schorpioenen in twee of drie groepen juist twee of drie keer zo snel. Nu werkt `mpcStofUpdate` het stof in Co-op een keer
+  per beeld bij, bij iedereen, en slaat `updateScorps` het dan over (`wereldStofKlaar`). Nagemeten tot ronde 17: bij de
+  gasten blijft `wdust` onder de 15, en de beelden per seconde zakken niet meer weg met de rondes.
+  Meten met `node tools/mptest.js --taai --geenwinkel --pauze 2 --killer 6 --groei --duur 420`: `--killer s` laat de host
+  een vijand die langer dan s seconden leeft raken (zodat de rondes doorlopen), `--groei` meldt elke 15 s per venster de
+  beelden per seconde en de lijsten die groeien, `--ronde N` springt naar ronde N, `--geenwinkel` en `--pauze` versnellen.
 - **Nog te doen, als het op een laptop nodig blijkt:** de lucht en de verre stad samen in een plaat bakken zoals de
   savanne, en alleen opnieuw als de camera ver genoeg verschuift. Eerst met F9 op een echte laptop meten of de stad daar
   ook onder de 60 zakt.
