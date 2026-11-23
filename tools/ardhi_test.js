@@ -59,8 +59,8 @@ const srv = http.createServer((q, r) => {
   await page.waitForTimeout(700); await schiet('wortels');
   const x2 = await page.evaluate(() => bandieten.slice(-3).map(o => ({ x: Math.round(o.x), w: !!o.wortel })));
   ok('wie vastzit kwam niet van zijn plek', x2.filter(o => o.w).length === 2 && x2.filter(o => o.w).every(o => w.x.includes(o.x)), x2);
-  await page.waitForTimeout(1800);
-  ok('de wortels zijn weer weg', await page.evaluate(() => !ardhiWortels.length));
+  const weg = await page.waitForFunction(() => !ardhiWortels.length, null, { timeout: 8000 }).then(() => true, () => false);
+  ok('de wortels zijn weer weg', weg, await page.evaluate(() => ardhiWortels.map(o => o.wortel && +o.wortel.t.toFixed(2))));
   const alleen = await page.evaluate(() => { const b = bandieten.slice(-3); for (const o of b.slice(1)) o.x += 5000; worpTref = true; jav = { blauw: 'ardhi', state: 'vlucht', t: 0 }; ardhiWortelRaak(b[0]); worpTref = false; jav = null; return ardhiWortels.length; });
   ok('een vijand alleen krijgt geen wortels', alleen === 0, alleen);
   // de stokken: Ardhi's Grip
