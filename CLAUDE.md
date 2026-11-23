@@ -166,6 +166,8 @@ streng netwerk. Zie "Voor wie" in `notities/multiplayer.md`.
 of meting (laden, prestaties, beeld, besturing) de telefoon dus niet mee en verkoop een idee niet met "scheelt op
 een telefoon": het spel is voor laptops. Bestaande telefooncode blijft staan tot de opdrachtgever vraagt hem weg
 te halen.
+Hetzelfde voor het goudaapje: neem het niet mee in voorstellen voor laden, prestaties of assets, tenzij de
+opdrachtgever er zelf om vraagt.
 
 ## Waar wat staat
 
