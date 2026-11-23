@@ -32,6 +32,7 @@
 //                                        de outfits van de stoktribe (per slot een andere standaard, het kaartje, een keuze die
 //                                        bij iedereen aankomt), dat ze achter het laadscherm al gekleurd zijn, dat er na het
 //                                        kleuren geen paars in de broek over is, en of er in het spel nog lapjes bij kwamen
+//                                        (zonder --stokken: of de outfits van Mkuki achter het laadscherm al gekleurd zijn)
 //   node tools/mptest.js --profiel       meet de lag: per venster beeldtijd, ons eigen JS per beeld (gemiddeld, p95, slechtste),
 //                                        haperingen, de bytes en berichten per seconde over de lijn (per soort bericht), en een
 //                                        CPU-profiel met de functies die de meeste tijd kosten. Met --epkaart 0 of b3 een level
@@ -726,6 +727,16 @@ async function elk(H, G){
       if (running && !laadWacht && !window.__lapStil && d > 1) window.__lapT.push([+d.toFixed(1), kl.id, img._skinRel || '?']);
       return uit;
     };
+    // de outfits van Mkuki (mkLap): elk lapje dat pas in het spel gekleurd wordt, of dat er nog niet kon zijn (de kaart
+    // nog onderweg: dan stond die beweging even in de kleuren van Outfit 1)
+    window.__mkLapT = [];
+    const m = mkLap;
+    mkLap = function(img, kl){
+      const C = mkLapCache.get(kl.id), had = C && C.has(img);
+      const a = performance.now(), uit = m(img, kl), d = performance.now() - a;
+      if (!had && running && !laadWacht) window.__mkLapT.push([+d.toFixed(1), kl.id, uit ? 'nieuw' : 'leeg', (img.src || '').split('mkuki_spel/')[1] || '?']);
+      return uit;
+    };
   });
   if (args.includes('--duel')) await H.page.evaluate(() => { window.__duel = true; });
   if (args.includes('--ep') || args.includes('--hl') || args.includes('--winkel'))
@@ -1091,6 +1102,9 @@ async function elk(H, G){
     const L = await r.page.evaluate(() => window.__lapT || []).catch(() => []);
     const traag = L.reduce((m, x) => x[0] > m[0] ? x : m, [0]);
     meld(!L.some(x => x[0] > 4), r.wie + ': in het spel ' + L.length + ' nieuwe lapjes van meer dan 1 ms' + (L.length ? ', de traagste ' + traag[0] + ' ms (' + traag[1] + ', ' + traag[2] + ')' : ''));
+    // de outfits van Mkuki: achter het laadscherm al gekleurd (MK_WARM), dus in het spel geen nieuwe lapjes
+    const M = await r.page.evaluate(() => window.__mkLapT || []).catch(() => []);
+    meld(!M.length, r.wie + ': in het spel ' + M.length + ' outfitframes van Mkuki die nog niet gekleurd waren' + (M.length ? ' (' + M.slice(0, 3).map(x => x.join(' ')).join('; ') + ')' : ''));
   }
   if (profiel) for (const r of ramen){
     const sec = (Date.now() - r.lijnT0) / 1000; r.lijnAan = false;

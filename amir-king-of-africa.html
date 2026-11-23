@@ -28062,6 +28062,9 @@ function skinLijstLaad(soort){
   return SKIN.lijst[soort];
 }
 function mkSkinLaad(p){
+  // altijd op het volledige adres: mkLosBeeld en mkZonen bouwen hun pad uit img.src (volledig), de voorlader uit een kort pad;
+  // zonder dit waren dat twee plaatjes, en kwam wat vooraf gekleurd was (MK_WARM) in het spel niet aan
+  try { p = new URL(p, document.baseURI).href; } catch (e){}
   let im = mkSkinBeeld.get(p);
   if (!im){ im = new Image(); im.decoding = 'async'; im.src = p; mkSkinBeeld.set(p, im); }
   return im;
@@ -28083,12 +28086,16 @@ function mkSkinVoorladen(){
   mkVoorgeladen = true;
   const doe = () => { const L = SKIN.lijst.mkuki; if (!L || !L.size || !MK_LOS.data) return setTimeout(doe, 300);
     const F = MK_LOS.data.frames, b = KLEIN + SKIN.soorten.mkuki;
+    // eerst het voorbeeld in de lobby: de idle uit de grote set, met kaarten (MK_WARM)
+    for (const p of mkWarmPaden('', MK_WARM_VB)){ mkSkinLaad(p); mkSkinLaad(p.replace(/\.png$/, '_zones.png')); }
     for (const r of L){
       mkSkinLaad(b + r);
       const d = F[r]; if (!d) continue;
       const s = b + r.replace(/\.png$/, '');
       mkSkinLaad(s + '_lijf.png'); if (d.b) mkSkinLaad(s + '_boven.png'); if (d.m) mkSkinLaad(s + '_sm.png');
     }
+    // de kaarten voor de outfits (mkLap), zodat een outfit niet pas bij het eerste gebruik op kleur komt (MK_WARM)
+    for (const p of mkWarmPaden(KLEIN, [...L])) mkSkinLaad(p.replace(/\.png$/, '_zones.png'));
     for (const h in MK_LOS.data.hoeken) mkSkinLaad(SKIN.soorten.mkuki + 'bron/amirspeer_' + h + '.png');
   };
   skinLijstLaad('mkuki'); mkLosLaad(); doe();
@@ -28287,14 +28294,17 @@ function mkLosBeeld(mk, rel, kl, speer, cv){
   if (heel) cv._bbMemo = memo;
   return cv;
 }
-function mkLap(img, kl){
-  let cache = mkLapCache.get(kl.id);
-  if (!cache){ cache = new WeakMap(); mkLapCache.set(kl.id, cache); }
-  let lap = cache.get(img);
-  if (lap !== undefined) return lap;
+// De zones van een frame, los van de outfit: welke pixels bij welke zone horen (k), hoe helder ze zijn (v) en hun alfa (a),
+// alleen binnen de rechthoek eromheen. Een keer per frame uitgerekend (het dure deel: twee keer getImageData en het
+// vergelijken met de kaart); daarna kost een outfit alleen nog het inkleuren (mkLap), zodat vooraf kleuren (mkWarmTaken)
+// en wisselen in de lobby snel gaan. undefined: de kaart is nog niet binnen; null: niets te kleuren.
+const mkZoneCache = new WeakMap();                       // skinframe -> {x, y, w, h, i, k, v, a} of null
+function mkZonen(img){
+  let Z = mkZoneCache.get(img);
+  if (Z !== undefined) return Z;
   const zi = mkSkinLaad(SKIN_SRC.get.call(img).replace(/\.png$/, '_zones.png'));
-  if (!imgReady(zi)) return null;                         // nog niet binnen: even zonder kleur, de volgende keer wel
-  lap = null;
+  if (!imgReady(zi)) return undefined;                   // nog niet binnen: even zonder kleur, de volgende keer wel
+  Z = null;
   try {
     const w = img.naturalWidth, h = img.naturalHeight;
     const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -28302,28 +28312,135 @@ function mkLap(img, kl){
     g.drawImage(zi, 0, 0, w, h);
     const z = g.getImageData(0, 0, w, h).data;
     g.clearRect(0, 0, w, h); g.drawImage(img, 0, 0);
-    const d = g.getImageData(0, 0, w, h), p = d.data, K = MK_OUTFIT.kaart;
+    const p = g.getImageData(0, 0, w, h).data, K = MK_OUTFIT.kaart;
+    const idx = [], ks = [], vs = [], as = [];
     let x0 = w, y0 = h, x1 = -1, y1 = -1;
     for (let j = 0, i = 0; j < w * h; j++, i += 4){
+      if (!(z[i + 3] > 128 && p[i + 3])) continue;
       let k = -1;
-      if (z[i + 3] > 128 && p[i + 3]) for (let q = 0; q < 6; q++){
+      for (let q = 0; q < 6; q++){
         if (Math.abs(z[i] - K[q][0]) < 40 && Math.abs(z[i + 1] - K[q][1]) < 40 && Math.abs(z[i + 2] - K[q][2]) < 40){ k = q; break; }
       }
-      if (k < 0){ p[i + 3] = 0; continue; }
-      const f = Math.min(1.45, Math.max(0.15, Math.max(p[i], p[i + 1], p[i + 2]) / 255 / MK_OUTFIT.vref[k])), c2 = kl.zones[k];
-      p[i] = Math.min(255, c2[0] * f); p[i + 1] = Math.min(255, c2[1] * f); p[i + 2] = Math.min(255, c2[2] * f);
+      if (k < 0) continue;
+      idx.push(j); ks.push(k); vs.push(Math.max(p[i], p[i + 1], p[i + 2])); as.push(p[i + 3]);
       const x = j % w, y = (j - x) / w;
       if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
     }
     if (x1 >= 0){
-      g.putImageData(d, 0, 0);
-      const cv = document.createElement('canvas'); cv.width = x1 - x0 + 1; cv.height = y1 - y0 + 1;
-      cv.getContext('2d').drawImage(c, x0, y0, cv.width, cv.height, 0, 0, cv.width, cv.height);
-      lap = { cv, x: x0, y: y0 };
+      const bw = x1 - x0 + 1, I = new Uint32Array(idx.length);
+      for (let n = 0; n < idx.length; n++){ const x = idx[n] % w, y = (idx[n] - x) / w; I[n] = (y - y0) * bw + (x - x0); }
+      Z = { x: x0, y: y0, w: bw, h: y1 - y0 + 1, i: I, k: Uint8Array.from(ks), v: Uint8Array.from(vs), a: Uint8Array.from(as) };
     }
+  } catch (e){ Z = null; }
+  mkZoneCache.set(img, Z);
+  return Z;
+}
+function mkLap(img, kl){
+  let cache = mkLapCache.get(kl.id);
+  if (!cache){ cache = new WeakMap(); mkLapCache.set(kl.id, cache); }
+  let lap = cache.get(img);
+  if (lap !== undefined) return lap;
+  const Z = mkZonen(img);
+  if (Z === undefined) return null;                      // de kaart komt nog
+  lap = null;
+  if (Z) try {
+    const cv = document.createElement('canvas'); cv.width = Z.w; cv.height = Z.h;
+    const g = cv.getContext('2d'), d = g.createImageData(Z.w, Z.h), p = d.data, V = MK_OUTFIT.vref;
+    for (let n = 0; n < Z.i.length; n++){
+      const k = Z.k[n], f = Math.min(1.45, Math.max(0.15, Z.v[n] / 255 / V[k])), c2 = kl.zones[k], i = Z.i[n] * 4;
+      p[i] = Math.min(255, c2[0] * f); p[i + 1] = Math.min(255, c2[1] * f); p[i + 2] = Math.min(255, c2[2] * f); p[i + 3] = Z.a[n];
+    }
+    g.putImageData(d, 0, 0);
+    lap = { cv, x: Z.x, y: Z.y };
   } catch (e){ lap = null; }
   cache.set(img, lap);
   return lap;
+}
+// ---- de outfits van Mkuki vooraf kleuren (MK_WARM) ----
+// Zonder dit kwam elke outfit pas op kleur als een frame voor het eerst getekend werd: de kaart (_zones.png) moest nog
+// binnenkomen en het inkleuren gebeurde midden in het spel, dus zag je een beweging eerst in de kleuren van Outfit 1.
+// Nu: de kaarten komen mee met mkSkinVoorladen, en in drie stappen wordt alles vooraf gekleurd:
+// - in het menu, als de browser niets te doen heeft (mkVoorWarm): het voorbeeld in de lobby (de idle, de grote set) in
+//   alle outfits, en daarna elk frame in het spel voor de outfit die je de vorige keer droeg (amir.mpoutfit);
+// - in de lobby (vachtLobbyStap): elk frame voor de outfits die nu gedragen worden, ook die van een teamgenoot;
+// - wat er dan nog over is achter het laadscherm (warmBouw).
+// Het zonewerk (mkZonen) doet een frame maar een keer, dus een tweede outfit op hetzelfde frame kost bijna niets.
+function mkWarmKlaar(){ return !!(SKIN.lijst.mkuki && SKIN.lijst.mkuki.size && MK_LOS.data); }
+// de plaatjes die mkLap kleurt bij deze skinframes: het lijf en wat erover komt (MK_LOS), of het frame zelf
+function mkWarmPaden(pre, rels){
+  const D = MK_LOS.data, uit = [];
+  for (const r of rels){
+    const s = pre + SKIN.soorten.mkuki + r.replace(/\.png$/, ''), d = D && D.frames[r];
+    if (!d){ uit.push(s + '.png'); continue; }
+    uit.push(s + '_lijf.png'); if (d.b) uit.push(s + '_boven.png');
+  }
+  return uit;
+}
+function mkWarmTaak(pad, kl){
+  return () => {
+    const im = mkSkinLaad(pad);
+    if (!im.complete) return false;
+    if (!im.naturalWidth) return;                        // ontbreekt
+    if (mkLap(im, kl) || mkZonen(im) !== undefined) return;
+    const zi = mkSkinLaad(pad.replace(/\.png$/, '_zones.png'));
+    return zi.complete && !zi.naturalWidth ? undefined : false;   // de kaart komt nog (of ontbreekt)
+  };
+}
+// taken: per frame alle outfits achter elkaar, zodat het zonewerk van dat frame meteen voor allemaal geldt
+function mkWarmRij(kls, pre, rels){
+  const rij = [];
+  if (!kls.length) return rij;
+  for (const pad of mkWarmPaden(pre, rels)) for (const kl of kls) rij.push(mkWarmTaak(pad, kl));
+  return rij;
+}
+const MK_WARM_VB = Array.from({ length: 20 }, (_, i) => 'idle/idle_sp/idle_sp_' + (i < 10 ? '0' : '') + i + '.png');   // het voorbeeld in de lobby (broekVbLaad)
+function mkKleurOutfits(ids){
+  const kls = [];
+  for (const id of ids){ const kl = broekKleurVan(id); if (kl && kl.skin && kl.zones && !kls.includes(kl)) kls.push(kl); }
+  return kls;
+}
+// het voorbeeld in de lobby, in alle outfits van Mkuki (de grote set, zoals broekVbBeelden)
+function mkLobbyVbTaken(){
+  if (!mkWarmKlaar()) return [];
+  return mkWarmRij(mkKleurOutfits(MK_OUTFIT.lijst.map(k => k.id)), '', MK_WARM_VB);
+}
+// elk frame in het spel (de set die nu speelt, KLEIN) voor deze outfits
+function mkSpelTaken(ids){
+  if (!mkWarmKlaar()) return [];
+  return mkWarmRij(mkKleurOutfits(ids), KLEIN, [...SKIN.lijst.mkuki]);
+}
+// de outfits van Mkuki die in Multiplayer meespelen (pvp.broek, ook die van een teamgenoot)
+function mkWarmTaken(){
+  if (!pvp || !pvp.broek) return [];
+  mkSkinVoorladen();
+  return mkSpelTaken((pvp.spelers || []).map(p => pvp.broek[p]));
+}
+// in het menu: eerst het voorbeeld in de lobby, dan de outfit van de vorige keer. Elk beeld hooguit MK_WARM_MENU ms, zodat
+// het menu blijft lopen (requestIdleCallback kwam in het menu nooit aan de beurt: de menulus houdt de browser bezig).
+const MK_WARM_MENU = 5;
+let mkVoorWarmLoopt = false;
+function mkVoorWarm(){
+  if (mkVoorWarmLoopt) return;
+  mkVoorWarmLoopt = true;
+  mkSkinVoorladen();
+  let rij = null;
+  const stap = () => {
+    if (startEl.classList.contains('off')) return setTimeout(stap, 500);   // in het spel: niet, dat doet warmBouw
+    if (rij === null){
+      if (!mkWarmKlaar()) return setTimeout(stap, 300);
+      let eigen = null; try { eigen = localStorage.getItem('amir.mpoutfit'); } catch (e){}
+      rij = mkLobbyVbTaken().concat(mkSpelTaken(eigen ? [eigen] : []));
+    }
+    const grens = performance.now() + MK_WARM_MENU;
+    let wacht = 0;
+    while (rij.length && performance.now() < grens && wacht < rij.length){
+      const taak = rij.shift(); let uit;
+      try { uit = taak(); } catch (e){}
+      if (uit === false){ rij.push(taak); wacht++; } else wacht = 0;
+    }
+    if (rij.length){ if (wacht) setTimeout(stap, 200); else requestAnimationFrame(stap); }
+  };
+  stap();
 }
 // de maskers van een frame: welke pixels broek zijn (mk, 0 tot 1) en welke vacht (vm, 0 of 1, of null zonder vacht). Uit het
 // originele plaatje berekend; voor een outfit van de stoktribe gebakken in karakters/amir_vacht/ (tools/vacht_bak.js, die
@@ -28487,17 +28604,29 @@ function vachtWarmTaken(){
   return rij;
 }
 // Al in de lobby: zolang iemand daar staat te kiezen kleuren we in elk beeld een paar ms van de outfits die nu gedragen
-// worden (vachtWarmTaken), zodat er achter het laadscherm weinig over is. Wisselt iemand van outfit, dan begint de rij
-// opnieuw en gaan de lapjes van een outfit van de stoktribe die niemand meer draagt weg (geheugen).
+// worden (vachtWarmTaken, en voor Mkuki mkWarmTaken), zodat er achter het laadscherm weinig over is. Eerst het voorbeeld in
+// de lobby in alle outfits (wisselen staat meteen op kleur). Wisselt iemand van outfit, dan begint de rij opnieuw en gaan de
+// lapjes van een outfit die niemand meer draagt weg (geheugen); het voorbeeld komt meteen terug (het zonewerk blijft).
 const VACHT_LOBBY = { budget: 4, sleutel: '', rij: [] };
 function vachtLobbyStap(){
   if (!pvp || !pvp.broek) return;
-  const sleutel = (pvp.spelers || []).map(p => pvp.broek[p]).join();
+  mkSkinVoorladen();
+  const sleutel = (pvp.spelers || []).map(p => pvp.broek[p]).join() + '|' + mkWarmKlaar() + '|' + !!(stokBank && stokBank.staan);
   if (sleutel !== VACHT_LOBBY.sleutel){
     VACHT_LOBBY.sleutel = sleutel;
-    const draag = (pvp.spelers || []).map(p => broekKleurVan(pvp.broek[p])).filter(kl => kl && kl.vacht).map(kl => kl.id);
+    const draag = (pvp.spelers || []).map(p => broekKleurVan(pvp.broek[p])).filter(kl => kl).map(kl => kl.id);
     for (const o of VACHT.outfits) if (!draag.includes(o.id + '_vacht')) broekLapCache.delete(o.id + '_vacht');
-    VACHT_LOBBY.rij = vachtWarmTaken();
+    for (const o of MK_OUTFIT.lijst) if (!draag.includes(o.id)) mkLapCache.delete(o.id);
+    // het voorbeeld met de stokken (stokBank.staan[0], mpBroekStart) in alle outfits van de stoktribe
+    const vb = [];
+    const st = stokBank && stokBank.staan && stokBank.staan[0];
+    if (st) for (const o of VACHT.outfits){ const kl = broekKleurVan(o.id); if (kl && kl.vacht) vb.push(() => {
+      if (!imgReady(st) || !VACHT_BAK.klaar) return false;
+      if (VACHT_BAK.lijst.size && !VACHT_BAK.lijst.has(st._skinRel)) return;
+      broekLap(st, kl); const C = broekLapCache.get(kl.id);
+      if (!(C && (C.n.has(st._skinRel) || C.w.has(st)))) return false;   // het masker komt nog binnen
+    }); }
+    VACHT_LOBBY.rij = mkLobbyVbTaken().concat(vb, mkWarmTaken(), vachtWarmTaken());
   }
   const R = VACHT_LOBBY.rij, grens = performance.now() + VACHT_LOBBY.budget;
   let wacht = 0;
@@ -42812,6 +42941,8 @@ function warmBouw(){
   }
   // Multiplayer: de outfits van de stoktribe die meespelen alvast kleuren, elk frame een keer (vachtWarmTaken)
   rij.push(...vachtWarmTaken());
+  // en de outfits van Mkuki die meespelen (mkWarmTaken), zodat geen beweging eerst in Outfit 1 te zien is
+  rij.push(...mkWarmTaken());
   return rij;
 }
 function restart(){
@@ -72989,6 +73120,7 @@ let mpBroekLoopt = false;
 const mpBroekA = document.createElement('canvas'), mpBroekB = document.createElement('canvas');
 function mpBroekStart(){
   broekVbLaad();
+  mkVoorWarm();                                     // de outfits van Mkuki alvast laden en kleuren (MK_WARM)
   vachtBakLijst();                                  // welke frames een gebakken masker hebben (VACHT_BAK), alvast voor de outfits van de stoktribe
   if (mpBroekLoopt) return;
   mpBroekLoopt = true;
@@ -75868,7 +76000,8 @@ function mpcFcModus(){
   if (!K.fc) return null;
   return K.kracht && K.rond ? 'kracht_rond' : K.kracht ? 'kracht' : K.rond ? 'rond' : 'basis';
 }
-pvpEl('btnpvp').onclick = () => { pvpStatus(''); showMenu('menuPvp'); };
+pvpEl('btnpvp').onclick = () => { pvpStatus(''); showMenu('menuPvp'); mkVoorWarm(); };   // de outfits alvast laden en kleuren (MK_WARM)
+setTimeout(mkVoorWarm, 6000);                      // en al in het menu, als het spel net open is en de browser tijd over heeft
 pvpEl('pvphost').onclick = () => pvpHost();
 pvpEl('pvpjoin').onclick = () => pvpJoin();
 pvpEl('pvpcode').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') pvpJoin(); });
