@@ -158,6 +158,19 @@ lessen en alle afgekeurde versies staan in de projectnotitie `claude/holle_stam_
 - **Lengte**: `holstamBak` knipt de plaat in drie stukken (`bron.L`, `bron.R`): linkerkop, middenstuk (`ceil(n)` hele
   stukken, elk `n / ceil(n)` zo breed: een afgeknipt stuk sloot boven niet aan op de rechterkop), rechterkop, met een overloop van `ov` bronpixels. Per stam een keer gebakken op bronmaat (`q._bak`), plus de
   dichte rand: per kolom alleen het bovenste 16% en onderste 10% van de schil.
+- **Aankleden** (Tom koos dit uit Grok-art ingame, 23-11): `tools/holstam_kit_knip.py` knipt uit `bron/kit_grok_e4de8c8f.jpg`
+  de kit (`kit/`: mos_0..4, hangmos_0..1, zwam_0..3, paddo_0..1, gloei_0, wortel_0, varen_0..1) en uit
+  `bron/rand_grok_97898eeb.jpg` de bastrand (`rand.png`, de rechter, met hangend mos). Per stam kiest `holstamRng(q.x)`
+  (een vaste reeks, geen kans: elke ronde dezelfde stam) of hij gespiegeld is, een tint, en waar de mosplukken bovenop, het
+  hangmos en de zwammen op de bast komen (`holstamAankleed`, in de schil gebakken, daarna `holstamMosKleur`). Aantallen in
+  `HOLSTAM.aankleed`. Aan de voet (`holstamVoetTeken`, in `holstamVoor`): wortels uit de koppen de grond in, varens en
+  paddenstoeltjes. Losse paddenstoeltjes door het level: `level.zwammen: [{x, k, v, s, f}]` (`k` paddo of gloei).
+- **Licht** (`holstamLicht`, gebakken): de zon staat achter de stam, dus een warme rand langs de bovenkant
+  (`randLicht`), de voorkant naar onder toe donkerder (`voetDonker`) en de rafelrand bij de openingen gedimd (`kopDonker`).
+  Binnen vallen schuine bundels door de openingen (`holstamBundels`, `bundels`). De schaduw op de snede is donkerder.
+- **Bastrand**: sta je in de stam (q.vaag), dan loopt de gebroken onderrand van de bast voor je voeten langs
+  (`holstamLipBak`, `schorsrand`: 0,48 Amir hoog, 0,78 daarvan boven de looplijn), zodat je echt in de stam staat. Tom
+  wilde geen houten vloer: die las niet vanaf de zijkant.
 - **Grootte**: `HOLSTAM.hoog` (2,25 Amir) maal `s`. Bij s 1 ligt het plafond binnen op 357 en de bovenkant op 373
   (sprite-eenheden), dus bovenop kom je alleen vanaf iets hogers (de sprong haalt ruim 200). Bij s 0,45 is het plafond
   160: alleen gebukt erdoor, net als de kruipstam.
