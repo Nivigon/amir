@@ -54,7 +54,6 @@ het kooiduel, de baas-panter en de baviaan zijn geensceneerd en horen je te vind
 | bandiet | `idle` (de staande idle-set, `banLaadIdle`, geladen in `banLaadLevel`) | `run` | terug naar `idle` |
 | schildbandiet | in zijn wacht (loop-frame 0) | `loop` | terug in zijn wacht |
 | kooiman | slepen op zijn plek | slepen naar je toe | weer op zijn plek |
-| meelman | wacht aan de rand | slaan, slepen of gooien alleen als hij je ziet; naar beneden over de rand kan dat | |
 
 ## Sandbox
 

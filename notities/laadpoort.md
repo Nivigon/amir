@@ -29,7 +29,7 @@ Wat niet elk level gebruikt, komt pas binnen als een level het gebruikt: `laadLe
 | panter (`panImg`, in de winter ook `panSkins.wit`) | spawns `panter`, plus `winter` | `panLoad`, `panLoadSkin('wit')`, `panLaadLevel` | nu |
 | dorpelingen (`NPCS[k].frames`, de cycli van de dorpelinge) | `npcs` | `npcLaad(kind)`, `npcLaadLevel` | nu |
 | dorp (`villageImg[id]`) | `village`, per id (de winterplaten hebben hun eigen id) | `loadVillage(id)`, `dorpLaadLevel`; `villageList` laadt een id dat pas in het spel opduikt alsnog | nu |
-| bandiet, kooiman, meelman, schildbandiet, vogel | spawns en vlaggen | `banLaadLevel`, `kooiLaadLevel`, `meelLaadLevel`, `schbLaadLevel`, `vogelLaadLevel` | eerder |
+| bandiet, kooiman, schildbandiet, vogel | spawns en vlaggen | `banLaadLevel`, `kooiLaadLevel`, `meelLaadLevel`, `schbLaadLevel`, `vogelLaadLevel` | eerder |
 | baviaan, goudaap, skelet, speerteken, fakkel, deur, takel, grot, mes, bloed | wat het level heeft | eigen `xxxLaad`, vanuit `warmBouw` of bij het eerste gebruik | eerder |
 
 De sandbox kan elke soort spawnen en roept daarom bij het openen (`startSandbox`) alle laders aan die lui zijn
@@ -63,7 +63,7 @@ blijft hij na zijn level in het geheugen staan.
 had bleef staan tot de pagina dicht ging, dus na de baviaan, een bandiet en de goudaap-arena zaten al die reeksen
 tegelijk in het geheugen. Nu meldt elke grote vijandlader zich met `laadNodig(soort)`, ook als hij al geladen was
 (de slangen per kleur, de schorpioen, de hyena en de panter met hun witte vacht, de bandiet per set en per variant,
-de kooiman, de vogel, de meelman, de schildbandiet en zijn executie, de baviaan en het goudaapje). `setLevel` en
+de kooiman, de vogel, de schildbandiet en zijn executie, de baviaan en het goudaapje). `setLevel` en
 `mkTest` beginnen een nieuwe lijst (`laadNieuw`); daarna vragen `laadLevel`, `restart` (de baviaan, de arena, het
 takelwiel, de bandiet-arena) en de spawns aan wat het level gebruikt. Aan het eind van `restart` is de wereld leeg,
 en dan laat `laadVrij` los wat niet op de lijst staat: de Image-objecten gaan uit de banken (`delete`, of de `let`

@@ -524,14 +524,14 @@ brug moeten kunnen lopen.
   zijn voeten ligt, `supportHeight` neemt het als steun (via `p.stap`, net als de helling van de strakke luifel), en in
   `updateJump` glijdt `ph` met `OPSTAP.v` (400 px/s) omhoog en omlaag in plaats van te springen of te vallen.
 - **Vijanden:** `blocksMonster` en `dropAhead` laten een opstapje door, en de hoogte van de bandiet, schildbandiet,
-  kooiman, meelman, kruisboog, zweepman en hyena (en de panter, die `updateHyena` deelt) volgt de vloer met `opstapVolg`.
+  kooiman, kruisboog, zweepman en hyena (en de panter, die `updateHyena` deelt) volgt de vloer met `opstapVolg`.
   Een uitzondering op "vijanden gaan niet over treden", maar alleen voor terrassen met de vlag; elke andere trede houdt ze
   tegen zoals altijd.
 - **Slangen en schorpioenen** blijven beneden (`geenOpstap` in `slangSchuif` en `scpBlocked`): voor hen is 28 een hele trede.
 - `opstapBij` zoekt tot 160 voorbij de rand van een opstapje: de bandiet kijkt een halve lijfbreedte vooruit, en met 60 bleef
   hij op de laatste trede staan.
 - Een trap van opstapjes af (`opstapTrap`, met de plek waar hij staat als `x0` in `dropAhead`, vanuit `knockBlocked` en de
-  storm van de hyena): de kooiman en de meelman kijken verder vooruit dan een trede breed is (80 op Ishmul) en zagen bovenaan
+  storm van de hyena): de kooiman kijkt verder vooruit dan een trede breed is (80 op Ishmul) en zagen bovenaan
   het plein al de trede van 28, 56 lager. Dan bleven de meelman en de duel-kooiman daar voorgoed staan, en hield een ronde
   van Co-op nooit op. Nu loopt `opstapTrap` de vloer ertussen na: alleen opstapjes, elk niet hoger dan `OPSTAP.max`, is
   geen rand (20-11-2026).

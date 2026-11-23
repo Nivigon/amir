@@ -55,7 +55,7 @@ werken; `modus` staat in de gates altijd op `golven`), de rest in `sbGatesSt`.
 Na de afteller van Start begint ronde 1 meteen (`sbArenaGo` roept `sbGatesVolgende` en `sbGatesOpen`).
 
 **Vooraf laden.** `sbArenaStart` laadt de frames van elke soort die aan staat (`sbArenaLaad`, `SB_ARENA_LAAD`), ook van
-de bandiet, de schildbandiet, de meelman en de kooiman, die zichzelf anders pas in hun make-functie laden. Het
+de bandiet, de schildbandiet en de kooiman, die zichzelf anders pas in hun make-functie laden. Het
 aftellen wacht daar op (`sbAftelUpdate`, `a.laad`, `sbLaadBezig`: zolang `laadOpen` of `laadJsonOpen` niet leeg is,
 hoogstens `SB_AFTEL.laadMax` seconden) en toont zolang **Laden**. Vroeger kwamen die sets pas binnen als de eerste uit
 een poort kwam (de bandiet 362 plaatjes, de schildbandiet ruim 340 met zijn lagen en executie, de meelman 115), en dan zakte
@@ -67,7 +67,7 @@ Een sandbox-knop onder Gedrag (elite, duin, vault) die je pas na Start omzet, la
 
 Uit de soorten die aan staan (`sbGatesCfg.per`, bij het openen van de modus alles aan; klik uit wat je niet wilt).
 Door een poort kunnen `SB_GATES_SOORTEN`: zandslang, zwarte slang, knockslang, schorpioen, de fosforgroep, bandiet,
-schildbandiet (makkelijk en moeilijk) en meelman. Hyena en panter komen van de beeldrand en niet uit een poort, de
+schildbandiet (makkelijk en moeilijk). Hyena en panter komen van de beeldrand en niet uit een poort, de
 kooiman heeft zijn eigen entree: die drie staan niet in de lijst (en de rij Kooiman onder Gedrag is weg).
 
 - Per lage poort een uit alles wat aan staat en al meedoet; door de bovenpoort (de lage boog) alleen wat kruipt

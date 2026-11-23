@@ -154,7 +154,7 @@ alles terug. De handlers blijven dezelfde, en omdat de wizard binnen `#sandbox` 
 van de Toon-functies (view, lagen, weer, muziek) ze nog. De vrije sandbox ziet dus precies het oude paneel.
 Pagina 1: `#sbarenamodus`, `#sbarenakant`, de hint, `#sbarenastroomrij`, `#sbarenagolfrij`, `#sbarenalijst`, en per
 soort het gedrag uit Vijanden (bandiet: AI, dolk, vault, elite, duin, bloed, spuit; slangen: klimmen; schildbandiet:
-AI, executie, wankel; meelman en kooiman: AI, vogel, duel; allemaal: health-balk, zicht). Pagina 2: de kaartjes met
+AI, executie, wankel; kooiman: vogel, duel; allemaal: health-balk, zicht). Pagina 2: de kaartjes met
 de arena's (`SB_ARENA_PLEKKEN`, nu alleen `koning`; `sbArenaCfg.veld`), Onsterfelijk (`#awonst`), Kalebassen
 (`#awkal`, `#awkalelke`), Ruimte, en uit Speer en spullen en Beeld en geluid: worp, rug, renstoot, lage zwaai, de
 drie tribe-rijen, uitzoomen, tijd van de dag, weer en muziek. Onderin Opnieuw en Terug naar menu.

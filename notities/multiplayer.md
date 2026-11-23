@@ -92,7 +92,7 @@ De soorten en hun twee versies (`MP_SOORTEN`):
 | schildbandiet | `niveau: 'makkelijk'` | normaal |
 | kooiman | gewoon (`duel: false`) | het duel |
 | kruisboogbandiet | zonder hoorn | met hoorn |
-| schorpioen, hyena, goudaapje, meelman, zweepman | een vinkje | |
+| schorpioen, hyena, goudaapje, zweepman | een vinkje | |
 
 Bazen (panter, baviaan, Nyundo, Murghtaan) staan er niet in (regel 12, en de opdrachtgever wil ze voorlopig uit).
 
@@ -230,7 +230,7 @@ de lobby staat dan in het staande stokframe.
 - **Het wapenrek:** een rek midden in het level met `rek` speren. Je draagt er hooguit 2 (1 in de hand, 1 op de rug),
   3 met het extra slot uit de winkel. Een speer uit het rek komt niet terug. Na elke winkel is het rek weer vol en heeft
   ieder zijn speren terug.
-- **Punten (teamtotaal):** slang, schorpioen, goudaapje, hyena 10; bandiet, meelman, zweepman 15; kooiman, kruisboog 20;
+- **Punten (teamtotaal):** slang, schorpioen, goudaapje, hyena 10; bandiet, zweepman 15; kooiman, kruisboog 20;
   schildbandiet 25. De moeilijke versie 5 extra. Een multikill 10 extra per kill in de reeks.
 - **Eindscherm:** alleen het team: score, de ronde waarin het eindigde, tijd. Een highscore op het apparaat, per keuze van
   vijanden.
@@ -289,7 +289,7 @@ en dan bleef een bandiet van een gast voor altijd staan. Een nieuw veld begint n
   relais) is "bevestigd" gewoon het vorige bericht. Elke `MPC.sleutel` seconde alles. Een veld is een getal op twee decimalen,
   een tekst, of een object dat JSON wil (een kring zoals `groep` van de fosfor, een plaatje of een groot brok gaat niet mee,
   `mpcWaarde`). De gast zet elk bericht in de speelbuffer (`pvpNetIn`) en bouwt zijn lijsten op als het aan de beurt
-  is (`mpcStandLees`, vanuit `mpcVolgStap`); daarna staat elke vijand tussen dat bericht en het volgende in (`mpX0`). Kogels, dolken, meelzakken en gif (`los` in `MPC_LIJSTEN`) komen een keer over en vliegen daarna bij de gast
+  is (`mpcStandLees`, vanuit `mpcVolgStap`); daarna staat elke vijand tussen dat bericht en het volgende in (`mpX0`). Kogels, dolken en gif (`los` in `MPC_LIJSTEN`) komen een keer over en vliegen daarna bij de gast
   zelf, zodat ze hem ook raken; komt er een bij hem neer, dan komt hij niet terug (`losWeg`). De goudaapjes rekenen in
   `bavKlok`: hun tijden schuiven bij de gast mee met het verschil tussen de klokken (`MPC_GAAP_TIJD`), want zijn eigen
   `bavKlok` meet ook de tik van zijn speer.
@@ -646,7 +646,7 @@ tonnetje op verschillende plekken"). Bij Map kiest de host het level waar het te
   2. **Broken Ground** (middel, `hoogland`): een terras met een kruisboogschutter erop, twee ravijnen (220 en 240) om over te
      springen, twee makkelijke schildbandieten, bandieten met een dolk.
   3. **The Last Ridge** (moeilijk, `schemer`): een kruisboog op een terras, knock en zwart, een normale schildbandiet,
-     fosfor, drie hyena's, een gewone kooiman (`duel: false`, geen geënsceneerd duel) en een meelman, twee ravijnen en
+     fosfor, drie hyena's, een gewone kooiman (`duel: false`, geen geënsceneerd duel) en een dolkwerper, twee ravijnen en
      aan het eind een elite-garde met vijf levens.
 - **Alles van Co-op Survival werkt hier:** de host denkt voor de vijanden, `mpcUpdate`, de revive-ton en het symbool, de
   camera van een dode, de lijken. Geen rondes, geen winkel en geen goud (`mpcKill` geeft in de episode geen goud, de HUD
@@ -692,7 +692,7 @@ regie die laat zien waar de vijanden binnenkomen, de kelder uit Stad 14, en een 
      eindigt in de kelder tegen een hoge leemmuur.
   5. **The Gatehouse** (moeilijk, `schemer`): twee poorten met een hek, een kruisboog van achteren, en een elite-garde met
      vijf levens uit de tweede poort.
-  6. **Lantern Street** (moeilijk, `stad_nacht`, fakkels): deuren beneden en op de galerij, de daken, een meelman, een
+  6. **Lantern Street** (moeilijk, `stad_nacht`, fakkels): deuren beneden en op de galerij, de daken, een dolkwerper, een
      zweepman van achteren; vier shots in de tweede hinderlaag.
   7. **The Smugglers' Cellar** (heel moeilijk, `stad_nacht`, fakkels): drie hinderlagen; de laatste begint met het luik dat
      openvliegt (**From the cellar!**) en een elite, en dan naar beneden: het hele team bij de kelder.
@@ -1049,7 +1049,7 @@ Op verzoek van de opdrachtgever:
 - **De bol houdt alles buiten** (`bnSchild`, elke stap in `bnStap`, voor elke bol die loopt). `bnBolWereld` rekent de bol om
   naar de wereld (x 1:1, hoogte gedeeld door de schaal). Een vijand uit `straatVijanden()` en `goudapen` met zijn voeten in de
   bol schuift terug naar de rand en zijn `knock` naar binnen vervalt (alleen bij de host, die de vijanden bestuurt). Een
-  kruisboogbout, dolk, meelzak of gifbal die erin vliegt houdt op aan de rand met een rimpeling (`bnTik`), ook bij een gast,
+  kruisboogbout, dolk of gifbal die erin vliegt houdt op aan de rand met een rimpeling (`bnTik`), ook bij een gast,
   want die vliegen daar zelf. De blazer was al onkwetsbaar in de bol.
 - **Proef:** `node tools/mptest.js --bennu --spelers 2`.
 
