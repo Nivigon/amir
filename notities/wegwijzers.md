@@ -191,6 +191,13 @@ en toe (`kans` 0,3, hooguit 6) blijft er een klein gat. Met `hol: {dx, inhoud, g
 in de wand: een haarscheur met af en toe een warme zweem, en vier slagen erop breken hem open (`gat_0` tot `gat_4`,
 Grok-post 1cc7330a, elk een stand). Bij de laatste slag schudt het beeld en vliegen er stukken in perspectief langs de
 camera (`holstamLens`, zoals de tonnen bij Nyundo, maar ze raken de lens niet). Dan gloeit het hol en E steekt je arm
-erin: een kalebas valt eruit, of met `inhoud: 'goud'` goud (`holstamGatE`, in `eDruk` na de kist). Sterf je, dan is alles
+erin: Amir graaft even (`HOLSTAM.gat.zoek`, geschraap van `stofveeg.mp3`, een tik hout en vijf korte ruisstoten als
+droog blad, `holstamZoekGeluid`), en dan valt er een kalebas uit (met `zegelontdek.mp3`), of met `inhoud: 'goud'` goud
+(`holstamGatE`, `holstamVondst`). Met `inhoud: 'ruimte'` is het een lege ruimte erachter (dieper donker met ringen van de
+nerf, E vindt alleen blad en botten), met `inhoud: 'uitzicht'` breek je dwars door de wand: het gat (een grillige
+veelhoek, `holstamUitzichtVorm`) wordt uit de binnenkant geknipt en toont het stuk achtergrond `uitzichtKijk` Amir hoger
+(lucht en kruinen), met de bast eromheen (`holstamUitzichtRand`) en daglicht naar binnen; geen E. Een uitzicht zit hoger
+(`uitzichtH` 0,82, of eigen `h` in Amir). De laatste slag breekt met `ton_breek.mp3`. `kruis: true` (alleen een testlevel)
+zet een rood kruis met de soort en de stand erbij. Sterf je, dan is alles
 weer dicht (`holstamReset`). Sandbox Terrein, Holle stam, **Met hol**; Test 93 heeft een hol in de eerste en de lange stam.
 
