@@ -371,30 +371,40 @@ Te koop in de winkel van Co-op als **Lion Claw sticks** (zie `notities/multiplay
   het canvas uit en wordt daar afgesneden.
 
 
-## De leeuwenvacht per broekkleur (23-11-2026, Test 92)
+## De outfits van de stoktribe: broek en leeuwenvacht (23-11-2026, Test 92)
 
-Op verzoek: voor de stoktribe in Co-op niet alleen een andere broek maar ook een leeuwentint op de vacht, zodat spelers
-beter uit elkaar te houden zijn. Realistische leeuwenkleuren, per broek een eigen tint (`VACHT.lijst`):
+Op verzoek: voor de stoktribe niet alleen een andere broek maar ook een leeuwentint op de vacht, zodat spelers in Co-op
+beter uit elkaar te houden zijn. Eerst per broekkleur een tint; die vond de opdrachtgever niet stoer genoeg (te fel, niet
+zoals de outfits van Mkuki). Daarna heeft hij zelf zes outfits samengesteld in de Bhubesi outfit-maker (een artifact met
+het echte stokframe en dezelfde kleurberekening) en ze een naam gegeven (`VACHT.outfits`):
 
-| broek | vacht |
-| --- | --- |
-| Purple | Tawny (de vacht zoals hij is) |
-| Fire red | Sand |
-| Orange | Ash |
-| Gold | Rust |
-| Turquoise | Ochre |
-| White | Dark brown |
-| Black | White (Timbavati, bedoeld als beloning) |
+| outfit | broek | vacht |
+| --- | --- | --- |
+| Homefinder | paars (het tenue zoals het is) | tawny (zoals hij is) |
+| Ice Warder | indigo | wit |
+| Dawnbreaker | zwart | blond |
+| Firedancer | ossenbloed | goud |
+| Moss Cleaver | olijf | as |
+| Show Stopper | bloedrood | zilver |
 
-Hoe: `broekLap` maakt met `kl.vacht` in hetzelfde lapje ook de vacht. `vachtMasker` zoekt per frame de vacht (licht, beige
-tot goud, niet fel: zo blijven de leren handvatten van de stokken buiten), houdt alleen grote stukken, maakt de gaten dicht
-(de vlekjes, de contour erbinnen) en neemt de rand in de schaduw mee. De kleur: tint plus `dh`, verzadiging maal `s`,
-helderheid maal `v`; hoe donkerder de pixel, hoe minder hij meekleurt (`VACHT.donker`), zodat contour en vlekjes blijven.
-Paars heeft geen broeklapje (`geenBroek`), alleen de vacht. Een kleur met vacht heeft een eigen id (`<broek>_vacht`,
-`vachtKl`), zodat de lapjes los van de gewone broek in de cache staan.
+De namen in Title Case, zoals ze in het spel staan. Ice Warder is indigo, ook al lijkt dat op het kleed van de bandiet: de
+keuze van de opdrachtgever.
 
-Nu alleen in **Test 92: Lion pelts** (`vacht: true` naast `broekKeuze`): bij elke start en na R kies je een van de zeven
-outfits, het voorbeeld is het staande stokframe. Nog niet in Co-op. Open punten voor dat het live gaat:
-- Het masker wordt in het spel berekend, de eerste keer dat een frame getekend wordt (een paar tientallen ms per frame).
-  Voor Co-op beter vooraf bakken per frame (zoals `<frame>_zones.png` bij Mkuki) en een controleblad van alle frames.
-- Wit als beloning (vrijspelen of de winkel) is nog niet gebouwd: in de test is hij gewoon te kiezen.
+Hoe: een outfit is voor `broekLap` een "broekkleur" (`vachtKl`: de broek als `h`, `s`, `v` zoals bij `BROEK`, en `vacht`
+met `dh`, `s`, `v`; Homefinder heeft geen broek en geen vacht, dus geen lapje). `broekLap` maakt in hetzelfde lapje ook de
+vacht. `vachtMasker` zoekt per frame de vacht (licht, beige tot goud, niet fel: zo blijven de leren handvatten van de
+stokken buiten), houdt alleen grote stukken, maakt de gaten dicht (de vlekjes, de contour erbinnen) en neemt de rand in de
+schaduw mee. De kleur: tint plus `dh`, verzadiging maal `s`, helderheid maal `v`; hoe donkerder de pixel, hoe minder hij
+meekleurt (`VACHT.donker`). Het lapje heeft een eigen id (`<outfit>_vacht`), los van de gewone broek in de cache.
+
+Het paars (23-11-2026): met een donkere broek bleef er paars over, het achterbeen achter een stok (een los stuk, kleiner
+dan `BROEK.eiland` van het grootste, dus weggegooid als "vuist") en een paarse lijn langs de rand (`BROEK.rand` liet de
+buitenste 2 px origineel). Met een outfit (`kl.vacht`) geldt daarom `VACHT.eiland` (0,04) en kleurt de rand mee, behalve
+het magenta van de key-rand (tint 300 en hoger). Nagemeten met een script over 281 frames (alle stokanimaties, springen,
+rollen, trap, bukken, sluipen, idle) en alle outfits: nergens meer dan 3% paars over, op de oude sluipframes met de speer
+na (die gebruikt de stokspeler niet).
+
+Nu alleen in **Test 92: Lion pelts** (`vacht: true` naast `broekKeuze`): bij elke start en na R kies je een van de zes
+outfits, het voorbeeld is het staande stokframe. Op verzoek gaan ze ook naar Co-op en Survival (nog niet gebouwd). Open
+punt daarvoor: het masker wordt in het spel berekend, de eerste keer dat een frame getekend wordt (een paar tientallen ms
+per frame); voor Co-op beter vooraf bakken per frame (zoals `<frame>_zones.png` bij Mkuki).
