@@ -32,6 +32,10 @@
 //                                        de outfits van de stoktribe (per slot een andere standaard, het kaartje, een keuze die
 //                                        bij iedereen aankomt), dat ze achter het laadscherm al gekleurd zijn, dat er na het
 //                                        kleuren geen paars in de broek over is, en of er in het spel nog lapjes bij kwamen
+//   node tools/mptest.js --profiel       meet de lag: per venster beeldtijd, ons eigen JS per beeld (gemiddeld, p95, slechtste),
+//                                        haperingen, de bytes en berichten per seconde over de lijn (per soort bericht), en een
+//                                        CPU-profiel met de functies die de meeste tijd kosten. Met --epkaart 0 of b3 een level
+//                                        van een Co-op episode in plaats van Survival (zonder de proef van --ep)
 //   node tools/mptest.js --geensnel      zonder het nagebootste snelle kanaal (zoals via het relais)
 //   node tools/mptest.js --proef --winkeleerst   met Start in the shop: kijkt na dat ook elke gast in de winkel begint
 //   node tools/mptest.js --kaart ishmul  Co-op Survival op een andere map (een id uit MP_KAARTEN.coop; standaard dye)
@@ -603,7 +607,15 @@ async function elk(H, G){
   const overkant = (r, cid) => r === H0 ? { r: ramen[Number(cid.slice(1))], cid: 'h' } : { r: H0, cid: 'g' + ramen.indexOf(r) };
   for (const r of ramen){
     const laatst = {};
+    r.lijn = {};
+    const tel = (s, snel) => {
+      if (!r.lijnAan) return;
+      let t = '?'; try { t = JSON.parse(s).t || '?'; } catch (e) {}
+      const k = (snel ? 'snel:' : 'vast:') + t, q = r.lijn[k] || (r.lijn[k] = { n: 0, b: 0 });
+      q.n++; q.b += s.length;
+    };
     await r.page.exposeFunction('__mpZend', (cid, s) => {
+      tel(s, false);
       const o = overkant(r, cid); if (!o.r) return;      // een lijn naar niemand (de vierde speler in de proef)
       let at = Date.now() + LAT + toeval();
       if (Math.random() < VERLIES) at += 2 * LAT + 2 * toeval() + 20;   // kwijt: na een rondje opnieuw
@@ -611,6 +623,7 @@ async function elk(H, G){
       o.r.bus.push({ cid: o.cid, s, at, snel: false });
     });
     await r.page.exposeFunction('__mpSnel', (cid, s) => {
+      tel(s, true);
       if (Math.random() < VERLIES) return;
       const o = overkant(r, cid); if (!o.r) return;
       o.r.bus.push({ cid: o.cid, s, at: Date.now() + LAT + toeval(), snel: true });
@@ -718,6 +731,7 @@ async function elk(H, G){
   if (args.includes('--ep') || args.includes('--hl') || args.includes('--winkel'))
     await H.page.evaluate(k => { window.__ep = true; window.__epKaart = k; }, args.includes('--hl') ? 'b0' : args.includes('--winkel') ? 'b2' : '0');
   if (opt('--kaart', null)) await H.page.evaluate(k => { window.__kaart = k; }, opt('--kaart', null));
+  if (opt('--epkaart', null)) await H.page.evaluate(k => { window.__ep = true; window.__epKaart = k; }, opt('--epkaart', null));
   await H.page.evaluate(soorten => {
     mpWijzig(() => {
       pvp.inst.modus = window.__duel ? 'duel' : window.__ep ? 'ep' : 'coop';
@@ -987,6 +1001,29 @@ async function elk(H, G){
   if (args.includes('--ep')){ await epProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--elk')){ await elk(H, G); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--proef')){ await proef(ramen, lobby); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
+  const profiel = args.includes('--profiel');
+  if (profiel){
+    for (const r of ramen) await tot(r.page, () => running && !laadWacht, null, 60000);
+    await wacht(3000);                                    // de eerste beelden bakken: niet meetellen
+    for (const r of ramen){
+      await r.page.evaluate(() => {
+        const M = window.__meet = { dt: [], js: [], vij: 0, t0: performance.now() };
+        let vorig = 0;
+        const o = safeLoop;
+        safeLoop = function(now){
+          const a = performance.now(); o(now); const b = performance.now();
+          if (vorig) M.dt.push(now - vorig); vorig = now;
+          M.js.push(b - a);
+          if (M.js.length % 60 === 0){ let n = 0; for (const q of MPC_LIJSTEN) if (!q.los) for (const v of q.l()) if (mpcLeeft(v)) n++; M.vij = Math.max(M.vij, n); }
+        };
+      });
+      r.cdp = await r.page.context().newCDPSession(r.page);
+      await r.cdp.send('Profiler.enable');
+      await r.cdp.send('Profiler.setSamplingInterval', { interval: 500 });
+      await r.cdp.send('Profiler.start');
+      r.lijnAan = true; r.lijn = {}; r.lijnT0 = Date.now();
+    }
+  }
   const t0 = Date.now();
   let volgendeShot = 0, nShot = 0;
   const doden = {}, wasDood = {}, revives = {};
@@ -1054,6 +1091,48 @@ async function elk(H, G){
     const L = await r.page.evaluate(() => window.__lapT || []).catch(() => []);
     const traag = L.reduce((m, x) => x[0] > m[0] ? x : m, [0]);
     meld(!L.some(x => x[0] > 4), r.wie + ': in het spel ' + L.length + ' nieuwe lapjes van meer dan 1 ms' + (L.length ? ', de traagste ' + traag[0] + ' ms (' + traag[1] + ', ' + traag[2] + ')' : ''));
+  }
+  if (profiel) for (const r of ramen){
+    const sec = (Date.now() - r.lijnT0) / 1000; r.lijnAan = false;
+    const M = await r.page.evaluate(() => {
+      const M = window.__meet, srt = a => a.slice().sort((x, y) => x - y), pc = (a, p) => a.length ? a[Math.min(a.length - 1, Math.floor(a.length * p))] : 0;
+      const dt = srt(M.dt), js = srt(M.js), gem = a => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
+      return { beelden: M.dt.length, fps: +(1000 / gem(M.dt)).toFixed(1), dtGem: +gem(M.dt).toFixed(1), dtP95: +pc(dt, 0.95).toFixed(1), dtMax: +pc(dt, 1).toFixed(0),
+               haper: M.dt.filter(x => x > 50).length, jsGem: +gem(M.js).toFixed(2), jsP95: +pc(js, 0.95).toFixed(2), jsMax: +pc(js, 1).toFixed(1), vijMax: M.vij,
+               heap: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null };
+    });
+    const { profile } = await r.cdp.send('Profiler.stop');
+    // eigen tijd per functie (naam + regel), en de totale tijd (met wat ze aanroepen) via de boom
+    const tijd = {}, per = {}, kind = {};
+    const dts = profile.timeDeltas, smp = profile.samples;
+    for (let i = 0; i < smp.length; i++) tijd[smp[i]] = (tijd[smp[i]] || 0) + (dts[i + 1] || 0) / 1000;
+    const knoop = {}; for (const n of profile.nodes) knoop[n.id] = n;
+    const sleutel = n => (n.callFrame.functionName || '(anon)') + ':' + (n.callFrame.lineNumber + 1);
+    const tot_ = id => { const n = knoop[id]; let t = tijd[id] || 0; for (const c of n.children || []) t += tot_(c); n._tot = t; return t; };
+    tot_(profile.nodes[0].id);
+    const eigen = {}, totaal = {};
+    for (const n of profile.nodes){
+      const k = sleutel(n); eigen[k] = (eigen[k] || 0) + (tijd[n.id] || 0);
+      // totaal alleen tellen als geen voorouder dezelfde functie is (recursie)
+      totaal[k] = (totaal[k] || 0);
+    }
+    const ouder = {}; for (const n of profile.nodes) for (const c of n.children || []) ouder[c] = n.id;
+    for (const n of profile.nodes){
+      const k = sleutel(n); let o = ouder[n.id], rec = false;
+      while (o != null){ if (sleutel(knoop[o]) === k){ rec = true; break; } o = ouder[o]; }
+      if (!rec) totaal[k] += n._tot;
+    }
+    const alles = Object.values(tijd).reduce((a, b) => a + b, 0);
+    const top = (o, n) => Object.entries(o).filter(([k]) => !/^\((idle|program|garbage collector|root)\)/.test(k)).sort((a, b) => b[1] - a[1]).slice(0, n)
+      .map(([k, v]) => (100 * v / alles).toFixed(1).padStart(5) + '%  ' + k);
+    const lijn = Object.entries(r.lijn).sort((a, b) => b[1].b - a[1].b);
+    const bps = lijn.reduce((a, [, q]) => a + q.b, 0) / sec;
+    console.log('\n== profiel ' + r.wie + ' (' + sec.toFixed(0) + ' s) ==');
+    console.log(JSON.stringify(M));
+    console.log('idle ' + (100 * (eigen['(idle):0'] || 0) / alles).toFixed(0) + '%, program ' + (100 * (eigen['(program):0'] || 0) / alles).toFixed(0) + '%, gc ' + (100 * (eigen['(garbage collector):0'] || 0) / alles).toFixed(0) + '%');
+    console.log('verstuurd: ' + (bps / 1024).toFixed(1) + ' KB/s; ' + lijn.slice(0, 8).map(([k, q]) => k + ' ' + (q.n / sec).toFixed(1) + '/s ' + (q.b / sec / 1024).toFixed(2) + 'KB/s gem ' + Math.round(q.b / q.n) + 'B').join('; '));
+    console.log('-- eigen tijd --\n' + top(eigen, 22).join('\n'));
+    console.log('-- totaal (met aanroepen) --\n' + top(totaal, 30).join('\n'));
   }
   loopt = false;
   await Promise.all(pompen);

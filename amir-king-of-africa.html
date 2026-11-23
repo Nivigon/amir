@@ -28210,6 +28210,11 @@ function mkSpeerTeken(g, s, soortId, W, H, wind, gif){
   return true;
 }
 let mkLosCv = null, mkSpeerCv = null, mkSpeerCv2 = null;
+// BB_MEMO: een doek van broekBeeld of mkLosBeeld onthoudt waarmee het het laatst gevuld is (_bbMemo). Vraagt dezelfde
+// beller het volgende beeld hetzelfde (Amir staat nog op hetzelfde animatieframe, en dat duurt een paar beelden), dan
+// komt het doek terug zonder het opnieuw op te bouwen. Een ander frame, een andere outfit of speer: gewoon opnieuw.
+// aan: false zet het uit, om te vergelijken (tools/mptest.js --profiel).
+const BB_MEMO = { aan: true };
 // de speer in mijn hand voor MK_LOS (en voor de anderen in de stand van Co-op, sp en vw): de soort en de wind
 // voor de stand naar de anderen: alleen als er iets anders dan de gewone speer in mijn hand zit
 function mkSpeerZend(){ const n = mkSpeerNu(); return n.s ? (n.s === 'pathfinder' ? { sp: n.s, vw: +n.w.toFixed(2) } : { sp: n.s }) : {}; }
@@ -28227,11 +28232,17 @@ function mkLosBeeld(mk, rel, kl, speer, cv){
   if (d.s && soortId === 'pathfinder') pfLaad();
   const W = lijf.naturalWidth, H = lijf.naturalHeight;
   if (!cv){ if (!mkLosCv) mkLosCv = document.createElement('canvas'); cv = mkLosCv; }
+  // hetzelfde frame, dezelfde outfit en speer als de vorige keer op dit doek: het staat er al (BB_MEMO). Niet met gif of de
+  // Pathfinder, want die veranderen per beeld (de groene gloed, het vaantje)
+  const memo = gif > 0 || soortId === 'pathfinder' ? null : 'l|' + mk.src + '|' + rel + '|' + kl.id + '|' + (soortId || '');
+  if (memo && BB_MEMO.aan && cv._bbMemo === memo) return cv;
+  cv._bbMemo = null;
+  let heel = true;                                       // alles was binnen: dan mag het onthouden worden
   if (cv.width !== W || cv.height !== H){ cv.width = W; cv.height = H; }
   const g = cv.getContext('2d');
   g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
   g.clearRect(0, 0, W, H);
-  const lap = (im, x) => { if (!kl.zones) return; const l = mkLap(im, kl); if (l) g.drawImage(l.cv, l.x, l.y); };
+  const lap = (im, x) => { if (!kl.zones) return; const l = mkLap(im, kl); if (l) g.drawImage(l.cv, l.x, l.y); else heel = false; };
   let voor = null;                                       // wat van de speer na het lijf komt
   if (d.s){
     if (sm){                                             // met maskers: eerst op een eigen doek, weg eraf, dan splitsen
@@ -28258,6 +28269,7 @@ function mkLosBeeld(mk, rel, kl, speer, cv){
   if (voor && voor() === false) return null;
   if (boven){ g.drawImage(boven, 0, 0); lap(boven); }
   if (gif > 0 && mkGifPunt) mkGifPunt.cv = cv;
+  if (heel) cv._bbMemo = memo;
   return cv;
 }
 function mkLap(img, kl){
@@ -28559,6 +28571,10 @@ function broekBeeld(basis, img, kl = broekNu(), cv = null, speer = null){
   if (!lap) return basis;
   const bw = basis.naturalWidth || basis.width, bh = basis.naturalHeight || basis.height;
   if (!cv){ if (!broekCv) broekCv = document.createElement('canvas'); cv = broekCv; }
+  // hetzelfde plaatje met hetzelfde lapje als de vorige keer op dit doek: het staat er al (BB_MEMO). Alleen met een vast
+  // plaatje als basis: een doek als basis (vaanBlauw) kan van inhoud veranderen zonder een ander doek te zijn
+  if (BB_MEMO.aan && basis instanceof HTMLImageElement && cv._bbMemo && cv._bbMemo.basis === basis && cv._bbMemo.lap === lap.cv) return cv;
+  cv._bbMemo = basis instanceof HTMLImageElement ? { basis, lap: lap.cv } : null;
   if (cv.width !== bw || cv.height !== bh){ cv.width = bw; cv.height = bh; }
   const g = cv.getContext('2d');
   g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
@@ -73109,25 +73125,42 @@ function mpAmirTeken(g, cv, img, stok, id, a, spiegel){
   g.restore();
 }
 // in het spel: de naam boven het hoofd van een teamgenoot of tegenstander, als een naambordje met de kleur van zijn broek
+// Het bordje wordt een keer gebakken op een eigen doekje (per naam, maat, kleur en DPR) en daarna alleen nog geplakt:
+// tekst met een omlijning elk beeld opnieuw zetten kost meer dan je zou denken (mpNaamBak).
+const mpNaamBakken = new Map();
+function mpNaamBak(naam, fs, kl){
+  const sleutel = naam + '|' + fs + '|' + kl + '|' + DPR + '|' + (document.fonts ? document.fonts.status : '');   // na het laden van Archivo opnieuw
+  let b = mpNaamBakken.get(sleutel);
+  if (b) return b;
+  if (mpNaamBakken.size > 24) mpNaamBakken.clear();   // een paar spelers, een paar maten: meer hoort er niet te zijn
+  const c = document.createElement('canvas'), g = c.getContext('2d');
+  const font = '800 ' + fs + 'px Archivo, "Helvetica Neue", Arial, sans-serif', ls = Math.round(fs * 0.06) + 'px';
+  g.font = font; if ('letterSpacing' in g) g.letterSpacing = ls;
+  const w = g.measureText(naam).width, h = fs * 1.5, pad = fs * 0.7, bw = w + pad * 2;
+  c.width = Math.ceil(bw * DPR) + 2; c.height = Math.ceil(h * DPR) + 2;
+  g.setTransform(DPR, 0, 0, DPR, 1, 1);
+  g.font = font; if ('letterSpacing' in g) g.letterSpacing = ls;   // een nieuwe maat wist de stand van het doekje
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(14,8,3,0.62)';
+  g.beginPath(); if (g.roundRect) g.roundRect(0, 0, bw, h, h / 2); else g.rect(0, 0, bw, h); g.fill();
+  g.fillStyle = kl;                                  // een streepje in zijn broekkleur onder de naam
+  g.fillRect(pad, h - Math.max(2, fs * 0.14) - 1, w, Math.max(2, fs * 0.14));
+  g.lineJoin = 'round'; g.lineWidth = Math.max(2, fs * 0.2); g.strokeStyle = 'rgba(0,0,0,0.85)';
+  g.strokeText(naam, bw / 2, h / 2 - fs * 0.05);
+  g.fillStyle = '#f6ead0'; g.fillText(naam, bw / 2, h / 2 - fs * 0.05);
+  b = { c, bw, h };
+  mpNaamBakken.set(sleutel, b);
+  return b;
+}
 function mpNaamTeken(p, sx, y, scale, a){
   if (!mpNamenZien()) return;
   const naam = mpSpelerNoem(p);
   if (!naam) return;
-  const fs = Math.max(12, Math.round(17 * scale / 0.7));
+  const fs = Math.max(12, Math.round(17 * scale / 0.7)), kl = MP_NAAM.kleur[pvp.broek[p]] || MP_NAAM.kleur.homefinder;
+  const b = mpNaamBak(naam, fs, kl);
   ctx.save();
   ctx.globalAlpha = a;
-  ctx.font = '800 ' + fs + 'px Archivo, "Helvetica Neue", Arial, sans-serif';
-  if ('letterSpacing' in ctx) ctx.letterSpacing = Math.round(fs * 0.06) + 'px';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const w = ctx.measureText(naam).width, h = fs * 1.5, pad = fs * 0.7, kl = MP_NAAM.kleur[pvp.broek[p]] || MP_NAAM.kleur.homefinder;
-  const bx = sx - w / 2 - pad, bw = w + pad * 2, by = y - h / 2;
-  ctx.fillStyle = 'rgba(14,8,3,0.62)';
-  ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(bx, by, bw, h, h / 2); else ctx.rect(bx, by, bw, h); ctx.fill();
-  ctx.fillStyle = kl;                                // een streepje in zijn broekkleur onder de naam
-  ctx.fillRect(sx - w / 2, by + h - Math.max(2, fs * 0.14) - 1, w, Math.max(2, fs * 0.14));
-  ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(2, fs * 0.2); ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-  ctx.strokeText(naam, sx, y - fs * 0.05);
-  ctx.fillStyle = '#f6ead0'; ctx.fillText(naam, sx, y - fs * 0.05);
+  ctx.drawImage(b.c, sx - b.bw / 2 - 1 / DPR, y - b.h / 2 - 1 / DPR, b.c.width / DPR, b.c.height / DPR);
   ctx.restore();
 }
 // ---- het wapen in Multiplayer: de speer of de stokken (STOK), ieder kiest zelf ----

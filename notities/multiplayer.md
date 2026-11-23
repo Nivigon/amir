@@ -380,6 +380,34 @@ donker echt donker is en alleen de fakkels en de ramen er licht in snijden (`don
   de plek van het raam). Twee vraagt een tweede deurplek in `STAD_DEUR`.
 - De elite-garde is niet sneller dan de gewone bandiet; alleen de levens en de dolk zijn anders.
 
+### De lag gemeten (23-11-2026)
+
+`node tools/mptest.js --profiel` meet per venster de beeldtijd, ons eigen JS per beeld, haperingen, de bytes per seconde
+over de lijn (per soort bericht) en een CPU-profiel; met `--epkaart 0` of `--epkaart b3` een level van een Co-op episode.
+Gemeten in headless Chromium zonder grafische kaart (alles software, drie of twee vensters op vier kernen), dus de
+absolute getallen zijn lager dan op een laptop; de verhoudingen zeggen wel iets.
+
+- **Het netwerk is het probleem niet.** De host stuurt met twee gasten zo'n 23 KB/s (per gast `s` 29/s van 290 B en `v`
+  14/s van 170 B, en een sleutelbericht van 1 KB per seconde), een gast 4 KB/s.
+- **De vijanden zijn het probleem niet.** De AI (ook drie keer per beeld met drie spelers) komt in het profiel niet boven
+  de 0,4%. Bijna alle tijd gaat naar het tekenen.
+- **De stad is zwaar, de savanne licht.** Met twee vensters: Co-op 1 (savanne) 54 beelden/s, Ambush 1 45, Co-op 3 en Ambush
+  4 tot 7 rond de 35, Ishmul 16, The Dye Yard met drie vensters 20. De savanne bakt de verte in een paar platen
+  (`vertePlaten`); de stad tekent per beeld de lucht (`verteLucht`, in de A/B zo'n 3 ms) en de verre stad (`stadAchter`,
+  zo'n 7 ms, vooral het vullen van drie brede stroken en het paleis over het hele scherm). De stroken worden niet steeds
+  opnieuw gebakken (0 keer in 670 beelden, ook met de meekijkende camera).
+- **Waar het profiel de tijd neerlegt:** de browser spoelt zijn tekenwerk door op een `restore` of `fillRect` (in
+  `drawVoorgrond`, `drawVeg` of de dim van `sceneAchter`), dus die functies staan bovenaan zonder dat ze zelf duur zijn.
+  Vergelijk daarom de beeldtijd met een laag uit en aan (een A/B), niet de JS-tijd.
+- **Gerepareerd:** `broekBeeld` en `mkLosBeeld` bouwden elke Amir (de outfit, de speer, de lapjes) elk beeld opnieuw op,
+  ook als hij nog op hetzelfde animatieframe stond; nu onthoudt het doek waarmee het gevuld is (`BB_MEMO`, `_bbMemo`).
+  Niet met gif of de Pathfinder, die veranderen per beeld. Nagemeten: 321 van 321 beelden gelijk aan een vers opgebouwd
+  doek. En het naambordje (`mpNaamTeken`) wordt een keer gebakken (`mpNaamBak`) in plaats van elk beeld tekst met een
+  omlijning. Samen ruim een beeld per seconde erbij in de meting van The Dye Yard.
+- **Nog te doen, als het op een laptop nodig blijkt:** de lucht en de verre stad samen in een plaat bakken zoals de
+  savanne, en alleen opnieuw als de camera ver genoeg verschuift. Eerst met F9 op een echte laptop meten of de stad daar
+  ook onder de 60 zakt.
+
 ### Wat nog kan
 
 - De gast ziet de vijanden een tikje later dan de host (netwerk plus de speelbuffer). Een slag die bij de host nog loopt,
