@@ -1307,6 +1307,19 @@
   .abvak i s{display:block;height:100%;width:0;background:linear-gradient(90deg,#c9622f,#f0b25a);border-radius:2px}
   @keyframes abflits{0%{box-shadow:inset 0 0 0 2px #fff3d8,0 0 16px rgba(255,200,110,1)}100%{box-shadow:inset 0 0 0 2px rgba(242,232,213,.4),0 2px 6px rgba(0,0,0,.6)}}
   @media (prefers-reduced-motion:reduce){.abvak.flits,.abvak.schud{animation:none}}
+  /* het speervak links van de actiebalk: de speer in je hand (Z), klein de volgende van je rug, en bij een wissel kort de naam */
+  .spvak{position:relative;display:none;align-items:center;gap:4px;margin-right:4px}
+  .spvak.on{display:flex}
+  .spvolg{position:relative;width:24px;height:24px;border-radius:4px;overflow:hidden;background:linear-gradient(160deg,#5d4128,#33231a);
+    box-shadow:inset 0 0 0 1px rgba(242,232,213,.35)}
+  .spvolg.weg{visibility:hidden}
+  .spvolg>img,.spvak .abvak>img{position:absolute;inset:0;width:100%;height:100%}
+  .spvak .abvak.gloei{animation:spgloei .7s ease}
+  @keyframes spgloei{0%{box-shadow:inset 0 0 0 2px #ffe6aa,0 0 14px rgba(255,220,150,.95)}100%{box-shadow:inset 0 0 0 2px rgba(242,232,213,.4),0 2px 6px rgba(0,0,0,.6)}}
+  .spnaam{position:absolute;left:0;bottom:calc(100% + 9px);white-space:nowrap;font:700 13px system-ui,sans-serif;color:#f5e8cd;
+    text-shadow:0 1px 2px #000,0 0 3px #000;opacity:0;transition:opacity .6s ease}
+  .spnaam.toon{opacity:1;transition:none}
+  @media (prefers-reduced-motion:reduce){.spvak .abvak.gloei{animation:none}}
   @media (prefers-reduced-motion:reduce){#woede.puls img,#woede.puls #woedebalk,#woede.schud,#zwaai.schud{animation:none}}
   #hint{position:absolute;left:50%;top:24px;z-index:5;transform:translateX(-50%);font-size:15px;background:rgba(20,16,30,.55);padding:8px 16px;border-radius:2px;transition:opacity .4s ease;pointer-events:none}
   #hint.gone{opacity:0}
@@ -2164,6 +2177,7 @@
         <button id="sbgifweg">Speren schoon</button>
         <button id="sbwinkel">Winkel</button>
         <button id="sbpathfinder">Pathfinder Spear: uit</button>
+        <button id="sbpiercer">Shield Piercer: uit</button>
         <span class="hint">I opent de inventory. Een gifspeer vergiftigt de volgende 10 treffers: mensen en hyena's verliezen elke 3 s een leven, een baas eenmalig een half. Zet de health-balk aan om het te zien aflopen. In de sandbox is de winkel gratis</span>
       </div>
       <div class="row">
@@ -25719,7 +25733,7 @@ function rugUpdate(dt){
 // voorste van je rug komt in je hand, zodat je kiest welke je gooit; dat houdt tot de volgende keer dat je iets opraapt.
 // Een soort die niet in de lijst staat komt achteraan; gelijke soorten houden hun plek.
 const SPEER_WISSEL = { stof: 3 };
-let speerVolgorde = ['pathfinder', 'standaard', 'geel', 'blauw', 'oud'];
+let speerVolgorde = ['pathfinder', 'piercer', 'standaard', 'geel', 'blauw', 'oud'];
 let speerOrdeVuil = false;
 function speerSoortVan(blauw){ return oudSoort(blauw) ? 'oud' : (speerSoortId(blauw) || 'standaard'); }
 function speerRang(blauw){ const i = speerVolgorde.indexOf(speerSoortVan(blauw)); return i < 0 ? speerVolgorde.length : i; }
@@ -25746,7 +25760,7 @@ function speerHandWissel(i, vanzelf){
   rugSperen.push({ blauw: oud });
   if (vanzelf) rugSort();
   setSpearLabel(); puffDust(SPEER_WISSEL.stof);
-  flashHint(speerNaam(speerBlauw) + ' in your hand');
+  if (!spvakNaam(speerNaam(speerBlauw))) flashHint(speerNaam(speerBlauw) + ' in your hand');   // op een laptop het speervak, anders de melding
 }
 // de wisselknop Z: de volgende speer van je rug in je hand
 function speerWissel(){
@@ -26120,7 +26134,8 @@ function looseSpear(){
   const oh = (THR_GROUND - tip.y) * THR_S;
   const nieuw = { x: world + ox, h: ph + oh, vx: dir * V * Math.cos(a), vh: -Math.sin(a) * V / scale,
           dir, state: 'vlucht', sa: dir === 1 ? a : Math.PI - a, t: 0,
-          wob: 0, sag: 0, stand: false, hit: false, blauw: speerBlauw };   // blauw: onthoud het vaantje voor als hij een losse speer wordt
+          wob: 0, sag: 0, stand: false, hit: false, blauw: speerBlauw,   // blauw: onthoud het vaantje voor als hij een losse speer wordt
+          x0: world + ox, vol: !!thr.vol };   // waar hij losging en of hij vol aangespannen was: de verre worp (SPEER_KANS)
   oudWorp(nieuw);                                     // de oude speer: een gebruik eraf (zie "de oude speer")
   // de tweede speer gaat naar zijn eigen plek (jav2) zolang de eerste nog ergens is
   if (thr.dubbel && (jav || javLost > 0)) jav2 = nieuw;
@@ -26688,7 +26703,7 @@ function javSchacht(tx, ty, scale){                         // de speer zelf, op
   ctx.translate(tx, ty);
   if (jav.dir === -1){ ctx.scale(-1, 1); a = Math.PI - a; }
   ctx.rotate(a + wob + wrik - jav.sag / L + (jav.kantel || 0));   // doorbuigen: het uiteinde zakt; kantel: nog niet plat
-  const draai = (jav.state === 'vlucht' && !oudSoort(jav.blauw) && jav.blauw !== 'pathfinder') ? draaiBeeld('gewoon', jav.t) : null;   // de Pathfinder Spear ook niet: zijn vaantje waait mee   // in de vlucht rolt hij om zijn as (de oude speer niet: de draai-frames hebben zijn art niet)
+  const draai = (jav.state === 'vlucht' && !oudSoort(jav.blauw) && jav.blauw !== 'pathfinder' && jav.blauw !== 'piercer') ? draaiBeeld('gewoon', jav.t) : null;   // de Pathfinder Spear ook niet: zijn vaantje waait mee   // in de vlucht rolt hij om zijn as (de oude speer niet: de draai-frames hebben zijn art niet)
   if (draai) draaiTeken(vaanBlauw(draai, jav.blauw), 'gewoon', s);
   else if (imgReady(javImg)) javTeken(jav.blauw, s, jav.state === 'vlucht' ? 1 : jav.state === 'val' ? 0.6 : 0.15, -jav.dir);
   else {                                                   // reserve, zodat je hem altijd ziet
@@ -27872,7 +27887,10 @@ const SPEER_SOORTEN = {
   geel:      { naam: 'Gekochte speer', en: 'Bought spear', vaan: 48 },         // alleen het vaantje, geel: gekocht in de winkel, de enige die te verkopen is
   // de Pathfinder Spear (zie "de Pathfinder Spear"): liggend, geworpen en op de rug eigen art met een los vaantje
   // (javTeken); in Amirs handen los als Mkuki (MK_LOS, bron/pf_<hoek>.png)
-  pathfinder: { naam: 'Pathfinder Spear', en: 'Pathfinder Spear', pathfinder: true }
+  pathfinder: { naam: 'Pathfinder Spear', en: 'Pathfinder Spear', pathfinder: true },
+  // de Shield Piercer (zie "de Shield Piercer"): zwart staal met een ijzeren knol; eigen art liggend, geworpen en op de
+  // rug (javTeken), in Amirs handen los als Mkuki (MK_LOS, bron/sp_<hoek>.png)
+  piercer:    { naam: 'Shield Piercer', en: 'Shield Piercer', piercer: true }
 };
 // Een gekochte speer draagt de soort 'geel' (de vlag blauw op de speer), alleen die is in de winkel te verkopen.
 const speerMaskCache = new WeakMap();                    // plaatje -> {lint, w, h} of null (geen lint gevonden)
@@ -27983,6 +28001,15 @@ function javTeken(blauw, k, wind, windX, gif){
       return;
     }
   }
+  if (speerSoortId(blauw) === 'piercer'){                 // de Shield Piercer: hetzelfde doek als de Pathfinder, zonder vaantje
+    spLaad();
+    if (imgReady(spImg)){
+      const P = PATHFINDER;
+      k *= P.groot;
+      teken(spImg, -P.tipX * k, -P.tipY * k, P.w * k, P.h * k);
+      return;
+    }
+  }
   teken(vaanBlauw(javImg, blauw), -JAV.tipX * k, -JAV.tipY * k, JAV.w * k, JAV.h * k);
 }
 function pfVaanTeken(k, wind, windX){
@@ -28035,18 +28062,116 @@ function pfStap(dt){
     if (p.t <= 0){ delete s.prooi; prooiLijst.splice(i, 1); }
   }
 }
+// ---- de Shield Piercer: de speer met de ijzeren knol, door het schild heen (zie "de Shield Piercer" in notities/speer.md) ----
+// Te koop in de winkel van Co-op (MPC_WINKEL, 'piercer'), in de sandbox de knop Shield Piercer (sbPiercer). Net als de
+// Pathfinder: een per speerplek (spAantal), en spStap maakt een gewone speer die je draagt een Shield Piercer (de soort
+// 'piercer' in het veld van het vaantje). Art uit tools/piercer_speer.py: jav.png op hetzelfde doek als de Pathfinder
+// (javTeken tekent hem met de maten van PATHFINDER), in de hand bron/sp_<hoek>.png (mkSpeerTeken, de maten van D.pf).
+// Zijn kracht: een treffer kan dwars door het schild van een schildbandiet gaan, en zonder schild is hij in een klap dood
+// (hitSchildman). Hoe vaak, staat in SPEER_KANS en wordt getrokken uit een knikkerzak (speerKansTrek).
+let spImg = null, sbPiercer = false;
+function spLaad(){ if (!spImg) spImg = loadQuiet(['design/speer/piercer/jav.png']); }
+function spAantal(){
+  if (stokAan()) return 0;
+  if (sandbox) return sbPiercer ? 1 : 0;
+  const K = mpKoop(), n = K && K.piercer;
+  return n === true ? 1 : (n || 0);
+}
+function spTel(){
+  const is = b => b === 'piercer';
+  let n = (spearFound && is(speerBlauw)) ? 1 : 0;
+  for (const r of rugSperen) if (is(r.blauw)) n++;
+  if (jav && is(jav.blauw)) n++;
+  if (jav2 && is(jav2.blauw)) n++;
+  for (const l of losseSperen) if (l.soort === 'eigen' && is(l.blauw)) n++;
+  return n;
+}
+function spStap(){
+  const n = spAantal();
+  if (n > 0){
+    spLaad();
+    let heb = spTel();
+    for (const r of rugSperen) if (heb < n && !r.blauw){ r.blauw = 'piercer'; heb++; speerOrdeVuil = true; }
+    if (heb < n && spearFound && !speerBlauw){ speerBlauw = 'piercer'; heb++; speerOrdeVuil = true; }
+  } else if (speerBlauw === 'piercer' || rugSperen.some(r => r.blauw === 'piercer')){
+    if (speerBlauw === 'piercer') speerBlauw = false;
+    for (const r of rugSperen) if (r.blauw === 'piercer') r.blauw = false;
+  }
+}
+
+// ---- de kansen van een speersoort: knikkerzakken (zie notities/speer.md) ----
+// Een kans is altijd een knikkerzak (de marble bag, zoals de crit van True Flight): [raak, zak] is een zak van zak
+// knikkers waarvan raak er raak zijn, getrokken zonder terugleggen; is hij leeg, dan gaat hij geschud weer vol. Zo is
+// het precies raak op zak, zonder lange reeksen pech of geluk. Een zak per speersoort en per aanval, per level vers
+// (speerKansReset, naast critZak). De Shield Piercer: door het schild (de schildbandiet is dan in een klap dood). De
+// Pathfinder: een steek of lage zwaai markeert ook (de worp altijd, zie prooiRaak). De lage zwaai trekt per geraakte vijand.
+// Een verre worp: volledig aangespannen, of verder gevlogen dan verAmir keer de lengte van Amir.
+const SPEER_KANS = {
+  piercer:    { steek: [1, 8], zwaai: [1, 8], kort: [1, 3], ver: [2, 3] },
+  pathfinder: { steek: [1, 5], zwaai: [1, 4] },
+  verAmir: 3
+};
+const speerZakken = {};
+function speerKansReset(){ for (const k in speerZakken) delete speerZakken[k]; }
+function speerKansTrek(soort, aanval){
+  const kans = SPEER_KANS[soort] && SPEER_KANS[soort][aanval];
+  if (!kans) return false;
+  const sleutel = soort + '.' + aanval;
+  let zak = speerZakken[sleutel];
+  if (!zak || !zak.length){
+    const [raak, n] = kans;
+    zak = [];
+    for (let i = 0; i < n; i++) zak.push(i < raak);
+    for (let i = n - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [zak[i], zak[j]] = [zak[j], zak[i]]; }
+    speerZakken[sleutel] = zak;
+  }
+  return zak.pop();
+}
+// de aanval van dit moment: welke speersoort en wat voor aanval (steek, zwaai, kort of ver), of null (de stokken, het gif)
+function speerAanvalNu(){
+  if (gifTikNu || stokAan()) return null;
+  if (worpTref && jav){
+    const ver = jav.vol || (jav.x0 != null && Math.abs(jav.x - jav.x0) >= SPEER_KANS.verAmir * CHAR_H * nowScale());
+    return { soort: speerSoortId(jav.blauw), aanval: ver ? 'ver' : 'kort' };
+  }
+  if (!spearFound) return null;
+  return { soort: speerSoortId(speerBlauw), aanval: swFrame >= 0 ? 'zwaai' : 'steek' };
+}
+// gaat deze treffer door het schild (de Shield Piercer)? Een gast trekt zelf en meldt het (doorGast)
+let doorGast = null;
+function piercerDoor(){
+  if (doorGast != null) return doorGast;
+  const a = speerAanvalNu();
+  return !!(a && a.soort === 'piercer' && speerKansTrek('piercer', a.aanval));
+}
+// de klap door het schild: het schild springt in een keer, met de breukklap en het lichtje van de crit
+function piercerFx(s){
+  s.schild = 0; s.metSchild = false;
+  schbSplinters(s, SCHB.perBreuk);
+  houtBreek();
+  critFx(s.x, (s.base || 0) + CHAR_H * 0.6);
+  hitstop = Math.max(hitstop, SCHB.breekStop); shake = Math.max(shake, 0.25);
+}
+
 // het vaantje op de rug: hoe hard het waait, uit de vaart van Amir (en wat extra in de lucht)
 function pfRugWind(){ return Math.min(1, Math.abs(pfV) / PATHFINDER.wind.ren + (onGround ? 0 : PATHFINDER.wind.lucht)); }
 // een treffer van Amir (vanuit gifRaak, in de hit-functie van elke soort): was het een geworpen Pathfinder-speer, dan
 // is hij prooi. Een gast meldt het met pf (prooiGast); de host markeert en zegt het de anderen
 function prooiRaak(s){
   if (gifTikNu || !s) return;
-  const pf = prooiGast != null ? prooiGast : (worpTref && jav && jav.blauw === 'pathfinder');
+  const pf = prooiGast != null ? prooiGast : pfMarkeert();
   if (!pf || !(s.hp > 0)) return;
   prooiZet(s);
   if (typeof mpCoopAan === 'function' && mpCoopAan() && pvp.host && s.mpId != null){
     const a = mpcVind(s); if (a) pvpZend({ t: 'prooi', a, id: s.mpId });
   }
+}
+// markeert deze treffer (bij mij, of bij een gast die het meldt)? Een worp met de Pathfinder altijd, een steek of de lage
+// zwaai met de Pathfinder in je hand uit een knikkerzak (SPEER_KANS.pathfinder)
+function pfMarkeert(){
+  const a = speerAanvalNu();
+  if (!a || a.soort !== 'pathfinder') return false;
+  return a.aanval === 'kort' || a.aanval === 'ver' || speerKansTrek('pathfinder', a.aanval);
 }
 function prooiZet(s){
   pfLaad();
@@ -28458,11 +28583,11 @@ function gifPuntenOp(g, im, x, y, w, h){
 // hoe groen de speren van het gif zijn: vol groen zolang er gif op zit; hoeveel treffers er nog zijn staat in de actiebalk (BALK, 'gif')
 function gifSterkte(){ return gifHits > 0 ? 1 : 0; }
 function mkSpeerTeken(g, s, soortId, W, H, wind, gif){
-  const pf = soortId === 'pathfinder', D = MK_LOS.data;
-  const bron = mkSkinLaad(SKIN.soorten.mkuki + 'bron/' + (pf ? 'pf_' : 'amirspeer_') + s.a + '.png');
+  const pf = soortId === 'pathfinder', sp = soortId === 'piercer', D = MK_LOS.data;   // de Shield Piercer: eigen art op het doek van de Pathfinder (D.pf)
+  const bron = mkSkinLaad(SKIN.soorten.mkuki + 'bron/' + (pf ? 'pf_' : sp ? 'sp_' : 'amirspeer_') + s.a + '.png');
   if (!imgReady(bron)) return false;
-  const im = pf ? bron : speerKleur(bron, soortId);
-  const w = s.w * W, h = w * (pf ? D.pf[s.a].asp : D.hoeken[s.a].asp);
+  const im = pf || sp ? bron : speerKleur(bron, soortId);
+  const w = s.w * W, h = w * (pf || sp ? D.pf[s.a].asp : D.hoeken[s.a].asp);
   g.save();
   g.globalAlpha *= s.op == null ? 1 : s.op;
   g.translate(s.cx * W, s.cy * H); g.rotate(s.r * Math.PI / 180);
@@ -29549,7 +29674,7 @@ function rolWorpLos(scale){
           dir, state: 'vlucht', sa: dir === 1 ? 0 : Math.PI, t: 0,
           wob: 0, sag: 0, stand: false, hit: false, blauw: speerBlauw, perfect: rolW.perfect,
           zwaar: rolW.perfect ? ROL_WORP.zwaarPerfect : ROL_WORP.zwaarGewoon, spoor: [],
-          rol: true, crit: rolWorpCrit(rolW.perfect) };
+          rol: true, crit: rolWorpCrit(rolW.perfect), x0: world, vol: !!rolW.perfect };   // een perfecte rol-worp telt als ver (SPEER_KANS)
   javLost = 0;
   lawaaiPuls(playerX(), ph, SNEAK.puls.worp);         // het loslaten hoor je alleen vlakbij (zie "sneak")
   hitstop = Math.max(hitstop, rolW.perfect ? ROL_WORP.stopPerfect : ROL_WORP.stopGewoon);   // het loslaten "klikt"
@@ -38556,6 +38681,25 @@ const INV_SPEER_UITLEG = {
   blauw: 'A spear you pulled from a skeleton, with its blue rag.',
   oud: 'An old splinted spear: it breaks after a few more uses.'
 };
+// wat een speersoort met een kracht doet, in het Engels voor de speler (de inventory en de winkel), met de kansen uit
+// SPEER_KANS; null voor een speer zonder kracht
+const SPEER_Z_UITLEG = 'Press Z to swap the spear in your hand with the next one on your back.';
+function speerKrachtTekst(soort){
+  const kans = ([r, n]) => r + ' in ' + n;
+  if (soort === 'pathfinder'){
+    const K = SPEER_KANS.pathfinder;
+    return 'Thrown, it always marks prey for ' + PROOI.duur + ' s; a stab marks ' + kans(K.steek) + ' times, the low sweep '
+      + kans(K.zwaai) + ' per enemy. Marked prey is ' + Math.round(PROOI.traag * 100)
+      + '% slower, and every hit on it, also from your team, does half a life extra.';
+  }
+  if (soort === 'piercer'){
+    const K = SPEER_KANS.piercer;
+    return 'It can punch straight through a shield, and a shield bandit without his shield falls in one blow. A far throw '
+      + '(fully drawn) goes through ' + kans(K.ver) + ' times, a short throw ' + kans(K.kort) + ', a stab ' + kans(K.steek)
+      + ', the low sweep ' + kans(K.zwaai) + ' per enemy. If it fails, the shield still takes the hit.';
+  }
+  return null;
+}
 function invSperenLijst(){
   if (STOK_AAN) return [];
   const l = [];
@@ -38566,6 +38710,7 @@ function invSperenLijst(){
 function invSpeerImg(blauw){
   try {
     if (speerSoortId(blauw) === 'pathfinder'){ pfLaad(); if (imgReady(pfImg)) return pfImg.src; }
+    if (speerSoortId(blauw) === 'piercer'){ spLaad(); if (imgReady(spImg)) return spImg.src; }
     const k = speerKleur(javImg, speerSoortId(blauw));
     return k && k.toDataURL ? k.toDataURL() : javImg.src;
   } catch (e){ return javImg.src; }
@@ -38586,17 +38731,15 @@ function invSperenToon(){
 }
 // het zijpaneel voor een gekozen speer
 function invSpeerInfo(l){
-  const sp = l[invSpeer], soort = speerSoortVan(sp.blauw), pf = soort === 'pathfinder';
-  const q = pf ? MPC_WINKEL.find(w => w.k === 'pathfinder') : null;
+  const sp = l[invSpeer], soort = speerSoortVan(sp.blauw), kracht = speerKrachtTekst(soort);
+  const q = kracht ? MPC_WINKEL.find(w => w.k === soort) : null;
   document.getElementById('invnaam').textContent = speerNaam(sp.blauw);
   document.getElementById('invsfeer').textContent = q ? '\u201C' + q.sfeer + '\u201D' : '';
   document.getElementById('invbron').textContent = q ? q.bron : '';
   const plek = speerVolgorde.indexOf(soort);
-  document.getElementById('invuitleg').textContent = (pf ? 'Thrown, it marks prey for ' + PROOI.duur + ' s: it is '
-      + Math.round(PROOI.traag * 100) + '% slower, and every hit on it, also from your team, does half a life extra.'
-      : INV_SPEER_UITLEG[soort] || INV_SPEER_UITLEG.standaard)
+  document.getElementById('invuitleg').textContent = (kracht || INV_SPEER_UITLEG[soort] || INV_SPEER_UITLEG.standaard)
     + (plek === 0 ? ' This kind goes in your hand first.' : ' Hold first puts this kind in your hand.')
-    + (rugAan() && l.length > 1 ? ' Z swaps your hand with the next spear on your back.' : '');
+    + ' ' + SPEER_Z_UITLEG;
   const knop = document.getElementById('invgebruik');
   knop.classList.toggle('weg', plek === 0 && sp.hand);
   knop.textContent = 'Hold first';
@@ -43218,6 +43361,7 @@ function restart(){
   laadPoort();                                      // pas verder als alles binnen is (zie laadpoort)
   won = false; document.getElementById('win').classList.remove('on');
   critZak = []; critNu = false;                   // True Flight: een verse knikkerzak per level
+  speerKansReset();                               // de knikkerzakken van de speersoorten (SPEER_KANS): ook vers
   lives = levensStart(); invuln = 0; invulnStil = 0; hurt = 0; knock = 0; shake = 0; hitstop = 0; dubbelTraagT = 0; kooiVries = 0; kooiVriesS = null; exeVries = null; bruVries = null; stadTrapFade = null; stadLuifelVx = 0; exeZoomNu = 1; exeSnijStop(); dead = false;
   onstPlek = null;                                  // Immortal: de laatste vaste grond van dit potje
   woedeStop();                                      // de woede houdt op bij een nieuw begin
@@ -54424,6 +54568,13 @@ function hitSchildman(s, wijze, richting){               // wijze: 'steek', 'wor
     return true;
   }
   if (wijze !== 'pijl') lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);   // een gevecht hoor je (zie "sneak")
+  if (wijze !== 'pijl' && s.schild > 0 && piercerDoor()){   // de Shield Piercer: dwars door het schild, en zonder schild is hij in een klap dood
+    hits++; hitsEl.textContent = hits; gifRaak(s, 'schildman');
+    piercerFx(s);
+    if (level && level.executie && wijze === 'zwaai') wijze = 'steek';
+    if (exeKans(wijze)) exeStart(s, wijze); else schbSterf(s, wijze);
+    return true;
+  }
   if (s.state === 'flinch' && s.frame >= SCHB.dekVan && s.metSchild && !(s.open > 0) && !(s.verblind > 0) && !gifTikNu){   // hij dekt zich: de speer ketst af op het schild
     s.flash = Math.max(s.flash, 0.12); s.inv = SCHB.invHit; houtRaak(HOUT.kets.toon, HOUT.kets.vol); schbSplinters(s, 2);
     return false;
@@ -58644,6 +58795,7 @@ function loop(now){
   oudSteekStap();                                // de oude speer: een steek die raakt is een gebruik
   gifUpdate(dt);                                 // het gif: wie er vergiftigd is tikt af, en de druppels vallen
   pfStap(dt);                                    // de Pathfinder Spear: de soort van je speren, het vaantje en de prooi
+  spStap();                                      // de Shield Piercer: de soort van je speren
   javUpdate(dt, plats, scaleNow);                // en de speer die onderweg is
   jav2Update(dt, plats, scaleNow);               // en de tweede speer (DUBBEL)
   speerNaastAmir(dt, plats);                     // achter een doornbos of boven op een berg: naast je
@@ -63412,6 +63564,59 @@ function balkMaak(){
     v.vul = v.el.querySelector('i'); v.vulS = v.vul.firstChild; v.vorig = '';
   }
 }
+// ---- het speervak: links van de actiebalk de speer in je hand, de volgende van je rug klein ernaast ----
+// Z wisselt ze (speerWissel). Bij een wissel gloeit het vak kort op en staat de naam van de speer die je pakt ongeveer een
+// seconde klein net boven het vak, en vervaagt dan (spvakNaam). Geen melding midden in beeld: op een laptop vervangt dit
+// de flashHint van speerHandWissel. Het icoon is de kop van de speer, schuin (speerIkoon, een keer per soort gebakken).
+const SPVAK = { naam: 1.0, ikoon: 64 };
+let spvakEl = null, spvakHandEl = null, spvakVolgEl = null, spvakNaamEl = null, spvakVorig = '', spvakNaamT = null;
+const speerIkonen = {};
+function speerIkoon(blauw){
+  const soort = speerSoortId(blauw) || 'standaard';
+  if (speerIkonen[soort]) return speerIkonen[soort];
+  let im = soort === 'pathfinder' ? (pfLaad(), pfImg) : soort === 'piercer' ? (spLaad(), spImg) : null;
+  if (!im){ if (!imgReady(javImg)) return null; im = speerKleur(javImg, soort === 'standaard' ? null : soort); }
+  if (!im || (im.naturalWidth === 0 && !(im.width > 0))) return null;
+  if (im.complete === false) return null;
+  const w = im.naturalWidth || im.width, h = im.naturalHeight || im.height, n = SPVAK.ikoon;
+  const c = document.createElement('canvas'); c.width = n; c.height = n;
+  const g = c.getContext('2d'), sx = w * 0.5, sw = w - sx, k = n * 1.25 / sw;   // de voorste helft: kop en binding
+  g.translate(n / 2, n / 2); g.rotate(-40 * Math.PI / 180);
+  g.drawImage(im, sx, 0, sw, h, -sw * k / 2, -h * k / 2, sw * k, h * k);
+  try { return (speerIkonen[soort] = c.toDataURL()); } catch (e){ return null; }
+}
+function spvakMaak(){
+  spvakEl = document.createElement('div'); spvakEl.className = 'spvak';
+  spvakEl.innerHTML = '<div class="spvolg"><img alt=""></div><div class="abvak on klaar"><img alt=""><kbd>Z</kbd></div><span class="spnaam"></span>';
+  spvakVolgEl = spvakEl.children[0]; spvakHandEl = spvakEl.children[1]; spvakNaamEl = spvakEl.children[2];
+  balkEl.prepend(spvakEl);
+}
+function spvakHud(){
+  if (!spvakEl) spvakMaak();
+  const zien = !STOK_AAN && rugAan() && (spearFound || rugSperen.length > 0);
+  spvakEl.classList.toggle('on', zien);
+  if (!zien) return;
+  const hand = spearFound ? speerBlauw : null, volg = rugSperen.length ? rugSperen[0].blauw : null;
+  const ih = spearFound ? speerIkoon(hand) : null, iv = volg !== null ? speerIkoon(volg) : null;
+  const sleutel = [spearFound, ih, iv].join('|');
+  if (sleutel === spvakVorig) return;
+  spvakVorig = sleutel;
+  const imH = spvakHandEl.firstChild, imV = spvakVolgEl.firstChild;
+  if (ih){ if (imH.getAttribute('src') !== ih) imH.src = ih; imH.style.visibility = ''; } else imH.style.visibility = 'hidden';
+  spvakHandEl.classList.toggle('dim', !spearFound);
+  spvakVolgEl.classList.toggle('weg', !iv);
+  if (iv && imV.getAttribute('src') !== iv) imV.src = iv;
+}
+// na een wissel: de naam kort boven het vak, en het vak gloeit op. Geeft false als het vak niet in beeld is (de telefoon)
+function spvakNaam(naam){
+  if (!balkAan || !spvakEl || !spvakEl.classList.contains('on')) return false;
+  spvakNaamEl.textContent = naam;
+  spvakNaamEl.classList.add('toon');
+  spvakHandEl.classList.remove('gloei'); void spvakHandEl.offsetWidth; spvakHandEl.classList.add('gloei');
+  clearTimeout(spvakNaamT);
+  spvakNaamT = setTimeout(() => spvakNaamEl.classList.remove('toon'), SPVAK.naam * 1000);
+  return true;
+}
 function balkSchud(id){                            // een ability die nog niet kan: het vak schudt even
   const v = BALK.find(b => b.id === id);
   if (!v || !v.el) return;
@@ -63422,6 +63627,7 @@ function balkHud(){
   if (zien !== balkAan){ balkAan = zien; balkEl.classList.toggle('on', zien); }
   if (!zien) return;
   if (!balkBouw) balkMaak();
+  spvakHud();
   for (const v of BALK){
     const s = v.staat(), sec = s.sec > 0 ? Math.ceil(s.sec) : 0;
     const toets = typeof v.toets === 'function' ? v.toets() : v.toets;
@@ -71953,6 +72159,12 @@ document.getElementById('sbpathfinder').onclick = e => {
   e.target.textContent = 'Pathfinder Spear: ' + (sbPathfinder ? 'aan' : 'uit');
   flashHint(sbPathfinder ? 'Pathfinder Spear: een van je speren is nu een Pathfinder (I voor de volgorde, Z wisselt)' : 'Weer de gewone speer'); cv.focus();
 };
+// ---- de Shield Piercer: aan en uit (zie "de Shield Piercer") ----
+document.getElementById('sbpiercer').onclick = e => {
+  sbPiercer = !sbPiercer; spStap();
+  e.target.textContent = 'Shield Piercer: ' + (sbPiercer ? 'aan' : 'uit');
+  flashHint(sbPiercer ? 'Shield Piercer: een van je speren is nu een Shield Piercer (Z wisselt, zet er een schildbandiet bij)' : 'Weer de gewone speer'); cv.focus();
+};
 document.getElementById('sbrugvul').onclick = () => {
   if (!rugAan()){ flashHint('Zet eerst de rug aan'); cv.focus(); return; }
   thr = null; jav = null; jav2 = null; javLost = 0; rugTrekT = 0;
@@ -74332,6 +74544,7 @@ const MPC_ZEG = {
   open: ['Look all you like. Pay before you touch.', 'Sharp spears for hunters, gourds for the wounded.', 'Back alive? Then you have gold to spend.'],
   koop: ['A fine choice.', 'That will serve you well out there.', 'Spend it, you cannot take it to the grave.'],
   pathfinder: ['A fine choice. Few hunters carry the red pennant.'],
+  piercer: ['Black iron. Their shields will not save them.'],
   terug: ['Changed your mind? Fine, the coin is yours again.'],
   arm: ['Come back with more gold.'],
   klaar: ['Go. The streets are waiting.']
@@ -74347,8 +74560,10 @@ const MPC_WINKEL = [
   { k: 'kracht', cat: 'wapen',   naam: 'Full Circle: more damage', prijs: 50, uitleg: '1.5 damage and a big knockback', eis: 'fc', speer: true },
   { k: 'rond', cat: 'wapen',     naam: 'Full Circle: all around',  prijs: 50, uitleg: 'The spin hits everyone around you, also behind you', eis: 'fc', speer: true },
   { k: 'slot', cat: 'wapen',     naam: 'Extra spear slot',         prijs: 45, uitleg: 'A second spare spear on your back', speer: true, duel: true },
-  { k: 'pathfinder', cat: 'wapen', nieuw: true,  naam: 'Pathfinder Spear',      prijs: 40, uitleg: 'One of your spears becomes a Pathfinder Spear. Thrown, it marks prey for 3 s: it is 20% slower, and every hit on it, also from your team, does half a life extra. One per spear slot', speer: true,
+  { k: 'pathfinder', cat: 'wapen', nieuw: true,  naam: 'Pathfinder Spear',      prijs: 40, uitleg: 'One of your spears becomes a Pathfinder Spear. Thrown, it marks prey for 3 s (a stab 1 in 5, the low sweep 1 in 4): it is 20% slower, and every hit on it, also from your team, does half a life extra. One per spear slot. Z swaps the spear in your hand', speer: true,
     sfeer: 'The Pathfinder Spear is not easily earned. Those who carry it walk first, so the others may walk home.', bron: 'Elder Mwangi of the Mkuki' },   // PROOI, zie "de Pathfinder Spear"
+  { k: 'piercer', cat: 'wapen', nieuw: true,  naam: 'Shield Piercer',        prijs: 40, uitleg: 'One of your spears becomes a Shield Piercer: it can punch through a shield, and a shield bandit without his shield falls in one blow. A far throw 2 in 3, a short throw 1 in 3, a stab or the low sweep 1 in 8. One per spear slot. Z swaps the spear in your hand', speer: true,
+    sfeer: 'A shield is a promise. The Piercer breaks promises.', bron: 'Elder Mwangi of the Mkuki' },   // SPEER_KANS, zie "de Shield Piercer"
   { k: 'hout', cat: 'wapen',     naam: 'Hardwood sticks',          prijs: 40, uitleg: 'Your strikes hit harder: 0.75 of a life instead of 0.5', stok: true },   // STOK.schadeHout
   { k: 'klauw', cat: 'wapen',    naam: 'Lion Claw sticks',         prijs: 80, uitleg: 'White bone sticks with a lion claw: your strikes tear for a full life', eis: 'hout', sluit: 'goud', stok: true },   // STOK.schadeKlauw, STOK.skins.klauw
   { k: 'goud', cat: 'wapen',     naam: 'Gold King sticks',         prijs: 80, uitleg: 'Black sticks with a golden lion head: half your strikes on a shield break off two pieces', eis: 'hout', sluit: 'klauw', stok: true },   // STOK.goudSchild, STOK.skins.goud
@@ -74793,7 +75008,8 @@ function mpcHitDoor(naam){
                       st: atkStok || undefined, sf: atkFrame, co: atkCombo ? 1 : 0, hw: stokHoutNu(),
                       fs: fcSoort || undefined, fm: fcModus() || undefined,   // zijn Full Circle: de slag en wat hij kocht
                       gi: gifHits > 0 ? 1 : undefined,             // zijn speren zijn vergiftigd (gifGast)
-                      pf: (worpTref && jav && jav.blauw === 'pathfinder') ? 1 : undefined,   // zijn Pathfinder-worp: de host maakt hem prooi
+                      pf: pfMarkeert() ? 1 : undefined,   // zijn Pathfinder markeert (de worp altijd, de steek en de zwaai uit zijn knikkerzak): de host maakt hem prooi
+                      dp: (naam === 'hitSchildman' || k === 'schildmannen') && o.schild > 0 && piercerDoor() ? 1 : undefined,   // zijn Shield Piercer gaat door het schild (doorGast)
                       gk: gkRaak ? [Math.round(gkRaak.x0), Math.round(gkRaak.onderTot), gkRaak.dir, gkRaak.schade, gkRaak.knock, gkRaak.traagK] : undefined });   // de golf van zijn grondklap   // zijn slag: de host rekent met zijn stand, niet met die van zichzelf
     }
     return false;                                       // bij de gast gebeurt er niets: de host stuurt het gevolg terug
@@ -74818,7 +75034,7 @@ function mpcTrefferVanGast(m){
   const o = q.l().find(v => v.mpId === m.id); if (!o || !mpcLeeft(o) || !pvpAnderNu(m.p)) return;
   mpcWisselIn(m.p);
   const eig = [atkStok, atkFrame, atkCombo, gkRaak, fcSoort];  // de slag van de gast, niet die van de host (de stokken, Full Circle, de grondklap)
-  atkStok = m.st || null; atkFrame = m.sf ?? -1; atkCombo = !!m.co; stokHoutGast = m.hw || 0; prooiGast = !!m.pf;
+  atkStok = m.st || null; atkFrame = m.sf ?? -1; atkCombo = !!m.co; stokHoutGast = m.hw || 0; prooiGast = !!m.pf; doorGast = !!m.dp;
   fcSoort = m.fs || null; mpcFcGast = m.fm || null; gifGast = { p: m.p, aan: !!m.gi };   // zijn Full Circle en zijn gif
   gkRaak = m.gk ? { x0: m.gk[0], onderTot: m.gk[1], dir: m.gk[2], schade: m.gk[3], knock: m.gk[4] || 1, traagK: m.gk[5] || 1 } : null;   // zijn golf: zijn schade (gkSchadeOp)
   let raak = false;
@@ -74836,7 +75052,7 @@ function mpcTrefferVanGast(m){
       else MPC_ORIG.enemyTakeHit(o);
     } else if (MPC_ORIG[m.f]) raak = MPC_ORIG[m.f](o, ...(m.g || []));
     if (raak && atkStok && m.a === 'bandieten') stokTreffer(o, o.x, 0, undefined, 'gevolg');   // de reeks, het wankelen en de stun
-  } finally { [atkStok, atkFrame, atkCombo, gkRaak, fcSoort] = eig; stokHoutGast = null; prooiGast = null; mpcFcGast = undefined; gifGast = null; mpcWisselUit(); }
+  } finally { [atkStok, atkFrame, atkCombo, gkRaak, fcSoort] = eig; stokHoutGast = null; prooiGast = null; doorGast = null; mpcFcGast = undefined; gifGast = null; mpcWisselUit(); }
 }
 // de host krijgt stof van gast m.p in de ogen van een vijand: met de stand van die gast (hij wankelt van hem weg), en
 // alleen als die vijand bij de host ook te verblinden is (STOF_SOORTEN, mag). De blindheid gaat met de stand mee terug
@@ -76247,7 +76463,7 @@ function mpcUitleg(q, trap){ const U = pvp.solo && q.uitlegSolo || pvp.dw && q.u
 // Silver Pride: met een teamgenoot, of in Co-op solo (dan voor jezelf)
 function mpcZhZien(){ return !pvp.dw && (pvp.solo || pvp.spelers.some(p => p !== pvp.mij)); }   // het Duel: geen teamgenoot
 function mpcWinkelHeb(q){
-  if (q.k === 'pathfinder') return pfAantal() >= 1 + RUG_MAX;   // een per speerplek (de hand en de rug), meer mag
+  if (q.k === 'pathfinder' || q.k === 'piercer') return pfAantal() + spAantal() >= 1 + RUG_MAX;   // samen een per speerplek (de hand en de rug), meer mag
   const K = mpcWs().koop; return Array.isArray(q.prijs) ? (K[q.k] || 0) >= q.prijs.length : (q.k in K) && !!K[q.k]; }
 // de speerspullen (speer: true) ziet een stokspeler niet, en Hardwood sticks (stok: true) alleen hij
 function mpcWinkelVoorMij(q){ if (pvp && pvp.dw && !q.duel) return false; return stokAan() ? !q.speer : !q.stok; }   // het Duel: alleen wat duel: true heeft   // Silver Pride is van de stokken, de veren van de speer (ook solo)
@@ -76255,7 +76471,7 @@ function mpcWinkelNiet(q){
   const C = mpcWs(), K = C.koop, handVol = spear || spearFound || rugTrekT > 0;
   let r = null;
   if (!mpcWinkelVoorMij(q)) r = 'Not for your weapon.';
-  else if (mpcWinkelHeb(q)) r = q.k === 'pathfinder' ? 'All your spear slots already hold a Pathfinder Spear.'
+  else if (mpcWinkelHeb(q)) r = q.k === 'pathfinder' || q.k === 'piercer' ? 'All your spear slots already hold a special spear.'
                              : Array.isArray(q.prijs) ? 'Sold out: you bought all three.' : 'You already have this.';
   else if (q.eis && !K[q.eis]) r = 'Buy ' + MPC_WINKEL.find(w => w.k === q.eis).naam + ' first.';
   else if (q.sluit && K[q.sluit]) r = 'You chose ' + MPC_WINKEL.find(w => w.k === q.sluit).naam + '.';   // een keuze: het een of het ander
@@ -76289,12 +76505,16 @@ function mpcWinkelKoop(q, aan){
     K.pathfinder = pfAantal() + 1; pfLaad(); pfStap(0); speerSorteer();   // het spel staat stil: meteen de beste in de hand
     tekst = 'Bought: Pathfinder Spear (' + K.pathfinder + '). It replaces one of your plain spears. Press I to choose which spear you hold first, Z to swap.';
   }
+  else if (q.k === 'piercer'){   // een Shield Piercer erbij: hij komt op een gewone speer die je draagt (spStap)
+    K.piercer = spAantal() + 1; spLaad(); spStap(); speerSorteer();
+    tekst = 'Bought: Shield Piercer (' + K.piercer + '). It replaces one of your plain spears. Press Z to swap it into your hand against a shield bandit.';
+  }
   else if (q.k === 'geef'){ pvpZendAan(aan, { t: 'geef', n: MPC.geef }); tekst = 'You gave ' + (pvp.spelers.length > 2 ? mpSpelerNoem(aan, true) : 'your teammate') + ' ' + MPC.geef + ' gold.'; }
   else { K[q.k] = true; if (q.k === 'slot'){ RUG_MAX++; setSpearLabel(); } if (STOK.skins[q.k]) stokSkinLaad(q.k); }
   // Undo: alleen de laatste aankoop, bij deze marktman (weg bij de deur uit, mpcWinkelUit), zolang hij onaangeroerd is
   mpcLaatste = q.k === 'geef' ? null : { q, prijs, na: mpcUndoStand() };
   playHppotionPickupSound();
-  mpcZeg(q.k === 'pathfinder' ? 'pathfinder' : 'koop');
+  mpcZeg(MPC_ZEG[q.k] ? q.k : 'koop');
   pvpHud(); mpcWinkelToon();
   document.getElementById('wkuitleg').textContent = tekst;
 }
@@ -76304,7 +76524,7 @@ function mpcWinkelKoop(q, aan){
 // mpcUndoStand legt na het kopen vast hoe het ervoor staat, mpcUndoKan kijkt of dat nog zo is.
 let mpcLaatste = null;                               // {q, prijs, na}
 function mpcSperenTel(){ return (spearFound ? 1 : 0) + rugSperen.length; }
-function mpcUndoStand(){ return { lives, hp: hppotionCarry, gif: gifCarry, speren: mpcSperenTel(), rugMax: RUG_MAX, pf: pfAantal(), zh: zhCarry, bn: bnCarry }; }
+function mpcUndoStand(){ return { lives, hp: hppotionCarry, gif: gifCarry, speren: mpcSperenTel(), rugMax: RUG_MAX, pf: pfAantal(), sp: spAantal(), zh: zhCarry, bn: bnCarry }; }
 function mpcUndoKan(){
   const L = mpcLaatste; if (!L || !mpcWs() || !mpcWs().inWinkel) return false;
   const k = L.q.k, na = L.na;
@@ -76316,6 +76536,7 @@ function mpcUndoKan(){
   if (k === 'bennu') return bnCarry === na.bn && bnCarry > 0;
   if (k === 'slot') return RUG_MAX === na.rugMax;
   if (k === 'pathfinder') return pfAantal() === na.pf && (speerBlauw === 'pathfinder' || rugSperen.some(r => r.blauw === 'pathfinder'));
+  if (k === 'piercer') return spAantal() === na.sp && (speerBlauw === 'piercer' || rugSperen.some(r => r.blauw === 'piercer'));
   return true;
 }
 function mpcUndo(){
@@ -76338,6 +76559,12 @@ function mpcUndo(){
     K.pathfinder = pfAantal() - 1;
     const r = rugSperen.find(x => x.blauw === 'pathfinder');
     if (r) r.blauw = false; else if (speerBlauw === 'pathfinder') speerBlauw = false;
+    speerOrdeVuil = true; speerSorteer(); setSpearLabel();
+  }
+  else if (k === 'piercer'){                          // een gedragen Shield Piercer wordt weer gewoon, de rug eerst
+    K.piercer = spAantal() - 1;
+    const r = rugSperen.find(x => x.blauw === 'piercer');
+    if (r) r.blauw = false; else if (speerBlauw === 'piercer') speerBlauw = false;
     speerOrdeVuil = true; speerSorteer(); setSpearLabel();
   }
   else if (k === 'slot'){ K.slot = false; RUG_MAX--; while (rugSperen.length > RUG_MAX) rugSperen.pop(); setSpearLabel(); }
@@ -76371,14 +76598,14 @@ function mpcInfoToon(){
   zet('wkinfosfeer', q.sfeer ? '“' + q.sfeer + '”' : '');
   zet('wkinfobron', q.bron || '');
   zet('wkinfouitleg', (k.aan != null && pvp.spelers.length > 2 ? 'To ' + mpSpelerNoem(k.aan, true) + '. ' : '')
-    + mpcUitleg(q, trap));
+    + (speerKrachtTekst(q.k) ? speerKrachtTekst(q.k) + ' One per spear slot. ' + SPEER_Z_UITLEG : mpcUitleg(q, trap)));   // een speer met een kracht: de kansen en de Z-toets
   koop.classList.toggle('weg', heb);
   koop.classList.toggle('duur', !!niet);
   // goud geven is geen aankoop: een eigen knop in een andere kleur, met de naam van wie het krijgt
   const geef = q.k === 'geef', aan = geef && k.aan != null ? mpSpelerNoem(k.aan) : '';
   koop.classList.toggle('geef', geef);
   koop.textContent = geef ? 'Give ' + mpcWinkelPrijs(q) + ' gold' + (aan ? ' to ' + aan : '')
-                   : (q.k === 'pathfinder' && pfAantal() ? 'Buy another, ' : 'Buy, ') + mpcWinkelPrijs(q) + ' gold';
+                   : ((q.k === 'pathfinder' && pfAantal()) || (q.k === 'piercer' && spAantal()) ? 'Buy another, ' : 'Buy, ') + mpcWinkelPrijs(q) + ' gold';
   koop.onclick = () => mpcWinkelKoop(q, k.aan);
 }
 // het plaatje van een artikel: de speren, de kalebas en Silver Pride uit hun eigen map, de rest uit items/winkel/ (Grok, in de stijl van de winkelspullen; de stokken zijn de echte stokken uit het spel)
@@ -76408,6 +76635,7 @@ function mpcBeeld(q, aan){
   switch (q.k){
     case 'speer': return '<img src="' + javImg.src + '" alt="">';
     case 'pathfinder': return '<img src="design/speer/pathfinder/jav.png" alt="">';
+    case 'piercer': return '<img src="design/speer/piercer/jav.png" alt="">';
     case 'kalebas': return '<img src="' + HPPOTION_SRC + '" alt="">';
     case 'geef': return mpcGeefBeeld(aan);
     case 'bennu': return '<img src="items/bennu/veren.png" alt="">';   // Feathers of the Bennu: drie roze veren (tools/bennu_item.py)
@@ -76469,8 +76697,9 @@ function mpcWinkelToon(){
       naam.textContent = q.naam + (trap ? ' (' + trap + ' of ' + q.prijs.length + ')' : '');
       uit.textContent = aan != null && anderen.length > 1 ? 'To ' + mpSpelerNoem(aan, true)
                       : q.k === 'pathfinder' && pfAantal() ? 'You have ' + pfAantal() + ' of ' + (1 + RUG_MAX)
+                      : q.k === 'piercer' && spAantal() ? 'You have ' + spAantal() + ' of ' + (1 + RUG_MAX)
                       : mpcUitleg(q, trap);
-      prijs.textContent = heb ? (Array.isArray(q.prijs) || q.k === 'pathfinder' ? 'Sold out' : 'Bought') : mpcWinkelPrijs(q) + ' gold';
+      prijs.textContent = heb ? (Array.isArray(q.prijs) || q.k === 'pathfinder' || q.k === 'piercer' ? 'Sold out' : 'Bought') : mpcWinkelPrijs(q) + ' gold';
       if (q.nieuw && !heb){ const n = document.createElement('span'); n.className = 'wknieuw'; n.textContent = 'NEW'; tekst.append(n); }
       tekst.append(naam, uit, prijs);
       b.append(beeld, tekst);
