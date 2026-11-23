@@ -163,7 +163,7 @@ lessen en alle afgekeurde versies staan in de projectnotitie `claude/holle_stam_
   160: alleen gebukt erdoor, net als de kruipstam.
 - **Ligging**: de looplijn binnen (`bron.vloer`) valt op de grond, en de plaat wordt vlak eronder (`bron.knip`, 14
   bronpixels) grillig afgeknipt, met een zachte schaduw op de snede: hij ligt op de grondlaag, niet ervoor (Tom: eerst
-  lag hij te ver naar voren). Bovenop loop je op `bron.top` 104, net in het mos, zodat je voeten nergens zweven.
+  lag hij te ver naar voren). Bovenop loop je op `bron.top` 118, in het mos, zodat je voeten nergens zweven.
 - **Botsing**: `holstamDak` geeft een onzichtbare zwevende laag (look 'geen', zoals `kruipstamDak`). readLevel zet hem
   erbij, de sandbox zelf (met `holstam: true`, zodat Weg hem weer vindt). Vijanden blijven op de grond (vloerBij kijkt pas
   naar een zwever vanaf 140 onder de bovenkant).
