@@ -882,6 +882,15 @@ layouts" (rechts een paneel, links blijft de winkelkamer met de marktman zichtba
   in de pauze van Co-op solo).
 
 
+### Ready sluit de winkel (23-11-2026)
+
+Op verzoek van de opdrachtgever: spelers dachten er niet aan dat ze na Ready nog konden kijken of terug konden. Ready sluit
+nu het winkelscherm (`mpcKlaarDruk`), in beeld staat "Waiting for other players... (E at the counter: shop, R: not ready)",
+en je kunt rondlopen in de winkelkamer. E bij de toonbank opent hem weer (Ready blijft staan), R is Not ready en opent hem
+weer (`mpWinkelWacht`). Het aftellen loopt zoals het liep: Not ready stopt het. Niet in de Co-op episode (daar is geen
+Ready). Testen: `node tools/mptest.js --winkeleerst --coopwinkel --spelers 2`. Het Duel doet hetzelfde, zie "De winkel van
+het Duel" in `notities/pvp.md`.
+
 ## De outfits van Mkuki (22-11-2026)
 
 Op verzoek: Amir met de speer is voortaan Mkuki, de basisskin van de speer-tribe, en met de stokken het oude tenue

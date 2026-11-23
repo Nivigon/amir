@@ -178,9 +178,15 @@ de stokken en Gris-gris werken zoals altijd, en de aanvaller krijgt `au`.
   speer (elke ronde begint vol), de stokken van Hardwood, Lion Claw en Gold King (in het Duel kost elke stokslag al een heel
   leven), en de tab Team.
 - **Geen winkelkamer.** Het winkelscherm gaat op straat open (`duelWinkelIn`, met `winkelUIOpen`), Close staat er niet: het
-  blijft open tot iedereen Ready drukte, dan het aftellen van Co-op (`MPC_WINKEL_WEG.aftel`), en de host zegt `winkelUit`.
+  blijft open tot je Ready drukt (zie hieronder); als iedereen Ready is dan het aftellen van Co-op (`MPC_WINKEL_WEG.aftel`), en de host zegt `winkelUit`.
   Daarna begint de ronde (`pvpRondeStart`). Escape in de winkel is terug naar de lobby. Tijdens de winkel `pvp.fase = 'winkel'`
   en `godMode`.
+- **Ready sluit de winkel (23-11-2026, op verzoek).** `mpcKlaarDruk` sluit het scherm bij Ready (`winkelUIDicht(true)`), in
+  Co-op en in het Duel; in beeld "Waiting for other players... (E: shop, R: not ready)" (`mpcWinkelBanner`). In het Duel opent E
+  de winkel overal (geen toonbank), in Co-op E bij de toonbank; Ready blijft dan staan. R buiten het scherm is Not ready
+  (`mpWinkelWacht` in de keydown, voor `opnieuw`) en opent de winkel weer. Escape in het scherm is na Ready gewoon dicht,
+  ervoor terug naar de lobby. Na Ready mag je in het Duel rondlopen op straat: `duelWinkelUit` zet je met de fade van de
+  winkel (`stadTrapFade`) terug op je startplek als je weg was, en geeft je speren terug (`mpcSperenTerug`, `duelRugVol`).
 - **Wanneer.** Voor ronde 1 (`winkelEerst`): `duelWinkelStraks` in `pvpDuelStart`, en `duelStap` opent hem zodra er geladen is.
   Tussen de rondes: de host zet `w` in het bericht `ronde` als `ronde % winkelNa === 0` (en het duel niet uit is), en iedereen
   krijgt `goudErbij` (`pvpNieuweRonde(n, winkel)`). Het goud komt bij iedereen zelf, er gaat geen goud over de lijn.

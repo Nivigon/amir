@@ -43,6 +43,7 @@
 //                                        van een Co-op episode in plaats van Survival (zonder de proef van --ep)
 //   node tools/mptest.js --geensnel      zonder het nagebootste snelle kanaal (zoals via het relais)
 //   node tools/mptest.js --proef --winkeleerst   met Start in the shop: kijkt na dat ook elke gast in de winkel begint
+//   node tools/mptest.js --winkeleerst --coopwinkel --spelers 2   Co-op: Ready sluit de winkel, R is Not ready, allebei Ready de straat op
 //   node tools/mptest.js --tlog          de tester-logging (TLOG): elk venster is een tester (host, gast, gast2), de regels
 //                                        naar de Google Sheet worden onderschept en aan het eind getoond (niets gaat echt weg)
 //   node tools/mptest.js --kaart ishmul  Co-op Survival op een andere map (een id uit MP_KAARTEN.coop; standaard dye)
@@ -68,8 +69,20 @@ async function duelWinkelProef(ramen){
   meld(hg.g === 40 && hg.l === 4, 'de host kocht Extra life (60), het speerslot (45) was te duur: ' + JSON.stringify(hg));
   const gg = await G.page.evaluate(() => ({ g: pvp.dw.goud, hp: hppotionCarry }));
   meld(gg.g === 55 && gg.hp === 1, 'de gast kocht een kalebas in zijn tas en Gris-gris: ' + JSON.stringify(gg));
-  for (const r of ramen) await r.page.evaluate(() => mpcKlaarDruk());
+  // Ready sluit de winkel: rondlopen, E opent hem weer (Ready blijft), R is Not ready
+  await H.page.evaluate(() => mpcKlaarDruk());
+  await wacht(300);
+  meld(await H.page.evaluate(() => !winkelUIAan && pvp.dw.mijnKlaar && /Waiting for other players/.test(pvp.banner)), 'Ready sluit de winkel, in beeld: ' + await H.page.evaluate(() => pvp.banner));
+  await H.page.evaluate(() => { world -= 400; });
+  await H.page.keyboard.press('e'); await wacht(200);
+  meld(await H.page.evaluate(() => winkelUIAan && pvp.dw.mijnKlaar), 'E opent de winkel weer, Ready blijft staan');
+  await H.page.evaluate(() => winkelUIDicht()); await wacht(150);
+  await H.page.keyboard.press('r'); await wacht(300);
+  meld(await H.page.evaluate(() => winkelUIAan && !pvp.dw.mijnKlaar), 'R is Not ready, en de winkel staat weer open');
+  await H.page.evaluate(() => mpcKlaarDruk());
+  await G.page.evaluate(() => mpcKlaarDruk());
   for (const r of ramen) meld(await tot(r.page, () => pvp.fase === 'vecht' && !winkelUIAan && !godMode, null, 8000), r.wie + ': allebei Ready, afgeteld: ronde 1');
+  meld(await tot(H.page, () => !stadTrapFade && Math.round(world) === -250, null, 6000), 'de host liep rond, maar begint de ronde op zijn startplek (' + await H.page.evaluate(() => Math.round(world)) + ')');
   meld(await G.page.evaluate(() => pvpAnderen().length === 1), 'de gast ziet de host');
   meld(await tot(G.page, () => pvp.anders[0] && pvp.anders[0].g && pvp.anders[0].g.lm === 4, null, 4000), 'de gast ziet bij de host vier hartjes');
   // het stof: de gast staat voor de host en kijkt hem aan; de host werpt
@@ -941,6 +954,19 @@ async function elk(H, G){
   }, ["FOUT_GEZIEN", "laadOpen", "laadMis", "laadKapot", "stofStraal", "sand", "rocksL", "dwarrel", "holstamScherven", "losseSperen", "wapenrekken", "beetStukken", "goudapen", "fakkelVonken", "straalLijst", "straalMotes", "zhTauPlekken", "grains", "wdust", "rugSperen", "speerKopie", "prooiLijst", "prooiRanden", "vachtKlCache", "broekLapCache", "mkSkinBeeld", "mkLapCache", "critZak", "critFxLijst", "dust", "snowflakes", "weerDruppels", "mistStoten", "schildStof", "chips", "tonnen", "tonLens", "dkLijst", "dkCache", "waterRingen", "waterDruppels", "waterPlonzen", "splashes", "ravijnen", "stadNachtGloed", "fakkelLichten", "stadDeurWarmCache", "stadStroken", "stadDoorgangCache", "gifVijanden", "gifWacht", "gifFx", "gifPlas", "goudVliegers", "kisten", "runeGeraakt", "runeFlits", "runeSperen", "hppotions", "hppotionFx", "venom", "splat", "snakes", "lawaaiPulsen", "scorps", "panthers", "snowPuffs", "snowFx", "hyenas", "kooimannen", "vogels", "meelmannen", "meelzakken", "kruisbogen", "krbPijlen", "banVonken", "banDolken", "bandieten", "murKevers", "zweepmannen", "schildmannen", "bloedRand", "fosforSlangen", "fosforBrok", "fosforGroepen", "props", "grass", "scaleCache", "persKlad", "woedeVonken", "mpNaamBakken", "ravijnStenen"]);
   if (args.includes('--winkeleerst')){
     for (const r of ramen) meld(await tot(r.page, () => pvp.coop.inWinkel && binnenBij(world), null, 10000), r.wie + ': Start in the shop, ook ' + r.wie + ' staat in de winkel');
+    if (args.includes('--coopwinkel')){             // Ready sluit de winkel: rondlopen, E bij de toonbank opent hem weer, R is Not ready
+      const [H, G] = ramen;
+      await H.page.evaluate(() => { winkelUIOpen(); mpcKlaarDruk(); });
+      await wacht(300);
+      meld(await H.page.evaluate(() => !winkelUIAan && pvp.coop.mijnKlaar && /Waiting for other players/.test(pvp.banner)), 'Co-op: Ready sluit de winkel, in beeld: ' + await H.page.evaluate(() => pvp.banner));
+      await H.page.keyboard.press('r'); await wacht(300);
+      meld(await H.page.evaluate(() => winkelUIAan && !pvp.coop.mijnKlaar), 'Co-op: R is Not ready, de winkel weer open');
+      await H.page.evaluate(() => mpcKlaarDruk());
+      await G.page.evaluate(() => { winkelUIOpen(); mpcKlaarDruk(); });
+      for (const r of ramen) meld(await tot(r.page, () => !pvp.coop.inWinkel && !winkelUIAan, null, 10000), r.wie + ': Co-op: allebei Ready, de straat op');
+      for (const r of ramen){ if (r.fouten.size){ console.log(r.wie + ' fouten:'); for (const f of r.fouten) console.log('  ' + f); } }
+      loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return;
+    }
   }
   if (stokken.length){
     await wacht(1500);
