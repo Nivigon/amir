@@ -878,9 +878,9 @@ Op verzoek van de opdrachtgever: een revive-item voor de stokspeler (de speerspe
   je hem niet gebruikte. Het beeld is `items/zilverhart/hart.png` met het leeuwenmedaillon linksboven (`leeuw_medaillon.png`, de
   Tau-kop in zilver); het icoon in de balk is `hart_icoon.png` met G. In een episode gaat het hart mee in de tas (`tas.zh`).
 - **Gebruik:** ligt er een teamgenoot dood, dan drukt de stokspeler G (`zhGebruik`): Amir bukt even (`zhNeerT`, via `canDuck`), het hart
-  ligt een halve Amir voor hem, pulseert `ZH.puls` s (3,3) met het geluid `sounds/zilverhart_puls.mp3` (ElevenLabs, gerekt en harder gemaakt) in een doorschijnende zilveren bol die met elke slag uitzet en krimpt (lub-dub, steeds sneller), die in de uitbarsting uiteenspringt in vonken, en dan komt de dode eruit: van
+  ligt een halve Amir voor hem, klopt `ZH.puls` s in een cirkel zilverwit licht (zie Bijgesteld hieronder), die in de uitbarsting uiteenspringt in vonken, en dan komt de dode eruit: van
   `ZH.klein` naar normaal in `ZH.groei` s, met een zachte lichtzuil en een ring over de grond, geen flits. Tau brult tegelijk
-  `ZH.tauBoven` Amir boven het hart (`zhTauNa`, dezelfde frames als de zonnestraal, wit met een koelere gloed). De uitbarsting klapt: de brul harder (`sounds/zilverhart_brul.mp3`) met de klap van de zonnestraal eronder, een witte klap met een schokgolf vanuit het hart, een korte witte flits over het hele beeld en het beeld schudt (`ZH.schok`, `ZH.stop`, `ZH.flits`), bij iedereen die het ziet.
+  `ZH.tauBoven` Amir boven het hart (`zhTauNa`, dezelfde frames als de zonnestraal, wit met een koelere gloed). De uitbarsting klapt: de brul (`sounds/zilverhart_brul.mp3`) met de klap (`sounds/zilverhart_klap.mp3`) eronder, een witte klap met een schokgolf vanuit het hart, een korte witte flits over het hele beeld en het beeld schudt (`ZH.schok`, `ZH.stop`, `ZH.flits`), bij iedereen die het ziet.
 - **Het netwerk:** het bericht `zh` (`{voor, x, h}`, in `MP_DOOR`) gaat naar iedereen; ieder speelt het zelf af. De dode staat op zijn
   eigen scherm op (`zhOpstaan`, precies op het hart, net als bij `symPak`), met `invuln` en `zhOntwaakT` op `ZH.onkw` (3 s). Zolang
   zijn stand nog niet binnen is, tekent `pvpTekenEen` het lijk niet meer, en hij groeit via `zhKVoor`.
@@ -888,6 +888,19 @@ Op verzoek van de opdrachtgever: een revive-item voor de stokspeler (de speerspe
 - **Test 91: Silver Pride** (in Test levels sticks): een oefenteamgenoot in de kleuren van de mentor ligt voor je, G speelt het af, het hart
   is daar onbeperkt en na `ZH.dummyStaat` s valt hij weer om. Proef: `node tools/zilverhart_test.js [map]` en
   `node tools/mptest.js --zilverhart --stokken host`.
+
+**Bijgesteld (23-11-2026):** de bol is weg; nu een cirkel zilverwit licht vanuit het midden van het hart, naar buiten zwakker,
+die met de slag opzwelt (`ZH.licht`, `ZH.lichtA`, `ZH.slagA`). Het afstellen gebeurt niet in het spel maar in een
+losse tool (een artifact van de opdrachtgever, de Silver Pride tuner) die hetzelfde effect nabootst; de getallen daaruit gaan in `ZH`.
+
+**De hartslag en de brul (23-11-2026, uit de tool):** het oude geluid had maar een slag, gerekt. Nu is het een echte lub-dub
+(`sounds/zilverhart_slag.mp3`, geknipt uit de ElevenLabs-opname) die per slag opnieuw klinkt, met een afstand die van `ZH.tempoA`
+(1,15 s) naar `ZH.tempoB` (0,45 s) loopt binnen `ZH.puls` (3 s): steeds sneller tot de uitbarsting (`zhSlagTijden`, in `zhStap`).
+Het licht en het hart (`ZH.pomp`) zwellen op dezelfde tijden op (`zhSlagNu`, lub op `ZH_LUB`, dub op `ZH_DUB`). De brul is weer aan:
+de brul van Tau lager gestemd, met een dreun eronder en galm (`sounds/zilverhart_brul.mp3`), op `ZH.brulVol` 4. De klap is een eigen
+dreun met een glinstering (`sounds/zilverhart_klap.mp3`); de klap van de zonnestraal (`zegelontdek.mp3`) zei "miss" (het is de
+misser van de kooiman). Alle drie spelen op de gedeelde AudioContext (`zhKlank`): boven 1 gaat het volume een compressor in en dan
+een begrenzer, zodat harder ook harder klinkt zonder te kraken.
 
 ### Feathers of the Bennu, de veren van de speerspeler (Test 94, 23-11-2026)
 
