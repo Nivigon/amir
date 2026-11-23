@@ -878,8 +878,9 @@ Daarna sta je tegenover drie verschillende tegenstanders: een bandiet, een schil
 bewaard, en via het pauzemenu kies je opnieuw.
 
 In **Test 92: Lion pelts** (onder Test levels sticks) kies je bij elke start, en na R, een outfit voor Amir met de stokken:
-een broek en een leeuwenvacht die erbij hoort (Purple met de gewone vacht, Fire red met Sand, Orange met Ash, Gold met Rust,
-Turquoise met Ochre, White met Dark brown en Black met een witte vacht). Daarna vecht je tegen een bandiet, een schildbandiet,
+een broek met een leeuwenvacht die erbij hoort: Homefinder (het gewone tenue), Ice Warder (indigo, witte vacht), Dawnbreaker
+(zwart, blonde vacht), Firedancer (ossenbloed, gouden vacht), Moss Cleaver (olijf, asgrijze vacht) en Show Stopper (bloedrood,
+zilveren vacht). Daarna vecht je tegen een bandiet, een schildbandiet,
 hyena's en een zweepman, zodat je de vacht in elke beweging ziet.
 
 De proefstukken met de stokken staan onder **Test levels sticks**. Voor het begin (en na R) kies je daar bij **Amir** of je
