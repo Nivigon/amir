@@ -961,8 +961,8 @@ het beeld schudt harder (`ZH.schok` 0,7).
 
 `BN`, `bnGebruik`, `bnStap`, `bnTekenAchter`, `bnTekenAmir`, `bnBol`, `bnZoemStart`, `bnKleurWissel`, `bnDummy`, `TEST_94`
 
-Op verzoek van de opdrachtgever: de tegenhanger van Silver Pride voor Amir met de speer (Mkuki). Nu alleen in Test 94 (Test levels),
-nog niet in de winkel van Co-op en nog niet over het netwerk.
+Op verzoek van de opdrachtgever: de tegenhanger van Silver Pride voor Amir met de speer (Mkuki). Eerst alleen in Test 94 (Test levels),
+sinds 23-11-2026 ook live in Co-op (zie "In Co-op" hieronder).
 - **Het verloop (G):** Amir zakt op een knie en pakt drie veren van zijn heup, legt ze op zijn hand met de andere hand erop en sluit zijn
   ogen (frame 44: de veren gloeien, een zachte zoemtoon zwelt aan), opent ze (frame 52: een flits met stralen, de ogen gloeien egaal
   zonder pupil zoals bij Aang) en blaast (frame 70). Vanaf het begin staat er een luchtbol om hem heen (altijd om zijn hele lijf, `bnBol`),
@@ -981,7 +981,17 @@ nog niet in de winkel van Co-op en nog niet over het netwerk.
 - **Instellingen:** uit het afstelbord "Feathers of the Bennu" (artifact), met de waarden van de opdrachtgever op 23-11-2026 (`BN`).
 - **Test 94** (Test levels): de oefenteamgenoot ligt op `level.bennu.x`, ver voor je; hij staat op als de veren aankomen, blijft
   `BN.dummyStaat` s staan en valt weer om. Geen vijanden (`vredig`), dus het terugduwen van vijanden door de bol zit er nog niet in.
-- **Nog te doen:** de winkel en het netwerk (zoals `zh`), het terugduwen van vijanden, het offline-manifest bijwerken.
+- **In Co-op (23-11-2026):** `bennu` in `MPC_WINKEL`, tab Team, `speer: true`, alleen met een teamgenoot (`mpcZhZien`) en niet in
+  Co-op solo (een self-revive op een knie past niet; solo heeft Silver Pride voor elk wapen). Prijs 35, 50, 65 zoals Silver Pride, je draagt
+  er een stel tegelijk (`BN.max`, `bnCarry`), Undo kan zolang je ze niet gebruikte, in een episode gaan ze mee in de tas (`tas.bn`). Het
+  plaatje is `items/bennu/veren.png` (de drie veren uit `verenset.png`, roze), het icoon in de balk `veren_icoon.png` met G (`bnToetsMag`).
+  G met een dode teamgenoot (`bnDodeVoor`, niet een die al door een hart of veren onderweg is) start de animatie, de wind waait naar hem toe,
+  en het bericht `bn` (`{voor, x, h, f, dir, k}`, in `MP_DOOR`) gaat naar iedereen. Ieder speelt het zelf af (`bnAnder`, `bnAnderStap`):
+  `pvpTekenEen` tekent de bol, de veren en de knielende Amir op de plek van die teamgenoot (`bnTekenAnder`, met `bnNu` en `bnKleur` even
+  gewisseld) in plaats van zijn gewone beeld, met het blazen, de vlaag en de wind. Wie dood lag staat op als de veren aankomen (dezelfde tijd
+  als de oefenteamgenoot), op zijn eigen plek, `BN.opOnkw` (3 s) onkwetsbaar, en de abilities mogen meteen (`bnOpstaan`). Proef:
+  `node tools/mptest.js --bennu`.
+- **Nog te doen:** het terugduwen van vijanden door de bol, en een kleurkeuze in Co-op (nu altijd Pink).
 
 ## De outfits van de stoktribe in Co-op en Survival (23-11-2026)
 

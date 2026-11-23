@@ -23817,6 +23817,8 @@ const BN = {
   oogFlits: 450, oogFlitsGrootte: 1, oogStralen: 6, oogGloed: 1, aura: 1, handGloed: 1,
   blaasVol: 0.55, blaasFrame: 64, vlaagVol: 0.8, zoemVol: 0.25, zoemToon: 110, muziekDemp: 0.35,
   naOnkw: 1,              // s nog onkwetsbaar nadat hij weer opstaat
+  max: 1,                 // Co-op: je draagt een stel veren tegelijk (bnCarry), net als Silver Pride
+  opOnkw: 3,              // Co-op: zo lang is de teamgenoot onkwetsbaar die door de veren opstaat (bnOpstaan)
   dummyStaat: 6,          // Test 94: zo lang staat de oefenteamgenoot, dan ligt hij weer
   sc0: 0.9435, ax0: 520, grond0: 640, voetX: 116, voetY: 320,   // de afstelmaat
   kleuren: [ ['Pink', ['#ff9fd0']], ['Opal', ['#9fd8ff', '#ff9fd0', '#c9a2ff']], ['Light blue', ['#9fd8ff']], ['Lilac', ['#c9a2ff']],
@@ -23826,8 +23828,41 @@ const BN_GLOW = 44, BN_OPEN = 52, BN_LOS = 70, BN_N = 78;
 const bnDur = n => n < 15 ? 70 : n < 46 ? 55 : n < 52 ? 100 : n < 69 ? 55 : 80;
 const BN_T = []; { let a = 0; for (let n = 0; n < BN_N; n++){ BN_T.push(a); a += bnDur(n); } BN.anim = a; }
 let bnBeeld = null, bnMeta = null, bnNu = null, bnKleur = 0, bnTint = {}, bnDummy = null, bnGeluid = null, bnZoem = null;
+// Co-op: de veren in je tas (gekocht in de winkel, MPC_WINKEL 'bennu'), en per teamgenoot de veren die hij nu blaast (bnAnder,
+// na het bericht 'bn'); die speelt ieder zelf af op de plek van die teamgenoot, en wie dood lag staat op als ze aankomen
+let bnCarry = 0, bnAnder = {};
 const bnSm = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
 function bnLevelAan(){ return !!(level && level.bennu) && !pvp; }
+function bnCoopAan(){ return !!(pvp && pvp.coop && !pvp.solo); }
+function bnToetsMag(){ return bnLevelAan() || (bnCarry > 0 && bnCoopAan()); }
+// de dode teamgenoot voor de veren: de eerste die dood ligt en nog niet onderweg is (hart of veren)
+function bnDodeVoor(){
+  if (!bnCoopAan()) return null;
+  const bezig = p => zhLijst.some(z => z.voor === p) || (bnNu && bnNu.voor === p) || Object.values(bnAnder).some(b => b.voor === p);
+  return pvpAnderen().find(p => pvp.anders[p] && pvp.anders[p].g && pvp.anders[p].g.d && !bezig(p)) ?? null;
+}
+// wie door de veren van een teamgenoot weer opstaat: op zijn eigen plek, BN.opOnkw onkwetsbaar
+function bnOpstaan(){
+  if (!dead) return;
+  dead = false; lives = 1; hurt = 0; invuln = BN.opOnkw; pvh = 0;
+  deadEl.classList.remove('on');
+  drawLives(); hudToon();
+  if (pvp && pvp.coop) delete pvp.coop.doodT[pvp.mij];
+  flashHint('The Bennu feathers brought you back');
+}
+// een teamgenoot blaast de veren (bericht 'bn'): zijn animatie op zijn plek, in zijn kleur
+function bnAnderStart(p, m){
+  bnLaad();
+  bnAnder[p] = { t: 0, x: +m.x || 0, h: +m.h || 0, f: m.f === 1 ? 1 : -1, dir: m.dir === 1 ? 1 : -1, voor: m.voor, k: (m.k >= 0 && m.k < BN.kleuren.length) ? m.k : 0,
+                 blaas: false, vlaag: false, gust: false, op: false, wek: false };
+}
+// tekent de veren van een teamgenoot (in pvpTekenEen); zolang de bol staat tekent dit hem ook zelf, in plaats van zijn beeld
+function bnTekenAnder(b, groundY, scale, cx){
+  if (!bnKlaar()) return;
+  const eigen = bnNu, k = bnKleur;
+  bnNu = b; bnKleur = b.k;
+  try { bnTekenAchter(groundY, scale, cx); bnTekenAmir(groundY, scale, cx); } finally { bnNu = eigen; bnKleur = k; }
+}
 function bnPal(){ return BN.kleuren[bnKleur][1]; }
 function bnHex(h){ return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); }
 function bnRgba(h, a){ return 'rgba(' + bnHex(h).join(',') + ',' + a + ')'; }
@@ -23869,13 +23904,20 @@ function bnVast(){ return bnActief(); }
 function bnFrame(t){ if (t >= BN.anim) return BN_N - 1; let n = 0; while (n < BN_N - 1 && BN_T[n + 1] <= t) n++; return n; }
 function bnGebruik(){
   if (!running || paused || dead || won || bnNu) return;
+  if (!bnLevelAan() && !(bnCarry > 0 && bnCoopAan())) return;
   if (!onGround || jump || fell || hurt > 0 || atkFrame >= 0 || rol || amirVast()) return;
   if (bnDummy && !bnDummy.dood){ flashHint('Wait until your teammate is down again'); return; }
+  const voor = bnLevelAan() ? null : bnDodeVoor();
+  if (!bnLevelAan() && voor == null){ flashHint('The feathers only work when a teammate is down'); return; }
   bnLaad();
   if (!bnKlaar()){ flashHint('The feathers are still loading'); return; }
-  const doelX = bnDummy ? bnDummy.x0 : world - 2000;
-  bnNu = { t: 0, x: world, h: ph, f: facing, dir: doelX < world ? -1 : 1, blaas: false, vlaag: false, gust: false, op: false };
+  const doelX = bnDummy ? bnDummy.x0 : voor != null ? pvp.anders[voor].g.x : world - 2000;
+  bnNu = { t: 0, x: world, h: ph, f: facing, dir: doelX < world ? -1 : 1, blaas: false, vlaag: false, gust: false, op: false, voor };
   atkFrame = -1; thr = null;
+  if (voor != null){                                                // Co-op: uit de tas, en iedereen speelt het af (bericht 'bn')
+    bnCarry = Math.max(0, bnCarry - 1); balkHud && balkHud();
+    pvpZend({ t: 'bn', voor, x: Math.round(world), h: Math.round(ph), f: facing, dir: bnNu.dir, k: bnKleur });
+  }
   startGust(bnNu.dir);                                              // de wind steekt op, de kant op van de teamgenoot
   if (MUZIEK[muziekNu]){ clearTimeout(bg.dempT); sndRamp(bg, MUZIEK[muziekNu].vol * BN.muziekDemp, 0.6, false); }   // de muziek gaat zachter
   bnZoemStart();
@@ -23910,6 +23952,7 @@ function bnZoemStop(){
 }
 function bnStap(dt){
   if (bnLevelAan()) bnDummyStap(dt);
+  bnAnderStap(dt);
   const b = bnNu; if (!b) return;
   b.t += dt * 1000 * BN.tempo;
   const t = b.t;
@@ -23928,9 +23971,23 @@ function bnStap(dt){
   bnZoemStap(t);
   if (t > bnUit()){ bnNu = null; bnZoemStop(); }
 }
+// Co-op: de veren van de teamgenoten lopen bij mij mee (geluid en wind); lag ik dood en zijn ze voor mij, dan sta ik op
+// zodra ze aankomen (dezelfde tijd als de oefenteamgenoot in Test 94)
+function bnAnderStap(dt){
+  for (const p in bnAnder){
+    const b = bnAnder[p];
+    b.t += dt * 1000 * BN.tempo;
+    const t = b.t;
+    if (!b.blaas && t >= BN_T[BN.blaasFrame]){ b.blaas = true; if (bnGeluid) banStemSpeel(bnGeluid.blaas, BN.blaasVol); }
+    if (!b.gust && t >= BN_T[BN_LOS]){ b.gust = true; startGust(b.dir); }
+    if (!b.vlaag && t >= bnVlaagT()){ b.vlaag = true; if (bnGeluid) banStemSpeel(bnGeluid.vlaag, BN.vlaagVol); startGust(b.dir); }
+    if (!b.wek && t >= bnVlaagT() + BN.verenWeg * 1.6 * BN.tempo){ b.wek = true; if (pvp && b.voor === pvp.mij) bnOpstaan(); }
+    if (t > bnUit()) delete bnAnder[p];
+  }
+}
 function bnReset(){
   if (bnNu && MUZIEK[muziekNu]) sndRamp(bg, MUZIEK[muziekNu].vol, 0.3, false);
-  bnNu = null; bnZoemStop(); bnDummy = null;
+  bnNu = null; bnZoemStop(); bnDummy = null; bnAnder = {};
   if (bnLevelAan()){ bnLaad(); bnDummy = { x0: level.bennu.x, x: level.bennu.x, h: 0, dood: true, staanT: 0, wekT: -1, a: 1 }; }
 }
 // Test 94: de oefenteamgenoot ligt verderop. Komen de veren aan, dan staat hij op (knipperend onkwetsbaar), blijft
@@ -29628,7 +29685,7 @@ addEventListener('keydown', e => {
     startJump(); return;
   }
   if (e.key === 'q' || e.key === 'Q'){ drinkHppotion(); return; }
-  if ((e.key === 'g' || e.key === 'G') && bnLevelAan()){ if (!e.repeat) bnGebruik(); return; }   // Feathers of the Bennu: de veren blazen (BN, Test 94)
+  if ((e.key === 'g' || e.key === 'G') && bnToetsMag()){ if (!e.repeat) bnGebruik(); return; }   // Feathers of the Bennu: de veren blazen (BN, Test 94 en Co-op)
   if ((e.key === 'k' || e.key === 'K') && bnLevelAan()){ if (!e.repeat) bnKleurWissel(); return; }   // Test 94: de kleur van de veren wisselen
   if ((e.key === 'g' || e.key === 'G') && zhToetsMag()){ if (!e.repeat) zhGebruik(); return; }   // Silver Pride: het hart neerleggen (ZH)
   if (e.key === 'i' || e.key === 'I'){ if (!e.repeat) invUIOpen(); return; }   // de inventory (zie "inventory")
@@ -63134,6 +63191,9 @@ const BALK = [
       const dl = zhLevelAan(), solo = !!(pvp && pvp.solo);                // solo: het hart werkt vanzelf, dus altijd klaar
       return { zien: dl || zhCarry > 0, klaar: solo || zhDodeVoor() != null, p: 1, tel: dl ? null : zhCarry, dim: !solo && zhDodeVoor() == null };
     } },
+  { id: 'bennu', toets: 'G', icoon: () => '<img class="klein" src="items/bennu/veren_icoon.png" alt="">', staat(){   // Feathers of the Bennu (BN), Co-op
+      return { zien: bnCarry > 0 && bnCoopAan(), klaar: bnDodeVoor() != null, p: 1, tel: bnCarry, dim: bnDodeVoor() == null };
+    } },
   { id: 'schijn', toets: '', icoon: () => '<img alt="">', staat(){
       return { zien: tribeHeeft('feign_death'), klaar: true, p: 1, dim: schijnKeer <= 0 && schijnT <= 0 };
     } }
@@ -72682,7 +72742,7 @@ const pvpNu = () => performance.now() / 1000;
 // de vijandstand bevestigd heeft (vAk). Een gast heeft er een, naar de host (slot 0). Elk bericht draagt het slot van wie
 // het maakte (`p`); de host zet het zelf op wat binnenkomt (een gast kan niet voor een ander spreken) en stuurt wat de
 // andere gasten ook moeten weten door (MP_DOOR), en een bericht voor een gast (`naar`) alleen naar die. Zie notities/pvp.md.
-const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'naam', 'rek', 'symPak', 'zh', 'wkklaar', 'rematch', 'gk', 'blokK']);
+const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'naam', 'rek', 'symPak', 'zh', 'bn', 'wkklaar', 'rematch', 'gk', 'blokK']);
 function pvpGasten(){ return pvp ? Object.keys(pvp.peers).map(Number).filter(p => p !== 0) : []; }
 function pvpRelay(){ return !!pvp && Object.values(pvp.peers).some(pe => pe.conn.relay); }
 function pvpPeerNieuw(conn, p){
@@ -73755,7 +73815,9 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
   const sx = cx + (g.x - world), voet = groundY - g.h * scale;
   const im = g.im && pvpBeeld(g.im);
   const zhWacht = pvp.coop && g.d && zhLijst.some(z => z.voor === p && z.op);   // Silver Pride: al uit het hart, zijn stand komt nog
-  if (im && !zhWacht){
+  const bnB = bnAnder[p], bnInBol = bnB && bnB.t < bnEinde();          // Feathers of the Bennu: zolang de bol staat tekent bnTekenAnder hem
+  if (bnB) bnTekenAnder(bnB, groundY, scale, cx);
+  if (im && !zhWacht && !bnInBol){
     const w = g.dw * scale, h = g.dh * scale;
     ctx.save();
     ctx.globalAlpha = g.a == null ? 1 : g.a;
@@ -73900,6 +73962,9 @@ const MPC_WINKEL = [
     uitleg: 'Instantly revives your fallen co-op partner by crushing this rare heart of a Silver Lion. For 3 seconds they cannot be harmed, but cannot use abilities. Press G when a teammate is down. You carry one at a time',
     uitlegSolo: 'When you fall, this rare heart of a Silver Lion brings you back a few seconds later with one life. For 4 seconds nothing can harm you: get away. You carry one at a time',
     sfeer: 'Silver lions are never sighted. Rare, silver, and a blessing for a friend.' },   // Silver Pride (ZH): alleen met de stokken en een teamgenoot
+  { k: 'bennu', cat: 'team', nieuw: true, naam: 'Feathers of the Bennu', prijs: [35, 50, 65], speer: true,
+    uitleg: 'Revives your fallen co-op partner where they lie. You kneel and blow three feathers of the Bennu to them; a bubble of air shields you while you do. Press G when a teammate is down. You carry one at a time',
+    sfeer: 'The Bennu rises from its own ashes. Its feathers carry that gift on the wind.' },   // Feathers of the Bennu (BN): alleen met de speer en een teamgenoot
   { k: 'geef', cat: 'team',     naam: 'Give 5 gold',              prijs: 5,  uitleg: 'To your teammate' }   // met twee teamgenoten een knop per teamgenoot (mpcWinkelToon)
 ];
 // de map: het stadje van PvP, met een balkon hoog in het middenhuis (de deur voor de kruisboogschutters, niet te
@@ -74525,7 +74590,7 @@ function mpcVolgStap(rdt){
 // de beginnermodus uit de lobby (pvp.regels.coop.beginner): iedereen begint met de Gris-gris op trap 2 (GRISGRIS, 20%)
 function mpcBeginAmulet(){ return pvp && pvp.regels && pvp.regels.coop && pvp.regels.coop.beginner ? 2 : 0; }
 function mpCoopNieuw(){
-  zhCarry = 0;                                       // Silver Pride: een nieuw potje begint zonder hart
+  zhCarry = 0; bnCarry = 0;                          // Silver Pride en de veren: een nieuw potje begint zonder
   return { ronde: 0, fase: 'wacht', klok: MPC.eerst, rij: [], spawnKlok: 0, score: 0, kills: 0, t: 0, id: 0, tonId: 0,
            zak: [], goud: 0, reeks: { n: 0, t: -99 }, eind: null,
            doodT: {}, reviveTon: {}, symbolen: [], reviveRust: {}, symId: 0,   // per slot: sinds wanneer dood, zijn revive-ton, zijn symbool
@@ -75097,6 +75162,7 @@ function mpCoopOntvang(m){
   if (m.t === 'sym'){ if (!C.symbolen.some(S => S.id === m.id)) C.symbolen.push({ id: m.id, x: m.x, h: m.h, voor: m.voor }); return true; }
   if (m.t === 'symWeg'){ C.symbolen = C.symbolen.filter(S => S.id !== m.id); return true; }
   if (m.t === 'zh'){ zhStart(+m.x || 0, +m.h || 0, m.voor); return true; }   // Silver Pride: een teamgenoot legde het hart neer (ZH)
+  if (m.t === 'bn'){ if (m.p !== pvp.mij) bnAnderStart(m.p, m); return true; }   // Feathers of the Bennu: een teamgenoot blaast de veren (BN)
   if (m.t === 'symPak'){
     C.symbolen = C.symbolen.filter(S => S.id !== m.id);
     mpcSymboolOp(m.voor);
@@ -75267,16 +75333,16 @@ function mpEpNieuw(C, oud, epI){
   C.ep.s0 = C.score; C.ep.k0 = C.kills; C.ep.t0 = C.t;
   // een episode met winkels: ieder houdt zijn goud, wat hij kocht en zijn tas (kalebassen, gif) over de levels heen; na
   // game over die van het begin van het level, na het slot weer niets
-  const tas = !o ? null : o.door ? { g: oud.goud, koop: oud.koop, kal: hppotionCarry, gif: gifCarry, zh: zhCarry }
+  const tas = !o ? null : o.door ? { g: oud.goud, koop: oud.koop, kal: hppotionCarry, gif: gifCarry, zh: zhCarry, bn: bnCarry }
             : (!o.alles && o.i === i) ? o.tas0 : null;
   if (tas){ C.goud = tas.g; C.koop = JSON.parse(JSON.stringify(tas.koop)); }
-  C.ep.tas0 = { g: C.goud, koop: JSON.parse(JSON.stringify(C.koop)), kal: tas ? tas.kal : 0, gif: tas ? tas.gif : 0, zh: tas ? tas.zh || 0 : 0 };
+  C.ep.tas0 = { g: C.goud, koop: JSON.parse(JSON.stringify(C.koop)), kal: tas ? tas.kal : 0, gif: tas ? tas.gif : 0, zh: tas ? tas.zh || 0 : 0, bn: tas ? tas.bn || 0 : 0 };
   pvp.levens = 3 + (C.koop.leven || 0);             // een gekocht extra leven geldt voor de rest van de episode
 }
 // na het laden van een level van de episode: de tas terug, en een gekocht speerslot weer erbij (en gevuld)
 function mpEpNaStart(){
   const C = pvp.coop, T = C.ep && C.ep.tas0; if (!T) return;
-  hppotionCarry = T.kal; gifCarry = T.gif; zhCarry = T.zh || 0; if (zhCarry) zhLaad();
+  hppotionCarry = T.kal; gifCarry = T.gif; zhCarry = T.zh || 0; if (zhCarry) zhLaad(); bnCarry = T.bn || 0; if (bnCarry) bnLaad();
   hppotionHud(); invHud();
   if (C.koop.slot && RUG_MAX > 0){ RUG_MAX++; if (!stokAan()) rugSperen.push({ blauw: false }); setSpearLabel(); }
 }
@@ -75760,7 +75826,7 @@ function mpcWinkelHeb(q){
   if (q.k === 'pathfinder') return pfAantal() >= 1 + RUG_MAX;   // een per speerplek (de hand en de rug), meer mag
   const K = pvp.coop.koop; return Array.isArray(q.prijs) ? (K[q.k] || 0) >= q.prijs.length : (q.k in K) && !!K[q.k]; }
 // de speerspullen (speer: true) ziet een stokspeler niet, en Hardwood sticks (stok: true) alleen hij
-function mpcWinkelVoorMij(q){ if (q.k === 'zilverhart' && pvp.solo) return true; return stokAan() ? !q.speer : !q.stok; }   // solo: Silver Pride voor elk wapen
+function mpcWinkelVoorMij(q){ if (q.k === 'zilverhart' && pvp.solo) return true; if (q.k === 'bennu' && pvp.solo) return false; return stokAan() ? !q.speer : !q.stok; }   // solo: Silver Pride voor elk wapen
 function mpcWinkelNiet(q){
   const C = pvp.coop, K = C.koop, handVol = spear || spearFound || rugTrekT > 0;
   let r = null;
@@ -75772,6 +75838,8 @@ function mpcWinkelNiet(q){
   else if (q.k === 'kalebas' && lives >= levensStart()) r = 'Your lives are full.';
   else if (q.k === 'zilverhart' && !mpcZhZien()) r = 'Only with a teammate.';
   else if (q.k === 'zilverhart' && zhCarry >= ZH.max) r = 'You already carry a Silver Pride.';
+  else if (q.k === 'bennu' && !mpcZhZien()) r = 'Only with a teammate.';
+  else if (q.k === 'bennu' && bnCarry >= BN.max) r = 'You already carry Feathers of the Bennu.';
   else if (q.k === 'speer' && (!rugAan() || (rugVol() && handVol))) r = 'Your hand and back are full.';
   else if (q.k === 'gif' && gifCarry >= 1 + RUG_MAX) r = 'One poison per spear slot (' + (1 + RUG_MAX) + ').';
   else if (q.k === 'gif' && invVol()) r = 'Your bag is full.';
@@ -75789,6 +75857,7 @@ function mpcWinkelKoop(q, aan){
   else if (q.k === 'speer'){ rugErbij(false); if (!spear && !spearFound && rugTrekT <= 0) rugTrekKlaar(); setSpearLabel(); }
   else if (q.k === 'gif'){ gifCarry++; invHud(); tekst = 'Poison in your bag. Press I to smear it on your spears.'; }
   else if (q.k === 'zilverhart'){ K.zilverhart = (K.zilverhart || 0) + 1; zhCarry++; zhLaad(); tekst = pvp.solo ? 'Silver Pride in your bag. If you fall, it brings you back.' : 'Silver Pride in your bag. Press G when a teammate is down.'; }
+  else if (q.k === 'bennu'){ K.bennu = (K.bennu || 0) + 1; bnCarry++; bnLaad(); tekst = 'Feathers of the Bennu in your bag. Press G when a teammate is down.'; }
   else if (q.k === 'leven'){ K.leven++; pvp.levens++; lives++; drawLives(); }
   else if (q.k === 'amulet'){ K.amulet++; tekst = 'Bought: ' + q.naam + '. ' + Math.round(grisGrisKans() * 100) + '% chance a hit costs you no life.'; }
   else if (q.k === 'pathfinder'){   // een Pathfinder erbij: hij komt op een gewone speer die je draagt (pfStap)
@@ -75810,7 +75879,7 @@ function mpcWinkelKoop(q, aan){
 // mpcUndoStand legt na het kopen vast hoe het ervoor staat, mpcUndoKan kijkt of dat nog zo is.
 let mpcLaatste = null;                               // {q, prijs, na}
 function mpcSperenTel(){ return (spearFound ? 1 : 0) + rugSperen.length; }
-function mpcUndoStand(){ return { lives, gif: gifCarry, speren: mpcSperenTel(), rugMax: RUG_MAX, pf: pfAantal(), zh: zhCarry }; }
+function mpcUndoStand(){ return { lives, gif: gifCarry, speren: mpcSperenTel(), rugMax: RUG_MAX, pf: pfAantal(), zh: zhCarry, bn: bnCarry }; }
 function mpcUndoKan(){
   const L = mpcLaatste; if (!L || !pvp || !pvp.coop || !pvp.coop.inWinkel) return false;
   const k = L.q.k, na = L.na;
@@ -75818,6 +75887,7 @@ function mpcUndoKan(){
   if (k === 'speer') return mpcSperenTel() === na.speren;
   if (k === 'gif') return gifCarry === na.gif && gifCarry > 0;
   if (k === 'zilverhart') return zhCarry === na.zh && zhCarry > 0;
+  if (k === 'bennu') return bnCarry === na.bn && bnCarry > 0;
   if (k === 'slot') return RUG_MAX === na.rugMax;
   if (k === 'pathfinder') return pfAantal() === na.pf && (speerBlauw === 'pathfinder' || rugSperen.some(r => r.blauw === 'pathfinder'));
   return true;
@@ -75836,6 +75906,7 @@ function mpcUndo(){
   }
   else if (k === 'gif'){ gifCarry--; invHud(); }
   else if (k === 'zilverhart'){ K.zilverhart = Math.max(0, (K.zilverhart || 0) - 1); zhCarry = Math.max(0, zhCarry - 1); }
+  else if (k === 'bennu'){ K.bennu = Math.max(0, (K.bennu || 0) - 1); bnCarry = Math.max(0, bnCarry - 1); }
   else if (k === 'pathfinder'){                       // een gedragen Pathfinder wordt weer gewoon, de rug eerst
     K.pathfinder = pfAantal() - 1;
     const r = rugSperen.find(x => x.blauw === 'pathfinder');
@@ -75912,6 +75983,7 @@ function mpcBeeld(q, aan){
     case 'pathfinder': return '<img src="design/speer/pathfinder/jav.png" alt="">';
     case 'kalebas': return '<img src="' + HPPOTION_SRC + '" alt="">';
     case 'geef': return mpcGeefBeeld(aan);
+    case 'bennu': return '<img src="items/bennu/veren.png" alt="">';   // Feathers of the Bennu: drie veren in roze
     case 'zilverhart': return '<span class="zhbeeld"><img src="items/zilverhart/hart.png" alt=""><img class="zhmed" src="items/zilverhart/leeuw_medaillon.png" alt=""></span>';   // Silver Pride: het leeuwenmedaillon linksboven
   }
   return MPC_IKOON_IMG[q.k] ? '<img src="items/winkel/' + q.k + '.png" alt="">' : '';
@@ -75932,6 +76004,7 @@ function mpcDraagToon(){
   if (hppotionCarry) tas.push(hppotionCarry + (hppotionCarry > 1 ? ' gourds' : ' gourd'));
   if (gifCarry) tas.push(gifCarry + ' poison');
   if (zhCarry) tas.push('Silver Pride');
+  if (bnCarry) tas.push('Feathers of the Bennu');
   if (gifHits > 0) tas.push('poison on your spears');
   if (tas.length) h += '<small>In your bag: ' + tas.join(', ') + '</small>';
   el.innerHTML = h;
@@ -75945,7 +76018,7 @@ function mpcWinkelToon(){
   el.innerHTML = '';
   const anderen = pvp.spelers.filter(p => p !== pvp.mij);
   // de tabs: alleen die er iets voor jou in hebben
-  const tabs = MPC_WINKEL_CAT.filter(c => MPC_WINKEL.some(q => q.cat === c.k && mpcWinkelVoorMij(q) && (q.k !== 'geef' || anderen.length) && (q.k !== 'zilverhart' || mpcZhZien())));
+  const tabs = MPC_WINKEL_CAT.filter(c => MPC_WINKEL.some(q => q.cat === c.k && mpcWinkelVoorMij(q) && (q.k !== 'geef' || anderen.length) && (q.k !== 'zilverhart' || mpcZhZien()) && (q.k !== 'bennu' || mpcZhZien())));
   if (!tabs.some(c => c.k === mpcTab)) mpcTab = tabs.length ? tabs[0].k : 'wapen';
   const nav = document.getElementById('wktabs'); nav.innerHTML = '';
   for (const c of tabs){
@@ -75954,7 +76027,7 @@ function mpcWinkelToon(){
     b.onclick = () => { mpcTab = c.k; mpcKeus = null; mpcWinkelToon(); };
     nav.append(b);
   }
-  const lijst = MPC_WINKEL.filter(q => mpcWinkelVoorMij(q) && q.cat === mpcTab && (q.k !== 'zilverhart' || mpcZhZien()));   // Silver Pride met een teamgenoot, of solo voor jezelf
+  const lijst = MPC_WINKEL.filter(q => mpcWinkelVoorMij(q) && q.cat === mpcTab && (q.k !== 'zilverhart' || mpcZhZien()) && (q.k !== 'bennu' || mpcZhZien()));   // Silver Pride met een teamgenoot, of solo voor jezelf
   lijst.sort((a, b) => (b.nieuw ? 1 : 0) - (a.nieuw ? 1 : 0));   // het nieuwe artikel groot bovenaan
   for (const q of lijst){
     // Give 5 gold: een knop per teamgenoot (wkc_geef_<slot>), met twee teamgenoten de kleur van zijn broek erbij

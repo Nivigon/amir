@@ -26,6 +26,7 @@
 //                                        goed de andere Amir en de vijanden bij de gast de echte baan volgden: bij de best
 //                                        passende vertraging (ms) de gemiddelde afwijking in px (lager is vloeiender en klopt beter)
 //   node tools/mptest.js --duel --spelers 2   het Duel: allebei in de ronde, de gast valt, de ronde naar de host, ronde 2
+//   node tools/mptest.js --bennu                      Feathers of the Bennu: de gast valt, de host blaast de veren, de gast staat op
 //   node tools/mptest.js --zilverhart --stokken host   Silver Pride: de gast valt, de host legt het hart neer, de gast komt eruit
 //   node tools/mptest.js --stokken gast  deze spelers kiezen in de lobby de stokken (ook host, gast2, of host,gast): kijkt na
 //                                        dat iedereen het weet, dat hun potje met stokken start zonder speer, en hun winkel;
@@ -115,6 +116,30 @@ async function zhProef(R){
   await wacht(3500);
   const ow = await G.page.evaluate(() => zhOntwaakT);
   meld(ow === 0 || await tot(G.page, () => zhOntwaakT === 0, null, 3000), 'na 3 s mag hij weer alles (na 3,5 s nog ' + ow.toFixed(2) + ' s)');
+  for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
+}
+// Feathers of the Bennu (BN): de gast valt, de host (met de speer) blaast de veren met G, de gast ziet de animatie bij de host
+// en staat op zijn eigen plek op als de veren aankomen. node tools/mptest.js --bennu
+async function bnProef(R){
+  const [H, G] = R, allen = R.map(r => r.page);
+  for (const p of allen) await p.evaluate(() => { godMode = true; MPC.reviveNa = 999; });
+  await H.page.evaluate(() => { world = -1500; ph = 0; facing = -1; });
+  await G.page.evaluate(() => { world = -2200; ph = 0; });
+  await wacht(800);
+  await G.page.evaluate(() => { godMode = false; invuln = 0; lives = 1; hurtPlayer(true); });
+  meld(await tot(H.page, () => pvpAnderen().some(p => pvp.anders[p].g && pvp.anders[p].g.d), null, 6000), 'de host ziet de gast dood liggen');
+  meld(await H.page.evaluate(() => mpcWinkelVoorMij(MPC_WINKEL.find(q => q.k === 'bennu')) && !mpcWinkelNiet(Object.assign({}, MPC_WINKEL.find(q => q.k === 'bennu'), { prijs: 0 }))), 'de veren staan in de winkel van de speerspeler');
+  meld(await H.page.evaluate(() => MPC_WINKEL.find(q => q.k === 'bennu').speer === true), 'en niet bij de stokspeler');
+  await H.page.evaluate(() => { bnCarry = 1; bnLaad(); });
+  meld(await tot(H.page, () => bnKlaar(), null, 8000), 'de veren zijn geladen');
+  await H.page.evaluate(() => { cv.focus(); bnGebruik(); });
+  meld(await H.page.evaluate(() => !!bnNu && bnCarry === 0), 'de host blaast de veren, en ze zijn uit de tas');
+  meld(await tot(G.page, () => Object.keys(bnAnder).length === 1, null, 3000), 'de gast krijgt het bericht en ziet de veren bij de host');
+  const gx0 = await G.page.evaluate(() => Math.round(world));
+  meld(await G.page.evaluate(() => dead), 'de gast ligt nog zolang de veren onderweg zijn');
+  meld(await tot(G.page, () => !dead && lives === 1 && invuln > 1, null, 15000), 'de gast staat op als de veren aankomen, onkwetsbaar');
+  meld(await G.page.evaluate(x => Math.abs(world - x) < 2, gx0), 'op zijn eigen plek');
+  meld(await tot(H.page, () => !pvpAnderen().some(p => pvp.anders[p].g.d), null, 3000), 'de host ziet hem staan');
   for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
 }
 async function epProef(R){
@@ -1008,6 +1033,7 @@ async function elk(H, G){
   }
   if (args.includes('--winkel')){ await winkelProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--hl')){ await hlProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
+  if (args.includes('--bennu')){ await bnProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--zilverhart')){ await zhProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--ep')){ await epProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--elk')){ await elk(H, G); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
