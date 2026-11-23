@@ -32,7 +32,12 @@ Kop in de HTML: `// ---- de speervolgorde: ...`, direct na `rugUpdate`.
 - **Na een worp** trekt `rugTrekKlaar` de beste van de rug, en de tweede speer (`dubbelStart`) ook (`rugSort` voor de `shift`).
 - **Z** (`speerWissel`): de speer in je hand gaat achteraan op je rug, de voorste van je rug komt in je hand, zodat je kiest
   welke je gooit. Dat blijft zo tot je weer iets opraapt (dan sorteert hij weer). Niet met de stokken. Op de telefoon is er
-  nog geen knop.
+  nog geen knop. De winkel en de inventory leggen Z uit (`SPEER_Z_UITLEG`).
+- **Het speervak** (23-11-2026, op verzoek; `SPVAK`, `spvakHud`, `spvakNaam`, `speerIkoon`): op een laptop links van de
+  actiebalk een vak met de kop van de speer in je hand (toets Z) en klein ernaast de volgende van je rug. Bij een wissel
+  gloeit het vak kort op en staat de naam van de nieuwe speer ongeveer een seconde klein net boven het vak, dan vervaagt hij;
+  geen melding midden in beeld meer (op de telefoon nog wel de flashHint). Het icoon is de voorste helft van de speer, schuin,
+  een keer per soort gebakken.
 - **De inventory (I)**: bovenaan een rij met je speren (`invSperenToon`), de hand eerst en dan de rug. Een klik toont in het
   zijpaneel de naam, bij de Pathfinder de sfeertekst, wat hij doet, en **Hold first** (`speerVoorop`: die soort bovenaan de
   volgorde, en meteen in je hand, want het spel staat stil).

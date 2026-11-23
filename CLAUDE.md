@@ -205,7 +205,11 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de speervolgorde: welke speersoort eerst in je hand zit (de inventory, Hold first), vanzelf de beste na oprapen en na een worp, Z wisselt | `speerVolgorde`, `speerSorteer`, `speerWissel`, `speerVoorop`, `rugSort`, `invSperenToon`, `pfAantal` | notities/speer-inventory.md |
 | de oude speer: gespalkt, drie keer te gebruiken, dan breekt hij; per stand slechter | `OUDE_SPEER`, `oudSoort`, `oudBreek`, `oudSteekStap` | notities/oude-speer.md |
 | de Pathfinder Spear: de speer uit de winkel van Co-op met het rode vaantje dat meewaait (op de rug, in de worp, liggend), en de prooi: een geworpen treffer markeert 3 s (rode rand, vaantje boven het hoofd, 20% trager, een half leven extra per treffer) | `PATHFINDER`, `PROOI`, `javTeken`, `pfVaanTeken`, `pfStap`, `prooiRaak`, `prooiGloed` | notities/speer.md |
+<<<<<<< HEAD
 | de Ardhi-wapens: Ardhi's Grip (stokken), Ardhi's Reach (speer) en Ardhi's Roots uit de winkel van Co-op; een treffer kan een leven teruggeven (knikkerzak: stok en steek 1 op 33, worp 1 op 10, een sapdruppel boven je hoofd), Roots zet wortels om twee vijanden in een groep (alleen op aarde); sandboxknop Ardhi, `tools/ardhi_test.js` | `ARDHI`, `ardhiStap`, `ardhiTreffer`, `ardhiKnikker`, `ardhiWortelRaak`, `ardhiAarde`, `ardhiVast` | notities/speer.md |
+=======
+| de Shield Piercer: de speer uit de winkel van Co-op met de zwarte naald en de ijzeren knol, door het schild heen (schildbandiet in een klap dood) uit een knikkerzak: verre worp 2 op 3, korte 1 op 3, steek en lage zwaai 1 op 8; de kansen van de speersoorten (ook de steek en zwaai van de Pathfinder), en het speervak links van de actiebalk (Z, de naam bij een wissel) | `SPEER_KANS`, `speerKansTrek`, `piercerDoor`, `spStap`, `pfMarkeert`, `SPVAK`, `spvakHud` | notities/speer.md, notities/speer-inventory.md |
+>>>>>>> origin/main
 | Silver Pride: het zilveren leeuwenhart uit de winkel van Co-op (alleen de stokken, met een teamgenoot, 35/50/65 goud, een tegelijk): G legt het neer, het pulseert, de dode teamgenoot komt eruit (klein naar groot) terwijl Tau in de lucht brult, dan 3 s onkwetsbaar zonder abilities; Test 91 met een oefenteamgenoot; `tools/mptest.js --zilverhart --stokken host`, `tools/zilverhart_test.js` | `ZH`, `zhGebruik`, `zhStart`, `zhStap`, `zhTeken`, `zhTauNa`, `zhOpstaan`, `zhOntwaakT`, `zhCarry`, `TEST_93` | notities/multiplayer.md |
 | Feathers of the Bennu: de veren-revive van de speerspeler (Mkuki): G, op een knie, de veren gloeien, ogen open met een flits, blazen, een luchtbol met veren in de wind, de vlaag van het spel neemt ze mee naar de teamgenoot verderop; in de winkel van Co-op (tab Team, met de speer), over het netwerk (`bn`), de bol houdt vijanden en projectielen buiten; Test 94 met een oefenteamgenoot, K wisselt de kleur; dood met het hart of de veren in de tas brengen ze je zelf terug; `tools/mptest.js --bennu --spelers 2` | `BN`, `bnGebruik`, `bnStap`, `bnSchild`, `bnVan`, `bnZelfStart`, `reviveZelfStap`, `mpcReviveKomt`, `TEST_94` | notities/multiplayer.md |
 | zicht: een vijand ziet je alleen als er niets tussen zit | `ZICHT`, `vijandZiet`, `zichtWaak` | notities/zicht.md |
@@ -374,6 +378,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de outfits van de stoktribe: zes outfits met broek en leeuwenvacht (Homefinder, Ice Warder, Dawnbreaker, Firedancer, Moss Cleaver, Show Stopper; Test 92, en in de lobby van Co-op en Survival met de stokken, de maskers gebakken met `tools/vacht_bak.js`) | `VACHT`, `VACHT.outfits`, `vachtMasker`, `vachtKl`, `broekKeuzeKl`, `MP_VACHT`, `VACHT_BAK`, `broekMaskers`, `vachtWarmTaken` | notities/stokken.md, notities/multiplayer.md |
 | de stoktribe: Bhubesi met de stokken als eigen kaart, de stokken in elk level van een episode, het blok met afkoeling, mediteren zonder straal op G, zeven talents | `bhubesi_stok`, `tribeStok`, `stokTribeLevel`, `stokBlokKoel`, `stokZonDruk`, `straalVrijZ` | notities/stokken.md |
 | PvP: een tegen een over internet (PeerJS), de andere Amir, wie beslist, rondes en het stadje | `PVP`, `PVP_LEVEL`, `pvpStap`, `pvpTeken`, `pvpVang` | notities/pvp.md |
+| het Duel met de kit van Co-op en de winkel: startbudget, winkel voor ronde 1 en tussen de rondes, blind sweep (stof verblindt de ander, geen dubbele schade), de grondklap raakt de ander; `tools/mptest.js --duel --duelwinkel --spelers 2` | `pvp.dw`, `duelWinkelIn`, `mpcWs`, `mpKoop`, `pvpStofIn`, `pvpBlindNa`, `pvpGkIn` | notities/pvp.md |
 | de naam in Multiplayer: ieder typt zijn naam naast de lobby, een naambordje boven zijn Amir in het spel (per speler aan of uit), en het team als kaartjes in de lobby (broek, wapen, Ready) | `MP_NAAM`, `mpNaamTeken`, `mpSpelerNoem`, `mpNamenZien`, `mpTeamToon` | notities/multiplayer.md |
 | de outfits van Mkuki: Amir met de speer is Mkuki (Outfit 1 standaard, ook buiten Multiplayer), in de lobby zes outfits met de speer en de oude broeken met de stokken; omkleuren per zone met `<frame>_zones.png` (tools/mkuki_spel_zones.py), `tools/outfittest.js` tekent ze allemaal; de speer los erop per speersoort (`tools/mkuki_spel_los.py`, `los.json`) | `MK_OUTFIT`, `MK_LOS`, `mkLosBeeld`, `mkSpeerTeken`, `mkSkinVan`, `mkLap`, `broekNu`, `mpBroekLijst`, `mpBroekPas` | notities/multiplayer.md |
 | Multiplayer: de knop in het hoofdmenu, de lobby (de host kiest Co-op Survival of Duel, de map en de regels, de gasten drukken Ready), en het plan voor de winkel | `MP_SOORTEN`, `mpLobbyToon`, `mpWijzig`, `mpStart`, `mpNaarLobby`, `pvpDuelStart` | notities/multiplayer.md |
@@ -619,6 +624,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Oude speer** (`design/speer/oud/`, uit de gewone speer) → `tools/oude_speer.py`, daarna `gen-offline-manifest.py`
 - **Ardhi-wapens** (`design/ardhi/`, `design/speer/ardhi/`, `bron/ar_<hoek>.png`, de winkelplaatjes) → `tools/ardhi_bak.py`, de stokken `tools/stok_variant.py --plaat design/ardhi/bron/stok_schoon.png --uit stokken_ardhi --rij 0` (kopieer de map naar `klein/karakters/amir/`), daarna `gen-offline-manifest.py`
 - **Pathfinder Spear** (`design/speer/pathfinder/`, uit de Grok-platen in `bron/`) → `tools/pathfinder_speer.py` (zet de regel die het print in `PATHFINDER`), daarna de Pathfinder in Amirs hand (`karakters/amir/mkuki_spel/bron/pf_<hoek>.png`) met `pathfinder()` uit `tools/mkuki_spel_los.py`, en `gen-offline-manifest.py`
+- **Shield Piercer** (`design/speer/piercer/jav.png` en de speer in Amirs hand, `karakters/amir/mkuki_spel/bron/sp_<hoek>.png`, uit `bron/speer.png`) → `tools/piercer_speer.py`, daarna `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`
 - **Winterversies** → `tools/sneeuw.py`, `sneeuw_bg.py`, `sneeuw_dorp.py`, `winter_art.py`
 
@@ -707,6 +713,12 @@ die aan staan), voor de grote en de kleine spriteset. Draai hem na een wijziging
 `ARENA_SOORTEN` in `gen-offline-manifest.py`, aan de arena-modus of aan wat de sandbox bij het openen laadt.
 `--soorten schildman` meet met alleen die soorten aan, `--beeld klein` beperkt tot een set, `--duur 90`
 speelt langer, `--toon` toont alles wat er opgevraagd is.
+
+### Lucht tussen de huizen: `tools/stadlucht.js`
+
+Loopt de camera over de straat van elk level met `stad.achterTot` (Ishmul) en meldt FOUT waar de huizen in de verte
+te vroeg ophouden, zodat je tussen de huizen lucht ziet. Draai hem na een wijziging aan `stadAchter`, de achterrijen of
+een level met `achterTot`.
 
 ### De makertest: `tools/makertest.js`
 

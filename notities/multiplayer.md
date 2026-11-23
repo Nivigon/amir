@@ -60,6 +60,14 @@ zoekraakte. Blijkt het TURN te zijn, dan helpt alleen stap 3 echt, en die wacht 
 | Rounds | Best of 3 | 1, 3 of 5 rondes; `pvp.winst` is de helft naar boven (was `PVP.winst`) |
 | Lives per round | 3 | 1 tot 5 (`pvp.levens`, `levensStart` geeft dit in een potje; er zijn nu 6 hartjes in de HUD) |
 | Longer roll cooldown | aan | `PVP.rolKoel` (1,2 s) of de gewone `ROL.koel` |
+| Shop and gold | uit | vinkje: de winkel van het Duel (`pvp.dw`, zie "De winkel van het Duel" in `notities/pvp.md`); de rijen hieronder staan er alleen met het vinkje aan (`winkel: true` in `MP_DUEL_RIJEN`) |
+| Starting gold | 100 | 0 tot 300, per 10 (`goud0`) |
+| Shop before round 1 | aan | eerst allebei naar de winkel (`winkelEerst`) |
+| Shop between rounds | After every round | Never, of na elke 1, 2 of 3 rondes (`winkelNa`) |
+| Gold at each shop | 50 | 0 tot 200, per 10, bij elke winkel tussen de rondes (`goudErbij`) |
+
+Het wapen (speer of stokken) kiest ieder zelf in de lobby, ook voor het Duel (zie "Het wapen"). De kit in het Duel is die van
+Co-op: stof in de ogen met de speer, de grondklap met de stokken (5 s afkoeling, `GK.koelCoop`). Zie "De kit" in `notities/pvp.md`.
 
 ### Co-op-instellingen
 
@@ -579,6 +587,10 @@ De tweede map van Co-op Survival, uitgewerkt in een mockup met de opdrachtgever 
   Alle rijen huizen in de verte houden op dezelfde plek op, op de muur van de voorste rij (`grensRand` in `stadAchter`):
   eerst had elke rij zijn eigen rand, liep de verste rij verder door en zag je onder die huizen de nevel als een plat blauw
   vak tussen de huizen. Ook het paleis vaagt weg voor het die rand bereikt, anders zweefde het boven de savanne.
+  Die rand ligt nooit rechts van de linkermuur van het meest linkse huis aan de straat (`doel` in `stadAchter`): door de
+  parallax lag hij, met de camera op de brug, rechts van het lage huis op de linkeroever, en daarboven zag je blauwe lucht
+  waar de stad hoort. Afgerond naar rechts op een muur valt hij nu achter dat huis. `tools/stadlucht.js` loopt de camera
+  over de straat op vier schermen en meldt FOUT op elke plek waar tussen de huizen lucht te zien is (`stadAchterRand`).
 - **De lucht** (`lucht: {wolken, vogels, gloed}` in `stad`, `STAD_LUCHT`, `stadLucht`, `luchtWolken`, `stadReigers`): wolken
   uit Grok in de stijl van de rotsen (`design/stad/verte/wolk_1..8.png`, gefacetteerd, middaglicht), witte reigers in een
   losse V in plaats van de gieren (met een dun grijs randje, zodat ze ook voor een wolk te zien zijn), en een warme gloed

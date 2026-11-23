@@ -141,6 +141,9 @@ alleen buiten de hand: in de hand volgt hij de plaatsing uit de animeer tool.
   plaatje, uitsnede en maat een keer gebakken met de drop-shadow (`prooiRandBak`, `PROOI_RAND`) en daarna gewoon
   getekend: een live filter op elk plaatje maakte City Survival traag) en het vaantje op een stokje
   boven zijn hoofd (`prooiTeken`, vanuit `vijandHpBalk`), knipperend in de laatste seconde, feller op een extra treffer.
+- **De steek en de lage zwaai** (23-11-2026, op verzoek): met de Pathfinder in je hand markeert een steek 1 op 5 en de lage
+  zwaai 1 op 4 per geraakte vijand, uit een knikkerzak (`SPEER_KANS.pathfinder`, `pfMarkeert`, zie "de kansen" hieronder).
+  De worp markeert altijd. Een gast trekt zelf en meldt het met `pf` (`prooiGast`).
 - **Sandbox:** Speer en spullen, Gif, **Pathfinder Spear** (`sbPathfinder`).
 
 
@@ -178,3 +181,36 @@ opdrachtgever (23-11-2026): de stok en de speer kozen hij uit Grok-platen, de na
 - **Art**: `python3 tools/ardhi_bak.py` uit `design/ardhi/bron/` (screenshots 1:1 van de Grok-originelen; de druppel
   en de ring kwamen van zwart: de druppel met alfa uit de helderheid, de ring met zwart van buitenaf weggevuld), en de
   stokframes met `tools/stok_variant.py --plaat design/ardhi/bron/stok_schoon.png --uit stokken_ardhi --rij 0`.
+
+## de Shield Piercer: door het schild heen (`SPEER_KANS`, `spStap`, `piercerDoor`, `piercerFx`, `sbPiercer`)
+
+Gevraagd (23-11-2026): nog een speer voor de winkel van Co-op, die door een schild gaat, en er uniek uitziet. Uit een Grok-plaat
+met vier ontwerpen koos de opdrachtgever de "rammer": een dunne ijzeren naald met een dikke ijzeren knol erachter, als een
+kleine stormram. De kleuren op verzoek: zwart staal met een blauwe glans voor naald en knol (eerst grijs staal, "niet donker
+genoeg", het werd zwart met een accentje), een donkerbruine schacht (het warme middenbruin van de andere speren valt weg tegen
+het zand en de warme lichtlaag), en zwart-witte banden (de oker-gele vond hij "te lief"). Bron: `design/speer/piercer/bron/speer.png`
+(de Grok-speer in zijn oorspronkelijke kleuren, punt links). `tools/piercer_speer.py` vindt de vlakken op kleur (ijzer,
+schacht, oker banden en ringen, witte banden, de donkere omlijning apart), kleurt ze om, en bouwt `jav.png` en de speer in
+Amirs hand (`karakters/amir/mkuki_spel/bron/sp_<hoek>.png`), op hetzelfde doek als de Pathfinder (624 bij 69, punt op y 34,5),
+zodat `javTeken` de maten van `PATHFINDER` en `mkSpeerTeken` die van `D.pf` (in `los.json`) gebruikt. Andere kleuren: de
+waarden bovenin het script (`STAAL`, `KLEUR`) en opnieuw draaien.
+
+- **De soort.** `SPEER_SOORTEN.piercer`, net als de Pathfinder in het veld van het vaantje. `koop.piercer` telt (`spAantal`,
+  sandbox: de knop), `spStap` maakt gewone speren die je draagt Shield Piercers. Pathfinder en Shield Piercer samen hooguit een
+  per speerplek (`mpcWinkelHeb`). In de speervolgorde na de Pathfinder; met **Z** wissel je hem in je hand tegen een schildman.
+- **De kracht.** In `hitSchildman`, voor het afketsen en het schild: gaat de treffer door het schild (`piercerDoor`), dan
+  springt het schild in een keer (`piercerFx`: breukklap, splinters, het lichtje van de crit, hitstop) en volgt meteen de dood,
+  met de gewone kans op een executie. Mislukt de kans, dan gaat het zoals altijd (een hap uit het schild). Een bout van de
+  kruisboog en een tik van het gif doen niet mee.
+- **De kansen** (`SPEER_KANS`, knikkerzakken, op verzoek altijd een knikkerzak voor een kans): de Shield Piercer een verre worp
+  2 op 3, een korte worp 1 op 3, een steek 1 op 8, de lage zwaai 1 op 8 per geraakte vijand. Ver is: vol aangespannen
+  (`jav.vol`), een perfecte rol-worp, of verder gevlogen dan `verAmir` (3) keer de lengte van Amir (`jav.x0`). Waarom zo:
+  zonder schild is de schildbandiet in een klap dood, dus door het schild is een kill; met steken scheelt het af en toe wat
+  slagen, gooien beloont het risico dat je speer daarna op de grond ligt. `speerKansTrek(soort, aanval)` houdt per soort en
+  aanval een zak bij (`speerZakken`), vers per level (`speerKansReset`, naast de zak van True Flight). `speerAanvalNu` zegt
+  welke speer en welke aanval het nu is: de worp uit `worpTref` en `jav`, anders de hand, en de lage zwaai aan `swFrame`.
+  Nagemeten in de sandbox: 80 steken gaven precies 10 keer door, 30 verre worpen 20 keer, en een gewone speer nooit.
+- **Co-op.** Een gast trekt zelf uit zijn zak en meldt het in zijn treffer (`dp`, `doorGast`); de host rekent ermee.
+- **De winkel.** 40 goud, tab Spears, met de sfeertekst "A shield is a promise. The Piercer breaks promises." (Elder Mwangi of
+  the Mkuki). Het zijpaneel en de inventory (I) tonen de kansen uit `SPEER_KANS` (`speerKrachtTekst`) en hoe Z werkt.
+- **Sandbox:** Speer en spullen, **Shield Piercer** (`sbPiercer`), en een schildbandiet onder Vijanden.
