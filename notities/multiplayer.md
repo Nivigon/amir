@@ -60,6 +60,14 @@ zoekraakte. Blijkt het TURN te zijn, dan helpt alleen stap 3 echt, en die wacht 
 | Rounds | Best of 3 | 1, 3 of 5 rondes; `pvp.winst` is de helft naar boven (was `PVP.winst`) |
 | Lives per round | 3 | 1 tot 5 (`pvp.levens`, `levensStart` geeft dit in een potje; er zijn nu 6 hartjes in de HUD) |
 | Longer roll cooldown | aan | `PVP.rolKoel` (1,2 s) of de gewone `ROL.koel` |
+| Shop and gold | uit | vinkje: de winkel van het Duel (`pvp.dw`, zie "De winkel van het Duel" in `notities/pvp.md`); de rijen hieronder staan er alleen met het vinkje aan (`winkel: true` in `MP_DUEL_RIJEN`) |
+| Starting gold | 100 | 0 tot 300, per 10 (`goud0`) |
+| Shop before round 1 | aan | eerst allebei naar de winkel (`winkelEerst`) |
+| Shop between rounds | After every round | Never, of na elke 1, 2 of 3 rondes (`winkelNa`) |
+| Gold at each shop | 50 | 0 tot 200, per 10, bij elke winkel tussen de rondes (`goudErbij`) |
+
+Het wapen (speer of stokken) kiest ieder zelf in de lobby, ook voor het Duel (zie "Het wapen"). De kit in het Duel is die van
+Co-op: stof in de ogen met de speer, de grondklap met de stokken (5 s afkoeling, `GK.koelCoop`). Zie "De kit" in `notities/pvp.md`.
 
 ### Co-op-instellingen
 

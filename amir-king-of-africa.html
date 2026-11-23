@@ -4267,6 +4267,8 @@ function stofWerp(){
     if (!S.hoogte(s)) continue;
     stofRaak(s, S);
   }
+  // het Duel: de ander beslist zelf of het stof hem verblindt (pvpStofIn), zoals elke treffer in PvP
+  if (pvp && !pvp.coop) pvpZend({ t: 'stof', x: Math.round(px), ax: Math.round(world), d: dir, v: Math.round(vloerBij(playerX(), ph)) });
 }
 // Wie het stof verblindt: elke vijand die in De Gouden Poort meedoet (de bandiet, de schildbandiet, de kruisboogbandiet,
 // de zweepman, de kooiman en de slangen). Per soort: de lijst, of hij nu te verblinden is (niet dood, niet midden in een
@@ -22836,7 +22838,7 @@ function stokLaad(){
 const stokSkinBank = {};
 function stokSkinLaad(naam){ if (!stokSkinBank[naam]) stokSkinBank[naam] = stokBankMaak(STOK.skins[naam].dir); }
 function stokSkinNu(){
-  const K = pvp && pvp.coop && pvp.coop.koop;
+  const K = mpKoop();
   if (!K) return null;
   for (const naam in STOK.skins) if (K[naam] && stokSkinBank[naam]) return naam;
   return null;
@@ -23019,8 +23021,8 @@ function gkStokStap(dt){
     if (atkFrame >= STOK.ms.grondklap.length){ gkFase = null; atkStok = null; atkFrame = -1; atkAcc = 0; atkCooldown = STOK.rust; if (!gkZon) gkKoelT = gkKoelDuur(); break; }
   }
 }
-function gkKoelDuur(){ return mpCoopAan() ? GK.koelCoop : GK.koel; }   // de afkoeling: in Co-op korter
-function gkZwaarNu(){ return !!(pvp && pvp.coop && pvp.coop.koop && pvp.coop.koop.slam); }   // de winkel van Co-op (MPC_WINKEL)
+function gkKoelDuur(){ return pvp ? GK.koelCoop : GK.koel; }   // de afkoeling: in Multiplayer (Co-op en Duel) korter
+function gkZwaarNu(){ const K = mpKoop(); return !!(K && K.slam); }   // de winkel van Co-op of van het Duel (MPC_WINKEL)
 function gkRichting(){ return facing === 1 ? 1 : -1; }      // de kijkrichting in de wereld (zie steekDX)
 // de klap: de stokken in de grond. Hitstop, schok, het geluid, stof bij de stokpunten en de golf
 function gkInslag(){
@@ -23042,7 +23044,8 @@ function gkInslag(){
   const rand = gkRandVoor(px, tip, dir, vloer);             // een ravijn vlak voor hem: de golf komt er niet overheen
   if (rand != null){ gkRaak.tip = gkRaak.front = gkRaak.ver = gkRaak.onderTot = rand; ber = 0; }
   gkKlapBeeld(rand ?? tip, tip2, dir, sc, ber, vloer);
-  if (mpCoopAan()) pvpZend({ t: 'gk', x: Math.round(rand ?? tip), x2: Math.round(tip2), d: dir, b: Math.round(ber / sc), v: Math.round(vloer) });   // de anderen zien de klap ook
+  if (pvp) pvpZend({ t: 'gk', x: Math.round(rand ?? tip), x2: Math.round(tip2), d: dir, b: Math.round(ber / sc), v: Math.round(vloer),   // de anderen zien de klap ook
+    ax: Math.round(px), s: gkRaak.schade });   // het Duel: waar ik sta en wat de golf kost (pvpGkIn beslist bij de ander)
 }
 // de golf, het stof en het geluid van een klap; ook voor de klap van een andere speler in Co-op (zonder treffers)
 function gkKlapBeeld(tip, tip2, dir, sc, ber, vloer){
@@ -24711,7 +24714,7 @@ function laagDood(s){
 let stokHoutGast = null;
 function stokHoutNu(){
   if (stokHoutGast != null) return stokHoutGast;
-  const K = pvp && pvp.coop && pvp.coop.koop;
+  const K = mpKoop();
   return !K ? 0 : K.klauw ? 2 : K.goud ? 3 : K.hout ? 1 : 0;
 }
 // de counter gaat door een dekking heen, zoals de derde slag
@@ -27944,7 +27947,7 @@ let pfVorigX = null, pfV = 0, pfWindX = 1;         // de vaart van Amir, voor he
 function pfAantal(){
   if (stokAan()) return 0;
   if (sandbox) return sbPathfinder ? 1 : 0;
-  const K = pvp && pvp.coop && pvp.coop.koop, n = K && K.pathfinder;
+  const K = mpKoop(), n = K && K.pathfinder;
   return n === true ? 1 : (n || 0);
 }
 function pfNu(){ return pfAantal() > 0; }
@@ -29850,6 +29853,7 @@ const typing = e => e.target && (e.target.tagName === 'TEXTAREA' || e.target.tag
 addEventListener('keydown', e => {
   if (makerOpen) return;                          // de Level Maker heeft zijn eigen scherm; het spel reageert dan niet op toetsen
   if (winkelUIAan){                              // het winkelscherm: Escape of E sluit het, de rest doet niets
+    if (e.key === 'Escape' && pvp && pvp.dw && pvp.dw.inWinkel){ e.preventDefault(); winkelUIDicht(true); toMenu(); return; }   // de winkel van het Duel: Escape is terug naar de lobby
     if (e.key === 'Escape' || e.key === 'e' || e.key === 'E'){ e.preventDefault(); winkelUIDicht(); }
     return;
   }
@@ -38066,10 +38070,11 @@ function winkelSpeerNiet(){
 }
 function winkelPrijs(n){ return goudAan() ? n + ' goud' : 'gratis'; }
 function winkelUIToon(){
-  const coop = typeof mpCoopAan === 'function' && mpCoopAan();   // Co-op: de eigen prijslijst (mpcWinkelToon, MPC_WINKEL)
+  const coop = typeof mpWinkelAan === 'function' && mpWinkelAan();   // Co-op en het Duel: de eigen prijslijst (mpcWinkelToon, MPC_WINKEL)
   winkelUIEl.classList.toggle('coop', coop);
   winkelUIEl.querySelector('strong').textContent = 'Duka\'s Wares';   // de naam van de winkel, in Co-op en in de gewone winkel
   document.getElementById('wkdicht').textContent = coop ? 'Close' : 'Leave';
+  document.getElementById('wkdicht').style.display = typeof pvp !== 'undefined' && pvp && pvp.dw ? 'none' : '';   // het Duel: weg met Ready
   if (coop){ winkelUIEl.classList.remove('gratis'); mpcWinkelToon(); return; }
   const g = goudAan();
   document.getElementById('wkprijs').textContent = winkelPrijs(GOUD.kalebas);
@@ -38095,7 +38100,7 @@ function winkelUIToon(){
 }
 function winkelSchud(id, tekst){
   const knop = document.getElementById(id);
-  knop.classList.remove('shake'); void knop.offsetWidth; knop.classList.add('shake');
+  if (knop){ knop.classList.remove('shake'); void knop.offsetWidth; knop.classList.add('shake'); }   // een kaart van een andere tab staat er niet
   document.getElementById('wkuitleg').textContent = tekst;
 }
 // tas vol bij kopen: met goud lichten de verkoopknoppen even op, als uitweg
@@ -38144,12 +38149,13 @@ function winkelUIOpen(){
   paused = !(typeof mpCoopAan === 'function' && mpCoopAan() && pvp.coop.ep); winkelUIAan = true; winkelTerug = null; wkKeus = null;
   for (const k in keys) keys[k] = false;          // geen toets blijft 'ingedrukt' hangen
   atkKeyHeld = false;
-  if (typeof mpCoopAan === 'function' && mpCoopAan()){ mpcZeg('open'); mpcKeus = null; }
+  if (typeof mpWinkelAan === 'function' && mpWinkelAan()){ mpcZeg('open'); mpcKeus = null; }
   winkelUIToon(); winkelUIEl.classList.add('on');
   document.getElementById('pvphud').classList.add('wk');
 }
-function winkelUIDicht(){
+function winkelUIDicht(af){
   if (!winkelUIAan) return;
+  if (!af && typeof pvp !== 'undefined' && pvp && pvp.dw && pvp.dw.inWinkel) return;   // de winkel van het Duel: blijft open tot iedereen Ready is (Escape gaat naar de lobby)
   winkelUIAan = false; winkelUIEl.classList.remove('on');
   document.getElementById('pvphud').classList.remove('wk');
   paused = false; cv.focus();
@@ -38200,7 +38206,7 @@ const WK_INFO = {
 };
 let wkKeus = null;                                   // de gekozen soort in de winkel buiten Co-op
 function wkInfoToon(){
-  if (typeof mpCoopAan === 'function' && mpCoopAan()) return;   // Co-op heeft zijn eigen (mpcInfoToon)
+  if (typeof mpWinkelAan === 'function' && mpWinkelAan()) return;   // Co-op en het Duel hebben hun eigen (mpcInfoToon)
   const zet = (id, s) => { document.getElementById(id).textContent = s || ''; };
   for (const k in WK_INFO) document.getElementById('wk' + k).classList.toggle('kies', k === wkKeus);
   const d = WK_INFO[wkKeus], koop = document.getElementById('wkinfokoop');
@@ -42917,7 +42923,7 @@ function vijandDood(baas, wie){
 // onkwetsbaar, zodat dezelfde aanval niet elk beeld opnieuw gooit), maar zonder rode flits; een klokje en "Warded" in de banner
 // zeggen dat het amulet hem redde. De kans gooit ieder voor zichzelf: in co-op beslist elke speler zijn eigen hurtPlayer (au2).
 const GRISGRIS = { kans: [0, 0.10, 0.20, 0.30] };      // per trap (0 = niet gekocht)
-function grisGrisKans(){ return (pvp && pvp.coop && pvp.coop.koop) ? GRISGRIS.kans[Math.min(pvp.coop.koop.amulet || 0, GRISGRIS.kans.length - 1)] : 0; }
+function grisGrisKans(){ const K = mpKoop(); return K ? GRISGRIS.kans[Math.min(K.amulet || 0, GRISGRIS.kans.length - 1)] : 0; }
 function grisGrisVang(){
   const k = grisGrisKans();
   if (!(k > 0) || Math.random() >= k) return false;
@@ -61133,6 +61139,7 @@ function loop(now){
     dkVgTeken(groundY, scaleNow);                  // en een stuk dierenkooi voor de camera (DKOOI)
     drawBladerdak(groundY, scaleNow);               // in het regenwoud: het bladerdak, de takken en lianen bovenin
     leibandNaTeken();                               // Co-op episode: het lichtgordijn op de grens van het leiband, over de lichtlaag en het weer
+    pvpBlindNa();                                   // het Duel: blind van het stof, een sluier van zand over alles behalve vlak om Amir
     bavWerpTeken(scaleNow);                         // de speerpunt die de baviaan naar de camera smijt
     drawBossBar();
     bruBalkTeken();
@@ -73155,7 +73162,7 @@ function mpStandaard(){
   const vij = {};
   for (const q of MP_SOORTEN) vij[q.k] = q.var ? 'beide' : 'aan';
   return { modus: 'coop', kaart: 'dye',
-           duel: { rondes: 3, levens: 3, rolKoel: true },
+           duel: { rondes: 3, levens: 3, rolKoel: true, winkel: false, goud0: 100, winkelEerst: true, winkelNa: 1, goudErbij: 50 },
            coop: { start: 1, erbij: 1, winkelNa: 3, pauze: 10, rek: 4, kalebas: 30, goud0: 0, winkelEerst: false, beginner: false, vij, licht: Object.assign({}, MPC_VERSIE.standaard) } };
 }
 // de instellingen van de host, bewaard op dit apparaat; wat ontbreekt komt uit de standaard
@@ -73182,7 +73189,13 @@ function mpBewaar(){ try { localStorage.setItem(pvp.solo ? MP_SOLO.sleutel : 'am
 const MP_DUEL_RIJEN = [
   { k: 'rondes', naam: 'Rounds', keus: [[1, 'One round'], [3, 'Best of 3'], [5, 'Best of 5']] },
   { k: 'levens', naam: 'Lives per round', min: 1, max: 5, stap: 1 },
-  { k: 'rolKoel', naam: 'Longer roll cooldown (' + PVP.rolKoel + ' s)', vink: true }
+  { k: 'rolKoel', naam: 'Longer roll cooldown (' + PVP.rolKoel + ' s)', vink: true },
+  // de winkel van het Duel (duelWinkelIn): een startbudget, en wanneer en hoe vaak de winkel komt, met goud erbij
+  { k: 'winkel', naam: 'Shop and gold', vink: true },
+  { k: 'goud0', naam: 'Starting gold', min: 0, max: 300, stap: 10, winkel: true },
+  { k: 'winkelEerst', naam: 'Shop before round 1', vink: true, winkel: true },
+  { k: 'winkelNa', naam: 'Shop between rounds', keus: [[0, 'Never'], [1, 'After every round'], [2, 'After every 2 rounds'], [3, 'After every 3 rounds']], winkel: true },
+  { k: 'goudErbij', naam: 'Gold at each shop', min: 0, max: 200, stap: 10, winkel: true }
 ];
 const MP_COOP_RIJEN = [
   { k: 'start', naam: 'Enemies in round 1', min: 1, max: 6, stap: 1 },
@@ -73242,7 +73255,7 @@ function mpLobbyToon(){
   pvpEl('mpep').classList.toggle('on', I.modus === 'ep');
   pvpEl('mpbeginrij').style.display = I.modus === 'duel' ? 'none' : '';   // de beginnermodus: Co-op Survival en de Co-op episode
   pvpEl('mpbeginner').checked = !!I.coop.beginner;
-  mpRijen(pvpEl('mpduel'), MP_DUEL_RIJEN, I.duel, (k, v) => mpWijzig(() => { I.duel[k] = v; }));
+  mpRijen(pvpEl('mpduel'), MP_DUEL_RIJEN.filter(r => !r.winkel || I.duel.winkel), I.duel, (k, v) => mpWijzig(() => { I.duel[k] = v; }));   // de winkelregels alleen met de winkel aan
   // Co-op Survival in twee kolommen, zodat alles zonder scrollen past: links de regels en het licht, rechts de vijanden
   const coop = pvpEl('mpcoop'), kolL = document.createElement('div'), kolR = document.createElement('div');
   kolL.className = kolR.className = 'mpkol'; coop.innerHTML = '';
@@ -73637,7 +73650,7 @@ function mpWapenToon(){
 function mpStokken(){ return !!(pvp && pvp.mij != null && pvp.wapen && pvp.wapen[pvp.mij] === 'stok'); }
 // het level van een potje: met de stokken als een level met stokken, zonder speer en zonder rug
 function mpWapenLevel(lv){
-  if (mpStokken()){ lv.stokken = true; lv.geenSpeer = true; lv.rugMax = 0; if (mpCoopAan()) lv.grondklap = true; }   // Co-op: ook de grondklap (GK.koelCoop)
+  if (mpStokken()){ lv.stokken = true; lv.geenSpeer = true; lv.rugMax = 0; lv.grondklap = true; }   // ook de grondklap (GK.koelCoop), in Co-op en in het Duel
   return lv;
 }
 pvpEl('mpwpspeer').onclick = () => mpWapenZet('speer');
@@ -73715,7 +73728,10 @@ function pvpDuelStart(){
                        laatsteJav: null, mijn: null, jVorig: null, rematch: [false, false, false], winst: Math.ceil(D.rondes / 2), levens: D.levens });
   runReset();
   levelList = PVP_LEVELS;                         // niet TEST_LEVELS: die geeft alle talents (een vierde leven)
-  level = readLevel(JSON.stringify(mpWapenLevel(JSON.parse(JSON.stringify(PVP_LEVEL)))));   // met de stokken: een level met stokken
+  const lv = JSON.parse(JSON.stringify(PVP_LEVEL));
+  lv.stof = true;                                   // de kit van Co-op: stof in de ogen met de speer (pvpStofIn), de grondklap met de stokken (mpWapenLevel)
+  level = readLevel(JSON.stringify(mpWapenLevel(lv)));   // met de stokken: een level met stokken
+  duelWinkelNieuw();                                // de winkel van het Duel: de beurs met het startbudget (of geen winkel)
   laadNieuw(); laadLevel(level);
   mpLaadReset();                                    // pas los als iedereen geladen is (mpLaadVast)
   sandbox = false; godMode = false;
@@ -73724,6 +73740,7 @@ function pvpDuelStart(){
   pvpRondeStart(1);
   beginPlay('normal');
   pvpPlaats();
+  if (pvp.dw && D.winkelEerst) duelWinkelStraks();   // eerst allebei naar de winkel, dan pas ronde 1
   pvpEl('pvphud').classList.add('on');
   pvpHud();
 }
@@ -73731,7 +73748,7 @@ function pvpDuelStart(){
 function mpNaarLobby(zelf){
   if (!pvp || pvp.fase === 'lobby') return;
   if (zelf) pvpZend({ t: 'lobbyTerug' });
-  mpCoopStop();
+  mpCoopStop(); duelWinkelStop();
   if (ROL.koelOud != null){ ROL.koel = ROL.koelOud; ROL.koelOud = null; }
   godMode = false;
   pvpEl('pvphud').classList.remove('on');
@@ -73753,9 +73770,11 @@ function pvpRondeStart(n){
   pvp.raakSteek = pvp.raakZwaai = pvp.raakSpeer = -1;
   pvpBanner('Round ' + n, 1.4);
 }
-function pvpNieuweRonde(n){
+function pvpNieuweRonde(n, winkel){
+  const tas = duelTasVoor();                         // het Duel met de winkel: wat je kocht gaat mee naar de volgende ronde
   pvpRondeStart(n);
-  restart(); pvpPlaats(); hudToon(); pvpHud();
+  restart(); pvpPlaats(); duelTasNa(tas); hudToon(); pvpHud();
+  if (winkel) duelWinkelStraks(true);                // eerst naar de winkel, met goud erbij; de ronde begint na Ready
 }
 // naar iedereen (de host naar alle gasten, een gast naar de host); elk bericht krijgt mijn slot
 function pvpZend(o){
@@ -73796,7 +73815,7 @@ function pvpHud(){
   if (!pvp) return;
   if (pvp.coop){ mpCoopHud(); return; }
   const mijn = pvp.sc[pvp.mij], zijn = pvp.sc[pvpDuelAnder()] || 0;
-  pvpEl('pvpscore').textContent = 'You ' + mijn + '  -  ' + zijn + ' Opponent' + pvpPingHud();
+  pvpEl('pvpscore').textContent = 'You ' + mijn + '  -  ' + zijn + ' Opponent' + (pvp.dw ? '   ' + pvp.dw.goud + ' gold' : '') + pvpPingHud();
   pvpEl('pvpbanner').textContent = pvp.banner || '';
 }
 function pvpOntvang(m){
@@ -73814,6 +73833,7 @@ function pvpOntvang(m){
   if (m.t === 'geladen'){ if (pvp.host && pvp.geladen) pvp.geladen.add(m.p); return; }   // samen beginnen (mpLaadVast)
   if (m.t === 'los'){ if (!pvp.host && pvp.geladen && !pvp.los) mpLaadLos(); return; }
   if (pvp.coop && mpCoopOntvang(m)) return;         // Co-op: de vijanden, tonnen, deuren en de revive
+  if (!pvp.coop && duelOntvang(m)) return;          // het Duel: de winkel, het stof en de grondklap
   if (m.t === 's'){
     // zijn stand: de nieuwste meteen voor beslissingen (pvpAnderNu), en in de speelbuffer voor het beeld (pvpAnderStap)
     if (m.p === pvp.mij) return;
@@ -73835,7 +73855,8 @@ function pvpOntvang(m){
   } else if (m.t === 'ronde'){
     if (pvp.fase === 'lobby') return;
     pvp.sc = m.sc.slice();
-    if (m.eind) pvpEinde(); else pvpNieuweRonde(m.n);
+    if (m.rm) duelWinkelNieuw();                     // een rematch: de winkel weer vanaf het begin
+    if (m.eind) pvpEinde(); else pvpNieuweRonde(m.n, !!m.w);
   } else if (m.t === 'lobby'){
     if (pvp.host) return;
     pvp.inst = m.inst; pvp.klaar = false; pvp.klaarVan = {};
@@ -73887,14 +73908,170 @@ function pvpRondeUit(w){
   pvpHud();
   setTimeout(() => {
     if (!pvp || pvp.fase !== 'pauze') return;      // intussen terug naar de lobby
-    const eind = pvp.sc.some(v => v >= pvp.winst);
-    pvpZend({ t: 'ronde', sc: pvp.sc, n: pvp.ronde + 1, eind });
-    if (eind) pvpEinde(); else pvpNieuweRonde(pvp.ronde + 1);
+    const eind = pvp.sc.some(v => v >= pvp.winst), D = pvp.regels.duel;
+    const w = !eind && !!pvp.dw && D.winkelNa > 0 && pvp.ronde % D.winkelNa === 0;   // de winkel tussen de rondes (duelWinkelIn)
+    pvpZend({ t: 'ronde', sc: pvp.sc, n: pvp.ronde + 1, eind, w });
+    if (eind) pvpEinde(); else pvpNieuweRonde(pvp.ronde + 1, w);
   }, PVP.pauze * 1000);
 }
 function pvpEinde(){
   pvp.fase = 'uit'; godMode = true; pvp.rematch = [false, false];
   pvpBanner((pvp.sc[pvp.mij] > (pvp.sc[pvpDuelAnder()] || 0) ? 'You win the duel!' : 'Your opponent wins the duel') + '  (R: rematch, Esc: lobby)');
+}
+// ---- het Duel: de winkel, het stof en de grondklap (de kit van Co-op als basis) ----
+// De host zet in de lobby Shop and gold aan (pvp.regels.duel): een startbudget (goud0), de winkel voor ronde 1
+// (winkelEerst), na elke zoveel rondes (winkelNa, 0 is nooit) en zoveel goud erbij bij elke winkel daarna (goudErbij).
+// De winkel is het winkelscherm van Co-op (mpcWinkelToon, met de beurs in pvp.dw in plaats van pvp.coop), zonder
+// winkelkamer: het scherm gaat open op straat, de ronde wacht tot allebei Ready drukten (het aftellen van Co-op). Alleen
+// wat duel: true heeft is te koop. Wat je kocht blijft het hele duel (duelTasVoor, duelTasNa); een rematch begint weer leeg.
+// Zie "De winkel van het Duel" in notities/pvp.md.
+const PVP_BLIND = { duur: 3, gat: 0.85, a: 0.92, uit: 0.8 };   // blind van het stof: zo lang, de vrije plek om Amir (Amir-hoogtes), hoe dicht de sluier, en zo lang vervaagt hij aan het eind
+let pvpBlindT = 0, pvpBlindXY = null;               // het Duel: hoe lang ik nog blind ben, en waar ik op het doek sta (pvpBlindPlek)
+const pvpGkGolven = [];                              // het Duel: de golven van de grondklap van de ander die nog over de vloer rollen (pvpGkStap)
+function duelWinkelNieuw(){
+  const D = pvp.regels.duel;
+  pvp.levens = D.levens;                             // Extra life telt pas weer na een nieuwe aankoop
+  pvp.dw = D.winkel ? { goud: Math.max(0, Math.min(300, D.goud0 || 0)), koop: { slot: false, slam: false, leven: 0, amulet: 0 },
+                        inWinkel: false, wkKlaar: {}, mijnKlaar: false, vertrek: null, straks: false, vers: true } : null;
+}
+// naar de winkel zodra het kan (na het laden, niet in een pauze); erbij: goud erbij (de winkel tussen de rondes)
+function duelWinkelStraks(erbij){
+  const W = pvp.dw; if (!W) return;
+  if (erbij) W.goud += Math.max(0, pvp.regels.duel.goudErbij || 0);
+  W.straks = true; pvp.fase = 'winkel'; godMode = true;
+  pvpHud();
+}
+function duelWinkelIn(){
+  const W = pvp.dw;
+  W.straks = false; W.vers = false; W.inWinkel = true; W.wkKlaar = {}; W.mijnKlaar = false; W.vertrek = null;
+  mpcKeus = null; mpcLaatste = null; mpcVertrekTekst = '';
+  pvp.fase = 'winkel'; godMode = true; pvpBlindT = 0;
+  mpcOntdooi();
+  winkelUIOpen();
+  mpcWinkelBanner();
+}
+// allebei Ready en afgeteld: de winkel dicht en de ronde begint (de host zegt het met winkelUit, mpcVertrekStap)
+function duelWinkelUit(){
+  const W = pvp.dw; if (!W || !W.inWinkel) return;
+  W.inWinkel = false; W.mijnKlaar = false; W.wkKlaar = {}; W.vertrek = null; mpcLaatste = null;
+  winkelUIDicht(true); mpcOntdooi();
+  duelRugVol();                                      // een extra speerslot: meteen een speer op die plek
+  pvpRondeStart(pvp.ronde);
+  pvpHud();
+}
+function duelWinkelStop(){
+  if (typeof pvp === 'undefined' || !pvp) return;
+  if (pvp.dw) pvp.dw.inWinkel = false;
+  winkelUIDicht(true);
+  pvp.dw = null; pvpBlindT = 0; pvpGkGolven.length = 0;
+}
+function duelRugVol(){
+  if (stokAan() || !spearFound) return;
+  while (rugSperen.length < RUG_MAX) rugSperen.push({ blauw: false });
+  setSpearLabel();
+}
+// een nieuwe ronde (restart) maakt de tas leeg en zet de rug terug: wat je kocht komt er daarna weer in
+function duelTasVoor(){ return pvp.dw && !pvp.dw.vers ? { hp: hppotionCarry } : null; }
+function duelTasNa(tas){
+  const W = pvp.dw; if (!W) return;
+  W.vers = false;
+  if (tas){ hppotionCarry = tas.hp; hppotionHud(); }
+  if (W.koop.slot && !stokAan()) RUG_MAX++;
+  duelRugVol();
+}
+// elk beeld in het Duel (uit pvpStap)
+function duelStap(rdt){
+  const W = pvp.dw;
+  if (W && W.straks && running && !paused && !laadWacht && pvp.los) duelWinkelIn();
+  if (pvpBlindT > 0) pvpBlindT = pvp.fase === 'vecht' ? Math.max(0, pvpBlindT - rdt) : 0;
+  pvpGkStap(rdt);
+}
+// de berichten van het Duel; true als het er een was
+function duelOntvang(m){
+  const W = pvp.dw;
+  if (m.t === 'stof'){ pvpStofIn(m); return true; }
+  if (m.t === 'blind'){ flashHint('Your opponent is blinded by the dust.'); return true; }
+  if (m.t === 'gk'){ if (!laadWacht) gkKlapBeeld(m.x, m.x2, m.d, nowScale(), m.b * nowScale(), m.v); pvpGkIn(m); return true; }
+  if (!W) return false;
+  if (m.t === 'wkklaar'){ W.wkKlaar[m.p] = !!m.aan; if (pvp.host) mpcWinkelKlaar(); if (W.inWinkel){ mpcWinkelBanner(); if (winkelUIAan) mpcWinkelToon(); } return true; }
+  if (m.t === 'wkvertrek'){ if (!pvp.host && W.inWinkel){ W.vertrek = m.aan ? performance.now() + MPC_WINKEL_WEG.aftel * 1000 : null; mpcVertrekToon(); if (winkelUIAan) mpcWinkelToon(); } return true; }
+  if (m.t === 'winkelUit'){ if (!pvp.host) duelWinkelUit(); return true; }
+  return false;
+}
+// ---- blind sweep: het stof in de ogen tegen een speler ----
+// Werpt de ander zijn stof (stofWerp stuurt 'stof'), dan beslist mijn laptop, net als bij een treffer: sta ik voor hem,
+// binnen STOF.bereik, op zijn hoogte en kijk ik hem aan, dan ben ik PVP_BLIND.duur blind. Blind is een sluier van zand
+// over het beeld met alleen een vrije plek om mijn eigen Amir (pvpBlindNa), en zandsterretjes om mijn hoofd (bij de ander
+// ook: bl in 's'). Geen dubbele schade: anders dan bij een vijand telt de volgende treffer gewoon.
+function pvpStofIn(m){
+  pvpStofBeeld(m.x, m.d, m.v);
+  if (pvp.fase !== 'vecht' || dead || godMode || rol) return;   // door de rol heen raakt het stof niet
+  const mx = playerX(), dx = mx - (m.ax ?? m.x);
+  if (Math.sign(dx) !== m.d || Math.abs(dx) > STOF.bereik) return;   // voor hem en dichtbij genoeg
+  if ((facing === 1 ? 1 : -1) !== -m.d) return;      // ik moet hem aankijken
+  if (Math.abs(vloerBij(mx, ph) - m.v) > 90) return;  // op zijn hoogte
+  pvpBlindT = PVP_BLIND.duur; pvpBlindXY = null;
+  shake = Math.max(shake, 0.2);
+  pvpZend({ t: 'blind' });
+}
+// zijn stof bij mij: de pluim over de baan, net als bij stofWerp (alleen beeld)
+function pvpStofBeeld(x, d, v){
+  const F = STOF_FX.sluier;
+  for (let i = 0; i < Math.ceil(F.n / 2); i++){
+    const t = (i + Math.random()) / Math.ceil(F.n / 2), ver = t * STOF.bereik * 0.9, top = CHAR_H * (0.1 + 0.75 * Math.sqrt(t));
+    stofWolk(x + d * ver, top * (0.3 + 0.7 * Math.random()), v, d * stofRnd(140, 380) * (1 - t * 0.5),
+             (12 + Math.random() * 10) * F.r * (0.65 + t * 0.6), stofRnd(F.leven[0], F.leven[1]), F.a);
+  }
+  puffWorld(x, STOF.wolk, d * 420, 1.2, v);
+}
+// in het tekenblok (pvpTeken): waar mijn Amir op het doek staat, en de sterretjes om mijn hoofd
+function pvpBlindPlek(groundY, scale, cx){
+  if (pvpBlindT <= 0) return;
+  const T = ctx.getTransform(), x = cx + (playerX() - world), voet = groundY - ph * scale;
+  const pt = T.transformPoint(new DOMPoint(x, voet - CHAR_H * scale * 0.5));
+  pvpBlindXY = { x: pt.x, y: pt.y, r: CHAR_H * scale * PVP_BLIND.gat * Math.hypot(T.a, T.b) };
+  stofTeken(x, voet - CHAR_H * scale * 0.95, {}, scale);
+}
+// na de lichtlaag en het weer: de sluier van zand, dicht behalve vlak om mij, en vervagend aan het eind
+function pvpBlindNa(){
+  if (!pvp || pvp.coop || pvpBlindT <= 0 || !pvpBlindXY) return;
+  const B = PVP_BLIND, a = B.a * Math.min(1, pvpBlindT / B.uit), { x, y, r } = pvpBlindXY;
+  const cw = ctx.canvas.width, ch = ctx.canvas.height, t = performance.now() / 1000;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const g = ctx.createRadialGradient(x, y, r * 0.45, x, y, r * 1.7);
+  g.addColorStop(0, 'rgba(198,152,98,0)'); g.addColorStop(0.5, 'rgba(186,140,88,' + (a * 0.75).toFixed(3) + ')');
+  g.addColorStop(1, 'rgba(168,124,76,' + a.toFixed(3) + ')');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, cw, ch);
+  ctx.globalAlpha = a * 0.5; ctx.fillStyle = '#7a5634';   // korrels die door de sluier waaien
+  for (let i = 0; i < 70; i++){
+    const kx = ((i * 197.3 + t * (60 + (i % 7) * 25)) % (cw + 40)) - 20, ky = (i * 83.7 + Math.sin(t * 2 + i) * 14) % ch;
+    ctx.fillRect(kx, ky, 2 + (i % 3), 1 + (i % 2));
+  }
+  ctx.restore();
+}
+// ---- de grondklap tegen een speler ----
+// De ander slaat zijn stokken in de grond ('gk', met ax waar hij staat en s de schade): bij mij rolt de golf van hem af
+// over de vloer naar voren, en raakt mij als hij langs komt terwijl ik op die vloer sta (niet erboven, GK.hoog). Een keer
+// per golf, met hurtPlayer, dus de rol en het blok werken zoals altijd. Ground slam: heavier geeft een heel leven.
+function pvpGkIn(m){
+  if (pvp.fase !== 'vecht' || m.b == null) return;
+  const ax = m.ax ?? m.x;
+  pvpGkGolven.push({ ax, d: m.d, front: ax, ver: m.x + m.d * m.b * nowScale(), v: m.v, s: m.s || GK.schade.licht, raak: false });
+}
+function pvpGkStap(rdt){
+  const sc = nowScale(), mx = playerX();
+  for (let i = pvpGkGolven.length - 1; i >= 0; i--){
+    const G = pvpGkGolven[i], oud = G.front, stap = GK.golfV * sc * rdt;
+    G.front = G.d > 0 ? Math.min(G.ver, G.front + stap) : Math.max(G.ver, G.front - stap);
+    const lo = Math.min(oud, G.front) - 30 * sc, hi = Math.max(oud, G.front) + 30 * sc;
+    if (!G.raak && pvp.fase === 'vecht' && !dead && mx >= lo && mx <= hi
+        && Math.abs(vloerBij(mx, ph) - G.v) <= 40 && ph - G.v <= GK.hoog * CHAR_H){
+      G.raak = true;
+      const voor = lives; hurtPlayer(G.ax < mx, G.s);
+      if (lives < voor) pvpZend({ t: 'au', l: lives });
+    }
+    if (G.front === G.ver || pvp.fase !== 'vecht') pvpGkGolven.splice(i, 1);
+  }
 }
 // R in PvP: na het duel een rematch vragen; pas als allebei willen begint het opnieuw
 function pvpRematchDruk(){
@@ -73907,8 +74084,10 @@ function pvpRematchDruk(){
 function pvpRematchKijk(){
   if (!pvp || !pvp.host || pvp.fase !== 'uit' || !pvp.spelers.every(p => pvp.rematch[p])) return;
   pvp.sc = [0, 0, 0];
-  pvpZend({ t: 'ronde', sc: pvp.sc, n: 1, eind: false });
-  pvpNieuweRonde(1);
+  const w = !!pvp.dw && pvp.regels.duel.winkelEerst;
+  pvpZend({ t: 'ronde', sc: pvp.sc, n: 1, eind: false, rm: true, w });
+  duelWinkelNieuw();                                 // een rematch: de beurs en de aankopen weer vanaf het begin
+  pvpNieuweRonde(1, w);
 }
 function pvpWeg(t){
   if (!pvp || pvp.weg) return;
@@ -73926,7 +74105,7 @@ function pvpStop(){
   for (const k in pvp.peers){ try { pvp.peers[k].conn.close(); } catch (e){} }
   pvpPeerWeg(); pvpHostCode = null;
   if (ROL.koelOud != null){ ROL.koel = ROL.koelOud; ROL.koelOud = null; }
-  mpCoopStop();
+  mpCoopStop(); duelWinkelStop();
   pvp = null; godMode = false; pvpTerug = true;
   pvpEl('pvphud').classList.remove('on');
   mpLobbyDicht();
@@ -73955,6 +74134,7 @@ function pvpStap(rdt){
     if (!pvp) return;
   }
   if (pvp.bannerT > 0){ pvp.bannerT -= rdt; if (pvp.bannerT <= 0){ pvp.banner = ''; pvpHud(); } }
+  if (!pvp.coop) duelStap(rdt);                     // het Duel: de winkel na het laden, de blindheid en de golf van de grondklap
   if (atkFrame >= 0 && (pvp.laatsteAtk < 0 || atkFrame < pvp.laatsteAtk || atkStok !== pvp.laatsteStok)) pvp.sn++;
   pvp.laatsteStok = atkStok;
   pvp.laatsteAtk = atkFrame;
@@ -73973,7 +74153,8 @@ function pvpStap(rdt){
     const j = jav && jav.state !== 'weg' ? { x: Math.round(jav.x), h: Math.round(jav.h), sa: +jav.sa.toFixed(3), dir: jav.dir, st: jav.state, t: +(jav.t || 0).toFixed(2), b: jav.blauw || 0, n: pvp.jn } : null;
     pvpZendSnel(Object.assign({ t: 's', q: ++pvp.qs, tm: +pvpNu().toFixed(3), ak: pvp.coop && !pvp.host && pvp.nets[0] ? pvp.nets[0].v.q : undefined, x: Math.round(playerX()), h: Math.round(ph), f: facing, hu: +hurt.toFixed(2),
       sf: atkFrame, ss: atkStok || undefined, sl: steekLive() && !atkMes ? 1 : 0, sn: pvp.sn, sw: swFrame, wn: pvp.wn, j, l: lives, d: dead ? 1 : 0, rz: pvp.coop && reviveZelfKan() ? 1 : undefined,
-      iv: invuln > 0 ? 1 : 0, du: +duckT.toFixed(2), ds: +duckShare.toFixed(2), ...mkSpeerZend() }, pvp.mijn));   // iv, du en ds: de stand voor de vijanden van Co-op (mpcGastStand)
+      iv: invuln > 0 ? 1 : 0, du: +duckT.toFixed(2), ds: +duckShare.toFixed(2), ...mkSpeerZend(),
+      bl: pvpBlindT > 0 ? 1 : undefined, lm: pvp.dw ? pvp.levens : undefined }, pvp.mijn));   // het Duel: blind van het stof, en mijn hartjes (Extra life)   // iv, du en ds: de stand voor de vijanden van Co-op (mpcGastStand)
   }
   if (pvp.coop) mpcVriesWacht(rdt);                 // Co-op: een freeze die niet afloopt laat Amir niet voorgoed staan
   if (pvp.coop) mpCoopStap(rdt, rdt);                // Co-op: de rondes, de deuren en de vijanden
@@ -74024,6 +74205,7 @@ function pvpTeken(groundY, scale, cx, pbox, hitBy){
   if (!pvp) return;
   for (const p of pvpAnderen()) pvpTekenEen(p, pvp.anders[p].g, groundY, scale, cx, pbox, hitBy);
   if (pvp.coop) mpCoopTeken(groundY, scale, cx);    // Co-op: de revive-tonnen en hun symbolen
+  else pvpBlindPlek(groundY, scale, cx);            // het Duel: waar ik sta, voor de sluier van het stof (pvpBlindNa)
 }
 const pvpBroekCv = {};                              // per slot een eigen doek voor zijn broekkleur (zie pvpTekenEen)
 // een andere Amir, zijn speer, en (in het Duel) of zijn steek, zwaai of worp mijn Amir raakt
@@ -74052,13 +74234,14 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
   ctx.save();
   ctx.fillStyle = pvp.coop ? '#4fc36b' : '#e0412b'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;   // een teamgenoot groen
   ctx.beginPath(); ctx.moveTo(sx - r * 1.6, kop - r * 2.6); ctx.lineTo(sx + r * 1.6, kop - r * 2.6); ctx.lineTo(sx, kop - r * 0.6); ctx.closePath(); ctx.fill(); ctx.stroke();
-  const nl = pvp.levens || 3;
+  const nl = g.lm || pvp.levens || 3;                // het Duel: zijn eigen aantal (Extra life uit de winkel)
   for (let i = 0; i < nl; i++){
     ctx.beginPath(); ctx.arc(sx + (i - (nl - 1) / 2) * r * 3, kop - r * 4.4, r, 0, Math.PI * 2);
     ctx.fillStyle = i < (g.l || 0) ? '#e0412b' : 'rgba(0,0,0,0.5)'; ctx.fill(); ctx.stroke();
   }
   ctx.restore();
   mpNaamTeken(p, sx, kop - r * 8, scale, g.d ? 0.55 : 1);   // zijn naam erboven (mpNamenZien)
+  if (g.bl) stofTeken(sx, voet - CHAR_H * scale * 0.95, {}, scale);   // het Duel: blind van mijn stof, de zandsterretjes om zijn hoofd
   // zijn speer, in de vlucht of in de grond (javSchacht tekent de globale jav: even wisselen); in Co-op alleen als
   // hij neerkwam (in de grond, een wand of een bos), want in de vlucht zie je alleen je eigen speren
   const j = g.j;
@@ -74155,22 +74338,24 @@ const MPC_ZEG = {
 };
 // de prijslijst van de winkel in Co-op (per speler). prijs een getal, of een rij voor de zoveelste keer; eis: eerst dat
 const MPC_WINKEL = [
-  { k: 'kalebas', cat: 'voorraad',  naam: 'Gourd',                    prijs: 5,  uitleg: 'One life back, until your lives are full' },
+  { k: 'kalebas', cat: 'voorraad',  naam: 'Gourd',                    prijs: 5,  uitleg: 'One life back, until your lives are full', duel: true,
+    uitlegDuel: 'Goes in your bag. Press Q in a fight for one life back' },   // duel: ook in de winkel van het Duel (zie duelWinkelIn)
   { k: 'speer', cat: 'wapen',    naam: 'New spear',                prijs: 10, uitleg: 'Until your hand and back are full', speer: true },
   { k: 'gif', cat: 'voorraad',      naam: 'Poison',                   prijs: 25, uitleg: 'One per spear slot. Press I to smear it on', speer: true,
     sfeer: 'Never let your spouse lick this spear.', bron: 'Old Nduta, keeper of spears' },
   { k: 'fc', cat: 'wapen',       naam: 'Full Circle',              prijs: 30, uitleg: 'A stab at an open enemy (blinded by dust, or one that just missed) becomes a spinning strike', speer: true },
   { k: 'kracht', cat: 'wapen',   naam: 'Full Circle: more damage', prijs: 50, uitleg: '1.5 damage and a big knockback', eis: 'fc', speer: true },
   { k: 'rond', cat: 'wapen',     naam: 'Full Circle: all around',  prijs: 50, uitleg: 'The spin hits everyone around you, also behind you', eis: 'fc', speer: true },
-  { k: 'slot', cat: 'wapen',     naam: 'Extra spear slot',         prijs: 45, uitleg: 'A second spare spear on your back', speer: true },
+  { k: 'slot', cat: 'wapen',     naam: 'Extra spear slot',         prijs: 45, uitleg: 'A second spare spear on your back', speer: true, duel: true },
   { k: 'pathfinder', cat: 'wapen', nieuw: true,  naam: 'Pathfinder Spear',      prijs: 40, uitleg: 'One of your spears becomes a Pathfinder Spear. Thrown, it marks prey for 3 s: it is 20% slower, and every hit on it, also from your team, does half a life extra. One per spear slot', speer: true,
     sfeer: 'The Pathfinder Spear is not easily earned. Those who carry it walk first, so the others may walk home.', bron: 'Elder Mwangi of the Mkuki' },   // PROOI, zie "de Pathfinder Spear"
   { k: 'hout', cat: 'wapen',     naam: 'Hardwood sticks',          prijs: 40, uitleg: 'Your strikes hit harder: 0.75 of a life instead of 0.5', stok: true },   // STOK.schadeHout
   { k: 'klauw', cat: 'wapen',    naam: 'Lion Claw sticks',         prijs: 80, uitleg: 'White bone sticks with a lion claw: your strikes tear for a full life', eis: 'hout', sluit: 'goud', stok: true },   // STOK.schadeKlauw, STOK.skins.klauw
   { k: 'goud', cat: 'wapen',     naam: 'Gold King sticks',         prijs: 80, uitleg: 'Black sticks with a golden lion head: half your strikes on a shield break off two pieces', eis: 'hout', sluit: 'klauw', stok: true },   // STOK.goudSchild, STOK.skins.goud
-  { k: 'slam', cat: 'wapen',     naam: 'Ground slam: heavier',     prijs: 50, uitleg: 'Your ground slam hits for a full life instead of half, and throws enemies further back', stok: true },   // GK.zwaar
-  { k: 'leven', cat: 'charm',    naam: 'Extra life',               prijs: [60, 90, 120], uitleg: 'One more life, for the rest of the game' },
-  { k: 'amulet', cat: 'charm',   naam: 'Gris-gris',                prijs: [40, 75, 110], uitleg: ['A charm against harm: 10% chance a hit costs you no life',
+  { k: 'slam', cat: 'wapen',     naam: 'Ground slam: heavier',     prijs: 50, uitleg: 'Your ground slam hits for a full life instead of half, and throws enemies further back', stok: true, duel: true,
+    uitlegDuel: 'Your ground slam costs your opponent a full life instead of half' },   // GK.zwaar
+  { k: 'leven', cat: 'charm',    naam: 'Extra life',               prijs: [60, 90, 120], uitleg: 'One more life, for the rest of the game', duel: true, uitlegDuel: 'One more life in every round, for the rest of the duel' },
+  { k: 'amulet', cat: 'charm',   naam: 'Gris-gris',                prijs: [40, 75, 110], duel: true, uitleg: ['A charm against harm: 10% chance a hit costs you no life',
                                                                             'Stronger charm: 20% chance', 'Strongest charm: 30% chance'] },   // GRISGRIS
   { k: 'zilverhart', cat: 'team', nieuw: true, naam: 'Silver Pride',       prijs: [35, 50, 65], prijsSolo: [50, 80, 110], stok: true,
     uitleg: 'Instantly revives your fallen co-op partner by crushing this rare heart of a Silver Lion. For 3 seconds they cannot be harmed, but cannot use abilities. Press G when a teammate is down. If you fall yourself, the heart brings you back. You carry one at a time',
@@ -74467,6 +74652,11 @@ const MPC_LIJSTEN = [
 const mpcLijst = k => MPC_LIJSTEN.find(q => q.k === k);
 function mpcZet(q, a){ if (q.zet) q.zet(a); else { const l = q.l(); l.length = 0; for (const o of a) l.push(o); } }
 function mpCoopAan(){ return !!(pvp && pvp.coop); }
+// de winkel van Multiplayer: in Co-op de beurs van Co-op (pvp.coop), in het Duel die van het Duel (pvp.dw, alleen met de
+// winkel aan in de lobby). De winkelfuncties (mpcWinkel...) lezen goud, aankopen en Ready uit mpcWs()
+function mpcWs(){ return pvp ? (pvp.coop || pvp.dw || null) : null; }
+function mpWinkelAan(){ return !!mpcWs(); }
+function mpKoop(){ const W = typeof pvp !== 'undefined' && mpcWs(); return W ? W.koop : null; }
 function mpcGast(){ return mpCoopAan() && !pvp.host; }
 function mpcLeeft(o){ return sbLeeft(o) && o.fase !== 'dood' && o.fase !== 'weg' && !(o.doodT0 > 0); }
 
@@ -75990,16 +76180,17 @@ function mpcWinkelIn(geheim){
 }
 // wie van mijn teamgenoten in de winkel al Ready drukte: een zin voor de banner en het winkelscherm ('' als niemand)
 function mpcWinkelAnderKlaar(){
-  const C = pvp.coop, anderen = pvp.spelers.filter(p => p !== pvp.mij), n = anderen.filter(p => C.wkKlaar[p]).length;
+  const C = mpcWs(), anderen = pvp.spelers.filter(p => p !== pvp.mij), n = anderen.filter(p => C.wkKlaar[p]).length;
   if (!n) return '';
+  if (pvp.dw) return 'Your opponent is ready.';   // het Duel
   if (anderen.length === 1) return 'Your teammate is ready.';
   return n === anderen.length ? 'Both teammates are ready.' : n + ' of ' + anderen.length + ' teammates ready.';
 }
 function mpcWinkelBanner(){
-  const C = pvp.coop, wie = pvp.spelers.length > 2 ? 'your teammates' : 'your teammate', ander = mpcWinkelAnderKlaar();
+  const C = mpcWs(), wie = pvp.dw ? 'your opponent' : pvp.spelers.length > 2 ? 'your teammates' : 'your teammate', ander = mpcWinkelAnderKlaar();
   if (C.vertrek && mpcVertrekTekst){ pvpBanner(mpcVertrekTekst + (C.mijnKlaar ? ' Press E at the counter for Not ready.' : '')); return; }
   pvpBanner(C.mijnKlaar ? 'Ready. Waiting for ' + wie + '...'
-    : (ander ? ander + ' ' : '') + 'Shop: press E at the counter, then Ready');
+    : (ander ? ander + ' ' : '') + (pvp.dw ? 'Shop: buy what you need, then Ready' : 'Shop: press E at the counter, then Ready'));
 }
 // weer de straat op, bij iedereen: het rek is weer vol, en bij de host begint de pauze naar de volgende ronde
 function mpcWinkelUit(){
@@ -76015,7 +76206,7 @@ function mpcWinkelUit(){
 }
 // Ready in het winkelscherm (nog een keer: toch niet). De anderen horen het altijd (een gast via de host), de host telt
 function mpcKlaarDruk(){
-  const C = pvp && pvp.coop; if (!C || !C.inWinkel) return;
+  const C = mpcWs(); if (!C || !C.inWinkel) return;
   C.mijnKlaar = !C.mijnKlaar; C.wkKlaar[pvp.mij] = C.mijnKlaar;
   pvpZend({ t: 'wkklaar', aan: C.mijnKlaar });
   if (C.mijnKlaar) mpcZeg('klaar');
@@ -76026,7 +76217,7 @@ function mpcKlaarDruk(){
 // de host: is iedereen die er nog is Ready, dan begint het aftellen (MPC_WINKEL_WEG.aftel); drukt iemand Not ready, dan
 // stopt het. Iedereen telt zelf af op het bericht wkvertrek; de host zegt bij nul winkelUit (mpcVertrekStap)
 function mpcWinkelKlaar(){
-  const C = pvp.coop; if (!C.inWinkel) return;
+  const C = mpcWs(); if (!C.inWinkel) return;
   const allemaal = pvp.spelers.every(p => C.wkKlaar[p]);
   if (allemaal && !C.vertrek){ C.vertrek = performance.now() + MPC_WINKEL_WEG.aftel * 1000; pvpZend({ t: 'wkvertrek', aan: true }); }
   else if (!allemaal && C.vertrek){ C.vertrek = null; pvpZend({ t: 'wkvertrek', aan: false }); }
@@ -76034,13 +76225,13 @@ function mpcWinkelKlaar(){
 }
 // elk beeld (ook in de pauze van het winkelscherm): het aftellen tonen, en bij de host bij nul de straat op
 function mpcVertrekStap(){
-  const C = pvp && pvp.coop; if (!C || !C.inWinkel || !C.vertrek) return;
+  const C = mpcWs(); if (!C || !C.inWinkel || !C.vertrek) return;
   mpcVertrekToon();
-  if (pvp.host && performance.now() >= C.vertrek){ pvpZend({ t: 'winkelUit' }); mpcWinkelUit(); }
+  if (pvp.host && performance.now() >= C.vertrek){ pvpZend({ t: 'winkelUit' }); if (pvp.dw) duelWinkelUit(); else mpcWinkelUit(); }
 }
 let mpcVertrekTekst = '';
 function mpcVertrekToon(){
-  const C = pvp && pvp.coop; if (!C) return;
+  const C = mpcWs(); if (!C) return;
   const n = C.vertrek ? Math.max(1, Math.ceil((C.vertrek - performance.now()) / 1000)) : 0;
   const t = n ? 'Leaving in ' + n + '\u2026' : '';
   if (t === mpcVertrekTekst) return;
@@ -76050,25 +76241,26 @@ function mpcVertrekToon(){
 }
 // de prijslijst: wat het nu kost (een extra leven wordt duurder), en waarom het niet kan (null: het kan)
 // een item met trappen (prijs is een lijst: Extra life, Gris-gris) telt in koop hoe vaak je het kocht
-function mpcWinkelPrijs(q){ const P = pvp.solo && q.prijsSolo || q.prijs; return Array.isArray(P) ? P[Math.min(pvp.coop.koop[q.k] || 0, P.length - 1)] : P; }   // Co-op solo: een eigen prijs (prijsSolo)
+function mpcWinkelPrijs(q){ const P = pvp.solo && q.prijsSolo || q.prijs; return Array.isArray(P) ? P[Math.min(mpcWs().koop[q.k] || 0, P.length - 1)] : P; }   // Co-op solo: een eigen prijs (prijsSolo)
 // de uitleg op een kaart, per trap; Co-op solo heeft soms een eigen tekst (uitlegSolo)
-function mpcUitleg(q, trap){ const U = pvp.solo && q.uitlegSolo || q.uitleg; return Array.isArray(U) ? U[Math.min(trap, U.length - 1)] : U; }
+function mpcUitleg(q, trap){ const U = pvp.solo && q.uitlegSolo || pvp.dw && q.uitlegDuel || q.uitleg; return Array.isArray(U) ? U[Math.min(trap, U.length - 1)] : U; }
 // Silver Pride: met een teamgenoot, of in Co-op solo (dan voor jezelf)
-function mpcZhZien(){ return pvp.solo || pvp.spelers.some(p => p !== pvp.mij); }
+function mpcZhZien(){ return !pvp.dw && (pvp.solo || pvp.spelers.some(p => p !== pvp.mij)); }   // het Duel: geen teamgenoot
 function mpcWinkelHeb(q){
   if (q.k === 'pathfinder') return pfAantal() >= 1 + RUG_MAX;   // een per speerplek (de hand en de rug), meer mag
-  const K = pvp.coop.koop; return Array.isArray(q.prijs) ? (K[q.k] || 0) >= q.prijs.length : (q.k in K) && !!K[q.k]; }
+  const K = mpcWs().koop; return Array.isArray(q.prijs) ? (K[q.k] || 0) >= q.prijs.length : (q.k in K) && !!K[q.k]; }
 // de speerspullen (speer: true) ziet een stokspeler niet, en Hardwood sticks (stok: true) alleen hij
-function mpcWinkelVoorMij(q){ return stokAan() ? !q.speer : !q.stok; }   // Silver Pride is van de stokken, de veren van de speer (ook solo)
+function mpcWinkelVoorMij(q){ if (pvp && pvp.dw && !q.duel) return false; return stokAan() ? !q.speer : !q.stok; }   // het Duel: alleen wat duel: true heeft   // Silver Pride is van de stokken, de veren van de speer (ook solo)
 function mpcWinkelNiet(q){
-  const C = pvp.coop, K = C.koop, handVol = spear || spearFound || rugTrekT > 0;
+  const C = mpcWs(), K = C.koop, handVol = spear || spearFound || rugTrekT > 0;
   let r = null;
   if (!mpcWinkelVoorMij(q)) r = 'Not for your weapon.';
   else if (mpcWinkelHeb(q)) r = q.k === 'pathfinder' ? 'All your spear slots already hold a Pathfinder Spear.'
                              : Array.isArray(q.prijs) ? 'Sold out: you bought all three.' : 'You already have this.';
   else if (q.eis && !K[q.eis]) r = 'Buy ' + MPC_WINKEL.find(w => w.k === q.eis).naam + ' first.';
   else if (q.sluit && K[q.sluit]) r = 'You chose ' + MPC_WINKEL.find(w => w.k === q.sluit).naam + '.';   // een keuze: het een of het ander
-  else if (q.k === 'kalebas' && lives >= levensStart()) r = 'Your lives are full.';
+  else if (q.k === 'kalebas' && pvp.dw && invVol()) r = 'Your bag is full.';   // het Duel: de kalebas gaat in je tas
+  else if (q.k === 'kalebas' && !pvp.dw && lives >= levensStart()) r = 'Your lives are full.';
   else if ((q.k === 'zilverhart' || q.k === 'bennu') && !mpcZhZien()) r = 'Only with a teammate.';
   else if (q.k === 'zilverhart' && zhCarry >= ZH.max) r = 'You already carry a Silver Pride.';
   else if (q.k === 'bennu' && bnCarry >= ZH.max) r = 'You already carry the Feathers of the Bennu.';
@@ -76079,13 +76271,14 @@ function mpcWinkelNiet(q){
   return r;
 }
 function mpcWinkelKoop(q, aan){
-  const C = pvp.coop, K = C.koop, reden = mpcWinkelNiet(q);
+  const C = mpcWs(), K = C.koop, reden = mpcWinkelNiet(q);
   if (reden && /^Not enough gold/.test(reden)) mpcZeg('arm');
   if (reden){ winkelSchud(mpcKeus && mpcKeus.q === q && document.activeElement && document.activeElement.id === 'wkinfokoop' ? 'wkinfokoop' : 'wkc_' + q.k + (aan != null ? '_' + aan : ''), reden); return; }
   const prijs = mpcWinkelPrijs(q);
   C.goud -= prijs;
   let tekst = 'Bought: ' + q.naam + '.';
-  if (q.k === 'kalebas'){ lives++; drawLives(); }
+  if (q.k === 'kalebas' && pvp.dw){ hppotionCarry++; hppotionHud(); tekst = 'A gourd in your bag. Press Q in a fight for one life back.'; }   // het Duel: tussen de rondes zijn je levens toch vol
+  else if (q.k === 'kalebas'){ lives++; drawLives(); }
   else if (q.k === 'speer'){ rugErbij(false); if (!spear && !spearFound && rugTrekT <= 0) rugTrekKlaar(); setSpearLabel(); }
   else if (q.k === 'gif'){ gifCarry++; invHud(); tekst = 'Poison in your bag. Press I to smear it on your spears.'; }
   else if (q.k === 'zilverhart'){ K.zilverhart = (K.zilverhart || 0) + 1; zhCarry++; zhLaad(); tekst = pvp.solo ? 'Silver Pride in your bag. If you fall, it brings you back.' : 'Silver Pride in your bag. Press G when a teammate is down. If you fall, it brings you back.'; }
@@ -76102,7 +76295,7 @@ function mpcWinkelKoop(q, aan){
   mpcLaatste = q.k === 'geef' ? null : { q, prijs, na: mpcUndoStand() };
   playHppotionPickupSound();
   mpcZeg(q.k === 'pathfinder' ? 'pathfinder' : 'koop');
-  mpCoopHud(); mpcWinkelToon();
+  pvpHud(); mpcWinkelToon();
   document.getElementById('wkuitleg').textContent = tekst;
 }
 // ---- Undo in de winkel van Co-op: de laatste aankoop terug, het goud terug ----
@@ -76111,10 +76304,11 @@ function mpcWinkelKoop(q, aan){
 // mpcUndoStand legt na het kopen vast hoe het ervoor staat, mpcUndoKan kijkt of dat nog zo is.
 let mpcLaatste = null;                               // {q, prijs, na}
 function mpcSperenTel(){ return (spearFound ? 1 : 0) + rugSperen.length; }
-function mpcUndoStand(){ return { lives, gif: gifCarry, speren: mpcSperenTel(), rugMax: RUG_MAX, pf: pfAantal(), zh: zhCarry, bn: bnCarry }; }
+function mpcUndoStand(){ return { lives, hp: hppotionCarry, gif: gifCarry, speren: mpcSperenTel(), rugMax: RUG_MAX, pf: pfAantal(), zh: zhCarry, bn: bnCarry }; }
 function mpcUndoKan(){
-  const L = mpcLaatste; if (!L || !pvp || !pvp.coop || !pvp.coop.inWinkel) return false;
+  const L = mpcLaatste; if (!L || !mpcWs() || !mpcWs().inWinkel) return false;
   const k = L.q.k, na = L.na;
+  if (k === 'kalebas' && pvp.dw) return hppotionCarry === na.hp;
   if (k === 'kalebas' || k === 'leven') return lives === na.lives;
   if (k === 'speer') return mpcSperenTel() === na.speren;
   if (k === 'gif') return gifCarry === na.gif && gifCarry > 0;
@@ -76125,11 +76319,12 @@ function mpcUndoKan(){
   return true;
 }
 function mpcUndo(){
-  const C = pvp && pvp.coop, L = mpcLaatste;
+  const C = mpcWs(), L = mpcLaatste;
   if (!C || !L) return;
   if (!mpcUndoKan()){ winkelSchud('wkundo', 'You already used it, so the trader will not take it back.'); return; }
   const K = C.koop, k = L.q.k;
-  if (k === 'kalebas'){ lives--; drawLives(); }
+  if (k === 'kalebas' && pvp.dw){ hppotionCarry--; hppotionHud(); }
+  else if (k === 'kalebas'){ lives--; drawLives(); }
   else if (k === 'leven'){ K.leven--; pvp.levens--; lives--; drawLives(); }
   else if (k === 'amulet') K.amulet--;
   else if (k === 'speer'){
@@ -76149,7 +76344,7 @@ function mpcUndo(){
   else K[k] = false;
   C.goud += L.prijs; mpcLaatste = null;
   playHppotionPickupSound(); mpcZeg('terug');
-  mpCoopHud(); mpcWinkelToon();
+  pvpHud(); mpcWinkelToon();
   document.getElementById('wkuitleg').textContent = 'Returned: ' + L.q.naam + ' (+' + L.prijs + ' gold).';
 }
 document.getElementById('wkundo').onclick = () => mpcUndo();
@@ -76161,7 +76356,7 @@ function mpcZeg(soort){
 // het zijpaneel naast de prijslijst: wat je aanklikte, met de sfeertekst (schuin de bron eronder), wat het doet en Buy
 let mpcKeus = null;                                  // {id, q, aan}: het gekozen artikel
 function mpcInfoToon(){
-  const k = mpcKeus, q = k && k.q, C = pvp.coop;
+  const k = mpcKeus, q = k && k.q, C = mpcWs();
   const zet = (id, s) => { document.getElementById(id).textContent = s || ''; };
   const koop = document.getElementById('wkinfokoop');
   mpcDraagToon();
@@ -76246,7 +76441,7 @@ let mpcTab = 'wapen';
 const MPC_DUBBEL_MS = 400;          // twee klikken op hetzelfde artikel binnen zoveel ms is kopen
 let mpcDubbel = { id: null, t: 0 };
 function mpcWinkelToon(){
-  const C = pvp.coop, el = document.getElementById('wkcoop');
+  const C = mpcWs(), el = document.getElementById('wkcoop');
   el.innerHTML = '';
   const anderen = pvp.spelers.filter(p => p !== pvp.mij);
   // de tabs: alleen die er iets voor jou in hebben
