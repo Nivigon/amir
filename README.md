@@ -9,7 +9,7 @@ laatste vijf updates, rechtstreeks van GitHub, met bij elke of hij al in jouw ve
 
 ## Episodes
 
-De eerste keer dat je het spel opent kies je wie je bent: **Tester** (je typt je naam, een keer per apparaat) of, klein linksonder, **Designer**. Een tester stuurt per poging op een level een regel naar de testlog: welk level, de modus, het wapen, de tribe, de outfit, hoe lang, of het uitgespeeld is, waar en waaraan je doodging, de kills en het goud. De designer en de sandbox loggen niets. Onder **Settings** staat bij Player wie je bent, met **Switch** om te wisselen.
+De eerste keer dat je het spel opent kies je wie je bent: **Tester** (je typt je naam, een keer per apparaat) of, klein linksonder, **Designer**. Een tester stuurt per poging op een level een regel naar de testlog: welk level, de modus, het wapen, de tribe, de outfit, hoe lang, of het uitgespeeld is, waar en waaraan je doodging, de kills en het goud. De Survival-arena's (King's Arena, The Gates) loggen ook; de designer en de sandbox loggen niets. Designer vraagt een wachtwoord, en alleen de designer ziet het **Test Lab** en in de pauze Talents kiezen, Arena instellen, Immortal en de afstelpanelen. Onder **Settings** staat bij Player wie je bent, met **Switch** om te wisselen.
 
 Het hoofdmenu heeft vier grote knoppen: **Single Player**, **Multiplayer**, **Level Editor** (de Maker) en **Test Lab**, met daaronder klein **Updates** en **Settings** (daar staat nu ook de uitleg van de toetsen, onder Controls).
 

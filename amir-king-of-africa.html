@@ -232,6 +232,7 @@
     color:rgba(242,232,213,.45);background:transparent;border:1px solid rgba(231,173,82,.15);border-radius:6px}
   #btnDesigner:hover{color:var(--bone);border-color:var(--gold)}
   #start.rolscherm #btnDesigner{display:block}
+  body:not(.designer) .alleenDesigner{display:none!important}
   #rolwie{color:var(--bone);font-size:14px}
   #start #rolwissel{padding:6px 12px;font-size:13px}
   #pvpcode{font:inherit;font-size:22px;letter-spacing:6px;text-transform:uppercase;width:7.5em;text-align:center;padding:8px;border-radius:8px;border:1px solid #8a6a3a;background:#1d140b;color:#f3e2bf}
@@ -62932,6 +62933,7 @@ function tlogLeeg(beacon){
 addEventListener('online', () => tlogLeeg());
 // wat de speler speelt: de episode (of Multiplayer, de Maker), het wapen, de tribe, de outfit
 function tlogModus(){
+  if (sandbox && sbArena) return 'survival';
   if (pvp) return 'mp-' + ((pvp.inst && pvp.inst.modus) || '?') + (pvp.solo ? '-solo' : '');
   if (mkTestActief) return 'maker';
   const reeksen = [[KUM_LEVELS, 'kumbasa'], [TEST_LEVELS, 'test'], [TUT_LEVELS, 'tutorial'], [STOK_LEVELS, 'test-sticks'], [RW_LEVELS, 'test-regenwoud'],
@@ -62940,14 +62942,18 @@ function tlogModus(){
   const r = reeksen.find(x => x[0] === levelList);
   return (r ? r[1] : 'anders') + (nightmare ? '-nightmare' : '');
 }
+function tlogLevelNaam(){
+  if (sandbox && sbArena) return sbGates ? 'The Gates' : "King's Arena";
+  return (level && level.name) || '?';
+}
 function tlogInfo(){
   let outfit = '';
   try { const o = broekNu(); outfit = o ? (o.naam || o.id || '') : ''; } catch (e) {}
   return {
-    level: (level && level.name) || '?', modus: tlogModus(),
+    level: tlogLevelNaam(), modus: tlogModus(),
     wapen: (STOK_AAN || mpStokken()) ? 'stokken' : 'speer',
     tribe: RUN.tribeId || '', outfit,
-    kills: mkStat ? mkStat.kills : 0,
+    kills: sandbox && sbArena ? sbArenaCfg.kills : mkStat ? mkStat.kills : 0,
     goud: goudAan() && mkStat ? Math.max(0, goud - mkStat.goud0) : 0,
   };
 }
@@ -62966,10 +62972,10 @@ function tlogBron(naam){
 }
 // elk beeld: een nieuwe poging begint zodra er gespeeld wordt, en sluit bij doodgaan of uitspelen
 function tlogStap(){
-  if (!tlogAan() || !running || sandbox || !level) return;
+  if (!tlogAan() || !running || !(level || sbArena) || (sandbox && !sbArena)) return;   // de sandbox niet, de Survival-arena's wel
   if (!tlog.potje){
     if (dead || won) return;
-    const naam = level.name || '?';
+    const naam = tlogLevelNaam();
     if (naam !== tlog.doodLevel){ tlog.doodLevel = naam; tlog.doden = 0; tlog.poging = 0; }
     tlog.poging++;
     tlog.potje = { t0: performance.now(), level: naam };
@@ -62994,12 +63000,25 @@ function tlogAf(reden, beacon){
   });
   if (eind < 0) velden.voortgang = Math.max(0, Math.min(100, Math.round(100 * world / eind)));
   if (pvp && pvp.ronde) velden.ronde = pvp.ronde;
+  if (sandbox && sbArena && sbArenaCfg.g) velden.golf = sbArenaCfg.g.nr;
+  if (gameTempo !== 1) velden.tempo = gameTempo;                // het tempo uit de pauze-instellingen, als het niet 100% is
   tlogStuur(velden, beacon);
 }
 addEventListener('pagehide', () => tlogAf('weg', true));
 // het rolscherm
 const rolEl = document.getElementById('menuRol'), rolNaamEl = document.getElementById('rolnaam'), rolFoutEl = document.getElementById('rolfout');
+// wat alleen de designer ziet (body.designer): het Test Lab, en in de pauze Talents kiezen, Arena instellen,
+// Immortal en alle afstelpanelen onder de knop Terug naar standaard. Testers houden tempo, formaat, beeld en muziek.
+function tlogSlot(){
+  const ids = ['btnlab', 'pzkeuze', 'pzduo', 'pzonst'];
+  for (const id of ids){ const el = document.getElementById(id); if (el) el.classList.add('alleenDesigner'); }
+  const onst = document.getElementById('pzonst');
+  if (onst && onst.nextElementSibling && onst.nextElementSibling.classList.contains('hint')) onst.nextElementSibling.classList.add('alleenDesigner');
+  for (let el = document.getElementById('pzcfgreset').nextElementSibling; el; el = el.nextElementSibling) el.classList.add('alleenDesigner');
+}
+tlogSlot();
 function tlogWieToon(){
+  document.body.classList.toggle('designer', tlogRol() === 'designer');
   const r = tlogRol(), n = tlogLees(TLOG.naamKey);
   document.getElementById('rolwie').textContent = r === 'tester' && n ? 'Tester: ' + n : r === 'designer' ? 'Designer' : '-';
 }
@@ -63037,7 +63056,7 @@ async function tlogWwKlaar(){
 }
 document.getElementById('rolwwgo').onclick = tlogWwKlaar;
 rolWwEl.addEventListener('keydown', e => { if (e.key === 'Enter') tlogWwKlaar(); });
-document.getElementById('rolwissel').onclick = () => { tlogZet(TLOG.rolKey, null); rolEl.classList.remove('naam', 'ww'); showMenu('menuRol'); };
+document.getElementById('rolwissel').onclick = () => { tlogZet(TLOG.rolKey, null); pzOnst = false; pzOnstToon(); tlogWieToon(); rolEl.classList.remove('naam', 'ww'); showMenu('menuRol'); };
 tlogWieToon();
 if (!tlogRol() || (tlogRol() === 'tester' && !tlogLees(TLOG.naamKey))) showMenu('menuRol');
 tlogLeeg();                                        // wat er de vorige keer is blijven liggen
