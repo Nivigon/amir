@@ -702,6 +702,12 @@ die aan staan), voor de grote en de kleine spriteset. Draai hem na een wijziging
 `--soorten schildman` meet met alleen die soorten aan, `--beeld klein` beperkt tot een set, `--duur 90`
 speelt langer, `--toon` toont alles wat er opgevraagd is.
 
+### Lucht tussen de huizen: `tools/stadlucht.js`
+
+Loopt de camera over de straat van elk level met `stad.achterTot` (Ishmul) en meldt FOUT waar de huizen in de verte
+te vroeg ophouden, zodat je tussen de huizen lucht ziet. Draai hem na een wijziging aan `stadAchter`, de achterrijen of
+een level met `achterTot`.
+
 ### De makertest: `tools/makertest.js`
 
 Laadt de Maker nieuwstijl in Chromium met een proefgrid waar alles op staat en kijkt de round-trip,

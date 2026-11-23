@@ -209,3 +209,19 @@ node tools/makertest.js                alle controles
 node tools/makertest.js --alleen rij   alleen de controles waarvan de naam dit bevat
 node tools/makertest.js --shots map    daarna een schermafdruk van de Maker en van de Test
 ```
+
+## Lucht tussen de huizen: tools/stadlucht.js
+
+Met `stad.achterTot` houden de rijen huizen in de verte op een grens op, en links daarvan is lucht (Ishmul). Dit
+script laadt elk level met `achterTot` (ook de Co-op maps, of een level uit de Maker) in Chromium, loopt de camera in
+stappen van 40 over de hele straat en kijkt per beeld of er tussen de linkermuur van de stad en de rand van de verte
+(`stadAchterRand`, met de camera van dat beeld, `stadAchterCam`) een stuk in beeld is dat geen huis aan de straat dekt.
+Dat is lucht waar de stad hoort, en dan meldt hij FOUT. Draai hem na een wijziging aan `stadAchter`, `STAD.rijen` of
+een level met `achterTot`.
+
+```
+node tools/stadlucht.js                    alle levels met achterTot, op vier schermen
+node tools/stadlucht.js Ishmul             alleen de levels waarvan de naam dit bevat
+node tools/stadlucht.js level.json         een level uit de Maker (Spel-JSON)
+node tools/stadlucht.js --schermen 1280x720
+```
