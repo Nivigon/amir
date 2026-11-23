@@ -36415,6 +36415,7 @@ function stadRitme(p, vIn){
   stadLuifelPlof(Math.max(vin, timed ? 0.6 : 0), timed ? v : 0);   // de plof, en op tijd gesprongen: hoger naar de trede
   jump = { phase: 'air', t: 0 }; onGround = false; fell = false; coyote = 0; amirPlat = null;
   pvh = v * J; stadVeerT = stadNu(); stadVeerHoog = timed; stadVeerDoek = p; stadVeerVin = vin;
+  stadDoekStuitTerug(p);                           // aan de rand: een stukje terug naar het midden
   puffDust(timed ? 7 : 4);
   return true;
 }
@@ -36427,6 +36428,7 @@ function stadVeer(p, vIn){
   if (!timed && vIn < jumpV() * STAD.veer.min) return false;     // zacht neergekomen: je blijft op de doek staan
   jump = { phase: 'air', t: 0 }; onGround = false; fell = false; coyote = 0; amirPlat = null;
   pvh = v; stadVeerT = stadNu(); stadVeerHoog = timed; stadVeerDoek = p;
+  stadDoekStuitTerug(p);                           // aan de rand: een stukje terug naar het midden
   puffDust(5);
   return true;
 }
@@ -36461,7 +36463,8 @@ function stadLuifelPlats(p, scale, out){
     const y = lm.recht ? O[O.length - 1][1] : (O[j][1] + O[j + 1][1]) / 2;     // recht: overal op de hoogte van het lage eind
     const hh = th + lm.bh(y) - lm.zak((O[j][0] + O[j + 1][0]) / 2);
     if (lm.recht){                                 // de rechte springdoek veert zoals de doek van een kraam (stadVeer)
-      out.push({ x: (l + r) / 2, left: l, right: r, topH: hh, base: hh, wPx: r - l, hPx: 0, thin: true, stad: 'luifel', veer: true,
+      const kh = hh - STAD_SPRINGDOEK.kuil.amir * stadDoekDiep(p);   // je staat in de kuil, niet op de bovenrand (zie "de kuil")
+      out.push({ x: (l + r) / 2, left: l, right: r, topH: kh, base: kh, wPx: r - l, hPx: 0, thin: true, stad: 'luifel', veer: true,
                  springdoek: p, id: 'springdoek', grijp: STAD.kraamGrijp * CHAR_H });
       continue;
     }
@@ -36486,20 +36489,62 @@ function stadLuifelStap(dt){
   if (onGround || dead || fell){ stadLuifelVx = 0; return; }
   world += stadLuifelVx * dt;
 }
-// de strakke luifel: wie erop staat, loopt aan de muurkant (het hoge eind, tegen het huis) niet van de doek af,
-// hij stopt bij het laatste punt van de stallijn. Aan de open kant val je er gewoon af, en springen gaat vrij.
-function stadLuifelKlem(){
-  if (!onGround || dead || !stadAan()) return;
+// Het veilige stuk van een doek (strakke luifel of rechte springdoek), in wereld-x: daar zakt de doek helemaal in
+// (niet waar hij aan stam of paal vastzit) en vallen allebei zijn voeten erin. open: het open eind, wand: het eind
+// tegen het huis (de strakke luifel: het laatste punt van stal; de rechte doek: de paal), en de veilige grenzen ernaast.
+// s: de richting van open naar wand (+1 of -1).
+function stadDoekVeilig(p, sc){
+  const lm = stadLuifelMaat(p, sc), L = lm.L;
+  let openB, wandB, lo, hi;
+  if (p.stijl === 'strak'){
+    const S = L.stal, V = L.vast, vb = L.kuil.voet * CHAR_H / lm.fsH;
+    openB = S[0][0]; wandB = S[S.length - 1][0];
+    lo = Math.max(openB, V[0] + V[1]) + vb; hi = Math.min(wandB, V[2] - V[3]) - vb;
+  } else if (p.recht){                             // de rechte doek: de paal (bron-x 0) zit tegen het huis
+    const O = L.opp, vb = STAD.plein.luifelStrak.kuil.voet * L.amir / lm.mt;
+    openB = O[O.length - 1][0]; wandB = O[0][0];
+    lo = L.paal[1] + STAD_SPRINGDOEK.kuil.vast + vb; hi = openB - 1.6 * vb;   // het open eind: de franje hangt erover, dus wat meer ruimte
+  } else return null;
+  if (lo > hi) lo = hi = (lo + hi) / 2;
+  const open = lm.bx(openB), wand = lm.bx(wandB), s = Math.sign(wand - open) || 1;
+  const ov = p.stijl === 'strak' ? lm.bx(lo) : lm.bx(hi), wv = p.stijl === 'strak' ? lm.bx(hi) : lm.bx(lo);
+  return { s, open, wand, openVeilig: ov, wandVeilig: wv, A: CHAR_H * sc };
+}
+const DOEK_TREK = 1.2;                            // zo snel (Amir per seconde) trekt de doek je naar het veilige stuk
+// Wie op een doek staat (strakke luifel of rechte springdoek), staat met allebei zijn voeten in de kuil: aan een eind stak
+// er anders een voet buiten de doek of boven het stuk dat aan stam of paal vastzit. Aan de muurkant loop je niet verder
+// dan het veilige stuk, en ben je verder geland, dan trekt de doek je erheen. Aan het open eind trekt hij je ook terug,
+// behalve als je naar buiten loopt: dan loop je er gewoon af. Springen gaat vrij. Het herkent "erop staan" aan de hoogte
+// van de doek, niet aan kuilOp (die valt even weg bij een stapje op de helling).
+function stadLuifelKlem(dir, dt){
+  if (!stadAan()) return;
   const sc = nowScale(), A = CHAR_H * sc;
-  for (const q of stadPlats(sc)){
-    const p = q.springdoek;
-    if (!p || p.stijl !== 'strak' || p.gevel == null) continue;
-    // staat hij erop: op de hoogte van de doek (niet kuilOp: die valt weg bij een stapje op de helling) en hooguit een
-    // paar pixels voorbij het eind (zoveel loopt hij in een beeld)
-    if (Math.abs(q.topH - ph) > 0.15 * CHAR_H || world < q.left - 0.3 * A || world > q.right + 0.3 * A) continue;
-    const lm = stadLuifelMaat(p, sc), S = lm.L.stal, rand = lm.bx(S[S.length - 1][0]) + lm.dir;   // net binnen de rand, de doekkant op
-    world = lm.dir > 0 ? Math.max(rand, world) : Math.min(rand, world);
+  for (const p of (level.stad.luifels || [])){
+    if (!(p.stijl === 'strak' || p.recht) || p.gevel == null) continue;
+    const op = onGround && !dead && stadPlats(sc).some(q => q.springdoek === p && Math.abs(q.topH - ph) <= 0.15 * CHAR_H &&
+                                                         world >= q.left - 0.3 * A && world <= q.right + 0.3 * A);
+    if (!op){ p.klemPos = null; continue; }
+    const V = stadDoekVeilig(p, sc); if (!V) continue;
+    const pos = x => (x - V.open) * V.s, terug = x => V.open + x * V.s;
+    let u = pos(world);
+    const uw = pos(V.wandVeilig), uo = pos(V.openVeilig), stap = DOEK_TREK * A * (dt || 0);
+    if (u > uw){                                    // aan de muurkant: niet verder, en zacht terug naar het veilige stuk
+      if (p.klemPos != null) u = Math.min(u, Math.max(p.klemPos, uw));
+      u = Math.max(uw, u - stap);
+    } else if (u < uo && dir * V.s >= 0) u = Math.min(uo, u + stap);   // aan het open eind, als je niet naar buiten loopt
+    u = Math.min(u, pos(V.wand) - 1);               // en nooit voorbij het eind tegen het huis
+    world = terug(u); p.klemPos = u;
   }
+}
+// een stuit aan de rand van een doek: de doek werpt je een stukje naar het veilige stuk, zodat je de volgende keer met allebei
+// je voeten erin landt (stadLuifelVx, tot je weer staat)
+function stadDoekStuitTerug(q){
+  const p = q && q.springdoek; if (!p || !(p.stijl === 'strak' || p.recht)) return;
+  const V = stadDoekVeilig(p, nowScale()); if (!V) return;
+  const u = (world - V.open) * V.s, uw = (V.wandVeilig - V.open) * V.s, uo = (V.openVeilig - V.open) * V.s;
+  const gat = u > uw ? uw - u : u < uo ? uo - u : 0; if (!gat) return;
+  const T = Math.max(0.2, 2 * pvh / gravity());    // zo lang duurt de stuit
+  stadLuifelVx = gat * V.s / T;
 }
 // de doek waar Amir nu op staat, of null
 function stadDoekOnder(){
@@ -40973,8 +41018,20 @@ const STAD_SPRINGDOEK = {
   kleuren: { indigo: { hue: 185, sat: 1.3, licht: 0.9 } },
   onder: { licht: 0.42, sat: 0.8 },     // de onderkant van de doek: dezelfde doek, donker
   dik: 0.09,                            // zo ver (in Amir, maal maat) ligt de onderrand onder de doek, bij het lage eind; bij de paal 0,4 daarvan
-  schoor: [30, 72, 282, 292]            // in de bron: onder deze lijn (van x0,y0 naar x1,y1) zit de schoor, geen doek
+  schoor: [30, 72, 282, 292],          // in de bron: onder deze lijn (van x0,y0 naar x1,y1) zit de schoor, geen doek
+  // de kuil van de rechte springdoek (zie "de kuil" in notities/stad.md): waar Amir staat zakt de doek diep in (diep, in Amir
+  // bij maat 0,85), hij staat amir x diep lager dan de bovenrand, en na Amir valt de voorrand (voor x diep ingezakt, vanaf rand
+  // Amir boven zijn voeten) over zijn voeten. breed: de breedte van de klok in Amir, uit: zo snel veert de doek terug (s),
+  // vast: over zoveel bron-px vanaf de paal loopt de kuil naar nul (daar zit de doek vast, anders scheurde hij in twee lagen)
+  kuil: { diep: 0.14, amir: 0.6, voor: 0.15, rand: 0.06, breed: 0.3, uit: 0.15, vast: 220 }
 };
+// de diepte van de kuil in sprite-eenheden, mee met de maat van de doek
+function stadDoekDiep(p){ return STAD_SPRINGDOEK.kuil.diep * CHAR_H * Math.min(1, (p.maat || 1) / 0.85); }
+// de kuil van een rechte springdoek: rust 1 als Amir erop staat, daarna veert hij in kuil.uit terug
+function stadKuilRecht(p){
+  const rust = p.kuilOp ? 1 : p.kuilUit != null ? Math.max(0, 1 - (stadNu() - p.kuilUit) / STAD_SPRINGDOEK.kuil.uit) : 0;
+  return { rust, x: p.kuilX != null ? p.kuilX : (stadAmirX != null ? stadAmirX : world) };
+}
 function stadKleurMat(hue, sat){        // de kleurmatrix van hue-rotate en saturate (zoals in CSS)
   const a = Math.cos(hue * Math.PI / 180), b = Math.sin(hue * Math.PI / 180);
   const H = [0.213 + 0.787 * a - 0.213 * b, 0.715 - 0.715 * a - 0.715 * b, 0.072 - 0.072 * a + 0.928 * b,
@@ -41037,14 +41094,19 @@ function stadLuifelBeeld(kleur, onder, recht, kaal){
 // Elke spelstap: staat Amir op een strakke luifel, en waar. Bij het tekenen is world de camera (zie pWorld), dus
 // het tekenen leest alleen wat hier is vastgelegd (kuilOp, kuilX, kuilUit) en stadAmirX.
 let stadAmirX = null;
+const KUIL_BIJ = 0.08;                            // zo ver (in Amir) boven de doek telt Amir al als erop (de stuit van de trampoline)
 function stadKuilStap(){
   stadAmirX = world;
   if (!stadAan()) return;
-  const lijst = (level.stad.luifels || []).filter(q => q.stijl === 'strak');
+  const lijst = (level.stad.luifels || []).filter(q => q.stijl === 'strak' || q.recht);   // ook de rechte springdoek heeft een kuil
   if (!lijst.length) return;
-  const d = onGround && !dead ? stadDoekOnder() : null;
+  // erop staan, of er vlak boven zijn (de trampoline: bij een stuit raakt hij de doek maar een beeld of twee, en dan stonden
+  // zijn voeten bovenop de doek omdat de kuil pas een stap later aanging). Zijn voeten tot KUIL_BIJ Amir boven de doek tellen mee.
+  const sc = nowScale(), hw = PLAYER_STEUN_W * CHAR_H * sc;
+  const bij = dead ? [] : stadPlats(sc).filter(q => q.springdoek && world + hw > q.left && world - hw < q.right &&
+                                               ph - q.topH > -2 && ph - q.topH < KUIL_BIJ * CHAR_H);
   for (const p of lijst){
-    p.kuilOp = !!(d && d.springdoek === p);
+    p.kuilOp = bij.some(q => q.springdoek === p);
     if (p.kuilOp){ p.kuilX = world; p.kuilUit = null; }
     else if (p.kuilUit == null) p.kuilUit = stadNu();
   }
@@ -41169,8 +41231,20 @@ function stadLuifelVoor(groundY, scale, cx){
     const L = STAD.plein.luifelStrak, A = CHAR_H * scale, D = stadKuilDiep(p) * A * K.amp, sg = stadKuilBreed(L) * A, kx = cx + (K.x - world);
     stadLuifelStrakKolommen(p, stadLuifelMaat(p, scale), groundY, scale, cx, stadLuifelDip(D, kx, sg), true);
   }
+  // de rechte springdoek: de doek opnieuw, minder diep ingezakt, in een vak rond Amir vanaf net boven zijn voeten
+  if (!stadKlaar('luifel')) return;
+  const K = STAD_SPRINGDOEK.kuil, A = CHAR_H * scale;
+  for (const p of (level.stad.luifels || [])){
+    if (!p.recht || p.stijl === 'strak') continue;
+    const kr = stadKuilRecht(p); if (kr.rust < 0.05) continue;
+    const kx = cx + (kr.x - world), sg = K.breed * A, voet = groundY - ph * scale - K.rand * A;
+    ctx.save(); ctx.beginPath(); ctx.rect(kx - 2.5 * sg, voet, 5 * sg, 4 * H); ctx.clip();
+    stadLuifelTeken(p, groundY, scale, cx, () => true, K.voor);
+    ctx.restore();
+  }
 }
-function stadLuifelTeken(p, groundY, scale, cx, zicht){
+// voor: alleen de doek zelf, met de kuil zoveel keer zo diep (de voorrand na Amir, zie stadLuifelVoor)
+function stadLuifelTeken(p, groundY, scale, cx, zicht, voor){
   if (p.stijl === 'strak' && p.gevel != null){ stadLuifelStrakTeken(p, groundY, scale, cx, zicht); return; }
   if (!stadKlaar('luifel')) return;
   const lm = stadLuifelMaat(p, scale), L = lm.L, sx = cx + (lm.left - world);
@@ -41183,9 +41257,15 @@ function stadLuifelTeken(p, groundY, scale, cx, zicht){
   const tegenToren = ((level.stad.pleinpoorten) || []).some(pp => {
     const m = stadPleinPoortMaat(pp, scale); return paalX > m.left + 0.05 * A && paalX < m.right - 0.05 * A;
   });
+  // de kuil waar Amir op de rechte doek staat: een klok rond zijn plek (scherm-x), diep in de doek, minder diep in de voorrand
+  const kr = lm.recht ? stadKuilRecht(p) : null, kD = kr && kr.rust > 0.01 ? stadDoekDiep(p) * scale * kr.rust * (voor != null ? voor : 1) : 0;
+  const kx = kr ? cx + (kr.x - world) : 0, ksg = STAD_SPRINGDOEK.kuil.breed * A;
+  const vast = bx => { const u = Math.max(0, Math.min(1, (bx - L.paal[1]) / STAD_SPRINGDOEK.kuil.vast)); return u * u * (3 - 2 * u); };   // aan de paal zit de doek vast
+  const kuilY = bx => kD ? kD * vast(bx) * Math.exp(-Math.pow((sx + (lm.kant > 0 ? lm.w - bx * lm.fs : bx * lm.fs) - kx) / ksg, 2)) : 0;
   ctx.save();
   if (lm.kant > 0){ ctx.translate(sx + lm.w, 0); ctx.scale(-1, 1); } else ctx.translate(sx, 0);
-  if (kaal){                                      // de zijkant van het kozijn: een smalle lat tegen de muur, onder de luifel
+  if (voor != null){}                             // de voorrand: geen paal, geen kozijn
+  else if (kaal){                                      // de zijkant van het kozijn: een smalle lat tegen de muur, onder de luifel
     const yc = top + STAD.plein.luifel.opp[L.opp.length - 1][1] * lm.fs, x0 = 4 * lm.fs, lb = 0.07 * A, lh = 0.8 * A;
     ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(x0 + lb, yc + 0.04 * A, 0.035 * A, lh);   // schaduw op de muur
     ctx.fillStyle = '#5a3a20'; ctx.fillRect(x0, yc, lb, lh);
@@ -41199,11 +41279,11 @@ function stadLuifelTeken(p, groundY, scale, cx, zicht){
     if (p.gevel != null && yv > yb + 60 * lm.fs) ctx.drawImage(im, 0, (288 + zs) * q, 50 * q, 50 * q, 0, yv - 62 * lm.fs, 50 * lm.fs, 50 * lm.fs);
   }
   const t = p.luifelT != null ? stadNu() - p.luifelT : 9, buig = t < L.duur;
-  if (buig || lm.zakH){                           // in stroken: de doek buigt mee na een landing, en een springdoek zakt door
-    const amp = buig ? L.dip * A * Math.exp(-t * 6) * Math.cos(t * 22) : 0, van = L.paal[1], kolom = lm.zakH ? 40 : 24, bw = (L.w - van) / kolom;
-    const dy = j => amp * Math.sin(Math.PI * (j + 0.5) / kolom) + lm.zak(van + (j + 0.5) * bw) * scale;
-    ctx.drawImage(im, 0, 0, van * q, Lh * q, 0, top, van * lm.fs, lm.h);
-    if (lm.zakH){                                 // de onderrand: dezelfde doek, donker, iets lager en naar het lage eind dikker
+  if (buig || lm.zakH || kD){                     // in stroken: de doek buigt mee na een landing, een springdoek zakt door, en de kuil
+    const amp = buig ? L.dip * A * Math.exp(-t * 6) * Math.cos(t * 22) : 0, van = L.paal[1], kolom = kD ? 90 : lm.zakH ? 40 : 24, bw = (L.w - van) / kolom;
+    const dy = j => amp * Math.sin(Math.PI * (j + 0.5) / kolom) + lm.zak(van + (j + 0.5) * bw) * scale + kuilY(van + (j + 0.5) * bw);
+    if (voor == null) ctx.drawImage(im, 0, 0, van * q, Lh * q, 0, top, van * lm.fs, lm.h);
+    if (lm.zakH && voor == null){                                 // de onderrand: dezelfde doek, donker, iets lager en naar het lage eind dikker
       const on = stadLuifelBeeld(p.kleur, true, lm.recht, kaal), qo = stadQ(on, 1), dik = STAD_SPRINGDOEK.dik * A * lm.mt * (lm.recht ? 0.6 : 1);
       for (let j = 0; j < kolom; j++){
         const bx = van + j * bw, u = lm.recht ? 1 : (j + 0.5) / kolom;   // recht: overal even dik
@@ -59692,7 +59772,7 @@ function loop(now){
   murKlem(halfWNow);                               // Murghtaan: in zijn arena zolang hij leeft
   pleinKlem();                                     // en daarna niet verder dan onder de poort
   aanvKlem();                                      // niet langs het dichte hek van een eindpoort (zie "de aanvoerder")
-  stadLuifelKlem();                                // de strakke luifel: aan de muurkant loop je er niet af
+  stadLuifelKlem(dir, dt);                         // de doeken: met allebei je voeten in de kuil, aan de muurkant loop je er niet af
   if (pvp && pvp.coop){ hinderKlem(); leibandKlem(); }   // Co-op: niet langs een hinderlaag voor het hele team er is, en niet te ver van elkaar
   updateArena();
   checkTips();
