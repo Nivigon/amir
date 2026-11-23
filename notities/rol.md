@@ -15,7 +15,7 @@ de kant; anders rolt hij de kant op die hij kijkt.
 - De rol duurt 0,87 s: 27 frames van 30 ms en de hurk 60 ms (`ROL.ms`, `ROL.eindMs`; eerst 42 ms, dat was te traag).
 - De wereld schuift hem `ROL.afstand` (340 wereld-px) vooruit tussen frame `ROL.van` en `ROL.tot`, zacht in
   en uit (`rolVoortgang`). Aan de rand van een ravijn schuift hij niet verder (`gatOp`), en ook niet van een verhoging af (een galerij, dak,
-  terras of kraam: `randOp`, `ROL.rand`; `false` laat hem er weer af rollen), net als de renstoot; hij stopt dan op de rand;
+  terras of kraam: `randOp`, `ROL.rand`; `false` laat hem er weer af rollen), net als de renstoot; hij stopt dan op de rand een opstapje (`opstap: true`, tot `OPSTAP.max`) is geen rand: daar rolt hij gewoon vanaf, ook een hele trap af (`opstapBij` in `randOp`);
   rotsen, wanden en de rest houden hem tegen zoals altijd (de klemmen na `rolUpdate`).
 - E tijdens de rol pakt een speer op die hij passeert: je eigen speer (in de grond, een wand of een lijk) of een
   losse speer (`rolOppak`, in `eDruk` voor `amirVast`; het oprapen zelf is `eigenSpeerPak` en `losTrek`, net als
