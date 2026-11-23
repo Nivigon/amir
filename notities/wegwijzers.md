@@ -218,3 +218,22 @@ brengt je terug. Een uitzicht zit hoger
 zet een rood kruis met de soort en de stand erbij. Sterf je, dan is alles
 weer dicht (`holstamReset`). Sandbox Terrein, Holle stam, **Met hol**; Test 93 heeft een hol in de eerste en de lange stam.
 
+## De schachtboom (SCHACHTBOOM)
+
+Een reuzenboom in het regenwoud met tussen zijn wortels een gat naar een gang (Test 95, `level.schachtbomen: [{x, s}]`).
+De art komt uit Grok (bron in `design/regenwoud/schachtboom/bron/`, knippen met `tools/schachtboom_knip.py`):
+`boom.png` (alleen boven de mosrand, er staat geen stam onder de grond), `deksel.png` (wortels en mos over het gat) en
+`schacht.png` (het donkere gat door de mosgrond, over het ravijn van het spel heen getekend).
+
+- readLevel zet een gat in `gaps` (breedte `SCHACHTBOOM.gat` Amir, op het beeld van dat moment, net als de holle stam) en
+  links daarvan een onzichtbare muur in `zwevers` (`look: 'geen'`, `onder: 0`, `h: 4000`). Er hoort een holte onder te liggen.
+- Vallen gaat zoals elk gat boven een gang; valschade alleen als het level `valschade` heeft. Bij de landing (na een val van
+  ten minste een halve Amir) een wolk humus naar twee kanten (`schachtLand`).
+- Het deksel vervaagt tussen `open[1]` en `open[0]` Amir van het gat.
+- Tekenen in de pas van de holle stam (`schachtTeken`, na `holstamAchter`): de schacht, de boom (de bovenste rijen van de
+  plaat rekken door tot boven in beeld) en het deksel.
+- Het regenwouddecor (`rw_<soort>_<1..3>` in `PROPS`, `design/regenwoud/decor/`, `tools/rw_decor_knip.py`): reuzenblad,
+  bemoste kei, boomvoet, leeuwenschrijn en paddenstoelen, elk drie ontwerpen; lui en alleen met de hand.
+- Open: eigen art voor de gang (nu de grijze rotswand van de holte), sandboxknop (de sandbox heeft geen gang), en de
+  decorplaten opnieuw ophalen op volle kwaliteit (nu schermafdrukken op schaal 0,64).
+

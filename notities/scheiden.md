@@ -53,4 +53,4 @@ dezelfde plek (`SB_GROEP_N`). **Uit elkaar** zet `mobScheidAan` aan en uit, voor
 
 De scheiding houdt ze uit elkaar, het aanvalsticket (`notities/ticket.md`) bepaalt wie er aanvalt. Wie aan de beurt is
 en op Amir af loopt (`ticketDoorloop`) heeft houding 2 bij de bandiet en de schildbandiet: hij loopt langs de wachters
-heen in plaats van ze Amir in te duwen. Op het keuzescherm van Test 95 zet **Spread out** de scheiding uit.
+heen in plaats van ze Amir in te duwen. Op het keuzescherm van Test 96 zet **Spread out** de scheiding uit.

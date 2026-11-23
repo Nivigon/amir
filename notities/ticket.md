@@ -51,7 +51,7 @@ een aanvoerder. In Co-op en Duel staat het uit (twee doelen).
 - `ticketTeken` (in `vijandHpBalk`): een gouden ruitje boven wie een ticket voor of achter heeft, blauw voor afstand,
   rood voor een aanval zonder ticket.
 
-## Test 95: Attack tickets
+## Test 96: Attack tickets
 
 Op verzoek, zelf ontworpen. Vlakke savanne (geen keien of ravijnen, zodat alleen de groep telt), de standaardvelden van
 een nieuw level en `ticketKeuze`. Vier groepen met kalebassen ertussen:
