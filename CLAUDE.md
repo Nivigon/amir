@@ -162,6 +162,11 @@ daarom in de wacht: bouw hem niet en stel hem niet voor, tot de opdrachtgever er
 de gratis openbare TURN-servers en het relais) blijft staan: het relais is ook het vangnet voor een laptop op een
 streng netwerk. Zie "Voor wie" in `notities/multiplayer.md`.
 
+**16. De telefoon telt niet meer mee.** De opdrachtgever haalt de telefoon uit het spel. Weeg bij een voorstel
+of meting (laden, prestaties, beeld, besturing) de telefoon dus niet mee en verkoop een idee niet met "scheelt op
+een telefoon": het spel is voor laptops. Bestaande telefooncode blijft staan tot de opdrachtgever vraagt hem weg
+te halen.
+
 ## Waar wat staat
 
 De HTML is opgedeeld met commentaarkoppen (`// ---- ... ----`). Zoek daarop, niet op
