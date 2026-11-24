@@ -38429,13 +38429,81 @@ function binnenHeeftDeur(b){ return b.gevel !== null && b.gevel !== undefined &&
 function binnenKlem(b, halfW){ world = Math.max(winkelGeheimLinks(b, halfW), Math.min(b.r - halfW, world)); }
 // het geheim van de winkel (WINKEL.geheim): aan of uit per bezoek, en of Amir achter de toonbank staat
 const winkelGeheim = { aan: false, achter: false, betrap: 0, uitzet: false, kans: 0 };   // kans zet winkelGeheimZet (WINKEL staat verderop)
-// de marktman: zijn plek (deel van de toonbank vanaf het rechtereind), waar hij heen loopt, wat hij doet en waar hij naar kijkt
-// (1 naar de klant, rechts; -1 naar achteren). fase: rust, loop, naarAchter, achterin
-const winkelMan = { w: null, pos: 0.3, doel: 0.3, fase: 'rust', klok: 2, kijk: 1 };
+// de marktman: Duka (karakters/duka/, uit de Grok-clips van 24-11-2026, tools/duka_knip.py). Zijn plek is een deel van de
+// toonbank vanaf het rechtereind (pos), doel is waar hij heen loopt. fase: rust (idle naar de klant), loop, actie (een
+// eenmalige animatie: gaap, kalebas, schap), naarAchter, draai (naar de muur), achterin (rug naar je toe), terug (weer om).
+// anim/t: de animatie die speelt en hoe ver (in s); flip: gespiegeld (de bron kijkt naar links, de klant komt van rechts)
+const winkelMan = { w: null, pos: 0.3, doel: 0.3, fase: 'rust', klok: 2, kijk: 1, anim: 'idle', t: 0, flip: true, loopIn: false };
+// De animaties. map: de clip in karakters/duka/, idx: de frames (12 per s uit de clip van 24 fps), fps, om: de frames
+// (als index in idx, van tot en met) waarin hij met zijn rug naar de winkel staat: dan kun je achter de toonbank komen.
+const DUKA = {
+  dir: 'karakters/duka/', w: 299, h: 361, ground: 349, fig: 340, ax: 130, tall: 1.22,
+  anims: {
+    idle:    { map: 'idle', van: 0, tot: 72, fps: 12, loop: true },
+    lach:    { map: 'lach', van: 0, tot: 72, fps: 13 },
+    // de klap: de clip klapt twee keer, dus de tweede (36 tot 42) valt eruit; raak is de klap op frame 33
+    klap:    { map: 'klap', idx: [...duIdx(16, 33), 33, 33, ...duIdx(43, 72)], fps: 12, raak: 17 },
+    gaap:    { map: 'gaap', van: 0, tot: 72, fps: 16 },       // iets sneller dan de clip: anders een suffe gaap
+    gaap2:   { map: 'gaap2', van: 0, tot: 72, fps: 16 },
+    kalebas: { map: 'kalebas', van: 0, tot: 72, fps: 12 },
+    schap:   { map: 'schap', van: 0, tot: 72, fps: 12, om: [20, 56] },
+    draai:   { map: 'draai', van: 0, tot: 42, fps: 12, om: [26, 42] },
+    terug:   { map: 'draai', idx: duIdx(42, 0), fps: 14, om: [0, 16] },
+    rug:     { map: 'rugidle', van: 0, tot: 72, fps: 12, om: [0, 72] },
+    schouder:{ map: 'schouder', van: 18, tot: 50, fps: 12 },
+    loop:    { map: 'loop', van: 18, tot: 36, fps: 12, loop: true },
+    loop2in: { map: 'loop2', van: 0, tot: 13, fps: 12 },
+    loop2:   { map: 'loop2', van: 14, tot: 40, fps: 12, loop: true }
+  },
+  acties: [['gaap', 2], ['gaap2', 2], ['kalebas', 3], ['schap', 3]],   // wat hij in rust af en toe doet, met gewicht
+  actieKans: 0.45,          // per keer dat zijn rust om is: een actie in plaats van verder lopen
+  v: 0.5,                   // loopsnelheid, in Amir per s
+  // gesnapt achter de toonbank (zie "het geheim"): de wereld bevriest, hij draait zich om, lacht breeduit, klapt een keer,
+  // een magisch stofwolkje, en Amir valt aan de voorkant van de toonbank uit de lucht
+  regie: { weg: 0.3, val: 0.75, voor: 90 },   // weg: zo lang is Amir onzichtbaar na de klap; val: de hoogte (Amir) waaruit hij valt
+  geluid: { lach: 'sounds/duka/lach.mp3', klap: 'sounds/duka/klap.mp3', gaap: 'sounds/duka/gaap.mp3', vol: 0.9 },
+  frames: null
+};
+function duIdx(a, b){ const u = []; for (let i = a; a <= b ? i <= b : i >= b; i += a <= b ? 1 : -1) u.push(i); return u; }
+for (const k in DUKA.anims){ const A = DUKA.anims[k]; if (!A.idx) A.idx = duIdx(A.van, A.tot); }
+let dukaSnd = null;
+function dukaLaad(){
+  if (DUKA.frames) return;
+  DUKA.frames = {};
+  const maps = new Set(Object.values(DUKA.anims).map(a => a.map));
+  // eerst wat je meteen ziet (idle en lopen), dan de rest
+  const volgorde = ['idle', 'loop', ...[...maps].filter(m => m !== 'idle' && m !== 'loop')];
+  for (const m of volgorde){
+    const nodig = new Set(); for (const a of Object.values(DUKA.anims)) if (a.map === m) a.idx.forEach(i => nodig.add(i));
+    DUKA.frames[m] = [];
+    for (const i of nodig) DUKA.frames[m][i] = zetBron(new Image(), DUKA.dir + m + '/' + m + '_' + pad2(i) + '.png', () => {});
+  }
+  dukaSnd = {};
+  for (const k of ['lach', 'klap', 'gaap']){
+    const a = geluidAan(new Audio()); a.preload = 'auto'; a.onerror = () => { a._weg = true; }; a.src = DUKA.geluid[k]; dukaSnd[k] = a;
+  }
+}
+function dukaGeluid(k){
+  const a = dukaSnd && dukaSnd[k]; if (!a || a._weg) return;
+  try { a.currentTime = 0; a.volume = DUKA.geluid.vol; const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+}
+// zet een animatie op; loopt hij al, dan niets
+function dukaZet(M, anim){ if (M.anim !== anim){ M.anim = anim; M.t = 0; if (anim === 'gaap' || anim === 'gaap2') dukaGeluid('gaap'); } }
+function dukaNr(M){ const A = DUKA.anims[M.anim]; const n = Math.floor(M.t * A.fps); return A.loop ? n % A.idx.length : Math.min(n, A.idx.length - 1); }
+function dukaKlaar(M){ const A = DUKA.anims[M.anim]; return !A.loop && M.t * A.fps >= A.idx.length; }
+function dukaFrame(M){
+  const A = DUKA.anims[M.anim], F = DUKA.frames && DUKA.frames[A.map];
+  const im = F && F[A.idx[dukaNr(M)]];
+  if (imgReady(im)) return im;
+  const f0 = DUKA.frames && DUKA.frames.idle && DUKA.frames.idle[0];   // nog niet geladen: zijn gewone houding
+  return imgReady(f0) ? f0 : null;
+}
+// staat hij met zijn rug naar de winkel (het frame dat nu speelt)?
+function dukaRug(M){ const A = DUKA.anims[M.anim]; if (!A.om) return false; const n = dukaNr(M); return n >= A.om[0] && n <= A.om[1]; }
 function winkelGeheimZet(aan, kans){
   const G = winkelGeheim;
   G.aan = !!aan; G.achter = false; G.betrap = 0; G.uitzet = false; G.kans = kans != null ? kans : WINKEL.geheim.achterKans;
-  winkelMan.w = null;                              // de marktman begint opnieuw op zijn plek
+  winkelMan.w = null; dukaRegie = null;               // de marktman begint opnieuw op zijn plek
 }
 const winkelRnd = (a, b) => a + Math.random() * (b - a);
 // bij het begin van een level (en na een dood): heeft een winkel een geheim, dan staat het aan, met zijn eigen achterKans
@@ -38444,8 +38512,8 @@ function winkelGeheimLevel(){
   const w = binnenLijst().map(b => b.winkel).find(w => w && w.geheim);
   winkelGeheimZet(!!w, w && w.geheim.achterKans);
 }
-// kijkt de marktman niet (op weg naar achteren, of daar met zijn rug naar je toe)?
-function winkelGeheimOm(){ return winkelGeheim.aan && (winkelMan.fase === 'naarAchter' || winkelMan.fase === 'achterin'); }
+// kijkt de marktman niet (met zijn rug naar je toe: achterin, of even bij het schap)?
+function winkelGeheimOm(){ return winkelGeheim.aan && !dukaRegie && dukaRug(winkelMan); }
 // de linkergrens voor Amir in een huis: de toonbank, tenzij hij er net overheen springt terwijl de marktman niet kijkt, of er al achter staat
 function winkelGeheimLinks(b, halfW){
   const G = winkelGeheim, w = b.winkel;
@@ -38457,54 +38525,142 @@ function winkelGeheimLinks(b, halfW){
   if (winkelGeheimOm() && ph > WINKEL.geheim.sprong * CHAR_H && world < w.x + halfW + 20){ G.achter = true; return b.l + halfW; }
   return w.x + halfW;
 }
-// de marktman loopt rond; in een winkel met een geheim soms naar achteren
+// begin een loopje naar d (pos); met losse armen een keer op de drie, dan eerst de armen los (loop2in)
+function dukaLoop(M, d, fase){
+  M.fase = fase || 'loop'; M.doel = d;
+  M.loopIn = Math.random() < 0.33;
+  dukaZet(M, M.loopIn ? 'loop2in' : 'loop');
+}
+// de marktman loopt rond, doet af en toe iets, en in een winkel met een geheim loopt hij soms naar achteren
 function winkelManStap(dt, w){
   const M = winkelMan, K = WINKEL.man, G = winkelGeheim;
-  if (M.w !== w){ const o = winkelOpbouw(w); M.w = w; M.pos = M.doel = o.koopman / o.tbB; M.fase = 'rust'; M.klok = winkelRnd(K.rust[0], K.rust[1]); M.kijk = 1; }
+  if (M.w !== w){ const o = winkelOpbouw(w); M.w = w; M.pos = M.doel = o.koopman / o.tbB; M.fase = 'rust'; M.klok = winkelRnd(K.rust[0], K.rust[1]); M.kijk = 1; M.flip = true; M.anim = 'idle'; M.t = Math.random() * 5; }
+  if (dukaRegie) return;                                // gesnapt: de regie speelt zijn animaties (dukaRegieStap)
   const o = winkelOpbouw(w);
+  M.t += dt;
   // naar achteren: links van het doek, met zijn rug naar de winkel
   const achterPos = Math.min(0.97, (o.tbB - o.deurX + WINKEL.geheim.achterNaast) / o.tbB);
+  if (M.fase === 'actie'){ if (dukaKlaar(M)){ M.fase = 'rust'; dukaZet(M, 'idle'); M.klok = winkelRnd(K.rust[0], K.rust[1]); } return; }
+  if (M.fase === 'draai'){ if (dukaKlaar(M)){ M.fase = 'achterin'; dukaZet(M, 'rug'); M.klok = winkelRnd(WINKEL.geheim.achterin[0], WINKEL.geheim.achterin[1]); } return; }
+  if (M.fase === 'terug'){ if (dukaKlaar(M)){ let d = M.pos; for (let i = 0; i < 6 && Math.abs(d - M.pos) < 0.1; i++) d = winkelRnd(K.van, K.tot); dukaLoop(M, d); } return; }
   if (M.fase === 'rust' || M.fase === 'achterin'){
     M.kijk = M.fase === 'rust' ? 1 : -1;
     M.klok -= dt;
     if (M.klok > 0) return;
-    if (M.fase === 'rust' && w.geheim && G.aan && Math.random() < G.kans){ M.fase = 'naarAchter'; M.doel = achterPos; return; }
+    if (M.fase === 'achterin'){ M.fase = 'terug'; dukaZet(M, 'terug'); M.flip = false; return; }
+    if (w.geheim && G.aan && Math.random() < G.kans){ dukaLoop(M, achterPos, 'naarAchter'); return; }
+    if (Math.random() < DUKA.actieKans){                // een gaap, een kalebas pakken, iets van het schap
+      const tot = DUKA.acties.reduce((s, a) => s + a[1], 0); let r = Math.random() * tot, k = DUKA.acties[0][0];
+      for (const [n, g] of DUKA.acties){ if ((r -= g) < 0){ k = n; break; } }
+      M.fase = 'actie'; dukaZet(M, k); return;
+    }
     let d = M.pos;
     for (let i = 0; i < 6 && Math.abs(d - M.pos) < 0.08; i++) d = winkelRnd(K.van, K.tot);
-    M.fase = 'loop'; M.doel = d; return;
+    dukaLoop(M, d); return;
   }
-  // lopen: een deel van de toonbank per seconde; naar links (hogere pos) kijkt hij van je weg
-  const stap = K.v / o.tbB * dt, rest = M.doel - M.pos;
-  M.kijk = rest > 0 ? -1 : 1;
+  // lopen: naar links (hogere pos) kijkt hij van je weg, en dan is hij niet gespiegeld
+  if (M.anim === 'loop2in' && dukaKlaar(M)) dukaZet(M, 'loop2');
+  const stap = DUKA.v / o.tbB * dt, rest = M.doel - M.pos;
+  M.kijk = rest > 0 ? -1 : 1; M.flip = rest <= 0;
   if (Math.abs(rest) <= stap){
     M.pos = M.doel;
-    if (M.fase === 'naarAchter'){ M.fase = 'achterin'; M.klok = winkelRnd(WINKEL.geheim.achterin[0], WINKEL.geheim.achterin[1]); }
-    else { M.fase = 'rust'; M.klok = winkelRnd(K.rust[0], K.rust[1]); }
+    if (M.fase === 'naarAchter'){ M.fase = 'draai'; M.flip = false; dukaZet(M, 'draai'); }
+    else { M.fase = 'rust'; M.flip = true; dukaZet(M, 'idle'); M.klok = winkelRnd(K.rust[0], K.rust[1]); }
   } else M.pos += Math.sign(rest) * stap;
 }
-// elk beeld: de marktman loopt; achter de toonbank moet Amir sluipen, en ziet de marktman hem, dan zet hij hem terug
+// de x van de marktman in de wereld
+function dukaX(w){ const o = winkelOpbouw(w); return w.x - (winkelMan.w === w ? winkelMan.pos : o.koopman / o.tbB) * o.tbB * CHAR_H; }
+// gesnapt (DUKA.regie): de wereld staat stil (dt 0, zie de lus), alleen Duka en het stofwolkje lopen door op echte tijd.
+// stap: kijk (over zijn schouder, als hij met zijn rug stond), om (weer naar voren), lach, klap; op de klap het wolkje en
+// is Amir weg, na regie.weg valt hij aan de voorkant van de toonbank uit de lucht en loopt de wereld weer.
+let dukaRegie = null;
+const dukaWolk = [];                                  // het magische stofwolkje: [{ x, h, t, d }] (wereld-x, hoogte boven de vloer)
+function dukaBetrap(b, gehoord){
+  const M = winkelMan, w = b.winkel;
+  dukaRegie = { w, stap: '', t: 0, weg: false };
+  const rug = dukaRug(M) || M.fase === 'achterin' || M.fase === 'draai';
+  M.fase = 'regie'; M.flip = false;
+  if (rug){ dukaRegie.stap = 'kijk'; dukaZet(M, 'schouder'); M.t = 0; flashHint(gehoord ? 'Who is there?' : 'Hm?', 1400); }
+  else dukaLachStart();
+}
+function dukaLachStart(){
+  const M = winkelMan; dukaRegie.stap = 'lach'; M.anim = 'lach'; M.t = 0;
+  M.flip = world > dukaX(dukaRegie.w);                // hij kijkt naar Amir
+  flashHint('Ha! Behind MY counter?', 2600);
+  dukaGeluid('lach');
+}
+function dukaRegieStap(rdt){
+  const R = dukaRegie; if (!R) return;
+  const M = winkelMan, D = DUKA.regie;
+  M.t += rdt;
+  if (R.stap === 'kijk' && dukaKlaar(M)){ R.stap = 'om'; M.anim = 'terug'; M.t = 0; }
+  else if (R.stap === 'om' && dukaKlaar(M)) dukaLachStart();
+  else if (R.stap === 'lach' && dukaKlaar(M)){ R.stap = 'klap'; M.anim = 'klap'; M.t = 0; }
+  else if (R.stap === 'klap'){
+    const A = DUKA.anims.klap;
+    if (!R.weg && M.t * A.fps >= A.raak){
+      R.weg = true; R.wegT = 0; dukaGeluid('klap');
+      dukaWolkZet(world, ph + 0.55 * CHAR_H, 1);
+    }
+    if (R.weg && (R.wegT += rdt) >= D.weg){
+      // Amir valt aan de voorkant van de toonbank uit de lucht; de wereld loopt weer, Duka klapt zijn armen weer over elkaar
+      const x = R.w.x + D.voor, v = binnenVloer(x, 0);
+      world = x; ph = v + D.val * CHAR_H; valVan = ph; pvh = 0; onGround = false; fell = false; coyote = 0; amirPlat = null;
+      jump = { phase: 'air', t: 0, step: true }; facing = -1; knock = 0; glij = 0;
+      winkelGeheim.achter = false; winkelGeheim.betrap = 0; winkelGeheim.lawaai = 0;
+      dukaWolkZet(x, ph + 0.4 * CHAR_H, 0.6);
+      dukaRegie = null; M.fase = 'actie';               // de rest van de klap speelt gewoon af, dan weer rust
+    }
+  }
+}
+function dukaAmirWeg(){ return !!(dukaRegie && dukaRegie.weg); }
+function dukaWolkZet(x, h, k){
+  for (let i = 0; i < Math.round(16 * k); i++){
+    const a = Math.random() * Math.PI * 2, s = (0.35 + Math.random() * 0.65) * k;
+    dukaWolk.push({ x, h, vx: Math.cos(a) * s, vh: Math.sin(a) * s * 0.8 + 0.15, t: 0, d: 0.45 + Math.random() * 0.35,
+                    r: (0.07 + Math.random() * 0.09) * Math.sqrt(k), c: Math.random() < 0.7 ? 0 : 1, vonk: Math.random() < 0.3 });
+  }
+}
+// het wolkje: zacht violet stof met wat gouden vonkjes (de kleuren van zijn tulband en de gesp), kort
+function dukaWolkTeken(groundY, scale, cx){
+  if (!dukaWolk.length) return;
+  const A = CHAR_H * scale, nu = performance.now();
+  const dt = Math.min(0.05, (nu - (dukaWolkTeken.vorig || nu)) / 1000); dukaWolkTeken.vorig = nu;
+  ctx.save();
+  for (let i = dukaWolk.length - 1; i >= 0; i--){
+    const p = dukaWolk[i]; p.t += dt;
+    if (p.t >= p.d){ dukaWolk.splice(i, 1); continue; }
+    const u = p.t / p.d, e = 1 - Math.pow(1 - u, 3);
+    const sx = cx + (p.x - world) + p.vx * e * A, sy = groundY - p.h * scale - p.vh * e * A;
+    const a = (1 - u) * (u < 0.15 ? u / 0.15 : 1);
+    if (p.vonk){
+      ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(255,214,120,' + (0.9 * a).toFixed(3) + ')';
+      const r = Math.max(1.5, 0.018 * A * (1 - u * 0.5)); ctx.fillRect(sx - r / 2, sy - r / 2, r, r);
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      const r = p.r * A * (0.6 + 0.8 * e), g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
+      const kl = p.c ? '196,150,230' : '150,96,190';
+      g.addColorStop(0, 'rgba(' + kl + ',' + (0.55 * a).toFixed(3) + ')'); g.addColorStop(1, 'rgba(' + kl + ',0)');
+      ctx.fillStyle = g; ctx.fillRect(sx - r, sy - r, 2 * r, 2 * r);
+    }
+  }
+  ctx.restore();
+}
+// elk beeld: de marktman loopt; achter de toonbank moet Amir sluipen. Loop je rechtop (langer dan geheim.hoor) of draait
+// hij zich om terwijl je erachter staat, dan ben je gesnapt (dukaBetrap)
 function winkelGeheimStap(dt, kruipt, loopt){
   const G = winkelGeheim, K = WINKEL.geheim, b = binnenBij(world);
   if (!b || !b.winkel || !winkelImgs || !winkelKlaar()){ if (G.achter && !b) G.achter = false; return; }
   winkelManStap(dt, b.winkel);
-  if (!G.aan || !b.winkel.geheim) return;
+  if (!G.aan || !b.winkel.geheim || dukaRegie) return;
   if (G.uitzet){ if (!stadTrapFade || stadTrapFade.gewisseld){ G.achter = false; G.uitzet = false; } return; }
-  // rechtop lopen achter de toonbank hoort hij: hij draait zich om en loopt terug naar zijn plek
-  // (alleen op de grond, en pas na even: een landing en een halve stap rechtop hoort hij nog niet)
+  // rechtop lopen achter de toonbank hoort hij (alleen op de grond, en pas na even: een landing en een halve stap rechtop
+  // hoort hij nog niet)
   G.lawaai = G.achter && ph < 2 && loopt && !kruipt ? (G.lawaai || 0) + dt : Math.max(0, (G.lawaai || 0) - dt);
-  if (G.achter && G.lawaai > K.hoor && winkelGeheimOm()){
-    G.lawaai = 0;
-    const M = winkelMan; M.fase = 'loop'; M.doel = winkelRnd(WINKEL.man.van, WINKEL.man.tot); M.kijk = 1;
-    flashHint('Who is there?', 1200);
-  }
+  if (G.achter && G.lawaai > K.hoor && winkelGeheimOm() && !stadTrapFade){ G.lawaai = 0; dukaBetrap(b, true); return; }
   if (G.achter && !winkelGeheimOm() && world < b.winkel.x && !stadTrapFade){
     G.betrap += dt;
-    if (G.betrap > K.betrap){
-      G.betrap = 0; G.uitzet = true;
-      flashHint('Hey! Get out from behind my counter!', 2200);
-      const x = b.winkel.x + 90;
-      stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: binnenVloer(x, 0), face: -1 }, T: BINNEN.fade, binnen: true };
-    }
+    if (G.betrap > K.betrap){ G.betrap = 0; dukaBetrap(b, false); }
   } else G.betrap = 0;
 }
 // de doorgang naar de achterkamer (alleen achter de toonbank): waar het doek hangt, in wereld-x
@@ -38793,7 +38949,7 @@ const WINKEL = {
   // hij naar achteren, voorbij het doek, en staat daar met zijn rug naar je toe (achterin). Spring dan over de toonbank en
   // sluip (gebukt) naar het doek: E brengt je naar de achterkamer met een kist met goud. Loop je rechtop achter de toonbank,
   // dan hoort hij je; kijkt hij en sta je erachter, dan zet hij je terug
-  geheim: { kans: 1, achterKans: 0.1, achterKansSandbox: 0.35, achterin: [4, 5.5], achterNaast: 0.45, betrap: 0.35, hoor: 0.35, sprong: 0.55, doorzicht: 0.55 },
+  geheim: { kans: 1, achterKans: 0.1, achterKansSandbox: 0.35, achterin: [4, 5.5], achterNaast: 0.45, betrap: 0.35, hoor: 0.6, sprong: 0.55, doorzicht: 0.55 },
   P: 320                   // pixels per Amir in de opgebouwde beelden
 };
 let winkelImgs = null;
@@ -38811,7 +38967,7 @@ function winkelLaad(){
   const n = WINKEL.deur.doek;
   if (stadImgs && !stadImgs['gordijn_' + n]) stadImgs['gordijn_' + n] = im(STAD_DIR + GORDIJN.dir + n + '.png');
   binnenLaad();
-  npcLaad('dorpeling');
+  dukaLaad();                                    // de marktman, Duka (zie "de marktman")
 }
 function winkelNodig(lv){ return !!(lv && Array.isArray(lv.binnen) && lv.binnen.some(b => b.winkel || (b.planken && b.planken.length))); }
 function winkelKlaar(){
@@ -39185,11 +39341,15 @@ function winkelVoor(groundY, scale, cx){
   const w = b.winkel, o = winkelOpbouw(w), A = CHAR_H * scale, rechts = cx + (w.x - world);
   const vloer = groundY + WINKEL.toonbankVoor * A;
   if (w.koopman !== false){
-    const d = NPCS.dorpeling, fr = d.frames.length ? d.frames[Math.floor(performance.now() / 1000 * d.fps) % d.frames.length] : null;
-    if (fr && imgReady(fr)){
-      const ns = npcSize('dorpeling', scale), nx = rechts - (winkelMan.w === w ? winkelMan.pos * o.tbB : o.koopman) * A;   // waar hij nu loopt (winkelManStap)
-      ctx.save(); ctx.translate(nx + ns.w / 2, groundY + 0.04 * A - ns.ground); if (winkelMan.w !== w || winkelMan.kijk > 0) ctx.scale(-1, 1);   // gespiegeld: hij kijkt naar Amir, die van rechts komt; naar achteren de andere kant op
-      ctx.drawImage(fr, -ns.w / 2, 0, ns.w, ns.h); ctx.restore();
+    const fr = dukaFrame(winkelMan);
+    if (fr){
+      const D = DUKA, h = A * D.tall * D.h / D.fig, k = h / D.h;
+      const nx = rechts - (winkelMan.w === w ? winkelMan.pos * o.tbB : o.koopman) * A;   // waar hij nu loopt (winkelManStap)
+      // zijn schaduw op de vloer, dan Duka zelf; de bron kijkt naar links, gespiegeld kijkt hij naar de klant (rechts)
+      ctx.save(); ctx.fillStyle = 'rgba(15,8,3,0.35)';
+      ctx.beginPath(); ctx.ellipse(nx, groundY + 0.04 * A, 0.28 * A, 0.03 * A, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.translate(nx, groundY + 0.04 * A - D.ground * k); if (winkelMan.w !== w || winkelMan.flip) ctx.scale(-1, 1);
+      ctx.drawImage(fr, -D.ax * k, 0, D.w * k, h); ctx.restore();
     }
   }
   if (!(w.geheim && winkelGeheim.achter)) winkelToonbankTeken(o, rechts, vloer, A);   // staat Amir erachter, dan komt de toonbank na hem (winkelKruikVoor)
@@ -39212,6 +39372,7 @@ function winkelKruikVoor(groundY, scale, cx){
   // staat Amir achter de toonbank, dan is die half doorzichtig: anders zie je jezelf niet als je gebukt sluipt
   if (b.winkel.geheim && winkelGeheim.achter) winkelToonbankTeken(o, cx + (b.winkel.x - world), groundY + WINKEL.toonbankVoor * A, A, WINKEL.geheim.doorzicht);
   const mx = cx + (b.winkel.x - world) + WINKEL.kruik.x * A, vloer = groundY + (WINKEL.toonbankVoor + WINKEL.kruik.voor) * A;
+  dukaWolkTeken(groundY, scale, cx);              // het magische stofwolkje van Duka's klap (zie "het geheim")
   const z = zichtVak(20); if (z && (mx + c.width * k / 2 < z.l || mx - c.width * k / 2 > z.r)) return;
   // een zachte schaduw op de vloer, dan de kruik
   ctx.save(); ctx.fillStyle = 'rgba(15,8,3,0.4)';
@@ -55929,7 +56090,7 @@ function exeZet(s, bew){
 }
 // tijdens de freeze is de echte Amir weg (de lagen tekenen hem); bij de steek is hij tijdens het knielen
 // nog te zien, maar zonder speer (die zit in de schildbandiet)
-function exeAmirWeg(){ return !!(exeVries && exeVries.exe && (exeVries.exe.bew !== 'knielen' || exeVries.exe.stok)) || murcPinBezet(); }   // de stokexecutie: Amir komt uit exeStokAmirTeken   // ook onder de pin van Murghtaan
+function exeAmirWeg(){ return !!(exeVries && exeVries.exe && (exeVries.exe.bew !== 'knielen' || exeVries.exe.stok)) || murcPinBezet() || dukaAmirWeg(); }   // de stokexecutie: Amir komt uit exeStokAmirTeken   // ook onder de pin van Murghtaan
 function exeSpeerWeg(){ return !!(exeVries && exeVries.exe && exeVries.exe.bew === 'knielen' && !exeVries.exe.stop); }   // in de hitstop op de steek staat hij nog in zijn stootpose, met speer
 // een stap: de beweging die speelt (per frame zijn duur uit de json), en de overgangen
 function exeTick(s, dt){
@@ -59849,6 +60010,8 @@ function loop(now){
   if (exeVries && (exeVries.state !== 'exe' || schildmannen.indexOf(exeVries) < 0)) exeVries = null;   // vangnet: hij is weg (herstart, sandbox leeg)
   // de stadstrap: de wereld staat stil terwijl het beeld naar zwart en terug fadet (zie "de stadstrap")
   if (stadTrapFade){ dt = 0; if (running && !paused && !won) stadTrapStap(realDt); }
+  // gesnapt achter de toonbank van Duka: de wereld staat stil, alleen hij lacht en klapt (zie "het geheim")
+  if (dukaRegie){ dt = 0; if (running && !paused && !won) dukaRegieStap(realDt); }
   // een poort tussen twee straten: hetzelfde, maar het beeld wordt helemaal zwart (zie "straten")
   if (straatFade){ dt = 0; if (running && !paused && !won) straatFadeStap(realDt); }
   straatStap(dt);                                  // de klok voor het aanvullen en het einde na de laatste kill

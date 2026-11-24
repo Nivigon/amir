@@ -784,18 +784,32 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
   ding een verkoopknop (`.wkverkoop`, goudkleurig, de opbrengst erop); zonder goud zijn ze weg (`#winkelui.gratis`). Zie
   "verkopen" in `notities/episodes.md`.
 
-- **De marktman loopt rond** (`winkelMan`, `winkelManStap`, `WINKEL.man`): in elke winkel loopt hij heen en weer achter de
-  toonbank (zonder eigen loopanimatie, de dorpeling schuift), en staat dan even stil met zijn gezicht naar de klant.
+- **De marktman is Duka (24-11-2026)** (`DUKA`, `winkelMan`, `winkelManStap`, `dukaLaad`, `dukaFrame`, `dukaRug`,
+  `karakters/duka/`, `tools/duka_knip.py`): de winkelier met de paarse tulband, opgebouwd vanuit de meelman (zie
+  `claude/burger_basisacteur.md` in het project). Twaalf Grok-clips van Tom (24 fps) staan als 12 fps frames in
+  `karakters/duka/<clip>/` (299x361, grondlijn 349, lijf op x 130); `DUKA.anims` zegt welke frames, hoe snel en in welke
+  frames hij met zijn rug naar de winkel staat (`om`). Hij loopt heen en weer (`loop`, armen over elkaar, of een keer op
+  de drie `loop2in` en `loop2` met losse armen), staat in rust te tikken met zijn arm (`idle`, gespiegeld naar de klant)
+  en doet af en toe iets (`DUKA.acties`, `actieKans`): gapen (twee versies, 16 fps, iets sneller dan de clip: Tom vond
+  hem suf), een kalebas pakken en weer neerzetten, iets van het schap pakken (daarbij staat hij even met zijn rug naar
+  je toe, en dan kun je het ook proberen). Naar achteren: lopen, `draai` (om naar de muur), `rug` (krabt aan zijn
+  hoofd), `terug` (de draai achterstevoren). De clip met de klap klapte twee keer: de tweede klap is eruit geknipt.
+  Geluid: `sounds/duka/lach.mp3`, `klap.mp3` en `gaap.mp3` (ElevenLabs), zolang ze er niet zijn speelt er niets.
 - **Het geheim (easter egg, 21-11-2026)** (`WINKEL.geheim`, `winkelGeheim`, `winkelGeheimZet`, `winkelGeheimStap`,
   `winkelGeheimLinks`, `winkelGeheimDeurX`): in een winkel met `geheim: { naar }` (nu alleen Ishmul) loopt hij soms
   (`achterKans`, 1 op 10 keer dat hij verder loopt; in de sandbox `achterKansSandbox`) naar achteren, net links van het
   doek, en staat daar 4 tot 5,5 s met zijn rug naar de winkel. Spring je dan over de toonbank (hoger dan `sprong` Amir),
   dan sta je erachter; de toonbank is dan half doorzichtig (`doorzicht`), anders zie je jezelf niet als je gebukt sluipt.
-  Achter de toonbank moet je **sluipen**: rechtop lopen op de grond (langer dan `hoor` s) hoort hij ("Who is there?"),
-  dan draait hij zich om. Kijkt hij en sta je erachter, dan na `betrap` s: "Hey! Get out from behind my counter!" en een
-  fade terug voor de toonbank. Achter de toonbank opent E niet de winkel maar het doek: een fade naar de kamer op
-  `geheim.naar`, met een kist met goud en een boog terug naar voor de toonbank.
-  Sandbox: **Geheime winkel** onder De stad (met een achterkamer en een kist).
+  Het eerste stukje mag je lopen (`hoor`, 0,6 s), daarna moet je **sluipen**. Achter de toonbank opent E niet de winkel
+  maar het doek: een fade naar de kamer op `geheim.naar`, met een kist met goud en een boog terug naar voor de toonbank.
+  Sandbox: **Geheime winkel** onder De stad (met een achterkamer en een kist). Proefrit: `node tools/duka_test.js [map]`.
+- **Gesnapt (24-11-2026)** (`dukaBetrap`, `dukaRegie`, `dukaRegieStap`, `DUKA.regie`, `dukaWolk`, `dukaAmirWeg`): hoort hij
+  je (rechtop lopen achter de toonbank) of draait hij zich om terwijl je erachter staat, dan bevriest de wereld (dt 0,
+  alleen Duka loopt op echte tijd). Stond hij met zijn rug naar je toe, dan kijkt hij eerst over zijn schouder ("Who is
+  there?") en draait hij zich om; dan lacht hij breeduit naar Amir ("Ha! Behind MY counter?"), klapt een keer, en op de
+  klap komt een klein magisch stofwolkje (violet met gouden vonkjes, de kleuren van zijn tulband) en is Amir weg. Na
+  `regie.weg` s valt Amir aan de voorkant van de toonbank (`regie.voor`) uit de lucht (`regie.val` Amir hoog), met nog
+  een wolkje, en loopt de wereld weer; Duka klapt zijn armen weer over elkaar. Geen freeze-animatie: de tekst doet dat.
 - **Binnen is het licht (22-11-2026)** (`binnenNu`): staat de camera in een kamer van `binnen` (ook de winkel van Co-op), dan
   geldt het gewone licht in plaats van de avond of nacht van het uitzicht (`lichtNu`), is `stadNacht` 0 (zonlicht door de
   ramen) en valt de diepe nacht van `donkerGatenNa` weg. Buiten blijft het donker.
