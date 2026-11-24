@@ -1097,3 +1097,32 @@ Met de speer blijven het de outfits van Mkuki.
   `VACHT` (zaad, groei, eiland): `node tools/vacht_bak.js` (met `--alleen <pad>` voor een deel), daarna
   `tools/gen-offline-manifest.py`.
 
+
+## De winkel als kamer (24-11-2026)
+
+De winkel van Co-op is geen paneel meer maar de winkelkamer zelf (ontwerp in het project: `claude/winkel_c_ontwerp.md`).
+Opent E bij de toonbank de winkel en staat Amir in een kamer met `winkel` (`wkkKan`), dan gaat `wkk.aan` en krijgt
+`#winkelui` de klasse `kamer`: het oude paneel is weg, het spel loopt door (`paused = false`, de toetsen kiezen alleen), zodat
+de marktman en de teamgenoten bewegen.
+
+- **Tekenen** (`wkkTeken`, vanuit `winkelAchter` in plaats van de planken van de kamer): de uitstalplek op `winkel.x + WKK.standX`.
+  Voor de categorie met `stand: 'rek'` het wapenrek uit de stad met de speren rechtop (of de stokken als plaatje), anders een
+  plank van de winkel (`plank_touw.png` via `winkelMetSchaduw`, breder en leeg, `wkkPlank`). De bordjes, de prijslabels en de
+  gloed van het gekozen ding gaan in `wkk.na` en worden in `binnenNa` na het schemer getekend (`wkkNaTeken`), anders dimt de
+  kamer ze. Voor de muis bewaart `wkkScherm` per ding en bordje de rechthoek op het scherm (de transformatie van het moment).
+- **Wat waar ligt**: `WKK.waar` (artikel naar categorie). Een artikel met `eis` dat zelf niet op een uitstalplek ligt is een upgrade
+  van zijn ouder en staat als icoontje in het doek (`wkkOuder`, `wkkUpgrades`): Full Circle: more damage en all around, Ardhi's Roots.
+  Give 5 gold staat bij Team, een keer per teamgenoot.
+- **Besturing** (`wkkToets`): links en rechts kiezen, omhoog en omlaag (of Q, Tab) wisselen de categorie, Enter of spatie koopt,
+  Backspace is Undo, R is Ready; Escape en E sluiten zoals altijd. De muis: hover kiest, een klik op het gekozen ding koopt, een
+  klik op een bordje wisselt (`pointermove`/`pointerdown` met capture).
+- **Het doek** (`#wkkamer`, `wkkToon`): naam, upgrade-label, uitleg, citaat, de upgrade-icoontjes met een hover-kaartje (`wkkTip`),
+  de prijs, en de knoppen Buy, Leave, Ready en Undo. De regel bovenin (`.wkk-bericht`) spiegelt `#wkuitleg` en `#wkvertrek` van de
+  oude winkel. Kopen, Undo en Ready zijn ongewijzigd (`mpcWinkelKoop`, `mpcUndo`, `mpcKlaarDruk`); `mpcWinkelToon` vult het oude
+  paneel nog (verborgen) en roept daarna `wkkToon`.
+- **Zonder winkelkamer** (het Duel, `pvp.dw`) blijft het oude scherm met tabs en kaarten.
+- **Onderdelen**: `design/winkel_ui/` (doek, label, knop, munt uit Grok, bronvel in `bron/`), lettertype Bree Serif
+  (`design/fonts/bree-serif.woff2`, OFL). `tools/winkel_mockup.js` tekent de oude mockup na.
+- **Open**: de stipjes van teamgenoten boven wat zij bekijken (nog geen netwerkbericht), de marktman die naar het rek loopt, eigen
+  uitstalplekken voor Charms en Team (nu ook een plank), citaten voor artikelen zonder citaat. De stap in `mptest.js --proef` die
+  alle kaarten tegelijk verwacht klopte al niet meer sinds de tabs (22-11) en faalt nog steeds op dezelfde manier.
