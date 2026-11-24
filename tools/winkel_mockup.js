@@ -16,7 +16,19 @@ const srv = http.createServer((q, r) => { const f = path.join(ROOT, decodeURICom
   await p.waitForTimeout(2000);
   await p.evaluate(() => { if (!pvp.coop.inWinkel) mpcWinkelIn(); });
   await p.waitForTimeout(4000);
-  await p.evaluate(() => { world -= 740; facing = -1; });
+  await p.evaluate((V) => {
+    world -= 740; facing = -1;
+    // de uitstalplank tekent het spel zelf, als een plank van de winkel (winkelPlankOpbouw), leeg en breder;
+    // de plank die er al hing gaat weg, zodat er een uitstalplek is
+    const b = binnenBij(world);
+    if (V === 'V'){
+      const rijOud = winkelRij, breedOud = WINKEL.plankAmir;
+      winkelRij = () => []; WINKEL.plankAmir = 2.3;
+      b.planken = [{ x: world + 378, h: 330, soort: 'touw', seed: 9999 }];
+      winkelPlankOpbouw(b.planken[0]);
+      winkelRij = rijOud; WINKEL.plankAmir = breedOud;
+    } else b.planken = [];
+  }, process.env.V);
   await p.waitForTimeout(1500);
   await p.evaluate((V) => {
     // HUD-hints weg voor de mockup
@@ -70,11 +82,11 @@ const srv = http.createServer((q, r) => { const f = path.join(ROOT, decodeURICom
       doek = `<div class="upg">Upgrade of your plain spear</div><h2>Ardhi's<br>Reach</h2><div class="lijn"></div>
         <p>A hit can give you a life back.</p><p class="sfeer">"The root does not ask the rain to come. It waits, and drinks."</p><div class="prijs">40<i></i></div>`;
     } else {
-      stal = `<div class="koord" style="left:661px;top:186px;height:192px"></div><div class="koord" style="left:893px;top:186px;height:192px"></div><img src="design/winkel_ui/plank.png" style="left:630px;top:376px;width:300px;filter:drop-shadow(0 6px 5px rgba(0,0,0,.45))">
-      <img class="gloed" src="items/potions/hppotion.png" style="left:668px;top:296px;height:80px">
-      <img class="it" src="items/winkel/gif.png" style="left:752px;top:316px;height:60px">
-      <img class="it" src="items/winkel/slot.png" style="left:840px;top:300px;height:76px">
-      ${tag(666,432,5)}${tag(760,432,25)}${tag(852,432,45)}`;
+      stal = `
+      <img class="gloed" src="items/potions/hppotion.png" style="left:676px;top:338px;height:80px">
+      <img class="it" src="items/winkel/gif.png" style="left:752px;top:358px;height:60px">
+      <img class="it" src="items/winkel/slot.png" style="left:836px;top:342px;height:76px">
+      ${tag(674,446,5)}${tag(762,446,25)}${tag(848,446,45)}`;
       doek = `<h2>Gourd</h2><div class="lijn"></div><p>One life back, until your lives are full.</p>
         <p class="sfeer">"Drink slow. The road is long."</p><p style="font-size:13px;margin-top:14px;color:#6a3a12">You carry 1</p><div class="prijs">5<i></i></div>`;
     }
