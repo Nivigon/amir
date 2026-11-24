@@ -58,9 +58,10 @@ const srv = http.createServer((q, r) => { const f = path.join(ROOT, decodeURICom
       return `<div class="touw" style="left:${x+22}px;top:186px;height:${aan?40:30}px"></div><div class="touw" style="left:${x+70}px;top:186px;height:${aan?40:30}px"></div>
         <div class="knop bord${aan?' aan':''}" style="left:${x}px;top:${aan?212:202}px">${n}</div>`;}).join('');
     const css2=document.createElement('style'); css2.textContent=`
-      #wm .bord{width:96px;height:52px;font-size:16px;letter-spacing:.5px;opacity:.72;filter:brightness(.8) drop-shadow(0 3px 2px rgba(0,0,0,.5))}
+      #wm .bord{z-index:2;width:96px;height:52px;font-size:16px;letter-spacing:.5px;opacity:.72;filter:brightness(.8) drop-shadow(0 3px 2px rgba(0,0,0,.5))}
       #wm .bord.aan{opacity:1;filter:drop-shadow(0 0 5px #ffd56a) drop-shadow(0 0 10px rgba(255,196,80,.6)) drop-shadow(0 3px 2px rgba(0,0,0,.5));color:#ffe6a6}
-      #wm .wolk{left:40px;top:330px}`; document.head.append(css2);
+      #wm .wolk{left:40px;top:330px}
+      #wm .koord{position:absolute;z-index:0;width:5px;background:repeating-linear-gradient(160deg,#9a7448 0 3px,#6b4a2a 3px 5px);border-radius:2px;box-shadow:1px 0 0 #3a2414}`; document.head.append(css2);
     let stal = '', doek = '';
     if (V === 'S'){
       stal = `<img src="design/stad/wapenrek/wapenrek.png" style="left:628px;top:352px;width:310px;filter:drop-shadow(0 4px 4px rgba(0,0,0,.4))">
@@ -69,7 +70,7 @@ const srv = http.createServer((q, r) => { const f = path.join(ROOT, decodeURICom
       doek = `<div class="upg">Upgrade of your plain spear</div><h2>Ardhi's<br>Reach</h2><div class="lijn"></div>
         <p>A hit can give you a life back.</p><p class="sfeer">"The root does not ask the rain to come. It waits, and drinks."</p><div class="prijs">40<i></i></div>`;
     } else {
-      stal = `<img src="design/stad/binnen/plank_touw.png" style="left:630px;top:370px;width:300px;filter:drop-shadow(0 4px 4px rgba(0,0,0,.4))">
+      stal = `<div class="koord" style="left:661px;top:186px;height:192px"></div><div class="koord" style="left:893px;top:186px;height:192px"></div><img src="design/winkel_ui/plank.png" style="left:630px;top:376px;width:300px;filter:drop-shadow(0 6px 5px rgba(0,0,0,.45))">
       <img class="gloed" src="items/potions/hppotion.png" style="left:668px;top:296px;height:80px">
       <img class="it" src="items/winkel/gif.png" style="left:752px;top:316px;height:60px">
       <img class="it" src="items/winkel/slot.png" style="left:840px;top:300px;height:76px">
