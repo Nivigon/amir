@@ -787,7 +787,7 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
 - **De marktman is Duka (24-11-2026)** (`DUKA`, `winkelMan`, `winkelManStap`, `dukaLaad`, `dukaFrame`, `dukaRug`,
   `karakters/duka/`, `tools/duka_knip.py`): de winkelier met de paarse tulband, opgebouwd vanuit de meelman (zie
   `claude/burger_basisacteur.md` in het project). Twaalf Grok-clips van Tom (24 fps) staan als 12 fps frames in
-  `karakters/duka/<clip>/` (299x361, grondlijn 349, lijf op x 130), in het spel `tall` 1,45: een grote vent, duidelijk groter dan Amir; `DUKA.anims` zegt welke frames, hoe snel en in welke
+  `karakters/duka/<clip>/` (299x361, grondlijn 349, lijf op x 130, in de originele kleuren uit Grok), in het spel `tall` 1,45: een grote vent, duidelijk groter dan Amir; `DUKA.anims` zegt welke frames, hoe snel en in welke
   frames hij met zijn rug naar de winkel staat (`om`). Hij loopt heen en weer (`loop`, armen over elkaar, of een keer op
   de drie `loop2in` en `loop2` met losse armen), staat in rust te tikken met zijn arm (`idle`, gespiegeld naar de klant)
   en doet af en toe iets (`DUKA.acties`, `actieKans`): gapen (twee versies, 16 fps, iets sneller dan de clip: Tom vond

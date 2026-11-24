@@ -1,8 +1,9 @@
 # Duka, de marktman (karakters/duka/): de Grok-clips van 24-11-2026 naar losse frames voor het spel.
 # python3 tools/duka_knip.py <map met de mp4's van Tom>
 # Elke clip (24 fps) gaat naar 12 fps, wordt van het magenta gehaald (key2 uit de marktman-tools), uitgesneden op een vast
-# doek in de coordinaten van de 944-clips (de rugclips van 960 zijn een fractie groter en schuiven mee), wat gedimd voor het
-# licht binnen (de hoge lichten van het hemd waren te fel in de winkel), verkleind en naar 256 kleuren gezet.
+# doek in de coordinaten van de 944-clips (de rugclips van 960 zijn een fractie groter en schuiven mee), verkleind en naar
+# 256 kleuren gezet. In de originele kleuren uit Grok (Tom koos dat op 24-11-2026); --dim dimt hem voor het binnenlicht
+# (licht), zoals de eerste versie.
 # Bij het schap (toonbank draai rug pakken) tekende Grok een plank achter hem: die gaat eruit (magenta-lijnen, dunne
 # stukjes en alles wat niet aan hem vastzit). Het doek: 299x361, grondlijn op rij 349, figuur 340 hoog, lijf op x 130 (DUKA).
 import numpy as np, os, sys, glob, subprocess, tempfile, matplotlib.colors as mc
@@ -45,10 +46,12 @@ def frame(clip, im):
         b[..., 3] = np.where(m, b[..., 3], 0); lab, n = ndimage.label(b[..., 3] > 4)
         if n > 1: b[..., 3] = np.where(lab == np.argmax(ndimage.sum(np.ones(lab.shape), lab, range(1, n + 1))) + 1, b[..., 3], 0)
         k = Image.fromarray(b, 'RGBA')
-    k = licht(k); k = k.resize((round(k.width * F), round(k.height * F)), Image.LANCZOS)
+    if DIM: k = licht(k)
+    k = k.resize((round(k.width * F), round(k.height * F)), Image.LANCZOS)
     return k.quantize(256, method=Image.FASTOCTREE, dither=Image.Dither.NONE)
+DIM = '--dim' in sys.argv
 if __name__ == '__main__':
-    bron = sys.argv[1]
+    bron = [a for a in sys.argv[1:] if not a.startswith('--')][0]
     for naam, clip in CLIPS.items():
         os.makedirs(os.path.join(UIT, clip), exist_ok=True)
         with tempfile.TemporaryDirectory() as tmp:
