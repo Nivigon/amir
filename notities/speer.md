@@ -186,6 +186,10 @@ opdrachtgever (23-11-2026): de stok en de speer kozen hij uit Grok-platen, de na
   vertraging). `ardhiHeelTeken`, alles uit `p.t`, de maten in `ARDHI.heel`, `design/ardhi/druppel_los.png`. Een eerdere versie (een druppel die boven je hoofd
   oplicht, of in je hoofd valt) vond de opdrachtgever niets. Met
   volle levens trekt hij geen knikker. Een gast krijgt het leven bij zichzelf (`mpcHitDoor`), de host en solo in `gifRaak`.
+  In Co-op zien je teamgenoten het ook: bij de start van de druppel gaat bericht `ah` (met de plek in de vijand, `MP_DOOR`)
+  naar iedereen, en zij spelen dezelfde animatie af, met het bolletje naar jouw Amir (`ardhiHeelAnder`, per slot, getekend
+  met `ardhiHeelTeken` met zijn plek; de geluiden op half volume, `ardhiHeelKlank`). Alleen beeld en geluid: het leven komt
+  alleen bij jou. Proef: `node tools/mptest.js --ardhizien`.
 - **Ardhi's Bloom** (`ardhibloom`, Spears, 45, na Ardhi's Reach, naast Roots): de kans van de speer verdubbeld, steek 2 op 25
   en worp 2 op 10 (`ARDHI.bloom`), uit eigen zakken (`worp_bloom`, `steek_bloom`), zodat aan- of uitzetten midden in een
   level de gewone zak niet raakt. De stokken (Ardhi's Grip) blijven 1 op 33. Het uiterlijk: de aderen (`ardhiAderTeken`,
