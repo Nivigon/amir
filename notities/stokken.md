@@ -205,7 +205,15 @@ Scripts uit de sessie: /home/claude/stok/puppet2.py (tilt 3, stokken 5 en 7).
   om de stok. De knipper in de clip is eruit (de ogen uit het buurframe). De winkelstokken daarna: `python3
   tools/stok_idle_variant.py <map> --rij 1 --uit stokken_klauw` (goud `--rij 3`, ardhi `--rij 0 --plaat
   design/ardhi/bron/stok_schoon.png`). Proefrit: `node tools/stok_idle_test.js [map]`.
-- Er is (nog) geen overgang van `staan` naar de idle: na een seconde stil wisselt hij in een keer van houding.
+- De overgang en de draai (25-11-2026): na de wacht zwaait hij de stokken eerst op zijn schouders (`idle_in`, 21 frames op
+  `STOK.idle.inFps` 14), dan ademt hij op 5 fps, en na elke `STOK.idle.lussen` (3) lussen draait hij de stokken langs zijn
+  heupen en legt ze terug (`idle_draai`, 43 frames op 12 fps). Y (met de stokken, stilstaand) doet de draai op verzoek
+  (`stokFlex`, `stokFlexVan`); staat hij nog niet op de schouders, dan eerst de overgang. In de sandbox met de stokken is Y
+  dus de draai, niet het oefendoel. Bron: `bron/idle/grok_overgang.mp4` en `grok_draai.mp4` (groene stokken), gemaakt met
+  `tools/stok_idle_extra.py`: dat kleurt het groen om (de grip aan de kant van de vuist: een los stompje voorbij de vuist,
+  of een kort stuk huid op de lijn), zet de voeten vast op die van de idle (in de clip stonden ze in de overgang 2 a 3 px
+  lager en sprongen ze aan het eind omhoog) en schrijft de stoklijnen (`staven_extra.json`) en maskers voor de
+  winkelstokken: `python3 tools/stok_idle_variant.py <bronmap> --set idle_in` (of `idle_draai`) met de gewone opties.
 
 ## De grondklap (16-11-2026, Test 76)
 

@@ -18,6 +18,7 @@ IDX=list(range(78,130,3))           # een ademhaling, loopt rond (78 ~ 130)
 BLINK={84:81,87:90}                 # knipperframes: ogen uit het buurframe
 S=275/612                           # schaal naar de staan-frame van STOK
 W,H,GR=511,384,378                  # STOK-canvas, voeten op 378
+LANG=[113.5/(275/612),148.3/(275/612)]   # lengte van elke stok (bron-px), gemeten in frame 0
 HOUT=np.array([40,31,27.]); GRIP=np.array([170,108,40.])
 def lees(i): return np.array(Image.open(R+'ruw/f_%03d.png'%(i+1)).convert('RGB')).astype(float)
 def key(a):
@@ -44,8 +45,9 @@ def stokken(rgb,al):
     for _ in range(10):
         a1=off[off<split].mean(); a2=off[off>=split].mean(); split=(a1+a2)/2
     lijnen=[]; grip=np.zeros(m.shape,bool)
-    for sel in (off<split, off>=split):
+    for j,sel in enumerate((off<split, off>=split)):
         Q=P[sel]; cq=Q.mean(0); t=(Q-cq)@d; lo,hi=t.min(),t.max()
+        lo=hi-LANG[j]                                   # vaste lengte vanaf de grip: de bovenkant verdwijnt soms achter het hoofd
         g_sel=t>hi-0.27*(hi-lo)
         grip[Q[g_sel,1].astype(int),Q[g_sel,0].astype(int)]=True
         lijnen.append((cq+d*lo, cq+d*hi))              # boven, onder

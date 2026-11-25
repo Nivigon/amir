@@ -26,21 +26,36 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('map'); ap.add_argument('--rij', type=int, default=1); ap.add_argument('--uit', default='stokken_klauw')
     ap.add_argument('--plaat', default=None)
+    ap.add_argument('--set', default='idle', help='idle, of idle_in / idle_draai (uit tools/stok_idle_extra.py)')
     o = ap.parse_args()
     if o.plaat: sv.PLAAT = os.path.join(sv.ROOT, o.plaat)
-    d = json.load(open(os.path.join(o.map, 'punt.json')))
+    if o.set == 'idle':
+        d = json.load(open(os.path.join(o.map, 'punt.json')))
+        bron = lambda i: (os.path.join(o.map, 'uit', f'idle_{i:02d}.png'), os.path.join(o.map, 'uit', f'idle_{i:02d}_stok.png'))
+    else:
+        # de overgang en de draai: per stok de tip en het eind bij de vuist; de achterste (verst naar rechts) eerst
+        st = json.load(open(os.path.join(o.map, 'staven_extra.json')))[o.set]
+        d = {'lijnen': [sorted(ls, key=lambda l: -max(l[0], l[2])) for ls in st]}
+        bron = lambda i: (os.path.join(sv.AMIR, 'stokken', o.set, f'{o.set}_{i:02d}.png'),
+                          os.path.join(o.map, 'uit_' + o.set, f'{o.set}_{i:02d}_stok.png'))
+    # de lijnen over de tijd gladgestreken (rondom, de idle is een lus): anders trilt de winkelstok een halve graad heen en weer
+    if o.set == 'idle':
+        L = np.array(d['lijnen'], float); n = len(L)
+        d['lijnen'] = ((np.roll(L, 1, 0) + 2 * L + np.roll(L, -1, 0)) / 4).tolist()
     ni, nkn = sv.nieuwe_stok(o.rij, K)[:2]
-    uit = os.path.join(sv.AMIR, o.uit, 'idle'); os.makedirs(uit, exist_ok=True)
+    uit = os.path.join(sv.AMIR, o.uit, o.set); os.makedirs(uit, exist_ok=True)
     for i, ln in enumerate(d['lijnen']):
-        fr = Image.open(os.path.join(o.map, 'uit', f'idle_{i:02d}.png')).convert('RGBA'); W, H = fr.size
-        gr = np.array(Image.open(os.path.join(o.map, 'uit', f'idle_{i:02d}_stok.png'))).astype(float) / 255
+        pb, pm = bron(i)
+        fr = Image.open(pb).convert('RGBA'); W, H = fr.size
+        gr = np.array(Image.open(pm)).astype(float) / 255
         fa = np.array(fr).astype(float)
         lijf = fa.copy(); lijf[..., 3] *= np.clip(1 - gr * 1.6, 0, 1)
         can = Image.new('RGBA', (W, H))
-        for j in (1, 0):                                    # de achterste stok (j 1) eerst
-            x0, y0, x1, y1 = ln[j]
+        for j in ((1, 0) if o.set == 'idle' else range(len(ln))):   # de achterste stok eerst
+            x0, y0, x1, y1 = ln[j][:4]
             deg = math.degrees(math.atan2(y1 - y0, x1 - x0)); u = (math.cos(math.radians(deg)), math.sin(math.radians(deg)))
             E = (x0 + u[0] * LENGTE, y0 + u[1] * LENGTE)
+            if len(ln[j]) > 4 and ln[j][4] >= 0.85 * LENGTE: E = (x1, y1)   # de hele stok in beeld: het eind zelf
             # knoop zo dat het uiteinde (de rechterkant van het stokbeeld) op E valt, net als bij de gewone stok
             oud, okn = sv.oude_stok(K)
             h = sb.draai((oud.width / 2, 0), deg, False); C = (E[0] - h[0], E[1] - h[1]); kk = sb.draai(okn, deg, False)
@@ -49,8 +64,8 @@ def main():
         ua = np.array(can).astype(float)
         gat = (gr > 0.2) & (ua[..., 3] < 128) & (fa[..., 3] > 128)   # stok over het lijf, niet afgedekt: de oude terug
         ua[gat] = fa[gat]
-        Image.fromarray(ua.astype(np.uint8)).save(os.path.join(uit, f'idle_{i:02d}.png'), optimize=True)
-    print(o.uit, len(d['lijnen']))
+        Image.fromarray(ua.astype(np.uint8)).save(os.path.join(uit, f'{o.set}_{i:02d}.png'), optimize=True)
+    print(o.uit, o.set, len(d['lijnen']))
 
 
 if __name__ == '__main__':
