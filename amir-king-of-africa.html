@@ -39181,7 +39181,7 @@ const WKK = {
           zilverhart: 'team', bennu: 'team', geef: 'team' },
   speerBeeld: { speer: null, pathfinder: 'design/speer/pathfinder/jav.png', piercer: 'design/speer/piercer/jav.png', ardhireach: 'design/speer/ardhi/jav.png' }
 };
-const wkk = { aan: false, cat: 0, i: 0, upg: null, rects: [], borden: [], schud: null, imgs: {}, plank: null, na: [] };
+const wkk = { aan: false, cat: 0, i: 0, upg: null, rects: [], borden: [], schud: null, imgs: {}, plank: null, na: [], rechtsW: null, cam: null };
 // na het schemer van de kamer (binnenNa): wat leesbaar en helder moet blijven, in wkkTeken klaargezet
 function wkkNaTeken(){ const L = wkk.na; wkk.na = []; if (!wkkAan()) return; for (const f of L) f(); }
 function wkkImg(src){ return wkk.imgs[src] || (wkk.imgs[src] = loadQuiet([src])); }
@@ -39269,6 +39269,25 @@ function wkkPlank(){
   return (wkk.plank = { beeld: winkelMetSchaduw(B * P, H * P, g => g.drawImage(im, 0, 0, B * P, H * P)), B, H });
 }
 // tekenen, achter de personages (winkelAchter): de bordjes, de uitstalplek, de dingen en hun labels
+// de camera in de winkel: staat het doek (#wkkamer .wkk-doek) over de bordjes of het rek, dan schuift de camera zacht zoveel naar
+// rechts dat ze ernaast staan (de toonbank en Duka blijven in beeld), en na het sluiten weer terug. Nodig op een smal scherm,
+// waar de kamer breder is dan wat er in beeld past
+function wkkCam(b, c, dt){
+  const zoom = viewZoom(), half = (W / 2) / zoom;
+  let doel = c;
+  if (wkk.aan && b.winkel && wkk.rechtsW !== null){
+    const el = document.querySelector('#wkkamer .wkk-doek'), r = el && el.getBoundingClientRect(), cr = cv.getBoundingClientRect();
+    if (r && r.width && cr.width){
+      const doekL = (r.left - cr.left) * (W / cr.width) - 0.02 * W;           // de linkerrand van het doek, in canvaspixels
+      doel = Math.max(c, wkk.rechtsW - (doekL - W / 2) / zoom);
+      doel = Math.min(doel, b.r - half);                                        // niet voorbij de muur
+    }
+  }
+  if (wkk.cam === null){ if (doel === c) return c; wkk.cam = c; }
+  wkk.cam += (doel - wkk.cam) * Math.min(1, dt * 4);
+  if (!wkk.aan && Math.abs(doel - wkk.cam) < 1){ wkk.cam = null; return c; }
+  return wkk.cam;
+}
 function wkkTeken(b, groundY, scale, cx, A){
   const n = wkkNu(); wkk.rects = []; wkk.borden = []; wkk.na = [];
   if (!n) return;
@@ -39289,6 +39308,7 @@ function wkkTeken(b, groundY, scale, cx, A){
     });
     wkk.borden.push({ i, r: wkkScherm(x, y, bw, bh) });
   });
+  wkk.rechtsW = b.winkel.x + WKK.standX + Math.max(tot / 2, WKK.rek.B * A / 2);   // de rechterkant van bordjes en rek, in de wereld (wkkCam)
   const lijst = n.lijst;
   if (n.cat.stand === 'rek'){
     const rek = wkkImg('design/stad/wapenrek/wapenrek.png');
@@ -60445,6 +60465,7 @@ function loop(now){
     if (camEase === null) camEase = pWorld;
     const w0 = world; if (mpCam !== null) world = camEase;   // binnenZoom kijkt op world: de kamer van de teamgenoot, niet die van het lijk
     camEase = binnenCamKlem(huisC, camEase);   // en in het huis (zie "binnen")
+    camEase = wkkCam(huisC, camEase, dt);      // en in de winkel van Co-op: de bordjes naast het doek
     world = w0;
   }
   const denC = holstamDenBij(pWorld);

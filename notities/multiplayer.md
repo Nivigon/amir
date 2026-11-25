@@ -1125,6 +1125,9 @@ de marktman en de teamgenoten bewegen.
   gewone winkel (Stad 15). Hij was 1700: dan zoomde `binnenZoom` in tot de kamer het scherm vulde en viel het doek, waar Duka
   met zijn rug naar de winkel staat (het geheim van Ishmul), half buiten beeld. Op een breed scherm (1920) valt het doek in
   beide nog tegen de rand, omdat de inrichting van de winkel met de spritemaat meeschaalt en de kamer niet.
+- **De camera bij open winkel** (`wkkCam`, `wkk.rechtsW`, `wkk.cam`): op een smal scherm past de kamer niet in beeld en viel
+  het bordje Team onder het doek. Staat het doek (`#wkkamer .wkk-doek`) over de bordjes of het rek, dan schuift de camera zacht
+  naar rechts tot ze ernaast staan (niet voorbij de muur), en na het sluiten weer terug.
 - **Onderdelen**: `design/winkel_ui/` (doek, label, knop, munt uit Grok, bronvel in `bron/`), lettertype Bree Serif
   (`design/fonts/bree-serif.woff2`, OFL). `tools/winkel_mockup.js` tekent de oude mockup na.
 - **Open**: de stipjes van teamgenoten boven wat zij bekijken (nog geen netwerkbericht), de marktman die naar het rek loopt, eigen
