@@ -1144,7 +1144,8 @@ iedereen op (`kivStart`). Lobby: **Kivuli in the first shop** (Random, At the co
 
 - Versie 1: hij staat al in de kamer, loopt een stukje naar de toonbank en kijkt over zijn schouder naar het team.
 - Versie 2: de kamer is leeg; komt iemand bij de toonbank (`KIV.plek[2].nadert`), dan zegt de host `kivin` en komt hij
-  van rechts binnen, naar de muur rechts, en leunt daar.
+  door de deur rechts binnen (een sierdeur met indigo doek: `sierDeuren` in de kamer, `MPC_WINKEL_KAMER.deur`, alleen beeld)
+  en leunt bij de muur. Weggaan doet hij in elke versie door die deur.
 - Versie 3: zonder kap aan de toonbank; als het team binnen is zet hij zijn kap op en gooit hij een muntje op.
 - E bij hem (`binnenEBij` soort `kivuli`, `kivPraat`): zijn jas gaat open (wat je zelf ziet zolang jouw winkel open is) en
   de winkel opent, nog in de indeling van Duka, met alleen zijn voorraad (`wkkZichtbaar`): altijd de kalebas en 2 of 3

@@ -36460,7 +36460,8 @@ function stadGordijnStap(st, bezig, dt){
 }
 // binnen: hetzelfde gordijn als buiten bij die gevel, in de deur naar buiten, gespiegeld (de achterkant), met donker erachter
 function binnenGordijnTeken(b, im, x, voet, breed, groundY, scale, cx){
-  const n = stadGordijn(b.gevel | 0); if (!n) return;
+  const n = b.gordijn || stadGordijn(b.gevel | 0); if (!n) return;   // een sierdeur geeft zijn doek zelf (gordijn)
+  if (b.gordijn && !stadImgs['gordijn_' + n]) stadImgs['gordijn_' + n] = zetBron(new Image(), STAD_DIR + GORDIJN.dir + n + '.png', () => {});
   const O = GORDIJN.binnen, h = breed * im.naturalHeight / im.naturalWidth, sx = cx + (x - world) - breed / 2, sy = groundY - voet * scale - h, k = breed / O.cw;
   const z = zichtVak(20);
   if (z && (sx > z.r || sx + breed < z.l)) return;
@@ -38764,6 +38765,12 @@ function binnenAchter(groundY, scale, cx){
     // het gordijn van die gevel, gespiegeld (zie "gordijnen"); boven hangt buiten een houten deur, dus daar niet
     if (!binnenDeurV(d)) binnenGordijnTeken(d, I.deur, d.deur, voet, breed, groundY, scale, cx);
   }
+  // een sierdeur: de deur naar de straat die je niet gebruikt (de winkel van Co-op: daar komt Kivuli binnen), met een doek
+  if (imgReady(I.deur)) for (const d of (b.sierDeuren || [])){
+    const voet = binnenVloer(d.x, 0) - 0.02 * CHAR_H, breed = BINNEN.deurAmir * A * I.deur.naturalWidth / I.deur.naturalHeight;
+    binnenPlaat(I.deur, d.x, voet, breed, groundY, scale, cx);
+    binnenGordijnTeken({ gevel: 900 + Math.round(d.x), gordijn: d.gordijn }, I.deur, d.x, voet, breed, groundY, scale, cx);
+  }
   // de binnenpoorten naar een volgende kamer: de ronde boogdeur
   if (imgReady(I.boog)) for (const g of (b.bogen || []))
     binnenPlaat(I.boog, g.x, binnenVloer(g.x, 0) - 0.02 * CHAR_H, BINNEN.deurAmir * A * I.boog.naturalWidth / I.boog.naturalHeight, groundY, scale, cx);
@@ -39490,7 +39497,7 @@ function kivStap(dt, b){
     return;
   }
   if (f === 'lopen'){                                 // naar links (de bron kijkt naar links)
-    kiv.flip = false;
+    kiv.flip = false; if (kiv.inT != null) kiv.inT = Math.min(1, kiv.inT + dt / 0.5);   // uit het donker van de deur
     const stap = KIV.v * CHAR_H * dt, rest = kiv.doel - kiv.x;
     if (Math.abs(rest) <= stap){
       kiv.x = kiv.doel;
@@ -39538,7 +39545,9 @@ function kivStap(dt, b){
     if (f === 'draai' && !kivKlaar()) return;
     if (f === 'draai'){ kiv.fase = 'weglopen'; kivZet('weg'); }
     kiv.x += KIV.vWeg * CHAR_H * dt;
-    if (kiv.x > b.r + 260){ kiv.uit = true; kiv.fase = 'uit'; }
+    const d = (b.sierDeuren || [])[0];               // de deur uit (de sierdeur rechts): hij verdwijnt in het donker
+    if (d && kiv.x > d.x - 70) kiv.inT = Math.max(0, Math.min(1, (d.x - kiv.x) / 70));
+    if (d ? kiv.x >= d.x : kiv.x > b.r + 260){ kiv.uit = true; kiv.fase = 'uit'; }
     if (kiv.duka) kivDukaStap(dt, b);                // Duka komt al terwijl hij weggaat
     return;
   }
@@ -39547,7 +39556,8 @@ function kivStap(dt, b){
 // versie 2: van rechts binnen, naar de muur rechts in de kamer, en daar leunen
 function kivBinnen(){
   if (!kiv.aan || kiv.fase !== 'leeg' || !kiv.w) return;
-  kiv.fase = 'lopen'; kiv.doel = kiv.w.x + KIV.plek[2].naar; kiv.x = kiv.b.r + 140; kivZet('loop');
+  const d = (kiv.b.sierDeuren || [])[0];               // door de deur rechts (de sierdeur), anders van buiten beeld
+  kiv.fase = 'lopen'; kiv.doel = kiv.w.x + KIV.plek[2].naar; kiv.x = d ? d.x : kiv.b.r + 140; kiv.inT = d ? 0 : 1; kivZet('loop');
 }
 // E bij hem: de eerste start de klok (en meldt het de anderen), dan de jas open en de winkel
 function kivKanPraat(){ return kivHier() && (kiv.fase === 'rust' || kiv.fase === 'actie' || kiv.fase === 'kapop'); }
@@ -39633,7 +39643,7 @@ function kivTeken(groundY, scale, cx){
       const h = A * KIV.tall * KIV.h / KIV.fig, k = h / KIV.h, nx = cx + (kiv.x - world);
       ctx.save(); ctx.fillStyle = 'rgba(15,8,3,0.35)';
       ctx.beginPath(); ctx.ellipse(nx, voet, 0.26 * A, 0.03 * A, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-      ctx.save(); ctx.translate(nx, voet - KIV.ground * k); if (kiv.flip) ctx.scale(-1, 1);
+      ctx.save(); ctx.translate(nx, voet - KIV.ground * k); if (kiv.flip) ctx.scale(-1, 1); if (kiv.inT != null) ctx.globalAlpha *= kiv.inT;
       ctx.drawImage(fr, -KIV.ax * k, 0, KIV.w * k, h); ctx.restore();
       if (kiv.zeg && kiv.zegT > 0 && kiv.zegWie === 'kiv') kivWolk(nx, voet - A * KIV.tall - 14, kiv.zeg, kiv.zegT);
     }
@@ -64190,6 +64200,7 @@ function readLevel(txt){
              bogen: (b.bogen || []).map(q => ({ x: Number(q.x), naar: Number(q.naar) })),
              ramen: (b.ramen || []).map(q => ({ x: Number(q.x), h: Number(q.h) || 0 })),
              palen: (b.palen || []).map(q => ({ x: Number(q.x), h: Number(q.h) || 0 })),
+             ...(Array.isArray(b.sierDeuren) ? { sierDeuren: b.sierDeuren.map(q => ({ x: Number(q.x), ...(q.gordijn ? { gordijn: String(q.gordijn) } : {}) })) } : {}),   // de deur die je alleen ziet
              ladders: (b.ladders || []).map(q => ({ x: Number(q.x), van: Number(q.van) || 0, naar: Number(q.naar) || 0, f: !!q.f })),
              // de winkel en de planken (zie "de winkel"); zonder deze regels vielen ze bij setLevel weg
              winkel: b.winkel ? { x: Number(b.winkel.x), seed: b.winkel.seed != null ? Number(b.winkel.seed) : undefined, koopman: b.winkel.koopman !== false,
@@ -76279,7 +76290,7 @@ const MPC = {
   rond: { dx: 0, y: 290, r: 330, ry: 150 }   // ry: de halve hoogte (plat, zoals FC.breed). Full Circle rondom (alleen hier te koop): een cirkel om Amir heen, net als FC.breed in canvas-px van de combo
 };
 // de winkelkamer van Co-op: de strook (r tot l) en de toonbank; de spelers komen binnen bij de deurkant
-const MPC_WINKEL_KAMER = { r: -20000, l: -21700, toonbank: -21250, plek: [-20300, -20480, -20660] };   // per slot
+const MPC_WINKEL_KAMER = { deur: -20130, r: -20000, l: -21700, toonbank: -21250, plek: [-20300, -20480, -20660] };   // per slot
 // de achterkamer van de winkel in Ishmul (het geheim, WINKEL.geheim): waar je uitkomt, de kist en wat erin zit
 const MPC_ACHTERKAMER = { r: -22200, l: -24400, plek: -22320, kist: -23900, goud: 30 };   // 2200 breed, zoals een gewone kamer (smaller zoomt binnenZoom in)
 // de weg naar de winkel: na de laatste kill van de ronde nog `wacht` seconden op straat (de host telt, fase 'naarWinkel'),
@@ -76357,7 +76368,8 @@ const MP_COOP_LEVEL = (() => {
                  ramen: [ { x: -20600, h: 420 }, { x: -21050, h: 420 } ],
                  palen: [ { x: -20850, h: 0 } ],
                  winkel: { x: MPC_WINKEL_KAMER.toonbank, seed: 523, koopman: true },
-                 planken: [ { x: -20450, h: 380, soort: 'touw', seed: 71 } ] }];
+                 planken: [ { x: -20450, h: 380, soort: 'touw', seed: 71 } ],
+                 sierDeuren: [ { x: MPC_WINKEL_KAMER.deur, gordijn: 'indigo_streep' } ] }];   // rechts de deur naar de straat (alleen beeld; Kivuli komt erdoor)
   lv.zwevers = [{ r: MPC_WINKEL_KAMER.r, l: MPC_WINKEL_KAMER.l, h: 900, onder: 750, look: 'hout' }];
   return lv;
 })();
