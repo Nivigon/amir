@@ -1121,6 +1121,10 @@ de marktman en de teamgenoten bewegen.
   oude winkel. Kopen, Undo en Ready zijn ongewijzigd (`mpcWinkelKoop`, `mpcUndo`, `mpcKlaarDruk`); `mpcWinkelToon` vult het oude
   paneel nog (verborgen) en roept daarna `wkkToon`.
 - **Zonder winkelkamer** (het Duel, `pvp.dw`) blijft het oude scherm met tabs en kaarten.
+- **De maat van de kamer (25-11-2026)** (`MPC_WINKEL_KAMER`): 2200 breed met 650 achter de toonbank tot de muur, net als een
+  gewone winkel (Stad 15). Hij was 1700: dan zoomde `binnenZoom` in tot de kamer het scherm vulde en viel het doek, waar Duka
+  met zijn rug naar de winkel staat (het geheim van Ishmul), half buiten beeld. Op een breed scherm (1920) valt het doek in
+  beide nog tegen de rand, omdat de inrichting van de winkel met de spritemaat meeschaalt en de kamer niet.
 - **Onderdelen**: `design/winkel_ui/` (doek, label, knop, munt uit Grok, bronvel in `bron/`), lettertype Bree Serif
   (`design/fonts/bree-serif.woff2`, OFL). `tools/winkel_mockup.js` tekent de oude mockup na.
 - **Open**: de stipjes van teamgenoten boven wat zij bekijken (nog geen netwerkbericht), de marktman die naar het rek loopt, eigen
