@@ -1,5 +1,6 @@
 # Duka, de marktman (karakters/duka/): de Grok-clips van 24-11-2026 naar losse frames voor het spel.
 # python3 tools/duka_knip.py <map met de mp4's van Tom>
+# python3 tools/duka_knip.py --herstel   alleen de tulband in de bestaande schap-frames dichtmaken (zie tulband_herstel)
 # Elke clip (24 fps) gaat naar 12 fps, wordt van het magenta gehaald (key2 uit de marktman-tools), uitgesneden op een vast
 # doek in de coordinaten van de 944-clips (de rugclips van 960 zijn een fractie groter en schuiven mee), verkleind en naar
 # 256 kleuren gezet. In de originele kleuren uit Grok (Tom koos dat op 24-11-2026); --dim dimt hem voor het binnenlicht
@@ -27,6 +28,29 @@ def key2(im, thr=(45, 110)):
     w = np.where(near, mag, 0)[..., None]
     a2 = a * (1 - w) + np.array([35, 25, 28]) * w
     return np.dstack([a2, al2 * 255]).clip(0, 255).astype('uint8')
+def schijf(r):
+    y, x = np.ogrid[-r:r + 1, -r:r + 1]; return x * x + y * y <= r * r
+def tulband_herstel(k):
+    # De plank-regel van het schap (g<22, r~b) pakt ook de schaduwplooien van de paarse tulband: daar vielen gaten in
+    # waar de muur doorheen scheen (25-11-2026). Binnen de omtrek van de tulband gaat alles weer dicht, in de kleur van
+    # de dichtstbijzijnde dichte tulbandpixel, wat donkerder waar het gat helemaal open was (het was een plooi).
+    b = np.asarray(k.convert('RGBA')).copy(); al = b[..., 3]
+    r, g, bl = [b[..., i].astype(int) for i in range(3)]
+    paars = (al > 200) & (np.minimum(r, bl) - g > 25) & (bl > 60)
+    lab, n = ndimage.label(ndimage.binary_closing(paars, schijf(3)))
+    if n == 0: return k
+    maat = ndimage.sum(np.ones(lab.shape), lab, range(1, n + 1))
+    hoog = ndimage.mean(np.indices(lab.shape)[0], lab, range(1, n + 1))
+    kand = [i for i in range(n) if maat[i] > 300]
+    if not kand: return k
+    paars &= lab == min(kand, key=lambda i: hoog[i]) + 1   # het bovenste grote paarse stuk: de tulband
+    romp = ndimage.binary_fill_holes(ndimage.binary_closing(paars, schijf(6)))
+    gat = ndimage.binary_erosion(romp, schijf(1)) & (al < 240)
+    if not gat.any(): return k
+    _, (iy, ix) = ndimage.distance_transform_edt(~((al >= 240) & romp), return_indices=True)
+    kl = b[iy, ix, :3].astype(float) * np.where(al[..., None] == 0, 0.82, 1.0); w = al[..., None] / 255.0
+    b[gat, :3] = (b[..., :3] * w + kl * (1 - w))[gat].clip(0, 255).astype('uint8'); b[gat, 3] = 255
+    return Image.fromarray(b, 'RGBA')
 def licht(im):
     a = np.asarray(im).astype(float) / 255; h = mc.rgb_to_hsv(a[..., :3]); h[..., 1] *= 0.88; v = h[..., 2]
     h[..., 2] = np.where(v > 0.62, 0.62 + (v - 0.62) * 0.55, v) * 0.96
@@ -45,12 +69,17 @@ def frame(clip, im):
         b = np.asarray(k).copy(); m = ndimage.binary_dilation(ndimage.binary_opening(b[..., 3] > 20, np.ones((4, 4))), iterations=1)
         b[..., 3] = np.where(m, b[..., 3], 0); lab, n = ndimage.label(b[..., 3] > 4)
         if n > 1: b[..., 3] = np.where(lab == np.argmax(ndimage.sum(np.ones(lab.shape), lab, range(1, n + 1))) + 1, b[..., 3], 0)
-        k = Image.fromarray(b, 'RGBA')
+        k = tulband_herstel(Image.fromarray(b, 'RGBA'))
     if DIM: k = licht(k)
     k = k.resize((round(k.width * F), round(k.height * F)), Image.LANCZOS)
     return k.quantize(256, method=Image.FASTOCTREE, dither=Image.Dither.NONE)
 DIM = '--dim' in sys.argv
-if __name__ == '__main__':
+if __name__ == '__main__' and '--herstel' in sys.argv:
+    # zonder de mp4's: alleen de tulband in de bestaande schap-frames repareren
+    for f in sorted(glob.glob(os.path.join(UIT, 'schap', '*.png'))):
+        tulband_herstel(Image.open(f)).quantize(256, method=Image.FASTOCTREE, dither=Image.Dither.NONE).save(f, optimize=True)
+    print('schap hersteld')
+elif __name__ == '__main__':
     bron = [a for a in sys.argv[1:] if not a.startswith('--')][0]
     for naam, clip in CLIPS.items():
         os.makedirs(os.path.join(UIT, clip), exist_ok=True)
