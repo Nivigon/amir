@@ -13,7 +13,7 @@ const srv = http.createServer((q, r) => { const f = path.join(ROOT, decodeURICom
   await p.goto('http://127.0.0.1:' + srv.address().port + '/amir-king-of-africa.html');
   await p.waitForFunction(() => typeof mpSoloOpen === 'function'); await p.waitForTimeout(1500);
   await p.evaluate(() => mpSoloOpen()); await p.waitForTimeout(800);
-  await p.evaluate(([V, DK]) => { Object.assign(pvp.inst.coop, { winkelEerst: true, goud0: 200, kivuli: V, kivDuka: DK }); mpStart(); }, [V, DK]);
+  await p.evaluate(([V, DK]) => { Object.assign(pvp.inst.coop, { winkelEerst: true, goud0: 200, kivuli: V, kivVaak: 1, kivDuka: DK }); mpStart(); }, [V, DK]);
   await p.waitForFunction(() => pvp && pvp.coop && running && !laadWacht && pvp.coop.inWinkel, null, { timeout: 120000 });
   await p.evaluate(() => { const h = document.getElementById('hint'); if (h) h.style.display = 'none'; });
   await p.waitForTimeout(3500); await foto('1_binnen');
