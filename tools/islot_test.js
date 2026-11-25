@@ -48,8 +48,8 @@ const srv = http.createServer((q, r) => {
     verslag[k] = r;
     await page.waitForTimeout(3000);
   }
-  // Shift+R moet nog steeds opnieuw beginnen
-  await page.keyboard.down('Shift'); await page.keyboard.press('r'); await page.keyboard.up('Shift');
+  // Shift+O moet opnieuw beginnen
+  await page.keyboard.down('Shift'); await page.keyboard.press('o'); await page.keyboard.up('Shift');
   await page.waitForTimeout(500);
   verslag.na = await page.evaluate(() => ({ tas: JSON.stringify(islotTas), slots: JSON.stringify(islot), fx: islotFx.length }));
   console.log(JSON.stringify(verslag, null, 1));
