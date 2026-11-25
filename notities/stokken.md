@@ -188,6 +188,25 @@ Scripts uit de sessie: /home/claude/stok/puppet2.py (tilt 3, stokken 5 en 7).
   `bron/stokhoeken.json` (voor `stok_variant.py`) en in `STOK.slip.punt`. De winkelstokken (klauw, goud, ardhi) zijn
   voor die drie frames opnieuw gebakken, net als de vachtmaskers (`node tools/vacht_bak.js --alleen /bukken/bukken_`).
 
+## De idle met de stokken op de schouders (25-11-2026)
+
+- Staat de stokspeler `STOK.idle.wacht` (1) seconde stil op de grond, dan legt hij beide stokken op zijn schouders en ademt
+  rustig: 18 frames in `karakters/amir/stokken/idle/`, op `STOK.idle.fps` (8), een lus van 2,25 s (`stokIdleT`, in
+  `stokBeeld`). Lopen, springen, bukken, slaan of blokken zet `stokIdleT` terug en hij staat weer in `staan`. De slippen
+  hangen aan de knoop onder de handen (`STOK.slip.punt.idle`).
+- Ook met de winkelstokken: `stokBankMaak` laadt de idle in elke bank (de set zit niet in `STOK.sets`, die gaat ook langs
+  `stokhoeken.json`), en `stokBeeld` haalt hem met `stokUitBank('idle', f)`. Klauw, goud en ardhi komen uit
+  `tools/stok_idle_variant.py`: dat neemt het stokmasker (`uit/idle_NN_stok.png`) en de lijn per stok (`punt.json`,
+  `lijnen`) uit `stok_idle_maak.py`, haalt de oude stok uit het lijf en legt de winkelstok eronder, met het lijf (de vuisten)
+  erover. De outfits werken voor de gewone, goud en klauw (vachtmaskers in `karakters/amir_vacht/`); ardhi staat niet in de
+  lijst van `vacht_bak.js`, net als bij de andere sets.
+- Bron: de Grok-lus `bron/idle/grok_9771961b.mp4` (groene stokken op magenta), gemaakt met `tools/stok_idle_maak.py`:
+  het groen wordt omgekleurd naar de stok (hout, oker aan het onderste kwart), niet weggeknipt, want de vuisten sluiten
+  om de stok. De knipper in de clip is eruit (de ogen uit het buurframe). De winkelstokken daarna: `python3
+  tools/stok_idle_variant.py <map> --rij 1 --uit stokken_klauw` (goud `--rij 3`, ardhi `--rij 0 --plaat
+  design/ardhi/bron/stok_schoon.png`). Proefrit: `node tools/stok_idle_test.js [map]`.
+- Er is (nog) geen overgang van `staan` naar de idle: na een seconde stil wisselt hij in een keer van houding.
+
 ## De grondklap (16-11-2026, Test 76)
 
 Met de stokken in de lucht omlaag plus aanval (`GK`, `gkKan`, `gkStart`, `gkLucht`, `gkLand`, `gkStokStap`, `gkInslag`,
