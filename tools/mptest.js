@@ -32,6 +32,8 @@
 //   node tools/mptest.js --zilverhart --stokken host   Silver Pride: de gast valt, de host legt het hart neer, de gast komt eruit
 //   node tools/mptest.js --sperenzien --spelers 2      de speren van een ander: zijn soort in de hand, de soorten op zijn rug
 //                                        en zijn gif, ook op een geworpen speer (--shots map: een schermafdruk van wat de host ziet)
+//   node tools/mptest.js --ardhizien             de druppel van Ardhi bij een ander: de gast krijgt een leven terug, de host en
+//                                        de tweede gast zien de animatie naar zijn Amir (--shots map: schermafdrukken onderweg)
 //   node tools/mptest.js --tonproef --spelers 2        de gast breekt een ton: de stukken komen tot rust, het houtgeluid houdt op
 //   node tools/mptest.js --bennu --spelers 2           de veren van de speerspeler, de bol als schild, en de zelf-revive met hart en veren
 //   node tools/mptest.js --stokken gast  deze spelers kiezen in de lobby de stokken (ook host, gast2, of host,gast): kijkt na
@@ -171,6 +173,26 @@ async function zhProef(R){
   await wacht(3500);
   const ow = await G.page.evaluate(() => zhOntwaakT);
   meld(ow === 0 || await tot(G.page, () => zhOntwaakT === 0, null, 3000), 'na 3 s mag hij weer alles (na 3,5 s nog ' + ow.toFixed(2) + ' s)');
+  for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
+}
+// --ardhizien: de gast trekt een leven terug met zijn Ardhi-speer; de anderen zien de druppel naar zijn Amir vliegen,
+// en alleen hij krijgt het leven
+async function ardhiZienProef(R){
+  const [H, G] = R;
+  for (const r of R) await r.page.evaluate(() => { godMode = true; MPC.reviveNa = 999; });
+  await H.page.evaluate(() => { world = -1500; ph = 0; });
+  for (const r of R.slice(2)) await r.page.evaluate(() => { world = -1550; ph = 0; });
+  const lv0 = await G.page.evaluate(() => { world = -1700; ph = 0; facing = -1; lives = 1; drawLives();
+    ardhiLaad(); ardhiHeelNu = { t: 0, gaf: false, s: null, vx: world - 220, vh: CHAR_H * 0.55 };
+    pvpZend({ t: 'ah', x: Math.round(ardhiHeelNu.vx), h: Math.round(ardhiHeelNu.vh) }); return lives; });
+  for (const r of R) if (r !== G) meld(await tot(r.page, () => Object.keys(ardhiHeelAnder).length === 1, null, 3000), r.wie + ' ziet de druppel van de gast');
+  const hl = await H.page.evaluate(() => lives);
+  if (shots){ fs.mkdirSync(shots, { recursive: true });
+    for (const t of [700, 1200, 1100]){ await wacht(t); for (const r of R) await r.page.screenshot({ path: path.join(shots, 'ardhi_' + r.wie + '_' + t + '.png') }); } }
+  await wacht(3500);
+  meld(await G.page.evaluate(() => lives) === lv0 + 1, 'de gast heeft er een leven bij');
+  meld(await H.page.evaluate(() => lives) === hl, 'de host krijgt geen leven');
+  for (const r of R) if (r !== G) meld(await r.page.evaluate(() => Object.keys(ardhiHeelAnder).length === 0), r.wie + ': de druppel is weer weg');
   for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
 }
 // --sperenzien: de gast draagt een Pathfinder in de hand, een Shield Piercer en Ardhi's Reach op de rug, met gif; de host
@@ -1197,6 +1219,7 @@ async function elk(H, G){
   }
   if (args.includes('--winkel')){ await winkelProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--hl')){ await hlProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
+  if (args.includes('--ardhizien')){ await ardhiZienProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--sperenzien')){ await sperenZienProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--tonproef')){ await tonProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--bennu')){ await bnProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
