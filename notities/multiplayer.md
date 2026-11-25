@@ -1155,6 +1155,8 @@ iedereen op (`kivStart`). Lobby: **Kivuli in the first shop** (Random, At the co
   de achterkamer naar zijn plek ("Who was THAT?", of "You bought WHAT from him?" als er iets gekocht is) en gaat de winkel
   gewoon verder. Komt hij niet: even stil, een windvlaag, "Duka didn't come." en de host stuurt het team de straat op.
 - Zolang Kivuli er is doet E bij de toonbank niets en is Duka niet te zien (`kivDukaWeg`, `kivToonbankDicht`).
+- Zijn lachje met de mond dicht (`sounds/kivuli/lach.mp3`, ElevenLabs Sound Effects, gekozen door Tom) speelt heel soms
+  (`kivLach`, knikkerzakken): 1 op 3 bij psst, 1 op 3 bij een aankoop, 1 op 2 bij zijn vertrek.
 - Wat hij zegt staat in `KIV_ZEG` (wolkjes boven zijn hoofd met `kivWolk`, en in de tekstballon van de winkel via `mpcZeg`).
 - De frames: `tools/kivuli_knip.py <map met de mp4's>`, naar `karakters/kivuli/`. Testen: `node tools/kivuli_test.js
   <versie> <duka 1|2>` maakt schermafbeeldingen van een heel bezoek.
