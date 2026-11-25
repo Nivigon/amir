@@ -38923,6 +38923,7 @@ function binnenNa(groundY, scale, cx){
     ctx.fillRect(x, y, r, r);
   }
   ctx.restore();
+  kivDonkerNa(G, groundY, scale, cx);                  // Kivuli er: de kamer donker met de lichtpoel van zijn lantaarn (zie "Kivuli: de sfeer")
   wkkNaTeken();                                         // de winkel als kamer: bordjes, labels en het gekozen ding over het schemer heen (WKK)
   if (E) stadTrapE_Teken(cx + (E.x - world), groundY - E.h * scale - 1.45 * A, false);
 }
@@ -39456,6 +39457,7 @@ function kivLaad(){
     for (const i of nodig) KIV.frames[m][i] = zetBron(new Image(), KIV.dir + m + '/' + m + '_' + pad2(i) + '.png', () => {});
   }
   const a = geluidAan(new Audio()); a.preload = 'auto'; a.onerror = () => { a._weg = true; }; a.src = KIV.lach.src; KIV.lachSnd = a;
+  kivSfeerLaad();
 }
 // zijn lachje, uit een knikkerzak (raak van n): bij psst, bij een aankoop, bij zijn vertrek
 function kivLach(zak, raak, n){
@@ -39468,6 +39470,7 @@ function kivStart(kv){
   for (const k in kiv) delete kiv[k];
   islotKivKoop = false;                            // een nieuw bezoek: weer een ding van hem (ISLOT)
   kiv.aan = false; kivKlokToon();
+  Object.assign(kivSfeer, { donker: 0, licht: 0, vf: 'uit', vt: 0, lift: 0, plek: null, nu: 0 });   // elke winkel opnieuw: de sfeer begint uit
   if (!kv) return;
   kivLaad();
   Object.assign(kiv, { aan: true, v: kv.v, duka: !!kv.duka, voorraad: kv.voorraad.slice(), aantal: kv.voorraad.length, w: null,
@@ -39666,6 +39669,7 @@ function kivTeken(groundY, scale, cx){
       const h = A * KIV.tall * KIV.h / KIV.fig, k = h / KIV.h, nx = cx + (kiv.x - world);
       ctx.save(); ctx.fillStyle = 'rgba(15,8,3,0.35)';
       ctx.beginPath(); ctx.ellipse(nx, voet, 0.26 * A, 0.03 * A, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      kivLampTeken(groundY, scale, cx);                                   // zijn lantaarn bij zijn voet, voor hem
       ctx.save(); ctx.translate(nx, voet - KIV.ground * k); if (kiv.flip) ctx.scale(-1, 1); if (kiv.inT != null) ctx.globalAlpha *= kiv.inT;
       ctx.drawImage(fr, -KIV.ax * k, 0, KIV.w * k, h); ctx.restore();
       if (kiv.zeg && kiv.zegT > 0 && kiv.zegWie === 'kiv') kivWolk(nx, voet - A * KIV.tall - 14, kiv.zeg, kiv.zegT);
@@ -39691,6 +39695,143 @@ function kivWolk(x, y, tekst, t){
   ctx.fillStyle = '#2e1a0c'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   regels.forEach((s, i) => ctx.fillText(s, x, y0 + 8 + i * lh));
   ctx.restore();
+}
+// ---- Kivuli: de sfeer (Tom, 25-11-2026) ----
+// Zolang Kivuli er is wordt de kamer donker (een multiply met een lichtpoel rond zijn lantaarn), staat zijn lantaarn bij
+// zijn voet te branden (aan en uit met de fakkelframes, rustig flikkerend, met lichtvlekjes van de doorboorde lantaarn
+// op de muur en stofjes in het licht) en speelt zijn muziek (music/kivuli.mp3, naadloze lus) boven de gewone muziek.
+// Loopt hij, dan draagt hij de lantaarn. Gaat hij weg, dan dooft de lamp, wordt de kamer weer licht en sterft de muziek
+// weg. De lantaarn zelf is dof en zacht (design/kivuli/lantaarn_*.png, tools/kivuli_lantaarn.py): hij valt nauwelijks op.
+KIV.sfeer = {
+  donker: [100, 92, 124],      // multiply-kleur van de donkere kamer (volle sterkte): zacht, de winkel blijft leesbaar
+  poel: 2.1,                   // straal van de lichtpoel in Amirs (schermhoogte), bij een volle vlam
+  lamp: { h: 0.42, dx: 0.62, hand: 0.5, vlam: 0.256, vx: 43 / 91, vy: 140 / 211 },   // maat, plek bij zijn voet, hoogte als hij hem draagt
+  vlamCrop: [8, 2, 114, 220],  // het deel van design/fakkel/frame_NN.png met alleen de vlam
+  inT: 1.7, uitT: 1.9,         // de kamer wordt zo traag donker en weer licht (s)
+  muz: { src: 'music/kivuli.mp3', vol: 0.30, in: 1.8, uit: 2.6, dempt: 0.12 }   // dempt: de gewone muziek zakt naar zo'n deel
+};
+const kivSfeer = { donker: 0, licht: 0, nu: 0, vf: 'uit', vt: 0, lift: 0, plek: null, vlam: null, lamp: null, m: 0, muz: null, stof: null, vlekjes: null };
+function kivSfeerLaad(){
+  const S = kivSfeer; if (S.vlam) return;
+  S.vlam = []; for (let i = 1; i <= 24; i++) S.vlam[i] = zetBron(new Image(), 'design/fakkel/frame_' + pad2(i) + '.png', () => {});
+  S.lamp = { uit: zetBron(new Image(), 'design/kivuli/lantaarn_uit.png', () => {}), aan: zetBron(new Image(), 'design/kivuli/lantaarn_aan.png', () => {}) };
+  const a = geluidAan(new Audio()); a.preload = 'auto'; a.loop = true; a.volume = 0; a.onerror = () => { a._weg = true; }; a.src = KIV.sfeer.muz.src; S.muz = a;
+  let s = 11; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  S.vlekjes = Array.from({ length: 34 }, () => ({ a: r() * 6.283, r: 0.28 + r() * 1.1, s: 0.014 + r() * 0.03, q: 0.6 + r() * 0.5, p: r() * 6 }));
+  S.stof = Array.from({ length: 40 }, () => ({ x: (r() - 0.5) * 3, y: (r() - 0.5) * 2.2, vx: (r() - 0.5) * 0.04, vy: -0.015 - r() * 0.04, p: r() * 6, s: 0.006 + r() * 0.008 }));
+  setInterval(kivMuzStap, 50);
+}
+// is de sfeer aan: hij is er (ook al loopt hij weg) en Amir staat in zijn winkelkamer
+function kivSfeerWil(){
+  if (!kiv.aan || !kiv.w || kiv.uit || kiv.fase === 'leeg') return false;
+  const b = binnenBij(world); return !!(b && b.winkel === kiv.w);
+}
+const kivSm = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+// eens per beeld: de klokken van het donker, de lamp (aan, brandt, dooft) en het licht
+function kivSfeerTik(){
+  const S = kivSfeer, nu = performance.now() / 1000, dt = Math.min(0.1, Math.max(0, nu - (S.nu || nu))); if (nu === S.nu) return; S.nu = nu;
+  const K = KIV.sfeer, wil = kivSfeerWil();
+  S.donker = wil ? Math.min(1, S.donker + dt / K.inT) : Math.max(0, S.donker - dt / K.uitT);
+  S.vt += dt;
+  if (wil && (S.vf === 'uit' || S.vf === 'doof') && S.donker > 0.15){ S.vf = 'in'; S.vt = 0; }
+  if (!wil && (S.vf === 'aan' || S.vf === 'in')){ S.vf = 'doof'; S.vt = 0; }
+  if (S.vf === 'in' && S.vt > 0.75){ S.vf = 'aan'; S.vt = 0; }
+  if (S.vf === 'doof' && S.vt > 0.9){ S.vf = 'uit'; S.vt = 0; }
+  S.licht = S.vf === 'in' ? kivSm(S.vt / 0.75) : S.vf === 'aan' ? 1 : S.vf === 'doof' ? 1 - kivSm(S.vt / 0.9) : 0;
+  const loopt = kiv.aan && (kiv.anim === 'loop' || kiv.anim === 'weg');
+  S.lift += ((loopt ? 1 : 0) - S.lift) * Math.min(1, dt * 5);
+}
+// waar de lantaarn staat (bij zijn voet, voor zijn gezicht uit) en waar de vlam zit; als hij weg is blijft de laatste plek
+function kivLampPos(groundY, scale, cx){
+  const S = kivSfeer, L = KIV.sfeer.lamp;
+  if (!kiv.aan || !kiv.w || kiv.uit){ return S.plek; }
+  const A = CHAR_H * scale, nx = cx + (kiv.x - world), voet = groundY + 0.04 * A, kant = kiv.flip ? 1 : -1;
+  const nu = performance.now() / 1000, H = L.h * A;
+  const zwaai = S.lift * 0.11 * Math.sin(nu * 5.2);                       // draagt hij hem, dan zwaait hij
+  const x = nx + kant * L.dx * A + S.lift * kant * 0.08 * A, bodem = voet - S.lift * L.hand * A, top = bodem - H;
+  S.plek = { x, top, bodem, H, A, zwaai, vy: top + L.vy * H };
+  return S.plek;
+}
+const kivFlikker = t => 1 + 0.018 * Math.sin(t * 5.1) + 0.012 * Math.sin(t * 8.3 + 1.3) + 0.008 * Math.sin(t * 13 + 0.4);
+// de lantaarn met zijn vlam: voor Kivuli, op de vloer bij zijn voet
+function kivLampTeken(groundY, scale, cx){
+  const S = kivSfeer, P = kivLampPos(groundY, scale, cx); if (!P || !S.lamp) return;
+  if (S.vf === 'uit' && !kiv.aan) return;
+  const L = KIV.sfeer.lamp, nu = performance.now() / 1000, W = P.H * 91 / 211;
+  const uit = S.lamp.uit, aan = S.lamp.aan; if (!imgReady(uit) || !imgReady(aan)) return;
+  ctx.save();
+  ctx.fillStyle = 'rgba(15,8,3,0.30)'; ctx.beginPath(); ctx.ellipse(P.x, P.bodem + 0.01 * P.A * (1 - S.lift), W * 0.55, P.H * 0.06, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.translate(P.x, P.top); ctx.rotate(P.zwaai);                           // draait om de ring bovenaan
+  ctx.drawImage(uit, -W / 2, 0, W, P.H);
+  if (S.licht > 0.01){ ctx.globalAlpha = S.licht; ctx.drawImage(aan, -W / 2, 0, W, P.H); ctx.globalAlpha = 1; }
+  // de vlam in het raampje
+  const fn = S.vf === 'in' ? Math.max(17, 24 - Math.floor(S.vt * 11)) : S.vf === 'doof' ? Math.min(24, 17 + Math.floor(S.vt * 9)) : S.vf === 'aan' ? 1 + Math.floor((nu - 1.7) * 12) % 16 : 0;
+  const f = fn ? S.vlam[fn] : null;
+  if (f && imgReady(f) && S.licht > 0.01){
+    const FH = L.vlam * P.H, FW = FH * 114 / 220, c = KIV.sfeer.vlamCrop;
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, S.licht * 1.6) * 0.95;
+    ctx.drawImage(f, c[0], c[1], c[2], c[3], -W / 2 + L.vx * W - FW * 0.47, L.vy * P.H - FH * 0.93, FW, FH);
+  }
+  ctx.restore();
+}
+// de donkere kamer met de lichtpoel, de lichtvlekjes en de stofjes (in binnenNa, voor wkkNaTeken; buiten het schemer van de kamer)
+let kivDoek = null;
+function kivDonkerNa(G, groundY, scale, cx){
+  const S = kivSfeer; kivSfeerTik();
+  if (S.donker < 0.01 && S.licht < 0.01) return;
+  const P = kivLampPos(groundY, scale, cx); if (!P) return;
+  const K = KIV.sfeer, nu = performance.now() / 1000, A = G.A, e = S.licht * kivFlikker(nu) * (1 + 0.03 * Math.sin(nu * 1.1));
+  ctx.save();
+  ctx.beginPath(); ctx.rect(G.xl, G.top - 4 * H, G.xr - G.xl, G.ver - G.top + 4 * H); ctx.clip();
+  const T = ctx.getTransform(), cw = ctx.canvas.width, ch = ctx.canvas.height, k = 0.25, w = Math.max(1, Math.ceil(cw * k)), h = Math.max(1, Math.ceil(ch * k));
+  if (!kivDoek) kivDoek = document.createElement('canvas');
+  if (kivDoek.width !== w || kivDoek.height !== h){ kivDoek.width = w; kivDoek.height = h; }
+  const g = kivDoek.getContext('2d'), c = K.donker.map(v => Math.round(255 - (255 - v) * S.donker));
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.fillStyle = 'rgb(' + c + ')'; g.fillRect(0, 0, w, h);
+  g.globalCompositeOperation = 'lighter';
+  const p = T.transformPoint(new DOMPoint(P.x, P.vy)), R = K.poel * A * Math.hypot(T.a, T.b) * k * (0.3 + 0.7 * e);
+  if (R > 1){
+    const px = p.x * k, py = p.y * k, gr = g.createRadialGradient(px, py, 0, px, py, R);
+    gr.addColorStop(0, 'rgba(255,236,206,1)'); gr.addColorStop(0.3, 'rgba(255,220,180,0.62)'); gr.addColorStop(0.62, 'rgba(255,205,160,0.2)'); gr.addColorStop(1, 'rgba(255,200,150,0)');
+    g.fillStyle = gr; g.fillRect(px - R, py - R, R * 2, R * 2);
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'multiply'; ctx.imageSmoothingEnabled = true; ctx.drawImage(kivDoek, 0, 0, cw, ch);
+  ctx.setTransform(T); ctx.globalCompositeOperation = 'lighter';
+  if (S.licht > 0.01){
+    // een zachte warme gloed om de vlam
+    const Rg = 1.5 * A * (0.3 + 0.7 * e), gw = ctx.createRadialGradient(P.x, P.vy, 0, P.x, P.vy, Rg);
+    gw.addColorStop(0, 'rgba(255,140,50,' + (0.28 * e).toFixed(3) + ')'); gw.addColorStop(1, 'rgba(255,120,40,0)');
+    ctx.fillStyle = gw; ctx.fillRect(P.x - Rg, P.vy - Rg, Rg * 2, Rg * 2);
+    // de lichtvlekjes van de doorboorde lantaarn op de muur: draaien en dansen met de vlam
+    for (const q of S.vlekjes){
+      const a = q.a + Math.sin(nu * 0.7 + q.p) * 0.05 + P.zwaai * 4, rr = q.r * A * (1 + (e - 1) * 0.3);
+      const al = 0.17 * S.licht * (1 - rr / (1.45 * A)) * (0.9 + 0.1 * Math.sin(nu * 1.5 + q.p)); if (al <= 0.01) continue;
+      ctx.fillStyle = 'rgba(255,175,85,' + al.toFixed(3) + ')'; ctx.beginPath();
+      ctx.ellipse(P.x + Math.cos(a) * rr, P.vy + Math.sin(a) * rr * 0.8, q.s * A, q.s * A * q.q, a, 0, 6.3); ctx.fill();
+    }
+    // stofjes die oplichten als ze door de lichtcirkel drijven
+    const dt = 1 / 60;
+    for (const m of S.stof){
+      m.x += (m.vx + Math.sin(nu * 0.8 + m.p) * 0.025) * dt; m.y += m.vy * dt;
+      if (m.y < -1.1) m.y = 1.1; if (m.x < -1.5) m.x += 3; if (m.x > 1.5) m.x -= 3;
+      const mx = P.x + m.x * A, my = P.vy + m.y * A, d = Math.hypot(m.x, m.y), al = Math.max(0, 1 - d / 1.35) * S.licht * (0.35 + 0.35 * Math.sin(nu * 2.2 + m.p));
+      if (al > 0.01){ ctx.fillStyle = 'rgba(255,205,130,' + al.toFixed(3) + ')'; ctx.beginPath(); ctx.arc(mx, my, m.s * A, 0, 6.3); ctx.fill(); }
+    }
+  }
+  ctx.restore();
+}
+// zijn muziek: fade in zodra hij er is, de gewone muziek zakt weg, fade uit als hij weg is (50 ms klok, ook buiten de winkel)
+function kivMuzStap(){
+  const S = kivSfeer, a = S.muz, K = KIV.sfeer.muz; if (!a || a._weg) return;
+  const wil = kivSfeerWil() && wantSound && started;
+  S.m = wil ? Math.min(1, S.m + 0.05 / K.in) : Math.max(0, S.m - 0.05 / K.uit);
+  if (S.m > 0.001){
+    if (a.paused){ try { const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+    a.volume = Math.max(0, Math.min(1, K.vol * kivSm(S.m)));
+  } else if (!a.paused){ a.pause(); try { a.currentTime = 0; } catch (e) {} }
+  if (!bg.dempT && MUZIEK[muziekNu] && !MUZIEK[muziekNu].stil){                // de gewone muziek zakt zolang hij er is
+    const v = MUZIEK[muziekNu].vol * (1 - (1 - K.dempt) * kivSm(S.m)); if (Math.abs(bg.volume - v) > 0.002) bg.volume = Math.max(0, Math.min(1, v));
+  }
 }
 // voor (na de personages van het level, voor Amir): de marktman en de toonbank ervoor
 function winkelVoor(groundY, scale, cx){

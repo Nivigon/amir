@@ -1155,6 +1155,18 @@ iedereen op (`kivStart`). Lobby: **Kivuli in the first shop** (Random, At the co
   de achterkamer naar zijn plek ("Who was THAT?", of "You bought WHAT from him?" als er iets gekocht is) en gaat de winkel
   gewoon verder. Komt hij niet: even stil, een windvlaag, "Duka didn't come." en de host stuurt het team de straat op.
 - Zolang Kivuli er is doet E bij de toonbank niets en is Duka niet te zien (`kivDukaWeg`, `kivToonbankDicht`).
+- De sfeer (`KIV.sfeer`, `kivSfeer`, blok "Kivuli: de sfeer"): zolang hij er is (`kivSfeerWil`) wordt de kamer donker (`kivDonkerNa`
+  in `binnenNa`, een multiply met een lichtpoel rond de lantaarn, `donker` 100,92,124, in 1,7 s aan en 1,9 s uit), staat zijn
+  lantaarn bij zijn voet (`kivLampPos`, `kivLampTeken` in `kivTeken`; loopt hij, dan draagt hij hem en zwaait hij) en speelt
+  `music/kivuli.mp3` (naadloze lus van de Suno-track "Kivuli's Lantern", loudnorm -16 LUFS, peak -1,7 dB) boven de gewone
+  muziek (`kivMuzStap`, 50 ms klok: fade in 1,8 s, fade uit 2,6 s, `bg` zakt naar 12%). De lamp gaat aan met de fakkelframes
+  24 tot 17 achterstevoren, brandt met frame 1 tot 16 en dooft met 17 tot 24 (`design/fakkel/frame_NN.png`, alleen de
+  vlam, crop 8,2,114,220). Rustige flikker (`kivFlikker`, drie sinussen van 1,8%, 1,2% en 0,8%), warme gloed, lichtvlekjes
+  van de doorboorde lantaarn op de muur en stofjes die in de lichtcirkel oplichten. De lantaarn is dof en zacht
+  (`design/kivuli/lantaarn_uit.png` en `_aan.png`, `tools/kivuli_lantaarn.py`, bron in `design/kivuli/bron/`): hij moet
+  nauwelijks opvallen. Kivuli's frames zijn half getemperd met dezelfde dimstap als Duka's versies (`DIM` 0,5 in
+  `tools/kivuli_knip.py`; `--temper` deed dat eenmalig op de bestaande frames, stempel `karakters/kivuli/.getemperd`).
+  Elke winkel begint de sfeer uit (`kivStart`).
 - Zijn lachje met de mond dicht (`sounds/kivuli/lach.mp3`, ElevenLabs Sound Effects, gekozen door Tom) speelt heel soms
   (`kivLach`, knikkerzakken): 1 op 3 bij psst, 1 op 3 bij een aankoop, 1 op 2 bij zijn vertrek.
 - Wat hij zegt staat in `KIV_ZEG` (wolkjes boven zijn hoofd met `kivWolk`, en in de tekstballon van de winkel via `mpcZeg`).
