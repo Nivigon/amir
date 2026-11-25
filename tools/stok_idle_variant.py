@@ -29,6 +29,9 @@ def main():
     o = ap.parse_args()
     if o.plaat: sv.PLAAT = os.path.join(sv.ROOT, o.plaat)
     d = json.load(open(os.path.join(o.map, 'punt.json')))
+    # de lijnen over de tijd gladgestreken (rondom, de idle is een lus): anders trilt de winkelstok een halve graad heen en weer
+    L = np.array(d['lijnen'], float); n = len(L)
+    d['lijnen'] = ((np.roll(L, 1, 0) + 2 * L + np.roll(L, -1, 0)) / 4).tolist()
     ni, nkn = sv.nieuwe_stok(o.rij, K)[:2]
     uit = os.path.join(sv.AMIR, o.uit, 'idle'); os.makedirs(uit, exist_ok=True)
     for i, ln in enumerate(d['lijnen']):
