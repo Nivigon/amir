@@ -40723,7 +40723,11 @@ const ISLOT = {
   // de mieren: een muur van zoveel Amir aan elke kant van de kalebas; vijanden gaan er niet overheen, wie erin staat deinst terug
   ants: { duur: 5, breed: 1, voor: 0.9, n: 330, deins: 9 },
   // onzichtbaar: zoveel s, zoveel zichtbaar voor jezelf en je team; de eerste aanval eruit telt dubbel (dubbelT s lang)
-  mirrors: { duur: 5, alfa: 0.4, rand: 'rgba(200,236,255,1)', dubbelT: 0.6, bij: 0.6 },
+  mirrors: { duur: 5, alfa: 0.4, rand: 'rgba(200,236,255,1)', dubbelT: 0.6, bij: 0.6,
+             // het zoeken: een zoekpunt binnen straal Amir van de plek waar je verdween, minstens minStap ver, nieuw als hij er
+             // binnen raak is of na zoekT seconden; het doel ligt voor Amir voor de groep uit (voorK per soort), buiten zijn aanval
+             straal: 5, minStap: 1.5, raak: 0.6, zoekT: [1.5, 3.2], voor: 3.5,
+             voorK: { schildmannen: 6, zweepmannen: 6, scorps: 6, fosforSlangen: 6, hyenas: 8, kruisbogen: 30 } },
   // de klei: zoveel s, zo snel loop je, en elke treffer telt dubbel (de crit, en de stokken via straalSchadeK)
   klei: { duur: 8, traag: 0.85, stapVol: 1, raakVol: 0.85 }
 };
@@ -40732,7 +40736,7 @@ const MPC_WINKEL_KIV = {
   bones:   { uitleg: 'Throw it down. A cloud of stinking bone dust surrounds you. Enemies that walk in are blinded.', sfeer: 'Crushed bones from... oh boy.' },
   fangs:   { uitleg: 'Set the sack down. A snake slithers out and strikes the nearest enemy. It leaves after five bites.', sfeer: "Don't open it near your feet." },
   ants:    { uitleg: "Set the jar down. Fire ants swarm the ground. Enemies won't cross them, and those caught inside fall back. Arrows and spears fly over.", sfeer: 'An ant bites. A fire ant burns.' },
-  mirrors: { uitleg: "Drink it and vanish from your enemies' eyes. Attacking breaks the spell. Stray hits still find you.", sfeer: 'Liquid glass from the Temple of Kemara.' },
+  mirrors: { uitleg: "Drink it and vanish from your enemies' eyes. They roam around searching for you and do not strike. Attacking breaks the spell.", sfeer: 'Liquid glass from the Temple of Kemara.' },
   klei:    { uitleg: "Smear it under your feet. You can't jump, but every blow lands twice as hard.", sfeer: 'Feet of stone. Fists of thunder.' }
 };
 let islotTas = {}, islot = [null, null], islotKivKoop = false;
@@ -40839,17 +40843,49 @@ function islotMirFilter(p){ return islotMirAan(p) ? 'drop-shadow(0 0 1.5px ' + I
 function islotKleiAan(){ return islotKleiT > 0; }
 function islotDubbelNu(){ return islotKleiT > 0 || islotDubbelT > 0; }
 function islotLoopK(){ return islotKleiT > 0 ? ISLOT.klei.traag : 1; }
-// een update van een soort vijanden met een onzichtbaar doel: hij zoekt op de plek waar je verdween. Raakt hij daar iets,
-// dan telt dat alleen als je er echt nog staat (dan ben je ook weer zichtbaar); anders gaat de stand terug
-function islotMirOm(p, f){
+// een update van een soort vijanden met een onzichtbaar doel: hij valt niet aan maar zoekt. Elke vijand kiest een eigen
+// zoekpunt rond de plek waar je verdween (islotMirZoek) en loopt erheen; is hij er, dan kiest hij een volgend. Daarvoor
+// draait de update in twee groepen (wie naar links zoekt en wie naar rechts), met het doel telkens ISLOT.mirrors.voor
+// voor de groep uit, zodat niemand binnen zijn aanval komt. Loopt er een door je heen, dan merkt hij niets. Zonder lijst
+// (k) de oude manier: hij zoekt op de plek waar je verdween, en een klap daar (binnen ISLOT.mirrors.bij) maakt je zichtbaar
+function islotMirZoek(o, m, A){
+  const M = ISLOT.mirrors;
+  if (o.mirVan !== m || m.t < o.mirTot || Math.abs(o.x - o.mirZ) < M.raak * A){
+    let z = o.x;
+    for (let i = 0; i < 6 && Math.abs(z - o.x) < M.minStap * A; i++) z = m.x + (Math.random() * 2 - 1) * M.straal * A;
+    if (Math.abs(z - o.x) < M.minStap * A) z = o.x + (o.x > m.x ? -1 : 1) * M.minStap * A;
+    o.mirVan = m; o.mirZ = z; o.mirTot = m.t - (M.zoekT[0] + Math.random() * (M.zoekT[1] - M.zoekT[0]));
+  }
+  return o.mirZ < o.x ? -1 : 1;
+}
+function islotMirOm(p, f, k){
   const m = islotMir[p];
   if (!m || m.t <= 0) return f();
-  const oud = mpcLees(), oudHurt = hurt;
-  world = m.x; ph = m.h;
-  try { f(); }
+  const oud = mpcLees(), oudHurt = hurt, A = islotA(), M = ISLOT.mirrors;
+  const q = k ? mpcLijst(k) : null, lijst = q && !q.los ? q.l().slice() : null;
+  try {
+    camSwap = null;                                  // playerX leest camSwap voor world: zonder dit zag hij je toch
+    if (!lijst || !lijst.length){ world = m.x; ph = m.h; f(); }
+    else {
+      const kant = { '-1': [], '1': [] };
+      for (const o of lijst) kant[mpcLeeft(o) ? islotMirZoek(o, m, A) : 1].push(o);
+      let samen = [];
+      const voor = (M.voorK[k] || M.voor) * A;
+      for (const d of [-1, 1]){
+        const rij = kant[d];
+        if (!rij.length) continue;
+        mpcZet(q, rij);
+        world = d < 0 ? Math.min(...rij.map(o => o.x)) - voor : Math.max(...rij.map(o => o.x)) + voor;
+        ph = m.h;
+        f();
+        samen = samen.concat(q.l());
+      }
+      mpcZet(q, samen);
+    }
+  }
   finally {
-    const raak = lives < oud[4], A = islotA();
-    const bij = Math.abs(oud[0] - m.x) < ISLOT.mirrors.bij * A && Math.abs(oud[1] - m.h) < CHAR_H * 0.5;
+    const raak = lives < oud[4];
+    const bij = !lijst && Math.abs(oud[0] - m.x) < M.bij * A && Math.abs(oud[1] - m.h) < CHAR_H * 0.5;
     if (raak && bij){ const l = lives, iv = invuln, h = hurt; mpcSchrijf(oud); lives = l; invuln = iv; hurt = h; islotMirEind(p, false); }
     else { mpcSchrijf(oud); hurt = oudHurt; }
   }
@@ -77578,7 +77614,7 @@ function mpcStofUpdate(f){
 }
 function mpcUpdateKaal(orig, k){
   return function(...a){
-    if (!mpCoopAan()) return islotMirOm(0, () => orig.apply(this, a));   // Oil of Mirrors: hij zoekt waar je verdween (ISLOT)
+    if (!mpCoopAan()) return islotMirOm(0, () => orig.apply(this, a), k);   // Oil of Mirrors: hij zoekt waar je verdween (ISLOT)
     if (!pvp.host) return;
     const wacht = hinderHoud(k);                         // de regie van een hinderlaag: wie al binnen is wacht tot FIGHT!
     try { mpcUpdateGroepen(orig, k, this, a); }
@@ -77589,16 +77625,16 @@ function mpcUpdateKaal(orig, k){
 function mpcUpdateGroepen(orig, k, self, a){
   const q = mpcLijst(k), alle = q.l().slice(), groep = new Map();
   for (const o of alle){ const p = mpcDoel(o); if (!groep.has(p)) groep.set(p, []); groep.get(p).push(o); }
-  if (!alle.length || (groep.size === 1 && groep.has(0))){ islotMirOm(0, () => orig.apply(self, a)); return; }
+  if (!alle.length || (groep.size === 1 && groep.has(0))){ islotMirOm(0, () => orig.apply(self, a), k); return; }
   const host = groep.get(0) || [];
   mpcZet(q, host);
-  if (host.length || !dead) islotMirOm(0, () => orig.apply(self, a));
+  if (host.length || !dead) islotMirOm(0, () => orig.apply(self, a), k);
   let samen = q.l().slice();
   for (const [p, rij] of groep){
     if (p === 0) continue;
     mpcZet(q, rij);
     mpcWisselIn(p);
-    try { islotMirOm(p, () => orig.apply(self, a)); } finally { mpcWisselUit(); }
+    try { islotMirOm(p, () => orig.apply(self, a), k); } finally { mpcWisselUit(); }
     samen = samen.concat(q.l());
   }
   mpcZet(q, samen);

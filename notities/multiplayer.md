@@ -1201,15 +1201,20 @@ heeft twee vakken erbij (`islot0`, `islot1`) met het plaatje en het aantal.
 | Sack o' Bones | 25 | een witte stofwolk van 6 s (1,15 Amir breed); elke vijand die erin loopt is 2,5 s blind, wie al blind is niet opnieuw |
 | Sack o' Fangs | 30 | de zak valt op de looplijn, een zwarte slang met gouden banden komt eruit en bijt steeds de dichtstbijzijnde vijand, 5 beten (elk een treffer); de vijanden negeren hem |
 | Jar o' Fire Ants | 25 | een muur van mieren, 5 s, een Amir breed, voor je; vijanden komen er niet door en wie erin staat deinst terug, projectielen vliegen eroverheen |
-| Oil of Mirrors | 35 | 5 s onzichtbaar voor vijanden (jij en je team zien je op 40% met een glasrand); aanvallen maakt je zichtbaar, een verdwaalde klap raakt je wel en maakt je ook zichtbaar |
+| Oil of Mirrors | 35 | 5 s onzichtbaar voor vijanden (jij en je team zien je op 40% met een glasrand); ze vallen niet aan maar rennen zoekend rond; aanvallen maakt je zichtbaar |
 | Ketemba Clay | 30 | 8 s klei onder je voeten: niet springen, 15% trager, dubbele schade (bovenop de bonus van je wapen); plakstappen, een hardere klap en kleiklonten van je voeten |
 
 Hoe het werkt (zoek op `ISLOT`):
 - `islotStart(m, zelf)` start een effect, bij iedereen: de gebruiker stuurt `{t:'isl', k, x, h, f}` (in `MP_DOOR`). De
   host denkt voor de wolk, de slang en de mieren (`islotStap`), net als voor de vijanden; treffers gaan via `islotRaak`.
-- Mirrors: `mpcDoel` slaat een onzichtbare speler over, en tijdens de update van de vijanden zet `islotMirOm` hem even op
-  de plek waar hij verdween, zodat ze daar zoeken. Een klap die hem toch echt raakt (binnen 0,6 Amir) telt en maakt hem
-  zichtbaar (`islotMirEind`, `{t:'islm'}`).
+- Mirrors: `mpcDoel` slaat een onzichtbare speler over. Tijdens de update van de vijanden zoekt elke vijand een eigen
+  zoekpunt binnen 5 Amir van de plek waar je verdween (`islotMirZoek`, nieuw als hij er is of na 1,5 tot 3,2 s), en
+  `islotMirOm` draait de update in twee groepen (wie naar links zoekt, wie naar rechts) met het doel telkens een stuk
+  voor de groep uit (`ISLOT.mirrors.voor`, per soort `voorK`: 3,5 Amir, 6 voor schildbandiet, zweepman, schorpioen en
+  fosforslang, 8 voor de hyena, 30 voor de kruisboog), zodat niemand binnen zijn aanval komt. Zo rennen ze zoekend
+  rond en slaan ze niet; een vijand die door je heen loopt merkt niets. `camSwap` gaat daarbij op null, want
+  `playerX` leest die voor `world`. Aanvallen maakt je zichtbaar (`islotMirEind`, `{t:'islm'}`). Op verzoek van de
+  opdrachtgever: eerst zochten ze op de plek waar je verdween en sloegen ze daar in het niets.
 - Clay: `islotDubbelNu` zet `critNu` voor de speer en vermenigvuldigt `straalSchadeK` voor de stokken; een gast stuurt
   `x2` mee in zijn treffer (`mh`). De stappen: `sounds/kivuli/klei_stap1.mp3` en `klei_stap2.mp3` (ElevenLabs, gekozen
   door Tom, even hard als de gewone stappen), de klap `sounds/brutus_raak.mp3`.
