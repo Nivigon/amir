@@ -801,6 +801,7 @@
   .wkk-tip em{display:block;font-style:normal;color:#f6d77a;margin-top:3px}
   #winkelui.coop.kamer #wkzeg{display:block;left:40px;top:44vh;max-width:240px;padding:8px 12px;border-radius:4px;background:rgba(28,16,8,.82);border:2px solid #5a3a1c;color:#f3dfb4;font:15px 'Bree Serif',Georgia,serif;box-shadow:none}
   #winkelui.coop.kamer #wkzeg::after{display:none}
+  #winkelui.coop.kamer #wkzeg:empty{display:none}
   #winkelui{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(20,12,6,.62);z-index:6}
   #winkelui.on{display:flex}
   #winkelui .wkdoos{display:flex;flex-direction:column;align-items:center;gap:12px;padding:22px 28px;border-radius:14px;
@@ -39811,6 +39812,14 @@ function kivTeken(groundY, scale, cx){
   }
   if (kiv.zeg && kiv.zegT > 0 && kiv.zegWie === 'duka') kivWolk(cx + (dukaX(kiv.w) - world), voet - A * DUKA.tall - 10, kiv.zeg, kiv.zegT);
 }
+// Duka praat in de winkelkamer in dezelfde wolk boven zijn hoofd als Kivuli, niet meer in een los vak links (mpcZeg)
+const dukaZeg = { tekst: '', tot: 0 };
+function dukaZegTeken(groundY, scale, cx){
+  const t = (dukaZeg.tot - performance.now()) / 1000; if (!dukaZeg.tekst || t <= 0) return;
+  const b = binnenBij(world), w = b && b.winkel; if (!w || w.koopman === false || kivDukaWeg()) return;
+  const A = CHAR_H * scale;
+  kivWolk(cx + (dukaX(w) - world), groundY + 0.04 * A - A * DUKA.tall - 10, dukaZeg.tekst, t);
+}
 // een tekstwolkje boven een hoofd, met een puntje naar beneden
 function kivWolk(x, y, tekst, t){
   ctx.save();
@@ -39820,14 +39829,21 @@ function kivWolk(x, y, tekst, t){
   for (const wd of woorden){ const p = r ? r + ' ' + wd : wd; if (ctx.measureText(p).width > 250 && r){ regels.push(r); r = wd; } else r = p; }
   regels.push(r);
   const lh = 23, B = Math.max(...regels.map(s => ctx.measureText(s).width)) + 28, H = regels.length * lh + 16;
-  const x0 = x - B / 2, y0 = y - H - 12;
+  // binnen beeld houden: de ballon schuift naar binnen, het puntje blijft boven de spreker (Tom, 25-11-2026)
+  const m = ctx.getTransform(), sx = m.a || 1, sy = m.d || 1, rnd = 10;
+  const links = (0 - m.e) / sx + rnd, rechts = (cv.width - m.e) / sx - rnd, boven = (0 - m.f) / sy + rnd;
+  let x0 = x - B / 2, y0 = y - H - 12;
+  if (x0 + B > rechts) x0 = rechts - B;
+  if (x0 < links) x0 = links;
+  if (y0 < boven) y0 = boven;
+  const px = Math.max(x0 + 16, Math.min(x0 + B - 16, x)), mx = x0 + B / 2;   // het puntje, op de rand van de ballon
   ctx.fillStyle = 'rgba(246,232,200,0.96)'; ctx.strokeStyle = '#3a2414'; ctx.lineWidth = 2.5;
   ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x0, y0, B, H, 12); else ctx.rect(x0, y0, B, H);
-  ctx.moveTo(x - 9, y0 + H); ctx.lineTo(x, y0 + H + 12); ctx.lineTo(x + 9, y0 + H);
+  ctx.moveTo(px - 9, y0 + H); ctx.lineTo(px, y0 + H + 12); ctx.lineTo(px + 9, y0 + H);
   ctx.fill(); ctx.stroke();
-  ctx.fillStyle = 'rgba(246,232,200,1)'; ctx.fillRect(x - 8, y0 + H - 3, 16, 4);
+  ctx.fillStyle = 'rgba(246,232,200,1)'; ctx.fillRect(px - 8, y0 + H - 3, 16, 4);
   ctx.fillStyle = '#2e1a0c'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  regels.forEach((s, i) => ctx.fillText(s, x, y0 + 8 + i * lh));
+  regels.forEach((s, i) => ctx.fillText(s, mx, y0 + 8 + i * lh));
   ctx.restore();
 }
 // ---- Kivuli: de sfeer (Tom, 25-11-2026) ----
@@ -62022,7 +62038,7 @@ function loop(now){
         ctx.restore();
       }
     }
-    winkelVoor(groundY, scale, cx); kivTeken(groundY, scale, cx);   // binnen: de marktman en de toonbank, voor de personages en achter Amir (zie "de winkel")
+    winkelVoor(groundY, scale, cx); kivTeken(groundY, scale, cx); dukaZegTeken(groundY, scale, cx);   // binnen: de marktman en de toonbank, voor de personages en achter Amir (zie "de winkel")
 
     // de speer die in de grond staat, met een E erboven als je dichtbij bent
     if (!spearFound && spearX !== null && !jav && !imgReady(spearImg)){
@@ -79434,8 +79450,15 @@ new MutationObserver(() => { if (wkkAan()) wkkToon(); }).observe(document.getEle
 function mpcZeg(soort){
   const kv = kivWinkel(), l = kv ? KIV_ZEG[soort] || KIV_ZEG.koop : MPC_ZEG[soort] || MPC_ZEG.koop, el = document.getElementById('wkzeg');
   if (!el) return;
-  if (kv && soort === 'open'){ el.textContent = l.join(' ').replace('{n}', ['Two', 'Three', 'Four', 'Five'][Math.max(0, kiv.voorraad.length - 2)] || 'Some'); return; }   // Kivuli legt het altijd kort uit
-  el.textContent = l[Math.floor(Math.random() * l.length)];
+  const tekst = kv && soort === 'open' ? l.join(' ').replace('{n}', ['Two', 'Three', 'Four', 'Five'][Math.max(0, kiv.voorraad.length - 2)] || 'Some')   // Kivuli legt het altijd kort uit
+              : l[Math.floor(Math.random() * l.length)];
+  if (wkk.aan){                                        // de winkelkamer: een wolk boven het hoofd van wie er praat, zoals overal
+    el.textContent = '';
+    if (kv){ if (kiv.zeg !== tekst || !(kiv.zegT > 0)) kivZeg(tekst, 2.6 + tekst.length * 0.045, 'kiv'); }
+    else { dukaZeg.tekst = tekst; dukaZeg.tot = performance.now() + (2.6 + tekst.length * 0.045) * 1000; }
+    return;
+  }
+  el.textContent = tekst;
 }
 // het zijpaneel naast de prijslijst: wat je aanklikte, met de sfeertekst (schuin de bron eronder), wat het doet en Buy
 let mpcKeus = null;                                  // {id, q, aan}: het gekozen artikel
