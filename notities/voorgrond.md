@@ -86,3 +86,7 @@ Voorgrond op Uit staat.
 
 Tegelijk zijn de verre laag en de middenlaag van het regenwoud gedempt (`grade` in `BIOMES.regenwoud`): donkerder,
 minder verzadigd, minder contrast, iets groener en een tikje onscherp, zodat de figuren loskomen.
+
+## Binnen geen voorgrond
+
+Staat de camera binnen (een kamer of de winkel, `binnenNu()`), dan tekenen `drawVoorgrond` en `drawBladerdak` niets. De standaardvoorgrond (`vgStandaard`) loopt over het hele level, ook over de strook van de binnenkamers, dus zonder die check stond er gras voor de camera in de winkel van Co-op. Alleen de stadsvoorgrond (`vgStad`) liet de binnenkant al vrij.
