@@ -1137,9 +1137,11 @@ de marktman en de teamgenoten bewegen.
 
 ## Kivuli, de reizende handelaar (25-11-2026)
 
-Bij het eerste winkelbezoek van Co-op Survival (niet in de Co-op episode) staat Kivuli in de winkel en is Duka er nog niet.
+Bij een op de drie winkelbezoeken van Co-op Survival (niet in de Co-op episode) staat Kivuli in de winkel en is Duka er nog niet.
+Welk bezoek dat is gaat met een knikkerzak van drie, een raak (`C.kivZak`, een verse zak per potje), dus twee bezoeken
+achter elkaar kan, en drie zonder ook. Vroeger kwam hij alleen bij het eerste bezoek; dat kan nog met **Kivuli comes**.
 De host besluit het in `kivBesluit` en stuurt het mee met `{t:'winkel', g, kv}`; `mpcWinkelIn(geheim, kv)` zet het bij
-iedereen op (`kivStart`). Lobby: **Kivuli in the first shop** (Random, At the counter, Walks in, Flips a coin, Off) en
+iedereen op (`kivStart`). Lobby: **Kivuli comes** (`kivVaak`: 1 in 3 shops, Every shop, First shop only), **Kivuli in the shop** (Random, At the counter, Walks in, Flips a coin, Off) en
 **Duka after Kivuli** (Sometimes, Always, Never); Random en Sometimes gaan met een knikkerzak (`kivZak`).
 
 - Versie 1: hij staat al in de kamer, loopt een stukje naar de toonbank en kijkt over zijn schouder naar het team.
