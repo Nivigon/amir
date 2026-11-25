@@ -1151,8 +1151,10 @@ iedereen op (`kivStart`). Lobby: **Kivuli in the first shop** (Random, At the co
   de winkel opent, nog in de indeling van Duka, met alleen zijn voorraad (`wkkZichtbaar`): altijd de kalebas en 2 of 3
   andere dingen zonder eis. Elk ding een keer voor het hele team: wie koopt, haalt het weg (`kivweg`, `kivWegUit`), geen
   Undo. De eerste die hem aanspreekt start de klok van 45 s voor iedereen (`kivpraat`, de klok bovenin: `kivKlokToon`).
-- Op nul (`kivVertrek`): winkel dicht, jas dicht, korte draai, weg naar rechts. Komt Duka (`kv.duka`), dan loopt hij uit
-  de achterkamer naar zijn plek ("Who was THAT?", of "You bought WHAT from him?" als er iets gekocht is) en gaat de winkel
+- Op nul (`kivVertrek`): winkel dicht, jas dicht, korte draai, weg naar rechts. De draai-clip zet vanaf frame
+  `KIV.draaiStap` (7) al stappen, dus vanaf daar schuift hij mee (anders liep hij op zijn plek). Komt Duka (`kv.duka`), dan
+  komt hij pas uit de achterkamer als Kivuli `KIV.dukaBij` (200) van de deur is, zodat hij hem nog net ziet vertrekken, en loopt hij
+  naar zijn plek ("Who was THAT?", of "You bought WHAT from him?" als er iets gekocht is) en gaat de winkel
   gewoon verder. Komt hij niet: even stil, een windvlaag, "Duka didn't come." en de host stuurt het team de straat op.
 - Zolang Kivuli er is doet E bij de toonbank niets en is Duka niet te zien (`kivDukaWeg`, `kivToonbankDicht`).
 - De sfeer (`KIV.sfeer`, `kivSfeer`, blok "Kivuli: de sfeer"): zolang hij er is (`kivSfeerWil`) wordt de kamer donker (`kivDonkerNa`
