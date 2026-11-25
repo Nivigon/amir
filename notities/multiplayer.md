@@ -1172,8 +1172,20 @@ iedereen op (`kivStart`). Lobby: **Kivuli in the first shop** (Random, At the co
 - Wat hij zegt staat in `KIV_ZEG` (wolkjes boven zijn hoofd met `kivWolk`, en in de tekstballon van de winkel via `mpcZeg`).
 - De frames: `tools/kivuli_knip.py <map met de mp4's>`, naar `karakters/kivuli/`. Testen: `node tools/kivuli_test.js
   <versie> <duka 1|2>` maakt schermafbeeldingen van een heel bezoek.
-- Hij verkoopt zijn eigen spullen (zie hieronder), een per speler per bezoek. Nog open: zijn eigen winkelscherm (de
-  binnenkant van zijn mantel).
+- Hij verkoopt zijn eigen spullen (zie hieronder), een per speler per bezoek.
+- De mantel (zijn eigen scherm, `kivMantel`, blok "de mantel van Kivuli"): met E bij hem opent niet het doek van Duka maar de
+  binnenkant van zijn mantel (`design/kivuli/mantel.png`, petrol voering, bron `_kivuli/cloak6b.png` uit de sessie). Zes haken
+  (`KM.pos`, % van de plaat), 3 of 4 gevuld uit zijn voorraad op vaste plekken per bezoek (`kivSlots`, een schudbeurt op de
+  inhoud, dus bij iedereen gelijk), het prijslabel als pil onder het ding, onderin een tekststrook met naam, uitleg en zo nodig
+  waarom het niet kan (de tekst krimpt tot hij past, `--k`). Hover of klik kiest (goud gloeit), een tweede klik, Enter of Buy
+  koopt; pijltjes en Tab lopen langs de gevulde haken. Het paneel staat aan de kant tegenover hem (`kivMantelKant`: hij links
+  van 40% van het scherm dan rechts, rechts van 60% dan links, in het midden de kant waar Amir niet staat; `kiv.sx` en `kiv.ax`
+  zet `kivTeken`), de tekstballon van de marktman springt naar de andere kant (`kmlinks`). Een gekocht ding is weg voor
+  iedereen en zijn haak is leeg (`kivWegUit`). Bij hem geen bordjes of uitstalplek (`wkkTeken` doet niets), het oude doek, Ready,
+  Undo en de berichtbalk zijn weg (CSS `#winkelui.kivm`). Knoppen: Buy, Close (alleen mijn mantel dicht, E opent hem weer) en
+  Done (R): drukt het hele team Done (`kiv.klaar` per speler, bericht `kivklaar`), dan loopt hij na 1,6 s (nog terug te draaien met
+  Not done) vroegtijdig weg in plaats van de 45 s af te wachten (`kivAllesKlaar` in `kivStap`). Alleen de eerste die hem aanspreekt
+  zet de klok; Done telt pas als de klok loopt.
 
 ## De spullen van Kivuli en de itemslots (25-11-2026)
 
