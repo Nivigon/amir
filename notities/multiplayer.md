@@ -624,7 +624,7 @@ mens komt in 35% van de keren van rechts (het plein) in plaats van uit een deur.
 
 **Random map** (`MP_KAARTEN.coop`, id `random`): de laatste keuze in de lijst, in Co-op Survival en in Survival (Co-op solo).
 Bij Start loot `mpStart` een echte map uit de lijst (zonder `random` zelf) en zet die in de regels, zodat de gasten dezelfde
-krijgen; elke Start loot opnieuw, een herstart met R speelt dezelfde map. `mpcKaart()` ziet dus nooit `random`.
+krijgen; elke Start loot opnieuw, een herstart met Shift+O speelt dezelfde map. `mpcKaart()` ziet dus nooit `random`.
 
 **Testen:** `node tools/mptest.js --kaart ishmul --proef` loopt de hele proef op Ishmul. De controle op de fakkels verwachtte
 8 bij nacht, maar sinds de fakkels in de rots zijn het er 10 (op main gaf hij al FOUT); nu telt elk aantal boven 0.
@@ -1172,16 +1172,28 @@ iedereen op (`kivStart`). Lobby: **Kivuli in the first shop** (Random, At the co
 - Wat hij zegt staat in `KIV_ZEG` (wolkjes boven zijn hoofd met `kivWolk`, en in de tekstballon van de winkel via `mpcZeg`).
 - De frames: `tools/kivuli_knip.py <map met de mp4's>`, naar `karakters/kivuli/`. Testen: `node tools/kivuli_test.js
   <versie> <duka 1|2>` maakt schermafbeeldingen van een heel bezoek.
-- Hij verkoopt zijn eigen spullen (zie hieronder), een per speler per bezoek. Nog open: zijn eigen winkelscherm (de
-  binnenkant van zijn mantel).
+- Hij verkoopt zijn eigen spullen (zie hieronder), een per speler per bezoek.
+- De mantel (zijn eigen scherm, `kivMantel`, blok "de mantel van Kivuli"): met E bij hem opent niet het doek van Duka maar de
+  binnenkant van zijn mantel (`design/kivuli/mantel.png`, petrol voering, bron `_kivuli/cloak6b.png` uit de sessie). Zes haken
+  (`KM.pos`, % van de plaat), 3 of 4 gevuld uit zijn voorraad op vaste plekken per bezoek (`kivSlots`, een schudbeurt op de
+  inhoud, dus bij iedereen gelijk), het prijslabel als pil onder het ding, onderin de strook met alleen de naam, en onder het paneel een donkere plaquette met de uitleg en zo nodig
+  waarom het niet kan (`#kmbox`, vaste hoogte van vier regels, de tekst krimpt tot hij past, `--k`). Hover of klik kiest (goud gloeit), een tweede klik, Enter of Buy
+  koopt; pijltjes en Tab lopen langs de gevulde haken. Het paneel staat aan de kant tegenover hem (`kivMantelKant`: hij links
+  van 40% van het scherm dan rechts, rechts van 60% dan links, in het midden de kant waar Amir niet staat; `kiv.sx` en `kiv.ax`
+  zet `kivTeken`), de tekstballon van de marktman springt naar de andere kant (`kmlinks`). Een gekocht ding is weg voor
+  iedereen en zijn haak is leeg (`kivWegUit`). Bij hem geen bordjes of uitstalplek (`wkkTeken` doet niets), het oude doek, Ready,
+  Undo en de berichtbalk zijn weg (CSS `#winkelui.kivm`). Knoppen: Buy, Close (alleen mijn mantel dicht, E opent hem weer) en
+  Done (R): drukt het hele team Done (`kiv.klaar` per speler, bericht `kivklaar`), dan loopt hij na 1,6 s (nog terug te draaien met
+  Not done) vroegtijdig weg in plaats van de 45 s af te wachten (`kivAllesKlaar` in `kivStap`). Alleen de eerste die hem aanspreekt
+  zet de klok; Done telt pas als de klok loopt.
 
 ## De spullen van Kivuli en de itemslots (25-11-2026)
 
 Kivuli verkoopt vijf eigen spullen (`MPC_WINKEL` met `kivuli: true`, alleen te zien bij hem: `wkkZichtbaar`), naast de
 kalebas. `kivBesluit` kiest er 2 of 3. Ieder koopt er hooguit een per bezoek (`islotKivKoop`, "Kivuli sells you only one
 thing."). Een gekocht ding gaat in je tas (`islotTas`, in de inventory onder I); daar zet je het zelf in **slot R** of
-**slot T** (`islotZet`, de knoppen Slot R en Slot T). R en T gebruiken het (`islotToets`), herstarten is nu **Shift+R**
-(R alleen nog als je dood bent, na het eind en in het Duel), en het oefendoel van de sandbox staat op **Y**. De actiebalk
+**slot T** (`islotZet`, de knoppen Slot R en Slot T). R en T gebruiken het (`islotToets`), herstarten is nu **Shift+O**
+(overal: ook dood, na het eind en in het Duel; R herstart nergens meer), en het oefendoel van de sandbox staat op **Y**. De actiebalk
 heeft twee vakken erbij (`islot0`, `islot1`) met het plaatje en het aantal.
 
 | ding | prijs | wat |
