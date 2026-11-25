@@ -1554,7 +1554,7 @@
       </div>
       <div class="row" id="besturing">
         <label>Controls</label>
-        <p>Arrows run, up jumps, Shift sprints, E spear, space stabs and throws (hold longer for an arc), down crouches, V rolls (F during the roll throws), Q drinks, R and T use your two item slots, Shift+R restarts</p>
+        <p>Arrows run, up jumps, Shift sprints, E spear, space stabs and throws (hold longer for an arc), down crouches, V rolls (F during the roll throws), Q drinks, R and T use your two item slots, Shift+O restarts</p>
       </div>
       <div class="row"><button class="menumain">Back</button></div>
     </div>
@@ -3332,7 +3332,7 @@
   <div id="fout" class="gone"></div>
   <button id="barpijl" type="button" title="de testbalk met schuifjes uitklappen of inklappen (B)">&#9650;</button>
   <button id="arenastart" type="button" title="de golven van de arena starten; het paneel klapt dan dicht">Start</button>
-  <div id="hint">Pijltjes om te rennen, pijl omhoog om te springen, Shift sprint, E speer, spatie stoot, spatie vasthouden werpt, langer vasthouden in een boog, pijl omlaag bukken, gebukt links of rechts om te kruipen, V rollen, Q drinken, R en T de itemslots, Shift+R opnieuw</div>
+  <div id="hint">Pijltjes om te rennen, pijl omhoog om te springen, Shift sprint, E speer, spatie stoot, spatie vasthouden werpt, langer vasthouden in een boog, pijl omlaag bukken, gebukt links of rechts om te kruipen, V rollen, Q drinken, R en T de itemslots, Shift+O opnieuw</div>
 </div>
 <div id="bar" class="hide">
   <div class="field"><label for="fps">Beelden per seconde</label><input id="fps" type="range" min="6" max="24" step="1" value="12"><span class="read" id="fpsv">12</span></div>
@@ -28820,6 +28820,9 @@ let sbArdhi = false;                              // de sandboxknop Ardhi's Reac
 let ardhiGast = null;                             // tijdens een treffer van een gast (mpcTrefferVanGast): zijn Ardhi-worp met Roots
 let ardhiZakken = {};                             // de knikkerzakken, per bron
 let ardhiHeelNu = null;                           // de druppel boven Amirs hoofd: {t, gaf}
+// Co-op: de druppel van een teamgenoot, per slot {t, vx, vh}: dezelfde animatie, maar het bolletje vliegt naar zijn Amir.
+// Alleen beeld en geluid (zachter); zijn leven komt bij hemzelf. Bericht 'ah' (MP_DOOR) bij de start van zijn druppel
+const ardhiHeelAnder = {};
 const ardhiWortels = [];                          // wie er nu vastzit
 // hoeveel Ardhi-speren je bezit (koop.ardhireach telt), zoals pfAantal
 function ardhiAantal(){
@@ -28891,6 +28894,15 @@ function ardhiTreffer(s){
   if (!ardhiKnikker(bloom ? b + '_bloom' : b, raak, n)) return;
   ardhiLaad();
   ardhiHeelNu = { t: 0, gaf: false, s, vx: s.x, vh: (s.base || 0) + CHAR_H * 0.55 };   // waar de druppel uit hem komt (zolang hij eruit getrokken wordt volgt hij de vijand)
+  if (typeof mpCoopAan === 'function' && mpCoopAan()) pvpZend({ t: 'ah', x: Math.round(ardhiHeelNu.vx), h: Math.round(ardhiHeelNu.vh) });   // mijn teamgenoten zien hem ook
+}
+// het geluid van een druppel op zijn moment (ARDHI.heel.geluiden), voor de mijne en die van een teamgenoot (zachter)
+function ardhiHeelKlank(p, vol){
+  const H = ARDHI.heel; if (!H.geluid || !ardhiSnd) return;
+  const M = { start: 0, glim: H.uit, poef: H.uit + H.glim, aankomst: H.uit + H.glim + H.breek + H.zweef + H.vlucht };
+  p.klank = p.klank || {};
+  for (const k in H.geluiden){ const g = H.geluiden[k]; if (p.klank[k] || !(k in ardhiSnd) || !(g.moment in M)) continue;
+    if (p.t >= M[g.moment] + g.dt){ p.klank[k] = true; if (g.vol > 0) banStemSpeel(ardhiSnd[k], g.vol * vol); } }
 }
 // de wortels: de host (of solo) beslist; een gast meldt zijn Ardhi-worp met ar (ardhiGast)
 function ardhiWortelRaak(s){
@@ -28960,13 +28972,13 @@ function ardhiStap(dt){
       }
     }
     if (p.t < H.uit && p.s && Number.isFinite(p.s.x)){ p.vx = p.s.x; p.vh = (p.s.base || 0) + CHAR_H * 0.55; }   // hij komt uit de vijand, ook als die beweegt
-    if (H.geluid && ardhiSnd){                       // de geluiden, elk op zijn moment (ARDHI.heel.geluiden)
-      const M = { start: 0, glim: H.uit, poef: H.uit + H.glim, aankomst: H.uit + H.glim + H.breek + H.zweef + H.vlucht };
-      p.klank = p.klank || {};
-      for (const k in H.geluiden){ const g = H.geluiden[k]; if (p.klank[k] || !(k in ardhiSnd) || !(g.moment in M)) continue;
-        if (p.t >= M[g.moment] + g.dt){ p.klank[k] = true; if (g.vol > 0) banStemSpeel(ardhiSnd[k], g.vol); } }
-    }
+    ardhiHeelKlank(p, 1);                            // de geluiden, elk op zijn moment (ARDHI.heel.geluiden)
     if (p.t >= H.uit + H.glim + H.breek + H.zweef + H.vlucht + 0.6 || dead) ardhiHeelNu = null;
+  }
+  for (const k in ardhiHeelAnder){                   // de druppels van mijn teamgenoten
+    const q = ardhiHeelAnder[k];
+    if (dt > 0){ q.t += dt; ardhiHeelKlank(q, 0.5); }
+    if (q.t >= H.uit + H.glim + H.breek + H.zweef + H.vlucht + 0.6 || !pvp || !pvpAnderNu(+k)) delete ardhiHeelAnder[k];
   }
   const gast = typeof mpcGast === 'function' && mpcGast();
   for (let i = ardhiWortels.length - 1; i >= 0; i--){
@@ -29029,8 +29041,8 @@ function ardhiDrupNu(){
 // even trilt, een laatste glim krijgt (een sterretje schittert eroverheen) en poef doet in een bolletje licht dat even zweeft; dan komt het bolletje in een heel lichte boog op Amir af, met mini-bolletjes die eromheen zweven, en vloeit
 // zijn borst in. Pas als de stroom binnen is het leven: je ziet het ruim een seconde aankomen. Alles volgt uit p.t
 // (ARDHI.heel); waar de vijand stond (p.vx, p.vh) volgt hem zolang de druppel eruit getrokken wordt
-function ardhiHeelTeken(sx, topY, scale, groundY, cx){
-  const p = ardhiHeelNu; if (!p || !imgReady(ardhiDrup)) return;
+function ardhiHeelTeken(sx, topY, scale, groundY, cx, p = ardhiHeelNu){
+  if (!p || !imgReady(ardhiDrup)) return;
   const H = ARDHI.heel, A = CHAR_H * scale, t = p.t;
   const ex = cx + (p.vx - world), ey = groundY - p.vh * scale;            // de borst van de vijand op het scherm
   const bx = ex + Math.sign(sx - ex) * A * 0.14, by = ey - A * H.trek;    // waar de druppel zich vormt: net uit zijn lijf, naar Amir toe
@@ -30905,7 +30917,7 @@ addEventListener('keydown', e => {
   if (sandbox && (e.key === 'j' || e.key === 'J')){ if (!e.repeat) bavAfzetWissel(); return; }   // de afzet van de baviaan
   if (sandbox && (e.key === 'k' || e.key === 'K')){ if (!e.repeat) bavSchudNu(); return; }   // het hoofdschudden meteen
   if (e.key.toLowerCase() === woedeWaarde('toets')){ if (!e.repeat) woedeStart(); return; }   // de woede van Bhubesi
-  if ((e.key === 'r' || e.key === 'R') && (e.shiftKey || dead || won || (pvp && !pvp.coop))){ opnieuw(); return; }   // Shift+R: opnieuw; R en T zijn de itemslots (ISLOT), maar dood, op het eindscherm en in het Duel is R nog gewoon opnieuw
+  if ((e.key === 'o' || e.key === 'O') && e.shiftKey){ opnieuw(); return; }   // Shift+O: opnieuw, overal (ook dood, op het eindscherm en in het Duel); R en T zijn alleen nog de itemslots (ISLOT)
   if ((e.key === 'r' || e.key === 'R' || e.key === 't' || e.key === 'T') && !e.repeat && islotToets(e.key.toLowerCase() === 'r' ? 0 : 1)) return;
   if ((e.key === 'h' || e.key === 'H') && testBalkMag()){ showBoxes = !showBoxes; setBoxLabel(); return; }
   if ((e.key === 'b' || e.key === 'B') && testBalkMag()){ barEl.classList.toggle('hide'); barPijlToon(); return; }   // testbalk erbij halen
@@ -40639,7 +40651,7 @@ function invLijst(){ return Array(hppotionCarry).fill('kalebas').concat(Array(gi
 // ---- itemslots: twee plekken onder R en T voor de spullen van Kivuli (ISLOT) ----
 // Kivuli verkoopt vijf eigen spullen (Sack o' Bones, Sack o' Fangs, Jar o' Fire Ants, Oil of Mirrors, Ketemba Clay), een per
 // speler per bezoek. Wat je koopt komt in je tas (islotTas); in de inventory (I) zet je het zelf in slot R of T (islot), het
-// spel doet dat nooit vanzelf. R en T gebruiken het (islotToets), Shift+R is opnieuw. Het bericht `isl` gaat naar iedereen:
+// spel doet dat nooit vanzelf. R en T gebruiken het (islotToets), Shift+O is opnieuw. Het bericht `isl` gaat naar iedereen:
 // ieder speelt het beeld af, en wie de vijanden rekent (de host, of het spel zonder Co-op) doet de rest (islotGezag).
 // Zie notities/multiplayer.md, kop "De spullen van Kivuli en de itemslots".
 const ISLOT = {
@@ -45658,7 +45670,7 @@ function restart(){
   won = false; document.getElementById('win').classList.remove('on');
   critZak = []; critNu = false;                   // True Flight: een verse knikkerzak per level
   speerKansReset();                               // de knikkerzakken van de speersoorten (SPEER_KANS): ook vers
-  ardhiZakken = {}; ardhiHeelNu = null;            // de Ardhi-wapens: verse knikkerzakken, geen druppel meer
+  ardhiZakken = {}; ardhiHeelNu = null; for (const k in ardhiHeelAnder) delete ardhiHeelAnder[k];          // de Ardhi-wapens: verse knikkerzakken, geen druppel meer
   for (const o of ardhiWortels) delete o.wortel; ardhiWortels.length = 0;
   lives = levensStart(); invuln = 0; invulnStil = 0; hurt = 0; knock = 0; shake = 0; hitstop = 0; dubbelTraagT = 0; kooiVries = 0; kooiVriesS = null; exeVries = null; bruVries = null; stadTrapFade = null; stadLuifelVx = 0; exeZoomNu = 1; exeSnijStop(); dead = false;
   onstPlek = null;                                  // Immortal: de laatste vaste grond van dit potje
@@ -63501,6 +63513,10 @@ function loop(now){
     }
     ardhiWortelTeken(groundY, scale, cx);          // de wortels om de voeten van een geroote vijand (ARDHI)
     if (!exeAmirWeg()) ardhiHeelTeken(pcx, pbox.t, scale, groundY, cx);   // een leven terug: de druppel uit de vijand, de puntjes naar Amir (ARDHI)
+    for (const k in ardhiHeelAnder){               // en die van een teamgenoot, naar zijn Amir (Co-op, bericht 'ah')
+      const g = pvp && pvpAnderNu(+k); if (!g) continue;
+      ardhiHeelTeken(cx + (g.x - world), groundY - (g.h + CHAR_H) * scale, scale, groundY, cx, ardhiHeelAnder[k]);
+    }
     if (!exeAmirWeg() && stadTrapAlfa() > 0.5) amirHpBalk(pcx, pbox.t, scale);   // Amir zijn levens boven zijn hoofd (met hpBalk), na de vijanden zodat niets eroverheen tekent
     if (stadAan()){ stadTrapUitLaag(groundY, scale, cx); eindDeurTeken(groundY, scale, cx); }   // de stadstrap: waar je uitkomt, boven de personages
     kelderVoorTeken(groundY, scale, cx);          // de pijltjes en de E boven de open kelder
@@ -65170,7 +65186,7 @@ function laadLevel(lv){
 // haalt de lader hem gewoon opnieuw op, achter de laadpoort zoals de eerste keer; ook de vooraf gemeten
 // kaders van de baviaan komen dan terug (bavKaders is een WeakMap op het plaatje, warmBouw meet de nieuwe).
 // Alleen de grote vijandreeksen: Amir, het decor en wat elk level gebruikt blijven staan. De sandbox laat
-// niets los, die laadt zijn eigen soorten (startSandbox en de knoppen). Hetzelfde level opnieuw (R) laat
+// niets los, die laadt zijn eigen soorten (startSandbox en de knoppen). Hetzelfde level opnieuw (Shift+O) laat
 // ook niets los, want de lijst loopt door tot het volgende setLevel.
 var laadGebruik = null;                            // var: een lader kan al lopen voor deze regel aan de beurt is
 function laadNodig(k){ (laadGebruik || (laadGebruik = new Set())).add(k); }
@@ -75566,7 +75582,7 @@ const pvpNu = () => performance.now() / 1000;
 // de vijandstand bevestigd heeft (vAk). Een gast heeft er een, naar de host (slot 0). Elk bericht draagt het slot van wie
 // het maakte (`p`); de host zet het zelf op wat binnenkomt (een gast kan niet voor een ander spreken) en stuurt wat de
 // andere gasten ook moeten weten door (MP_DOOR), en een bericht voor een gast (`naar`) alleen naar die. Zie notities/pvp.md.
-const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'naam', 'rek', 'symPak', 'zh', 'bn', 'wkklaar', 'rematch', 'gk', 'blokK', 'kivpraat', 'kivweg', 'kivklaar', 'isl', 'islm']);
+const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'naam', 'rek', 'symPak', 'zh', 'bn', 'wkklaar', 'rematch', 'gk', 'blokK', 'kivpraat', 'kivweg', 'isl', 'islm', 'ah', 'kivklaar']);
 function pvpGasten(){ return pvp ? Object.keys(pvp.peers).map(Number).filter(p => p !== 0) : []; }
 function pvpRelay(){ return !!pvp && Object.values(pvp.peers).some(pe => pe.conn.relay); }
 function pvpPeerNieuw(conn, p){
@@ -76540,7 +76556,7 @@ function pvpRondeUit(w){
 }
 function pvpEinde(){
   pvp.fase = 'uit'; godMode = true; pvp.rematch = [false, false];
-  pvpBanner((pvp.sc[pvp.mij] > (pvp.sc[pvpDuelAnder()] || 0) ? 'You win the duel!' : 'Your opponent wins the duel') + '  (R: rematch, Esc: lobby)');
+  pvpBanner((pvp.sc[pvp.mij] > (pvp.sc[pvpDuelAnder()] || 0) ? 'You win the duel!' : 'Your opponent wins the duel') + '  (Shift+O: rematch, Esc: lobby)');
 }
 // ---- het Duel: de winkel, het stof en de grondklap (de kit van Co-op als basis) ----
 // De host zet in de lobby Shop and gold aan (pvp.regels.duel): een startbudget (goud0), de winkel voor ronde 1
@@ -78016,7 +78032,7 @@ function mpcEindToon(e){
   regel('Team score: ' + e.score);
   regel('Survived until round ' + e.ronde + ', in ' + m + ':' + s + ' (' + e.kills + ' kills)');
   regel(e.score > best ? 'New best score with these enemies!' : 'Best with these enemies: ' + best, 'best');
-  regel('R: play again (' + (pvp.spelers.length > 2 ? 'everyone presses' : 'both press') + ' R)   Esc: back to the lobby', 'klein');
+  regel('Shift+O: play again (' + (pvp.spelers.length > 2 ? 'everyone presses' : 'both press') + ' Shift+O)   Esc: back to the lobby', 'klein');
   el.classList.add('on');
   pvpBanner('');
 }
@@ -78254,6 +78270,7 @@ function mpCoopOntvang(m){
   if (m.t === 'blokK'){ if (!laadWacht){ houtRaak(STOK.toon.blok, 0.6); puffWorld(m.x, 4, 0, 0.8, m.h); } return true; }   // het stokblok van een ander
   if (m.t === 'gifOp'){ if (gifHits > 0){ gifHits--; invHud(); } return true; }   // de host zette mijn gif op een vijand: een treffer minder
   if (m.t === 'gifSpat'){ const q = mpcLijst(m.a), o = q && q.l().find(v => v.mpId === m.id); if (o && !pvp.host) gifSpat(o, !!m.tik); return true; }   // een gast gooide stof in de ogen van een vijand
+  if (m.t === 'ah'){ if (!laadWacht && m.p != null && m.p !== pvp.mij){ ardhiLaad(); ardhiHeelAnder[m.p] = { t: 0, vx: +m.x || 0, vh: +m.h || 0 }; } return true; }   // de druppel van een teamgenoot (ARDHI)
   if (m.t === 'wortel'){ const q = mpcLijst(m.a), o = q && q.l().find(v => v.mpId === m.id); if (o && !pvp.host) ardhiWortelZet(o); return true; }   // de host zette wortels (ARDHI)
   if (m.t === 'prooi'){ const q = mpcLijst(m.a), o = q && q.l().find(v => v.mpId === m.id); if (o && !pvp.host) prooiZet(o); return true; }   // de host maakte hem prooi (zie "de Pathfinder Spear")
   if (m.t === 'gk'){ if (!laadWacht) gkKlapBeeld(m.x, m.x2, m.d, nowScale(), m.b * nowScale(), m.v); return true; }   // de grondklap van een ander: alleen beeld en geluid
@@ -78550,12 +78567,12 @@ function mpEpEindToon(e){
     regel('Team score: ' + e.score);
     regel('All ' + mpEpLijst().length + ' levels in ' + m + ':' + s + ' (' + e.kills + ' kills)');
     regel(e.score > best ? 'New best score!' : 'Best score: ' + best, 'best');
-    regel('R: play the episode again (' + iedereen + ' R)   Esc: back to the lobby', 'klein');
+    regel('Shift+O: play the episode again (' + iedereen + ' Shift+O)   Esc: back to the lobby', 'klein');
   } else {
     regel('Game over', 'kop');
     regel('The whole team fell in level ' + (e.ep.i + 1) + ': ' + naam);
     regel('Team score: ' + e.score + ', ' + m + ':' + s + ' (' + e.kills + ' kills)');
-    regel('R: try this level again (' + iedereen + ' R)   Esc: back to the lobby', 'klein');
+    regel('Shift+O: try this level again (' + iedereen + ' Shift+O)   Esc: back to the lobby', 'klein');
   }
   el.classList.add('on');
   pvpBanner('');

@@ -624,7 +624,7 @@ mens komt in 35% van de keren van rechts (het plein) in plaats van uit een deur.
 
 **Random map** (`MP_KAARTEN.coop`, id `random`): de laatste keuze in de lijst, in Co-op Survival en in Survival (Co-op solo).
 Bij Start loot `mpStart` een echte map uit de lijst (zonder `random` zelf) en zet die in de regels, zodat de gasten dezelfde
-krijgen; elke Start loot opnieuw, een herstart met R speelt dezelfde map. `mpcKaart()` ziet dus nooit `random`.
+krijgen; elke Start loot opnieuw, een herstart met Shift+O speelt dezelfde map. `mpcKaart()` ziet dus nooit `random`.
 
 **Testen:** `node tools/mptest.js --kaart ishmul --proef` loopt de hele proef op Ishmul. De controle op de fakkels verwachtte
 8 bij nacht, maar sinds de fakkels in de rots zijn het er 10 (op main gaf hij al FOUT); nu telt elk aantal boven 0.
@@ -1192,8 +1192,8 @@ iedereen op (`kivStart`). Lobby: **Kivuli in the first shop** (Random, At the co
 Kivuli verkoopt vijf eigen spullen (`MPC_WINKEL` met `kivuli: true`, alleen te zien bij hem: `wkkZichtbaar`), naast de
 kalebas. `kivBesluit` kiest er 2 of 3. Ieder koopt er hooguit een per bezoek (`islotKivKoop`, "Kivuli sells you only one
 thing."). Een gekocht ding gaat in je tas (`islotTas`, in de inventory onder I); daar zet je het zelf in **slot R** of
-**slot T** (`islotZet`, de knoppen Slot R en Slot T). R en T gebruiken het (`islotToets`), herstarten is nu **Shift+R**
-(R alleen nog als je dood bent, na het eind en in het Duel), en het oefendoel van de sandbox staat op **Y**. De actiebalk
+**slot T** (`islotZet`, de knoppen Slot R en Slot T). R en T gebruiken het (`islotToets`), herstarten is nu **Shift+O**
+(overal: ook dood, na het eind en in het Duel; R herstart nergens meer), en het oefendoel van de sandbox staat op **Y**. De actiebalk
 heeft twee vakken erbij (`islot0`, `islot1`) met het plaatje en het aantal.
 
 | ding | prijs | wat |
