@@ -795,6 +795,10 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
   je toe, en dan kun je het ook proberen). Naar achteren: lopen, `draai` (om naar de muur), `rug` (krabt aan zijn
   hoofd), `terug` (de draai achterstevoren). De clip met de klap klapte twee keer: de tweede klap is eruit geknipt.
   Geluid: `sounds/duka/lach.mp3`, `klap.mp3` en `gaap.mp3` (ElevenLabs), zolang ze er niet zijn speelt er niets.
+  De tulband in de schap-clip (25-11-2026): de regel die de plank achter hem weghaalt (g<22, r~b) pakte ook de donkere
+  plooien van de paarse tulband, met gaten waar de muur doorheen scheen. `tulband_herstel` in `tools/duka_knip.py` maakt
+  binnen de omtrek van de tulband alles weer dicht; `python3 tools/duka_knip.py --herstel` doet dat op de bestaande
+  frames, zonder de mp4's. Paars ligt dicht bij magenta: een nieuwe regel op magenta-tinten altijd op de tulband nakijken.
 - **Het geheim (easter egg, 21-11-2026)** (`WINKEL.geheim`, `winkelGeheim`, `winkelGeheimZet`, `winkelGeheimStap`,
   `winkelGeheimLinks`, `winkelGeheimDeurX`): in een winkel met `geheim: { naar }` (nu alleen Ishmul) loopt hij soms
   (`achterKans`, 1 op 10 keer dat hij verder loopt; in de sandbox `achterKansSandbox`) naar achteren, net links van het
