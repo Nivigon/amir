@@ -188,6 +188,20 @@ Scripts uit de sessie: /home/claude/stok/puppet2.py (tilt 3, stokken 5 en 7).
   `bron/stokhoeken.json` (voor `stok_variant.py`) en in `STOK.slip.punt`. De winkelstokken (klauw, goud, ardhi) zijn
   voor die drie frames opnieuw gebakken, net als de vachtmaskers (`node tools/vacht_bak.js --alleen /bukken/bukken_`).
 
+## De idle met de stokken op de schouders (25-11-2026)
+
+- Staat de stokspeler `STOK.idle.wacht` (1) seconde stil op de grond, dan legt hij beide stokken op zijn schouders en ademt
+  rustig: 18 frames in `karakters/amir/stokken/idle/`, op `STOK.idle.fps` (8), een lus van 2,25 s (`stokIdleT`, in
+  `stokBeeld`). Lopen, springen, bukken, slaan of blokken zet `stokIdleT` terug en hij staat weer in `staan`. De slippen
+  hangen aan de knoop onder de handen (`STOK.slip.punt.idle`).
+- Alleen met de gewone stok: met een winkelstok (`stokSkinNu`) blijft het `staan`, want klauw, goud en ardhi hebben de
+  idle nog niet. De set zit niet in `STOK.sets` (dan zouden de winkelbanken hem ook zoeken), maar wordt in `stokLaad`
+  apart in `stokBank.idle` geladen. De outfits werken (vachtmaskers in `karakters/amir_vacht/stokken/idle/`).
+- Bron: de Grok-lus `bron/idle/grok_9771961b.mp4` (groene stokken op magenta), gemaakt met `tools/stok_idle_maak.py`:
+  het groen wordt omgekleurd naar de stok (hout, oker aan het onderste kwart), niet weggeknipt, want de vuisten sluiten
+  om de stok. De knipper in de clip is eruit (de ogen uit het buurframe). Proefrit: `node tools/stok_idle_test.js [map]`.
+- Er is (nog) geen overgang van `staan` naar de idle: na een seconde stil wisselt hij in een keer van houding.
+
 ## De grondklap (16-11-2026, Test 76)
 
 Met de stokken in de lucht omlaag plus aanval (`GK`, `gkKan`, `gkStart`, `gkLucht`, `gkLand`, `gkStokStap`, `gkInslag`,
