@@ -53,7 +53,7 @@ def stokken(rgb,al):
     l=np.clip(g/255,0,1)[...,None]
     kl=np.where(grip[...,None],GRIP,HOUT)*(0.6+0.8*l)
     nieuw=rgb*(1-gr[...,None])+np.clip(kl,0,255)*gr[...,None]
-    return nieuw,lijnen
+    return nieuw,lijnen,gr
 def ogen(a,b):                        # oogvlak van b op a, na uitlijnen op het hoofd
     y0,y1,x0,x1=130,230,470,620
     best=None
@@ -64,12 +64,13 @@ def ogen(a,b):                        # oogvlak van b op a, na uitlijnen op het 
     _,dx,dy=best; a=a.copy()
     a[160:200,480:600]=b[160+dy:200+dy,480+dx:600+dx]
     return a
-out={'frames':[],'punt':[]}
+import os; os.makedirs(R+'uit',exist_ok=True)
+out={'frames':[],'punt':[],'lijnen':[]}
 for k,i in enumerate(IDX):
     a=lees(i)
     if i in BLINK: a=ogen(a,lees(BLINK[i]))
     rgb,al=key(a)
-    rgb,lijnen=stokken(rgb,al)
+    rgb,lijnen,gr=stokken(rgb,al)
     im=Image.fromarray(np.dstack([np.clip(rgb,0,255),al*255]).astype(np.uint8))
     if k==0:
         ys,xs=np.nonzero(al>0.5); bot=ys.max()
@@ -80,11 +81,15 @@ for k,i in enumerate(IDX):
     w,h=im.size; im=im.resize((round(w*S),round(h*S)),Image.LANCZOS)
     c=Image.new('RGBA',(W,H)); c.alpha_composite(im,(round(T[0]),round(T[1])))
     c.save(R+'uit/idle_%02d.png'%k)
+    # het masker van de stokken (voor de winkelstokken, tools/stok_idle_variant.py)
+    gm=Image.fromarray((gr*255).astype(np.uint8)).resize((round(w*S),round(h*S)),Image.LANCZOS)
+    cm=Image.new('L',(W,H)); cm.paste(gm,(round(T[0]),round(T[1]))); cm.save(R+'uit/idle_%02d_stok.png'%k)
     # knoop van de slip: net onder de hand, 8 procent van de stok boven het onderste eind
     pt=[]
     for j,(top,ond) in enumerate(lijnen):
         kn=ond+(top-ond)*0.08
         pt+= [round(kn[0]*S+T[0],1), round(kn[1]*S+T[1],1), 1 if j==1 else 0]
     out['punt'].append(pt)
+    out['lijnen'].append([[round(v*S+T[0],1) if q==0 else round(v*S+T[1],1) for p_ in (top,ond) for q,v in enumerate(p_)] for top,ond in lijnen])
 json.dump(out,open(R+'punt.json','w'))
 print(len(IDX), out['punt'][0])

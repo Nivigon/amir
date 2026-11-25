@@ -1,10 +1,12 @@
 // Proefrit voor de idle met de stokken op de schouders (STOK.idle): een vlak level met stokken, stilstaan, kijken of de
 // idle na STOK.idle.wacht begint en rondloopt, dan lopen (terug naar de ren) en een slag (de idle stopt).
 // node tools/stok_idle_test.js [map voor de afdrukken]
+//   node tools/stok_idle_test.js - goud    met de gouden winkelstok
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const ROOT = path.resolve(__dirname, '..');
-const shots = process.argv[2] || null;
+const shots = process.argv[2] && process.argv[2] !== '-' ? process.argv[2] : null;   // map voor schermafdrukken, of -
+const skin = process.argv[3] || null;            // klauw, goud of ardhi: speel met die winkelstok
 const srv = http.createServer((q, r) => {
   const f = path.join(ROOT, decodeURIComponent(q.url.split('?')[0]));
   fs.readFile(f, (e, d) => { if (e){ r.writeHead(404); r.end(); return; }
@@ -25,10 +27,11 @@ const srv = http.createServer((q, r) => {
     delete lv.stokKeuze; delete lv.onstKeuze; lv.onsterfelijk = true; lv.tips = []; lv.spawns = [];
     setLevel(0, [lv]); beginPlay('medium');
   });
+  if (skin) await page.evaluate(n => { stokSkinLaad(n); window.mpKoop = () => ({ [n]: true }); }, skin);
   await page.waitForFunction(() => running && stokAan() && stokBank.idle && stokBank.idle.every(i => i.complete), null, { timeout: 30000 });
   await page.waitForFunction(() => !laadWacht, null, { timeout: 90000 });
   const snap = async n => { if (shots){ fs.mkdirSync(shots, { recursive: true }); await page.screenshot({ path: path.join(shots, n + '.png') }); } };
-  const stand = () => page.evaluate(() => stokSetNu + ':' + stokFrameNu + ' t=' + stokIdleT.toFixed(2));
+  const stand = () => page.evaluate(() => stokSetNu + ':' + stokFrameNu + (stokSkinNu() ? ' ' + stokSkinNu() + ' ' + ((stokSkinBank[stokSkinNu()][stokSetNu] || [])[stokFrameNu] || {}).src?.split('/').slice(-3).join('/') : '') + ' t=' + stokIdleT.toFixed(2));
   const log = [];
   log.push('begin ' + await stand());
   await page.waitForTimeout(600); log.push('0,6 s ' + await stand()); await snap('0_staan');
