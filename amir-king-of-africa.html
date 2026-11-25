@@ -349,6 +349,11 @@
   #pvphud.on.wk{display:none}                       /* het winkelscherm heeft zijn eigen goud en uitleg */
   #pvpscore{font-size:20px;background:rgba(0,0,0,.45);padding:4px 14px;border-radius:8px}
   #pvpbanner{font-size:34px;font-weight:700;min-height:1em}
+  /* de klok van Kivuli (kivKlokToon): bovenin, voor iedereen dezelfde 45 s */
+  #kivklok{position:fixed;left:50%;top:188px;transform:translateX(-50%);z-index:60;display:none;align-items:center;gap:8px;padding:4px 12px 4px 5px;border-radius:20px;background:rgba(28,16,8,.62);color:#f3dfb4;font:20px 'Bree Serif',Georgia,serif;pointer-events:none;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+  #kivklok.on{display:flex}
+  #kivklok i{width:26px;height:26px;border-radius:50%;box-shadow:inset 0 0 0 2px #3a2414}
+  #kivklok.kort span{color:#ffb08a}
   #mpkijk{font-size:18px;font-weight:600;opacity:.9}
   #mpeind{display:none;margin-top:40px;background:rgba(20,12,6,.86);border:1px solid #8a6a3a;border-radius:12px;padding:18px 30px;text-align:center;font-size:19px}
   #mpeind.on{display:block}
@@ -36455,7 +36460,8 @@ function stadGordijnStap(st, bezig, dt){
 }
 // binnen: hetzelfde gordijn als buiten bij die gevel, in de deur naar buiten, gespiegeld (de achterkant), met donker erachter
 function binnenGordijnTeken(b, im, x, voet, breed, groundY, scale, cx){
-  const n = stadGordijn(b.gevel | 0); if (!n) return;
+  const n = b.gordijn || stadGordijn(b.gevel | 0); if (!n) return;   // een sierdeur geeft zijn doek zelf (gordijn)
+  if (b.gordijn && !stadImgs['gordijn_' + n]) stadImgs['gordijn_' + n] = zetBron(new Image(), STAD_DIR + GORDIJN.dir + n + '.png', () => {});
   const O = GORDIJN.binnen, h = breed * im.naturalHeight / im.naturalWidth, sx = cx + (x - world) - breed / 2, sy = groundY - voet * scale - h, k = breed / O.cw;
   const z = zichtVak(20);
   if (z && (sx > z.r || sx + breed < z.l)) return;
@@ -38375,7 +38381,9 @@ function binnenEBij(px = world){
     if (ander && Math.abs(world - dx) < V && Math.abs(ph) < 12) return { soort: 'boog', x: dx, h: 0, doel: { x: naar, h: binnenVloer(naar, 0), face: 1 } };
     return null;
   }
-  if (hier.winkel && world - hier.winkel.x < WINKEL.eBij && Math.abs(ph - binnenVloer(world, 0)) < 12)   // voor de toonbank: de winkel (zie "de winkel")
+  if (kiv.aan && hier.winkel === kiv.w && kivKanPraat() && Math.abs(world - kiv.x) < KIV.bij && Math.abs(ph - binnenVloer(world, 0)) < 12)
+    return { soort: 'kivuli', x: kiv.x, h: 0 };   // Kivuli: E bij hem
+  if (hier.winkel && !(hier.winkel === kiv.w && kivToonbankDicht()) && world - hier.winkel.x < WINKEL.eBij && Math.abs(ph - binnenVloer(world, 0)) < 12)   // voor de toonbank: de winkel (zie "de winkel"); zolang Kivuli er is niet
     return { soort: 'winkel', x: hier.winkel.x + 40, h: 0 };
   for (const q of binnenDeuren(hier)){
     if (!(Math.abs(world - q.deur) < V && Math.abs(ph - binnenDeurH(q)) < 12)) continue;
@@ -38399,6 +38407,7 @@ function binnenE(){
   const a = binnenEBij(); if (!a) return false;
   if (stadInGevecht()){ flashHint('Niet nu: er staat een vijand in de buurt'); return true; }
   if (a.soort === 'winkel'){ winkelUIOpen(); return true; }
+  if (a.soort === 'kivuli'){ kivPraat(); return true; }
   const deur = a.soort === 'in' || a.soort === 'uit' || a.soort === 'boog';
   stadTrapFade = { t: 0, gewisseld: false, doel: a.doel, ...(deur ? { T: BINNEN.fade, binnen: true } : {}) };
   return true;
@@ -38653,6 +38662,7 @@ function winkelGeheimStap(dt, kruipt, loopt){
   const G = winkelGeheim, K = WINKEL.geheim, b = binnenBij(world);
   if (!b || !b.winkel || !winkelImgs || !winkelKlaar()){ if (G.achter && !b) G.achter = false; return; }
   winkelManStap(dt, b.winkel);
+  kivStap(dt, b);                                     // Kivuli, de reizende handelaar
   if (!G.aan || !b.winkel.geheim || dukaRegie) return;
   if (G.uitzet){ if (!stadTrapFade || stadTrapFade.gewisseld){ G.achter = false; G.uitzet = false; } return; }
   // rechtop lopen achter de toonbank hoort hij (alleen op de grond, en pas na even: een landing en een halve stap rechtop
@@ -38754,6 +38764,12 @@ function binnenAchter(groundY, scale, cx){
     binnenPlaat(I.deur, d.deur, voet, breed, groundY, scale, cx);
     // het gordijn van die gevel, gespiegeld (zie "gordijnen"); boven hangt buiten een houten deur, dus daar niet
     if (!binnenDeurV(d)) binnenGordijnTeken(d, I.deur, d.deur, voet, breed, groundY, scale, cx);
+  }
+  // een sierdeur: de deur naar de straat die je niet gebruikt (de winkel van Co-op: daar komt Kivuli binnen), met een doek
+  if (imgReady(I.deur)) for (const d of (b.sierDeuren || [])){
+    const voet = binnenVloer(d.x, 0) - 0.02 * CHAR_H, breed = BINNEN.deurAmir * A * I.deur.naturalWidth / I.deur.naturalHeight;
+    binnenPlaat(I.deur, d.x, voet, breed, groundY, scale, cx);
+    binnenGordijnTeken({ gevel: 900 + Math.round(d.x), gordijn: d.gordijn }, I.deur, d.x, voet, breed, groundY, scale, cx);
   }
   // de binnenpoorten naar een volgende kamer: de ronde boogdeur
   if (imgReady(I.boog)) for (const g of (b.bogen || []))
@@ -39195,6 +39211,7 @@ function wkkAan(){ return wkk.aan && winkelUIAan; }
 function wkkOuder(q){ return q.eis && !WKK.waar[q.k] ? q.eis : null; }
 function wkkZichtbaar(q){
   if (!mpcWinkelVoorMij(q)) return false;
+  if (kiv.aan && kiv.mijnUI && !kiv.voorraad.includes(q.k)) return false;   // bij Kivuli: alleen wat hij nog heeft
   if ((q.k === 'zilverhart' || q.k === 'bennu') && !mpcZhZien()) return false;
   return true;
 }
@@ -39336,12 +39353,336 @@ function wkkTeken(b, groundY, scale, cx, A){
     });
   }
 }
+// ---- Kivuli, de reizende handelaar ----
+// Kivuli (karakters/kivuli/, tools/kivuli_knip.py) staat bij het eerste winkelbezoek van Co-op Survival in de winkel in
+// plaats van Duka (zie "Kivuli" in notities/multiplayer.md). Drie versies (de host kiest, lobby Kivuli):
+//   1 hij staat al bijna bij de toonbank, loopt een stukje door en kijkt over zijn schouder naar de spelers;
+//   2 de kamer is leeg; komt een speler bij de toonbank, dan komt hij van rechts binnen en leunt tegen de muur;
+//   3 hij staat zonder kap aan de toonbank, zet zijn kap op en gooit een muntje op.
+// E bij hem: hij slaat zijn jas open en de winkel gaat open (nog de indeling van Duka), met alleen zijn voorraad: altijd
+// een kalebas en 2 of 3 andere dingen, elk een keer voor het hele team (wie koopt, haalt het voor iedereen weg). Wie hem
+// als eerste aanspreekt start de klok van 45 s, voor iedereen. Op nul: winkel dicht, jas dicht, korte draai, weg naar
+// rechts. Dan komt Duka soms uit de achterkamer ("Who was THAT?") en gaat de winkel gewoon verder, en soms niet: even
+// stil, een windvlaag, "Duka didn't come." en het team gaat vanzelf de straat weer op.
+const KIV = {
+  dir: 'karakters/kivuli/', w: 333, h: 394, ground: 386, fig: 350, ax: 187, tall: 1.3,
+  v: 0.55, vWeg: 0.8,       // lopen en weglopen, in Amir per s
+  tijd: 45,                  // zo lang is hij er, vanaf de eerste die hem aanspreekt (s)
+  bij: 190,                  // zo dichtbij voor E (wereld)
+  plek: { 1: { van: 560, naar: 240 }, 2: { naar: 800, nadert: 420 }, 3: { x: 220 } },   // vanaf winkel.x (wereld)
+  psst: 13,                  // zolang niemand hem aanspreekt: elke zoveel s psst
+  stilNa: 4, geenDukaT: 3.2,
+  lach: { src: 'sounds/kivuli/lach.mp3', vol: 0.85 },   // zijn lachje met de mond dicht (ElevenLabs), heel soms (kivLach) // geen Duka: zo lang stil na zijn vertrek, en zo lang staat de tekst voor het team naar buiten gaat
+  frames: null
+};
+function kivPP(a, b){ return [...duIdx(a, b), ...duIdx(b - 1, a + 1)]; }   // heen en terug: een stilstaande houding die ademt
+KIV.anims = {
+  idle:     { map: 'idle', idx: duIdx(0, 72), fps: 12, loop: true },
+  loop:     { map: 'loop', idx: duIdx(0, 72), fps: 12, loop: true },
+  weg:      { map: 'weg', idx: duIdx(0, 72), fps: 12, loop: true },
+  draai:    { map: 'draai', idx: duIdx(0, 58), fps: 16 },   // iets sneller dan de clip: een korte draai
+  schouder: { map: 'schouder', idx: duIdx(0, 72), fps: 12 },
+  psst:     { map: 'psst', idx: duIdx(0, 72), fps: 13 },
+  grijns:   { map: 'grijns', idx: duIdx(0, 72), fps: 12 },
+  bijt:     { map: 'bijt', idx: duIdx(0, 72), fps: 12 },
+  leunIn:   { map: 'leun', idx: duIdx(0, 22), fps: 12 },
+  leun:     { map: 'leun', idx: kivPP(22, 72), fps: 10, loop: true },
+  kapStil:  { map: 'kapop', idx: kivPP(0, 20), fps: 8, loop: true },
+  kapop:    { map: 'kapop', idx: duIdx(21, 72), fps: 12 },
+  munt:     { map: 'munt', idx: duIdx(0, 72), fps: 12, loop: true },
+  jasOpen:  { map: 'jas', idx: duIdx(8, 26), fps: 14 },
+  jasHold:  { map: 'jas', idx: kivPP(27, 46), fps: 10, loop: true },
+  jasDicht: { map: 'jas', idx: duIdx(47, 72), fps: 14 }
+};
+// wat hij zegt: in een wolkje boven zijn hoofd (zeg), en in de winkel in de tekstballon (mpcZeg)
+const KIV_ZEG = {
+  binnen: ["Duka's out. I'm... minding the shop."],
+  psst: ["Psst. Over here. Don't be shy."],
+  vriend: ['Duka and I go way back. Practically brothers.', 'Friend of Duka. Truly. Ask anyone. Not him, though.'],
+  open: ['{n} treasures. One of each. First hand wins.', "Whoever buys it, it's gone. Share nicely."],
+  koop: ['Pleasure. No refunds.', 'Wise. Mostly.'],
+  arm: ['Come back richer.'],
+  weg: ["Gone! Don't be too late..."],
+  leeg: ['Cleaned me out. I like you.'],
+  vertrek: ['Give Duka my regards.', 'If anyone asks, you never saw me.'],
+  duka: ['Who was THAT?'],
+  duka2: ["Friend? I don't have friends with gold teeth."],
+  dukaKoop: ['You bought WHAT from him?'],
+  geenDuka: "Duka didn't come."
+};
+const kivR = l => l[Math.floor(Math.random() * l.length)];
+const kiv = { aan: false };
+// de host: komt Kivuli bij dit winkelbezoek, welke versie, komt Duka daarna, en wat heeft hij bij zich. Alleen in
+// Survival (niet in de Co-op episode), alleen het eerste bezoek; versie en Duka uit een knikkerzak
+const kivZakken = {};
+function kivZak(naam, lijst){
+  let z = kivZakken[naam];
+  if (!z || !z.length){ z = kivZakken[naam] = lijst.slice(); for (let i = z.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [z[i], z[j]] = [z[j], z[i]]; } }
+  return z.pop();
+}
+function kivBesluit(){
+  const C = pvp.coop, R = pvp.regels.coop, keus = R.kivuli == null ? 4 : R.kivuli;
+  if (!keus || C.ep || C.kivGeweest) return null;
+  C.kivGeweest = true;
+  const versie = keus === 4 ? kivZak('versie', [1, 2, 3]) : keus;
+  const dk = R.kivDuka || 0, duka = dk === 1 ? true : dk === 2 ? false : kivZak('duka', [true, false]);
+  // zijn voorraad: de kalebas, en 2 of 3 dingen zonder eis (geen upgrades, geen Give gold); zijn eigen spullen komen later
+  const pool = MPC_WINKEL.filter(q => !q.eis && q.k !== 'kalebas' && q.k !== 'geef' && q.k !== 'speer' && WKK.waar[q.k]).map(q => q.k);
+  for (let i = pool.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  return { v: versie, duka, voorraad: ['kalebas', ...pool.slice(0, 2 + kivZak('aantal', [0, 1]))] };
+}
+function kivLaad(){
+  if (KIV.frames) return;
+  KIV.frames = {};
+  const maps = new Set(Object.values(KIV.anims).map(a => a.map));
+  for (const m of ['idle', 'loop', 'kapop', 'leun', 'jas', ...[...maps]]){
+    if (KIV.frames[m]) continue;
+    const nodig = new Set(); for (const a of Object.values(KIV.anims)) if (a.map === m) a.idx.forEach(i => nodig.add(i));
+    KIV.frames[m] = [];
+    for (const i of nodig) KIV.frames[m][i] = zetBron(new Image(), KIV.dir + m + '/' + m + '_' + pad2(i) + '.png', () => {});
+  }
+  const a = geluidAan(new Audio()); a.preload = 'auto'; a.onerror = () => { a._weg = true; }; a.src = KIV.lach.src; KIV.lachSnd = a;
+}
+// zijn lachje, uit een knikkerzak (raak van n): bij psst, bij een aankoop, bij zijn vertrek
+function kivLach(zak, raak, n){
+  if (!ardhiKnikker('kivLach_' + zak, raak, n)) return;
+  const a = KIV.lachSnd; if (!a || a._weg) return;
+  try { a.currentTime = 0; a.volume = KIV.lach.vol; const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+}
+// bij het binnengaan van de winkel (mpcWinkelIn): kv van de host, of null
+function kivStart(kv){
+  for (const k in kiv) delete kiv[k];
+  kiv.aan = false; kivKlokToon();
+  if (!kv) return;
+  kivLaad();
+  Object.assign(kiv, { aan: true, v: kv.v, duka: !!kv.duka, voorraad: kv.voorraad.slice(), aantal: kv.voorraad.length, w: null,
+    fase: kv.v === 2 ? 'leeg' : kv.v === 3 ? 'kapStil' : 'staan', x: 0, flip: false, anim: 'idle', t: 0, klok: null, praat: false,
+    mijnUI: false, weg: false, uit: false, gekocht: false, zeg: null, zegT: 0, psstT: KIV.psst, wacht: 2.2, dukaFase: null, dukaT: 0, gezegd: {} });
+}
+// is Kivuli er (nog), zodat Duka weg is en E bij hem de winkel opent?
+function kivDukaWeg(){ return !!(kiv.aan && !(kiv.duka && kiv.dukaFase)); }          // Duka niet tekenen
+function kivToonbankDicht(){ return !!(kiv.aan && kiv.dukaFase !== 'terug'); }   // E bij de toonbank doet nog niets (Duka is er nog niet terug)
+function kivHier(){ return !!(kiv.aan && kiv.w && !kiv.uit && kiv.fase !== 'leeg' && !kiv.weg); }
+function kivWinkel(){ return !!(kiv.aan && kiv.mijnUI && winkelUIAan); }
+function kivZet(anim){ if (kiv.anim !== anim){ kiv.anim = anim; kiv.t = 0; } }
+function kivNr(){ const A = KIV.anims[kiv.anim], n = Math.floor(kiv.t * A.fps); return A.loop ? n % A.idx.length : Math.min(n, A.idx.length - 1); }
+function kivKlaar(){ const A = KIV.anims[kiv.anim]; return !A.loop && kiv.t * A.fps >= A.idx.length; }
+function kivFrame(){
+  const A = KIV.anims[kiv.anim], F = KIV.frames && KIV.frames[A.map], im = F && F[A.idx[kivNr()]];
+  if (imgReady(im)) return im;
+  const f0 = KIV.frames && KIV.frames.idle && KIV.frames.idle[0]; return imgReady(f0) ? f0 : null;
+}
+function kivZeg(tekst, duur, wie){ kiv.zeg = tekst.replace('{n}', ['Two', 'Three', 'Four', 'Five'][Math.max(0, kiv.voorraad.length - 2)] || 'Some'); kiv.zegT = duur || 3.2; kiv.zegWie = wie || 'kiv'; }
+// zijn rust-houding per versie: na het praten staat hij gewoon (versie 3: weer het muntje)
+function kivRust(){ return kiv.v === 3 ? 'munt' : kiv.v === 2 && !kiv.praat ? 'leun' : 'idle'; }
+// de x van de spelers in de kamer (ik en de anderen)
+function kivSpelersX(){ const xs = [world]; for (const p of pvpAnderen()){ const g = pvp.anders[p].g; if (!g.d) xs.push(g.x); } return xs; }
+function kivStap(dt, b){
+  if (!kiv.aan || !b.winkel) return;
+  const w = b.winkel;
+  if (kiv.w !== w){
+    kiv.w = w; kiv.b = b;
+    kiv.x = w.x + (kiv.v === 1 ? KIV.plek[1].van : kiv.v === 3 ? KIV.plek[3].x : b.r + 140);
+    kivZet(kiv.v === 3 ? 'kapStil' : 'idle');
+  }
+  kiv.t += dt;
+  if (kiv.zegT > 0) kiv.zegT -= dt;
+  // de klok: loopt vanaf de eerste die hem aanspreekt, bij iedereen
+  if (kiv.klok != null && !kiv.weg){
+    kiv.klok -= dt; kivKlokToon();
+    if (kiv.klok <= 0) kivVertrek();
+  }
+  const f = kiv.fase;
+  if (f === 'leeg'){                                  // versie 2: hij komt pas als iemand bij de toonbank komt (de host zegt het)
+    if (pvp.host && Math.min(...kivSpelersX()) - w.x < KIV.plek[2].nadert){ pvpZend({ t: 'kivin' }); kivBinnen(); }
+    return;
+  }
+  if (f === 'staan' || f === 'kapStil'){             // even wachten tot het team binnen is (de fade)
+    kiv.wacht -= dt;
+    if (kiv.wacht > 0) return;
+    if (f === 'staan'){ kiv.fase = 'lopen'; kiv.doel = w.x + KIV.plek[1].naar; kivZet('loop'); }
+    else { kiv.fase = 'kapop'; kivZet('kapop'); }
+    return;
+  }
+  if (f === 'lopen'){                                 // naar links (de bron kijkt naar links)
+    kiv.flip = false; if (kiv.inT != null) kiv.inT = Math.min(1, kiv.inT + dt / 0.5);   // uit het donker van de deur
+    const stap = KIV.v * CHAR_H * dt, rest = kiv.doel - kiv.x;
+    if (Math.abs(rest) <= stap){
+      kiv.x = kiv.doel;
+      if (kiv.v === 2){ kiv.fase = 'actie'; kivZet('leunIn'); }
+      else { kiv.fase = 'actie'; kivZet('schouder'); }
+      if (!kiv.gezegd.binnen){ kiv.gezegd.binnen = true; kivZeg(KIV_ZEG.binnen[0], 3.4); }
+    } else kiv.x += Math.sign(rest) * stap;
+    return;
+  }
+  if (f === 'kapop' || f === 'actie'){
+    if (!kivKlaar()) return;
+    if (f === 'kapop' && !kiv.gezegd.binnen){ kiv.gezegd.binnen = true; kivZeg(KIV_ZEG.binnen[0], 3.4); }
+    kiv.fase = 'rust'; kivZet(kivRust()); return;
+  }
+  if (f === 'rust'){
+    // mijn winkel open: de jas gaat open (wat iedereen bij zichzelf ziet), dicht: weer dicht
+    if (kiv.mijnUI && !winkelUIAan) kiv.mijnUI = false;
+    if (kiv.mijnUI){
+      kiv.flip = world > kiv.x;                       // naar mij toe
+      if (kiv.anim !== 'jasOpen' && kiv.anim !== 'jasHold') kivZet('jasOpen');
+      else if (kiv.anim === 'jasOpen' && kivKlaar()) kivZet('jasHold');
+      return;
+    }
+    if (kiv.anim === 'jasOpen' || kiv.anim === 'jasHold'){ kivZet('jasDicht'); return; }
+    if (kiv.anim === 'jasDicht' || kiv.anim === 'psst' || kiv.anim === 'grijns' || kiv.anim === 'bijt'){
+      if (kivKlaar()){ kiv.flip = false; kivZet(kivRust()); }
+      return;
+    }
+    if (!kiv.praat && kiv.v !== 2){                   // nog niemand: af en toe psst
+      kiv.psstT -= dt;
+      if (kiv.psstT <= 0){ kiv.psstT = KIV.psst; kivZet('psst'); kivZeg(KIV_ZEG.psst[0], 3); kivLach('psst', 1, 3); }
+    } else if (!kiv.praat){
+      kiv.psstT -= dt; if (kiv.psstT <= 0){ kiv.psstT = KIV.psst; kivZeg(KIV_ZEG.psst[0], 3); }
+    }
+    return;
+  }
+  if (f === 'sluit'){                                 // de klok is om: eerst de jas dicht
+    if (kiv.anim === 'jasOpen' || kiv.anim === 'jasHold'){ kivZet('jasDicht'); return; }
+    if (kiv.anim === 'jasDicht' && !kivKlaar()) return;
+    kiv.fase = 'draai'; kiv.flip = false; kivZet('draai'); kivZeg(kivR(KIV_ZEG.vertrek), 3); kivLach('weg', 1, 2);
+    kivDukaKomt();                                    // precies als hij weggaat
+    return;
+  }
+  if (f === 'draai' || f === 'weglopen'){
+    if (f === 'draai' && !kivKlaar()) return;
+    if (f === 'draai'){ kiv.fase = 'weglopen'; kivZet('weg'); }
+    kiv.x += KIV.vWeg * CHAR_H * dt;
+    const d = (b.sierDeuren || [])[0];               // de deur uit (de sierdeur rechts): hij verdwijnt in het donker
+    if (d && kiv.x > d.x - 70) kiv.inT = Math.max(0, Math.min(1, (d.x - kiv.x) / 70));
+    if (d ? kiv.x >= d.x : kiv.x > b.r + 260){ kiv.uit = true; kiv.fase = 'uit'; }
+    if (kiv.duka) kivDukaStap(dt, b);                // Duka komt al terwijl hij weggaat
+    return;
+  }
+  if (f === 'uit') kivDukaStap(dt, b);
+}
+// versie 2: van rechts binnen, naar de muur rechts in de kamer, en daar leunen
+function kivBinnen(){
+  if (!kiv.aan || kiv.fase !== 'leeg' || !kiv.w) return;
+  const d = (kiv.b.sierDeuren || [])[0];               // door de deur rechts (de sierdeur), anders van buiten beeld
+  kiv.fase = 'lopen'; kiv.doel = kiv.w.x + KIV.plek[2].naar; kiv.x = d ? d.x : kiv.b.r + 140; kiv.inT = d ? 0 : 1; kivZet('loop');
+}
+// E bij hem: de eerste start de klok (en meldt het de anderen), dan de jas open en de winkel
+function kivKanPraat(){ return kivHier() && (kiv.fase === 'rust' || kiv.fase === 'actie' || kiv.fase === 'kapop'); }
+function kivPraat(){
+  if (!kivKanPraat()) return false;
+  if (kiv.fase !== 'rust'){ kiv.fase = 'rust'; kivZet(kivRust()); }
+  if (!kiv.praat){ kivKlokStart(); pvpZend({ t: 'kivpraat' }); }
+  if (!kiv.mijnPraat){ kiv.mijnPraat = true; kivZeg(kivR(KIV_ZEG.vriend), 3.6); }
+  kiv.mijnUI = true; winkelUIOpen();
+  return true;
+}
+function kivKlokStart(){ if (kiv.praat) return; kiv.praat = true; kiv.klok = KIV.tijd; kivKlokToon(); mpcWinkelBanner(); }
+function kivVertrek(){
+  if (kiv.weg) return;
+  kiv.weg = true; kiv.klok = 0; kivKlokToon();
+  if (kivWinkel()) winkelUIDicht();
+  kiv.mijnUI = false; kiv.fase = 'sluit';
+  mpcWinkelBanner();
+}
+// iemand kocht iets van hem: weg voor iedereen
+function kivWegUit(k, ikZelf){
+  const i = kiv.voorraad.indexOf(k); if (i < 0) return;
+  kiv.voorraad.splice(i, 1); kiv.gekocht = true;
+  if (!ikZelf) kivZeg(KIV_ZEG.weg[0], 2.6); else kivLach('koop', 1, 3);
+  if (!kiv.voorraad.length){ mpcZeg('leeg'); kivZeg(KIV_ZEG.leeg[0], 3); if (kiv.klok != null && kiv.klok > 3) kiv.klok = 3; }
+  if (winkelUIAan && kiv.mijnUI){ wkk.i = 0; wkk.upg = null; mpcWinkelToon(); }
+}
+// na zijn vertrek: Duka komt uit de achterkamer, of niet
+function kivDukaKomt(){
+  if (!kiv.duka || kiv.dukaFase) return;
+  const w = kiv.w, o = winkelOpbouw(w), M = winkelMan;
+  M.w = w; M.pos = Math.min(0.97, (o.tbB - o.deurX) / o.tbB); M.t = 0; M.flip = true;
+  dukaLoop(M, o.koopman / o.tbB);
+  kiv.dukaFase = 'loopt';
+}
+function kivDukaStap(dt, b){
+  kiv.dukaT += dt;
+  if (kiv.duka){
+    if (kiv.dukaFase === 'loopt' && winkelMan.fase !== 'loop' && (kiv.uit || kiv.x > b.r - 300)){   // hij staat op zijn plek, Kivuli is bijna de deur uit
+      kiv.dukaFase = 'zegt'; kiv.dukaT = 0;
+      const M = winkelMan; M.fase = 'rust'; M.klok = 8; M.flip = true; dukaZet(M, 'idle');   // hij kijkt het team aan zolang hij praat
+      kivZeg(kiv.gekocht ? KIV_ZEG.dukaKoop[0] : KIV_ZEG.duka[0], 3, 'duka');
+    } else if (kiv.dukaFase === 'zegt' && kiv.dukaT > 3.2){
+      kiv.dukaFase = 'terug'; kivZeg(KIV_ZEG.duka2[0], 3.4, 'duka');
+      mpcWinkelBanner();                              // de gewone winkel: E bij de toonbank
+    }
+    return;
+  }
+  if (!kiv.dukaFase && kiv.dukaT > KIV.stilNa){
+    kiv.dukaFase = 'niet'; kiv.dukaT = 0;
+    try { startGust(1); } catch (e) {}
+    pvpBanner(KIV_ZEG.geenDuka);
+  } else if (kiv.dukaFase === 'niet' && kiv.dukaT > KIV.geenDukaT){
+    kiv.dukaFase = 'buiten';
+    if (pvp.host && pvp.coop.inWinkel){ pvpZend({ t: 'winkelUit' }); mpcWinkelUit(); }
+  }
+}
+// de klok bovenin: een ring die leegloopt en de seconden, voor iedereen dezelfde
+function kivKlokToon(){
+  let el = document.getElementById('kivklok');
+  const aan = kiv.aan && kiv.klok != null && !kiv.weg;
+  if (!el){
+    if (!aan) return;
+    el = document.createElement('div'); el.id = 'kivklok';
+    el.innerHTML = '<i></i><span></span>';
+    document.body.appendChild(el);
+  }
+  el.classList.toggle('on', aan);
+  if (!aan) return;
+  const s = Math.max(0, Math.ceil(kiv.klok)), deel = Math.max(0, kiv.klok / KIV.tijd);
+  el.querySelector('span').textContent = '0:' + String(s).padStart(2, '0');
+  el.querySelector('i').style.background = 'conic-gradient(' + (s <= 10 ? '#e2683a' : '#f2c466') + ' ' + (deel * 360) + 'deg, rgba(40,26,14,.55) 0)';
+  el.classList.toggle('kort', s <= 10);
+}
+// tekenen: na winkelVoor (dus na het schemer, net als Duka), voor de spelers
+function kivTeken(groundY, scale, cx){
+  if (!kiv.aan || !kiv.w) return;
+  const b = binnenBij(world); if (!b || b.winkel !== kiv.w) return;
+  const A = CHAR_H * scale, voet = groundY + 0.04 * A;
+  if (!kiv.uit && kiv.fase !== 'leeg'){
+    const fr = kivFrame();
+    if (fr){
+      const h = A * KIV.tall * KIV.h / KIV.fig, k = h / KIV.h, nx = cx + (kiv.x - world);
+      ctx.save(); ctx.fillStyle = 'rgba(15,8,3,0.35)';
+      ctx.beginPath(); ctx.ellipse(nx, voet, 0.26 * A, 0.03 * A, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.translate(nx, voet - KIV.ground * k); if (kiv.flip) ctx.scale(-1, 1); if (kiv.inT != null) ctx.globalAlpha *= kiv.inT;
+      ctx.drawImage(fr, -KIV.ax * k, 0, KIV.w * k, h); ctx.restore();
+      if (kiv.zeg && kiv.zegT > 0 && kiv.zegWie === 'kiv') kivWolk(nx, voet - A * KIV.tall - 14, kiv.zeg, kiv.zegT);
+    }
+  }
+  if (kiv.zeg && kiv.zegT > 0 && kiv.zegWie === 'duka') kivWolk(cx + (dukaX(kiv.w) - world), voet - A * DUKA.tall - 10, kiv.zeg, kiv.zegT);
+}
+// een tekstwolkje boven een hoofd, met een puntje naar beneden
+function kivWolk(x, y, tekst, t){
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, t / 0.3);
+  ctx.font = '19px "Bree Serif", Georgia, serif';
+  const woorden = tekst.split(' '), regels = []; let r = '';
+  for (const wd of woorden){ const p = r ? r + ' ' + wd : wd; if (ctx.measureText(p).width > 250 && r){ regels.push(r); r = wd; } else r = p; }
+  regels.push(r);
+  const lh = 23, B = Math.max(...regels.map(s => ctx.measureText(s).width)) + 28, H = regels.length * lh + 16;
+  const x0 = x - B / 2, y0 = y - H - 12;
+  ctx.fillStyle = 'rgba(246,232,200,0.96)'; ctx.strokeStyle = '#3a2414'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x0, y0, B, H, 12); else ctx.rect(x0, y0, B, H);
+  ctx.moveTo(x - 9, y0 + H); ctx.lineTo(x, y0 + H + 12); ctx.lineTo(x + 9, y0 + H);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(246,232,200,1)'; ctx.fillRect(x - 8, y0 + H - 3, 16, 4);
+  ctx.fillStyle = '#2e1a0c'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  regels.forEach((s, i) => ctx.fillText(s, x, y0 + 8 + i * lh));
+  ctx.restore();
+}
 // voor (na de personages van het level, voor Amir): de marktman en de toonbank ervoor
 function winkelVoor(groundY, scale, cx){
   const b = binnenBij(world); if (!b || !b.winkel || !winkelImgs || !winkelKlaar()) return;
   const w = b.winkel, o = winkelOpbouw(w), A = CHAR_H * scale, rechts = cx + (w.x - world);
   const vloer = groundY + WINKEL.toonbankVoor * A;
-  if (w.koopman !== false){
+  if (w.koopman !== false && !kivDukaWeg()){   // Kivuli in de winkel: Duka is er (nog) niet
     const fr = dukaFrame(winkelMan);
     if (fr){
       const D = DUKA, h = A * D.tall * D.h / D.fig, k = h / D.h;
@@ -60896,7 +61237,7 @@ function loop(now){
         ctx.restore();
       }
     }
-    winkelVoor(groundY, scale, cx);                // binnen: de marktman en de toonbank, voor de personages en achter Amir (zie "de winkel")
+    winkelVoor(groundY, scale, cx); kivTeken(groundY, scale, cx);   // binnen: de marktman en de toonbank, voor de personages en achter Amir (zie "de winkel")
 
     // de speer die in de grond staat, met een E erboven als je dichtbij bent
     if (!spearFound && spearX !== null && !jav && !imgReady(spearImg)){
@@ -63867,6 +64208,7 @@ function readLevel(txt){
              bogen: (b.bogen || []).map(q => ({ x: Number(q.x), naar: Number(q.naar) })),
              ramen: (b.ramen || []).map(q => ({ x: Number(q.x), h: Number(q.h) || 0 })),
              palen: (b.palen || []).map(q => ({ x: Number(q.x), h: Number(q.h) || 0 })),
+             ...(Array.isArray(b.sierDeuren) ? { sierDeuren: b.sierDeuren.map(q => ({ x: Number(q.x), ...(q.gordijn ? { gordijn: String(q.gordijn) } : {}) })) } : {}),   // de deur die je alleen ziet
              ladders: (b.ladders || []).map(q => ({ x: Number(q.x), van: Number(q.van) || 0, naar: Number(q.naar) || 0, f: !!q.f })),
              // de winkel en de planken (zie "de winkel"); zonder deze regels vielen ze bij setLevel weg
              winkel: b.winkel ? { x: Number(b.winkel.x), seed: b.winkel.seed != null ? Number(b.winkel.seed) : undefined, koopman: b.winkel.koopman !== false,
@@ -74541,7 +74883,7 @@ const pvpNu = () => performance.now() / 1000;
 // de vijandstand bevestigd heeft (vAk). Een gast heeft er een, naar de host (slot 0). Elk bericht draagt het slot van wie
 // het maakte (`p`); de host zet het zelf op wat binnenkomt (een gast kan niet voor een ander spreken) en stuurt wat de
 // andere gasten ook moeten weten door (MP_DOOR), en een bericht voor een gast (`naar`) alleen naar die. Zie notities/pvp.md.
-const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'naam', 'rek', 'symPak', 'zh', 'bn', 'wkklaar', 'rematch', 'gk', 'blokK']);
+const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'naam', 'rek', 'symPak', 'zh', 'bn', 'wkklaar', 'rematch', 'gk', 'blokK', 'kivpraat', 'kivweg']);
 function pvpGasten(){ return pvp ? Object.keys(pvp.peers).map(Number).filter(p => p !== 0) : []; }
 function pvpRelay(){ return !!pvp && Object.values(pvp.peers).some(pe => pe.conn.relay); }
 function pvpPeerNieuw(conn, p){
@@ -74759,7 +75101,7 @@ function mpStandaard(){
   for (const q of MP_SOORTEN) vij[q.k] = q.var ? 'beide' : 'aan';
   return { modus: 'coop', kaart: 'dye',
            duel: { rondes: 3, levens: 3, rolKoel: true, winkel: false, goud0: 100, winkelEerst: true, winkelNa: 1, goudErbij: 50 },
-           coop: { start: 1, erbij: 1, winkelNa: 3, pauze: 10, rek: 4, kalebas: 30, goud0: 0, winkelEerst: false, beginner: false, vij, licht: Object.assign({}, MPC_VERSIE.standaard) } };
+           coop: { start: 1, erbij: 1, winkelNa: 3, pauze: 10, rek: 4, kalebas: 30, goud0: 0, winkelEerst: false, kivuli: 4, kivDuka: 0, beginner: false, vij, licht: Object.assign({}, MPC_VERSIE.standaard) } };
 }
 // de instellingen van de host, bewaard op dit apparaat; wat ontbreekt komt uit de standaard
 function mpLaadInst(sleutel){
@@ -74771,7 +75113,7 @@ function mpLaadInst(sleutel){
       st.kaart = MP_KAARTEN[st.modus].some(k => k.id === w.kaart) ? w.kaart : MP_KAARTEN[st.modus][0].id;   // de Co-op episode: het startlevel
       Object.assign(st.duel, w.duel || {});
       const c = w.coop || {};
-      for (const k of ['start', 'erbij', 'winkelNa', 'pauze', 'rek', 'kalebas', 'goud0']) if (typeof c[k] === 'number') st.coop[k] = c[k];
+      for (const k of ['start', 'erbij', 'winkelNa', 'pauze', 'rek', 'kalebas', 'goud0', 'kivuli', 'kivDuka']) if (typeof c[k] === 'number') st.coop[k] = c[k];
       if (typeof c.winkelEerst === 'boolean') st.coop.winkelEerst = c.winkelEerst;
       if (typeof c.beginner === 'boolean') st.coop.beginner = c.beginner;
       for (const q of MP_SOORTEN) if (c.vij && typeof c.vij[q.k] === 'string') st.coop.vij[q.k] = c.vij[q.k];
@@ -74801,7 +75143,10 @@ const MP_COOP_RIJEN = [
   { k: 'rek', naam: 'Spears in the rack', min: 0, max: 4, stap: 1 },
   { k: 'kalebas', naam: 'Gourd chance in a barrel', min: 0, max: 100, stap: 10, een: '%' },
   { k: 'goud0', naam: 'Starting gold', min: 0, max: 400, stap: 10 },          // ieder begint met zoveel in zijn beurs (mpCoopStart)
-  { k: 'winkelEerst', naam: 'Start in the shop', vink: true }                 // voor ronde 1 eerst allemaal naar de winkel
+  { k: 'winkelEerst', naam: 'Start in the shop', vink: true },                // voor ronde 1 eerst allemaal naar de winkel
+  // Kivuli bij het eerste winkelbezoek (kivBesluit): welke versie, en of Duka daarna komt
+  { k: 'kivuli', naam: 'Kivuli in the first shop', keus: [[4, 'Random'], [1, 'At the counter'], [2, 'Walks in'], [3, 'Flips a coin'], [0, 'Off']] },
+  { k: 'kivDuka', naam: 'Duka after Kivuli', keus: [[0, 'Sometimes'], [1, 'Always'], [2, 'Never']] }
 ];
 // bouwt de regels van een modus: een schuif, een keuzelijst of een vinkje per rij
 function mpRijen(doos, rijen, waarden, wijzig){
@@ -75953,7 +76298,7 @@ const MPC = {
   rond: { dx: 0, y: 290, r: 330, ry: 150 }   // ry: de halve hoogte (plat, zoals FC.breed). Full Circle rondom (alleen hier te koop): een cirkel om Amir heen, net als FC.breed in canvas-px van de combo
 };
 // de winkelkamer van Co-op: de strook (r tot l) en de toonbank; de spelers komen binnen bij de deurkant
-const MPC_WINKEL_KAMER = { r: -20000, l: -21700, toonbank: -21250, plek: [-20300, -20480, -20660] };   // per slot
+const MPC_WINKEL_KAMER = { deur: -20130, r: -20000, l: -21700, toonbank: -21250, plek: [-20300, -20480, -20660] };   // per slot
 // de achterkamer van de winkel in Ishmul (het geheim, WINKEL.geheim): waar je uitkomt, de kist en wat erin zit
 const MPC_ACHTERKAMER = { r: -22200, l: -24400, plek: -22320, kist: -23900, goud: 30 };   // 2200 breed, zoals een gewone kamer (smaller zoomt binnenZoom in)
 // de weg naar de winkel: na de laatste kill van de ronde nog `wacht` seconden op straat (de host telt, fase 'naarWinkel'),
@@ -76031,7 +76376,8 @@ const MP_COOP_LEVEL = (() => {
                  ramen: [ { x: -20600, h: 420 }, { x: -21050, h: 420 } ],
                  palen: [ { x: -20850, h: 0 } ],
                  winkel: { x: MPC_WINKEL_KAMER.toonbank, seed: 523, koopman: true },
-                 planken: [ { x: -20450, h: 380, soort: 'touw', seed: 71 } ] }];
+                 planken: [ { x: -20450, h: 380, soort: 'touw', seed: 71 } ],
+                 sierDeuren: [ { x: MPC_WINKEL_KAMER.deur, gordijn: 'indigo_streep' } ] }];   // rechts de deur naar de straat (alleen beeld; Kivuli komt erdoor)
   lv.zwevers = [{ r: MPC_WINKEL_KAMER.r, l: MPC_WINKEL_KAMER.l, h: 900, onder: 750, look: 'hout' }];
   return lv;
 })();
@@ -76880,7 +77226,7 @@ function mpcHostStap(dt){
   if (C.fase === 'uit') return;                       // iedereen dood: game over
   if (C.fase === 'naarWinkel'){                       // nog even op straat, dan allemaal naar de winkel
     C.klok -= dt;
-    if (C.klok <= 0){ const g = mpcWinkelGeheimKans(); pvpZend({ t: 'winkel', g }); mpcWinkelIn(g); }
+    if (C.klok <= 0){ const g = mpcWinkelGeheimKans(), kv = kivBesluit(); pvpZend({ t: 'winkel', g, kv }); mpcWinkelIn(g, kv); }
     return;
   }
   if (C.fase === 'wacht'){
@@ -77077,7 +77423,7 @@ function mpCoopStap(rdt, dt){
     if (C.hartT <= 0){ C.hartT = 1; pvpZend({ t: 'hb' }); }
     return;
   }
-  if (C.winkelStraks){ C.winkelStraks = false; if (!C.inWinkel) mpcWinkelIn(C.winkelGeheim); }   // de host stuurde ons naar de winkel terwijl we laadden
+  if (C.winkelStraks){ C.winkelStraks = false; if (!C.inWinkel) mpcWinkelIn(C.winkelGeheim, C.winkelKiv); }   // de host stuurde ons naar de winkel terwijl we laadden
   if (pvp.host && !C.allenKlaar){ C.allenKlaar = true; if (C.ep) mpcBanner(mpEpLijst()[C.ep.i].name.replace(MPC_EP.naamKop, 'Level ' + (C.ep.i + 1) + ': '), 2.5); else pvpBanner(''); }
   C.t += dt;
   mpcDeurStap(dt);
@@ -77255,7 +77601,10 @@ function mpCoopOntvang(m){
   if (m.t === 'kistOpen'){ if (!pvp.host) mpcKistOpen(m.i, m.p); return true; }
   if (m.t === 'kistNee'){ const k = kisten[m.i]; if (k){ k.mpWacht = false; if (!k.open) kistOpenBeeld(k); } flashHint('Too late: the chest is already open', 2500); return true; }
   if (m.t === 'geef'){ mpcGoudErbij(m.n, pvp.spelers.length > 2 ? 'from ' + mpSpelerNoem(m.p, true) : 'from your teammate'); return true; }
-  if (m.t === 'winkel'){ if (!pvp.host){ C.winkelGeheim = !!m.g; if (laadWacht) C.winkelStraks = true; else mpcWinkelIn(m.g); } return true; }   // nog aan het laden (Start in the shop): na het laden erheen
+  if (m.t === 'winkel'){ if (!pvp.host){ C.winkelGeheim = !!m.g; C.winkelKiv = m.kv || null; if (laadWacht) C.winkelStraks = true; else mpcWinkelIn(m.g, m.kv); } return true; }
+  if (m.t === 'kivin'){ if (!pvp.host) kivBinnen(); return true; }     // Kivuli komt binnen (versie 2)
+  if (m.t === 'kivpraat'){ kivKlokStart(); return true; }           // iemand sprak Kivuli aan: de klok loopt
+  if (m.t === 'kivweg'){ kivWegUit(m.k); return true; }             // iemand kocht iets van Kivuli   // nog aan het laden (Start in the shop): na het laden erheen
   if (m.t === 'winkelUit'){ if (!pvp.host) mpcWinkelUit(); return true; }
   if (m.t === 'wkvertrek'){ if (!pvp.host && C.inWinkel){ C.vertrek = m.aan ? performance.now() + MPC_WINKEL_WEG.aftel * 1000 : null; mpcVertrekToon(); if (winkelUIAan) mpcWinkelToon(); } return true; }
   if (m.t === 'wkklaar'){ C.wkKlaar[m.p] = !!m.aan; if (pvp.host) mpcWinkelKlaar(); if (C.inWinkel){ mpcWinkelBanner(); if (winkelUIAan) mpcWinkelToon(); } return true; }
@@ -77806,7 +78155,7 @@ function mpcVriesWacht(rdt){
 // naar de winkel, bij iedereen (de host besluit het, de gasten horen het met winkel)
 // heeft deze winkel een geheim, dan is het bij zoveel bezoeken aan (WINKEL.geheim.kans); de host gooit, en stuurt het mee
 function mpcWinkelGeheimKans(){ return binnenLijst().some(b => b.winkel && b.winkel.geheim) && Math.random() < WINKEL.geheim.kans; }
-function mpcWinkelIn(geheim){
+function mpcWinkelIn(geheim, kv){
   mpcOntdooi();
   const C = pvp.coop;
   winkelGeheimZet(geheim);
@@ -77825,6 +78174,7 @@ function mpcWinkelIn(geheim){
   mpcSperenTerug();
   const x = MPC_WINKEL_KAMER.plek[pvp.mij];
   stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: binnenVloer(x, 0), face: -1 }, T: MPC_WINKEL_WEG.fade, binnen: true };
+  kivStart(kv);                                       // Kivuli (de host besliste het: kivBesluit)
   mpcWinkelBanner();
 }
 // wie van mijn teamgenoten in de winkel al Ready drukte: een zin voor de banner en het winkelscherm ('' als niemand)
@@ -77838,6 +78188,7 @@ function mpcWinkelAnderKlaar(){
 function mpcWinkelBanner(){
   const C = mpcWs(), wie = pvp.dw ? 'your opponent' : pvp.spelers.length > 2 ? 'your teammates' : 'your teammate', ander = mpcWinkelAnderKlaar();
   if (C.vertrek && mpcVertrekTekst){ pvpBanner(mpcVertrekTekst + (C.mijnKlaar ? ' Press E at the counter for Not ready.' : '')); return; }
+  if (!pvp.dw && kivToonbankDicht()){ pvpBanner(C.mijnKlaar ? 'Ready. Waiting for ' + wie + '...' : kiv.weg ? '' : kiv.praat ? 'He stays only a moment. Talk to him (E), then Ready' : 'A stranger in the shop: press E to talk to him'); return; }
   pvpBanner(C.mijnKlaar ? 'Ready. Waiting for ' + wie + '...'
     : (ander ? ander + ' ' : '') + (pvp.dw ? 'Shop: buy what you need, then Ready' : 'Shop: press E at the counter, then Ready'));
 }
@@ -77846,7 +78197,7 @@ function mpcWinkelUit(){
   const C = pvp.coop;
   if (!C.inWinkel) return;
   C.inWinkel = false; C.mijnKlaar = false; C.wkKlaar = {}; C.vertrek = null; mpcLaatste = null;   // Undo geldt alleen bij deze marktman
-  winkelUIDicht(); mpcOntdooi(); winkelGeheimZet(false);
+  winkelUIDicht(); mpcOntdooi(); winkelGeheimZet(false); kivStart(null);
   const r = wapenrekken[0]; if (r){ r.n = pvp.regels.coop.rek; r.uit = null; }
   const x = mpStarts()[pvpStartSlot()];
   stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: terrainH(x), face: pvpStartSlot() === 1 ? 1 : -1 }, T: MPC_WINKEL_WEG.fade, binnen: true };
@@ -77952,7 +78303,8 @@ function mpcWinkelKoop(q, aan){
   // Undo: alleen de laatste aankoop, bij deze marktman (weg bij de deur uit, mpcWinkelUit), zolang hij onaangeroerd is
   mpcLaatste = q.k === 'geef' ? null : { q, prijs, na: mpcUndoStand() };
   playHppotionPickupSound();
-  mpcZeg(MPC_ZEG[q.k] ? q.k : 'koop');
+  mpcZeg(MPC_ZEG[q.k] && !kivWinkel() ? q.k : 'koop');
+  if (kivWinkel()){ mpcLaatste = null; pvpZend({ t: 'kivweg', k: q.k }); kivWegUit(q.k, true); }   // Kivuli: weg voor het hele team, geen Undo
   pvpHud(); mpcWinkelToon();
   document.getElementById('wkuitleg').textContent = tekst;
 }
@@ -78146,8 +78498,10 @@ function wkkTip(knop, u){
 new MutationObserver(() => { if (wkkAan()) wkkToon(); }).observe(document.getElementById('wkuitleg'), { childList: true, characterData: true, subtree: true });
 // de marktman zegt iets in de tekstballon links van het paneel
 function mpcZeg(soort){
-  const l = MPC_ZEG[soort] || MPC_ZEG.koop, el = document.getElementById('wkzeg');
-  if (el) el.textContent = l[Math.floor(Math.random() * l.length)];
+  const kv = kivWinkel(), l = kv ? KIV_ZEG[soort] || KIV_ZEG.koop : MPC_ZEG[soort] || MPC_ZEG.koop, el = document.getElementById('wkzeg');
+  if (!el) return;
+  if (kv && soort === 'open'){ el.textContent = l.join(' ').replace('{n}', ['Two', 'Three', 'Four', 'Five'][Math.max(0, kiv.voorraad.length - 2)] || 'Some'); return; }   // Kivuli legt het altijd kort uit
+  el.textContent = l[Math.floor(Math.random() * l.length)];
 }
 // het zijpaneel naast de prijslijst: wat je aanklikte, met de sfeertekst (schuin de bron eronder), wat het doet en Buy
 let mpcKeus = null;                                  // {id, q, aan}: het gekozen artikel

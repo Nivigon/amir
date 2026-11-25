@@ -1134,3 +1134,31 @@ de marktman en de teamgenoten bewegen.
 - **Open**: de stipjes van teamgenoten boven wat zij bekijken (nog geen netwerkbericht), de marktman die naar het rek loopt, eigen
   uitstalplekken voor Charms en Team (nu ook een plank), citaten voor artikelen zonder citaat. De stap in `mptest.js --proef` die
   alle kaarten tegelijk verwacht klopte al niet meer sinds de tabs (22-11) en faalt nog steeds op dezelfde manier.
+
+## Kivuli, de reizende handelaar (25-11-2026)
+
+Bij het eerste winkelbezoek van Co-op Survival (niet in de Co-op episode) staat Kivuli in de winkel en is Duka er nog niet.
+De host besluit het in `kivBesluit` en stuurt het mee met `{t:'winkel', g, kv}`; `mpcWinkelIn(geheim, kv)` zet het bij
+iedereen op (`kivStart`). Lobby: **Kivuli in the first shop** (Random, At the counter, Walks in, Flips a coin, Off) en
+**Duka after Kivuli** (Sometimes, Always, Never); Random en Sometimes gaan met een knikkerzak (`kivZak`).
+
+- Versie 1: hij staat al in de kamer, loopt een stukje naar de toonbank en kijkt over zijn schouder naar het team.
+- Versie 2: de kamer is leeg; komt iemand bij de toonbank (`KIV.plek[2].nadert`), dan zegt de host `kivin` en komt hij
+  door de deur rechts binnen (een sierdeur met indigo doek: `sierDeuren` in de kamer, `MPC_WINKEL_KAMER.deur`, alleen beeld)
+  en leunt bij de muur. Weggaan doet hij in elke versie door die deur.
+- Versie 3: zonder kap aan de toonbank; als het team binnen is zet hij zijn kap op en gooit hij een muntje op.
+- E bij hem (`binnenEBij` soort `kivuli`, `kivPraat`): zijn jas gaat open (wat je zelf ziet zolang jouw winkel open is) en
+  de winkel opent, nog in de indeling van Duka, met alleen zijn voorraad (`wkkZichtbaar`): altijd de kalebas en 2 of 3
+  andere dingen zonder eis. Elk ding een keer voor het hele team: wie koopt, haalt het weg (`kivweg`, `kivWegUit`), geen
+  Undo. De eerste die hem aanspreekt start de klok van 45 s voor iedereen (`kivpraat`, de klok bovenin: `kivKlokToon`).
+- Op nul (`kivVertrek`): winkel dicht, jas dicht, korte draai, weg naar rechts. Komt Duka (`kv.duka`), dan loopt hij uit
+  de achterkamer naar zijn plek ("Who was THAT?", of "You bought WHAT from him?" als er iets gekocht is) en gaat de winkel
+  gewoon verder. Komt hij niet: even stil, een windvlaag, "Duka didn't come." en de host stuurt het team de straat op.
+- Zolang Kivuli er is doet E bij de toonbank niets en is Duka niet te zien (`kivDukaWeg`, `kivToonbankDicht`).
+- Zijn lachje met de mond dicht (`sounds/kivuli/lach.mp3`, ElevenLabs Sound Effects, gekozen door Tom) speelt heel soms
+  (`kivLach`, knikkerzakken): 1 op 3 bij psst, 1 op 3 bij een aankoop, 1 op 2 bij zijn vertrek.
+- Wat hij zegt staat in `KIV_ZEG` (wolkjes boven zijn hoofd met `kivWolk`, en in de tekstballon van de winkel via `mpcZeg`).
+- De frames: `tools/kivuli_knip.py <map met de mp4's>`, naar `karakters/kivuli/`. Testen: `node tools/kivuli_test.js
+  <versie> <duka 1|2>` maakt schermafbeeldingen van een heel bezoek.
+- Nog open: zijn eigen spullen (de zakken uit `claude/kivuli_items.md`) en zijn eigen winkelscherm (de binnenkant van zijn
+  mantel); nu verkoopt hij een greep uit de spullen van Duka.
