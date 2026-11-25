@@ -1122,7 +1122,7 @@ de marktman en de teamgenoten bewegen.
   van zijn ouder en staat als icoontje in het doek (`wkkOuder`, `wkkUpgrades`): Full Circle: more damage en all around, Ardhi's Roots.
   Give 5 gold staat bij Team, een keer per teamgenoot.
 - **Besturing** (`wkkToets`): links en rechts kiezen, omhoog en omlaag (of Q, Tab) wisselen de categorie, Enter of spatie koopt,
-  Backspace is Undo, R is Ready; Escape en E sluiten zoals altijd. De muis: hover kiest, een klik op het gekozen ding koopt, een
+  Backspace is Undo, R is Ready; Escape en E sluiten zoals altijd. De muis: hover en klik kiezen, een dubbelklik koopt (`mpcDubbelKlik`, een enkele klik nooit), een
   klik op een bordje wisselt (`pointermove`/`pointerdown` met capture).
 - **Het doek** (`#wkkamer`, `wkkToon`): naam, upgrade-label, uitleg, citaat, de upgrade-icoontjes met een hover-kaartje (`wkkTip`),
   de prijs, en de knoppen Buy, Leave, Ready en Undo. De regel bovenin (`.wkk-bericht`) spiegelt `#wkuitleg` en `#wkvertrek` van de
@@ -1179,7 +1179,7 @@ iedereen op (`kivStart`). Lobby: **Kivuli in the first shop** (Random, At the co
   binnenkant van zijn mantel (`design/kivuli/mantel.png`, petrol voering, bron `_kivuli/cloak6b.png` uit de sessie). Zes haken
   (`KM.pos`, % van de plaat), 3 of 4 gevuld uit zijn voorraad op vaste plekken per bezoek (`kivSlots`, een schudbeurt op de
   inhoud, dus bij iedereen gelijk), het prijslabel als pil onder het ding, onderin de strook met alleen de naam, en onder het paneel een donkere plaquette met de uitleg en zo nodig
-  waarom het niet kan (`#kmbox`, vaste hoogte van vier regels, de tekst krimpt tot hij past, `--k`). Hover of klik kiest (goud gloeit), een tweede klik, Enter of Buy
+  waarom het niet kan (`#kmbox`, vaste hoogte van vier regels, de tekst krimpt tot hij past, `--k`). Hover of klik kiest (goud gloeit), een dubbelklik (`mpcDubbelKlik`), Enter of Buy
   koopt; pijltjes en Tab lopen langs de gevulde haken. Het paneel staat aan de kant tegenover hem (`kivMantelKant`: hij links
   van 40% van het scherm dan rechts, rechts van 60% dan links, in het midden de kant waar Amir niet staat; `kiv.sx` en `kiv.ax`
   zet `kivTeken`), de tekstballon van de marktman springt naar de andere kant (`kmlinks`). Een gekocht ding is weg voor
