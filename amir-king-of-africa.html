@@ -233,6 +233,24 @@
   #btnDesigner:hover{color:var(--bone);border-color:var(--gold)}
   #start.rolscherm #btnDesigner{display:block}
   body:not(.designer) .alleenDesigner{display:none!important}
+  /* notities van de designer (NOTE): het knopje rechtsboven, het vak en de teller in het hoofdmenu */
+  #notknop{position:fixed;top:2px;right:2px;z-index:90;width:24px;height:19px;padding:0!important;min-width:0!important;font-size:12px!important;line-height:17px;
+    background:rgba(20,14,8,.7)!important;border:1px solid #6b5a3a!important;border-radius:4px;color:#e8d3a0;cursor:pointer;opacity:.75}
+  #notknop:hover{opacity:1;border-color:#c9a24a!important}
+  #notvak{position:fixed;top:26px;right:6px;z-index:91;display:none;width:min(340px,92vw);box-sizing:border-box;background:rgba(20,14,8,.95);border:1px solid #c9a24a;
+    border-radius:8px;padding:9px 11px;color:#f3e6c8;font:13px/1.3 sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.55)}
+  #notvak.on{display:block}
+  #notvak .sr{display:flex;gap:6px;margin-bottom:6px}
+  #notvak .sr button{flex:1;background:#2a2016;color:#cdb98f;border:1px solid #6b5a3a;border-radius:5px;padding:4px;cursor:pointer;font:12px sans-serif}
+  #notvak .sr button.aan{background:#c9a24a;color:#20160a;border-color:#c9a24a;font-weight:bold}
+  #notvak textarea{width:100%;box-sizing:border-box;height:78px;resize:vertical;background:#2a2016;color:#f3e6c8;border:1px solid #6b5a3a;border-radius:6px;padding:5px;font:13px sans-serif}
+  #notvak .wr{color:#9c8a66;font-size:11px;margin:4px 0 0}
+  #notvak .kn{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:6px}
+  #notvak .kn span{flex:1;color:#9c8a66;font-size:11px}
+  #notvak .kn button{background:#c9a24a;color:#20160a;border:0;border-radius:6px;padding:5px 12px;cursor:pointer;font-weight:bold}
+  #notvak .kn button.sl{background:none;color:#cdb98f;font-weight:normal}
+  #btnnotopen{margin:10px auto 0;display:block;padding:4px 12px!important;font-size:12px!important;opacity:.85}
+  #btnnotopen.veel{color:#f2c14e;border-color:#c9a24a}
   #rolwie{color:var(--bone);font-size:14px}
   #start #rolwissel{padding:6px 12px;font-size:13px}
   #pvpcode{font:inherit;font-size:22px;letter-spacing:6px;text-transform:uppercase;width:7.5em;text-align:center;padding:8px;border-radius:8px;border:1px solid #8a6a3a;background:#1d140b;color:#f3e2bf}
@@ -1513,6 +1531,7 @@
         <button id="btnupdates">Updates</button>
         <button id="btninstellingen">Settings</button>
       </div>
+      <button id="btnnotopen" class="alleenDesigner" type="button" title="Open the notes sheet">Open notes: ...</button>
     </div>
 
     <div id="menuInstellingen">
@@ -66776,6 +66795,7 @@ function showMenu(which){
   // op een subscherm staat de titel compacter (zie #start.submenu)
   document.getElementById('start').classList.toggle('submenu', which !== 'menuMain' && which !== 'menuRol');
   document.getElementById('start').classList.toggle('rolscherm', which === 'menuRol');   // alleen hier de Designer-knop (TLOG)
+  if (which === 'menuMain') noteTelVraag();          // de teller van de open notities (NOTE)
 
 }
 buildCards(document.getElementById('cardsTest'), TEST_LEVELS);
@@ -67144,7 +67164,7 @@ async function tlogWwKlaar(){
   } catch (e) {}
   if (!goed){ rolFoutEl.textContent = 'Wrong password'; rolWwEl.select(); return; }
   rolFoutEl.textContent = ''; rolEl.classList.remove('ww');
-  tlogZet(TLOG.rolKey, 'designer'); tlogWieToon(); showMenu('menuMain');
+  tlogZet(TLOG.rolKey, 'designer'); tlogWieToon(); showMenu('menuMain'); noteTelVraag(true);
 }
 document.getElementById('rolwwgo').onclick = tlogWwKlaar;
 rolWwEl.addEventListener('keydown', e => { if (e.key === 'Enter') tlogWwKlaar(); });
@@ -67152,6 +67172,119 @@ document.getElementById('rolwissel').onclick = () => { tlogZet(TLOG.rolKey, null
 tlogWieToon();
 if (!tlogRol() || (tlogRol() === 'tester' && !tlogLees(TLOG.naamKey))) showMenu('menuRol');
 tlogLeeg();                                        // wat er de vorige keer is blijven liggen
+
+// ---- notities van de designer: bugs en verbeterpunten naar de Sheet (NOTE) ----
+// Alleen voor de designer (body.designer): rechtsboven een knopje (ook midden in een level), een vak met Bug of
+// Improvement en een zin; Send stuurt een regel {soort: 'notitie'} naar dezelfde Apps Script als de tester-log (TLOG.url),
+// en die zet hem op het tabblad Notities van de Sheet "Amir testers log" met status open. In het hoofdmenu staat hoeveel
+// er nog open staan (GET ?actie=open); een notitie op done, klaar of fixed zetten in de Sheet haalt hem van de teller.
+// Het level, de modus en de plek gaan vanzelf mee. Zonder verbinding wacht hij in localStorage (NOTE.rijKey).
+// Het stuk Apps Script dat erbij hoort staat in notities/designer-notities.md.
+var NOTE = { rijKey: 'amir.notRij', telKey: 'amir.notOpen', vraagT: 0,
+  sheet: 'https://docs.google.com/spreadsheets/d/1wruH7GhJrK4Z_Bt88h-S9lwOwes0GjlsdAzN-JTgVMI/edit' };
+var noteSoort = 'bug', noteEl = null, noteBezig = false;
+function noteDesigner(){ return tlogRol() === 'designer'; }
+function noteRij(){ try { return JSON.parse(tlogLees(NOTE.rijKey) || '[]'); } catch (e) { return []; } }
+function noteRijZet(r){ tlogZet(NOTE.rijKey, r.length ? JSON.stringify(r.slice(-100)) : null); }
+// de teller in het hoofdmenu: wat de Sheet open heeft, plus wat hier nog wacht om te versturen
+function noteTelToon(){
+  const el = document.getElementById('btnnotopen');
+  if (!el) return;
+  const n = tlogLees(NOTE.telKey), wacht = noteRij().length;
+  const tot = n == null ? null : +n + wacht;
+  el.textContent = 'Open notes: ' + (tot == null ? (wacht ? wacht + '+' : '...') : tot) + (wacht ? ' (' + wacht + ' unsent)' : '');
+  el.classList.toggle('veel', tot > 0);
+}
+function noteTelVraag(nu){
+  if (typeof NOTE === 'undefined' || !NOTE || !noteDesigner()) return;
+  const t = Date.now();
+  if (!nu && t - NOTE.vraagT < 20000) { noteTelToon(); return; }
+  NOTE.vraagT = t;
+  noteTelToon();
+  fetch(TLOG.url + '?actie=open&sleutel=' + encodeURIComponent(TLOG.sleutel))
+    .then(a => a.json()).then(a => { if (a && a.ok && a.open != null){ tlogZet(NOTE.telKey, String(a.open)); noteTelToon(); } })
+    .catch(() => {});
+}
+// de wachtrij legen, een voor een
+function noteLeeg(){
+  const r = noteRij();
+  if (!r.length || noteBezig) return;
+  noteBezig = true;
+  const rij = r[0];
+  fetch(TLOG.url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(rij), keepalive: true })
+    .then(a => a.json()).then(a => {
+      noteBezig = false;
+      if (!a || !a.ok) return;
+      const nu = noteRij().filter(x => x.nid !== rij.nid); noteRijZet(nu);
+      if (a.open != null) tlogZet(NOTE.telKey, String(a.open));
+      noteTelToon();
+      if (nu.length) noteLeeg();
+    }).catch(() => { noteBezig = false; noteTelToon(); });
+}
+addEventListener('online', () => noteLeeg());
+// waar je bent: het level en de plek, of het menu
+function noteWaar(){
+  if (!running) return { level: 'menu', modus: '', plek_x: '' };
+  let modus = ''; try { modus = tlogModus(); } catch (e) {}
+  return { level: tlogLevelNaam(), modus, plek_x: Math.round(world) };
+}
+function noteBouw(){
+  if (noteEl) return noteEl;
+  const k = document.createElement('button');
+  k.id = 'notknop'; k.type = 'button'; k.className = 'alleenDesigner'; k.title = 'Write a note (bug or improvement)'; k.textContent = '✎';
+  k.onclick = e => { e.stopPropagation(); noteEl.classList.contains('on') ? noteDicht() : noteOpen(); };
+  const el = noteEl = document.createElement('div');
+  el.id = 'notvak'; el.className = 'alleenDesigner';
+  el.innerHTML = '<div class="sr"><button data-s="bug">Bug</button><button data-s="verbetering">Improvement</button></div>' +
+    '<textarea maxlength="1000" placeholder="What did you see?"></textarea><p class="wr"></p>' +
+    '<div class="kn"><span></span><button class="sl">Cancel</button><button class="zend">Send</button></div>';
+  const kies = s => { noteSoort = s; el.querySelectorAll('.sr button').forEach(b => b.classList.toggle('aan', b.dataset.s === s)); };
+  el.querySelectorAll('.sr button').forEach(b => b.onclick = () => { kies(b.dataset.s); el.querySelector('textarea').focus(); });
+  kies(noteSoort);
+  const vak = el.querySelector('textarea');
+  for (const t of ['keydown', 'keyup', 'keypress']) vak.addEventListener(t, e => {
+    e.stopPropagation();                             // het spel hoort niets van het typen
+    if (t !== 'keydown') return;
+    if (e.key === 'Escape') noteDicht();
+    else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) noteZend();
+  });
+  el.addEventListener('pointerdown', e => e.stopPropagation());
+  el.querySelector('.sl').onclick = () => noteDicht();
+  el.querySelector('.zend').onclick = () => noteZend();
+  document.body.append(k, el);
+  return el;
+}
+function noteOpen(){
+  const el = noteBouw();
+  if (typeof keys !== 'undefined') for (const q in keys) keys[q] = false;   // geen toets blijft 'ingedrukt' hangen
+  const w = noteWaar();
+  el.querySelector('.wr').textContent = w.level === 'menu' ? 'In the menu' : w.level + (w.plek_x !== '' ? ', x ' + w.plek_x : '');
+  el.querySelector('.kn span').textContent = '';
+  el.classList.add('on');
+  el.querySelector('textarea').focus();
+}
+function noteDicht(){
+  if (!noteEl) return;
+  noteEl.classList.remove('on');
+  const v = noteEl.querySelector('textarea'); if (document.activeElement === v) v.blur();
+  if (running && typeof cv !== 'undefined') cv.focus();
+}
+function noteZend(){
+  const vak = noteEl.querySelector('textarea'), tekst = vak.value.trim();
+  if (!tekst){ vak.focus(); return; }
+  const nu = new Date(), twee = v => String(v).padStart(2, '0');
+  const r = noteRij();
+  r.push(Object.assign({ sleutel: TLOG.sleutel, soort: 'notitie', nid: Math.random().toString(36).slice(2, 10), type: noteSoort, tekst,
+    gespeeld: nu.getFullYear() + '-' + twee(nu.getMonth() + 1) + '-' + twee(nu.getDate()) + ' ' + twee(nu.getHours()) + ':' + twee(nu.getMinutes()),
+    scherm: innerWidth + 'x' + innerHeight }, noteWaar()));
+  noteRijZet(r);
+  vak.value = '';
+  noteEl.querySelector('.kn span').textContent = 'Saved';
+  noteTelToon(); noteLeeg();
+  setTimeout(noteDicht, 500);
+}
+document.getElementById('btnnotopen').onclick = () => { window.open(NOTE.sheet, '_blank'); };
+noteBouw(); noteLeeg(); noteTelVraag(true);
 document.getElementById('btnEpisodes').onclick = () => showMenu('menuEpisodes');
 document.getElementById('btninstellingen').onclick = () => { showTouchCfg(); showMenu('menuInstellingen'); };
 document.getElementById('btnTest').onclick = () => { showMenu('menuTest'); setLevel(levelList === TEST_LEVELS ? levelIdx : TEST_LEVELS.length - KAART_BLAD, TEST_LEVELS); };
