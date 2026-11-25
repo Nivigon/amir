@@ -602,7 +602,7 @@ async function proef(R, L){
   const goudNa = await Promise.all(R.map(r => r.page.evaluate(() => pvp.coop.goud)));
   meld(goudNa.every((g, i) => g >= goudVoor[i] + 5), 'iedereen krijgt het goud van de overleefde ronde (' + goudVoor.join('/') + ' -> ' + goudNa.join('/') + ')');
   const scherm = await G.page.evaluate(() => { world = MPC_WINKEL_KAMER.toonbank + 40; onGround = true; jump = null; binnenE();
-    return winkelUIAan && winkelUIEl.classList.contains('coop') && document.querySelectorAll('#wkcoop button').length === MPC_WINKEL.filter(mpcWinkelVoorMij).length - 1 + pvp.spelers.length - 1; });   // alleen wat bij zijn wapen hoort
+    return winkelUIAan && winkelUIEl.classList.contains('coop') && document.querySelectorAll('#wkcoop button').length === MPC_WINKEL.filter(q => mpcWinkelVoorMij(q) && !q.kivuli).length - 1 + pvp.spelers.length - 1; });   // de spullen van Kivuli staan alleen bij hem   // alleen wat bij zijn wapen hoort
   meld(scherm, 'E bij de toonbank: het winkelscherm met de prijslijst van Co-op (Give 5 gold per teamgenoot)');
   if (shots){ fs.mkdirSync(shots, { recursive: true }); await G.page.screenshot({ path: path.join(shots, 'winkel_scherm.png') }); await H.page.screenshot({ path: path.join(shots, 'winkel_kamer_host.png') }); }
   const hGoud = await H.page.evaluate(() => pvp.coop.goud), g2Goud = drie ? await G2.page.evaluate(() => pvp.coop.goud) : 0;

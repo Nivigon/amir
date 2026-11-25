@@ -1155,10 +1155,52 @@ iedereen op (`kivStart`). Lobby: **Kivuli in the first shop** (Random, At the co
   de achterkamer naar zijn plek ("Who was THAT?", of "You bought WHAT from him?" als er iets gekocht is) en gaat de winkel
   gewoon verder. Komt hij niet: even stil, een windvlaag, "Duka didn't come." en de host stuurt het team de straat op.
 - Zolang Kivuli er is doet E bij de toonbank niets en is Duka niet te zien (`kivDukaWeg`, `kivToonbankDicht`).
+- De sfeer (`KIV.sfeer`, `kivSfeer`, blok "Kivuli: de sfeer"): zolang hij er is (`kivSfeerWil`) wordt de kamer donker (`kivDonkerNa`
+  in `binnenNa`, een multiply met een lichtpoel rond de lantaarn, `donker` 100,92,124, in 1,7 s aan en 1,9 s uit), staat zijn
+  lantaarn bij zijn voet (`kivLampPos`, `kivLampTeken` in `kivTeken`; loopt hij, dan draagt hij hem en zwaait hij) en speelt
+  `music/kivuli.mp3` (naadloze lus van de Suno-track "Kivuli's Lantern", loudnorm -16 LUFS, peak -1,7 dB) boven de gewone
+  muziek (`kivMuzStap`, 50 ms klok: fade in 1,8 s, fade uit 2,6 s, `bg` zakt naar 12%). De lamp gaat aan met de fakkelframes
+  24 tot 17 achterstevoren, brandt met frame 1 tot 16 en dooft met 17 tot 24 (`design/fakkel/frame_NN.png`, alleen de
+  vlam, crop 8,2,114,220). Rustige flikker (`kivFlikker`, drie sinussen van 1,8%, 1,2% en 0,8%), warme gloed, lichtvlekjes
+  van de doorboorde lantaarn op de muur en stofjes die in de lichtcirkel oplichten. De lantaarn is dof en zacht
+  (`design/kivuli/lantaarn_uit.png` en `_aan.png`, `tools/kivuli_lantaarn.py`, bron in `design/kivuli/bron/`): hij moet
+  nauwelijks opvallen. Kivuli's frames zijn half getemperd met dezelfde dimstap als Duka's versies (`DIM` 0,5 in
+  `tools/kivuli_knip.py`; `--temper` deed dat eenmalig op de bestaande frames, stempel `karakters/kivuli/.getemperd`).
+  Elke winkel begint de sfeer uit (`kivStart`).
 - Zijn lachje met de mond dicht (`sounds/kivuli/lach.mp3`, ElevenLabs Sound Effects, gekozen door Tom) speelt heel soms
   (`kivLach`, knikkerzakken): 1 op 3 bij psst, 1 op 3 bij een aankoop, 1 op 2 bij zijn vertrek.
 - Wat hij zegt staat in `KIV_ZEG` (wolkjes boven zijn hoofd met `kivWolk`, en in de tekstballon van de winkel via `mpcZeg`).
 - De frames: `tools/kivuli_knip.py <map met de mp4's>`, naar `karakters/kivuli/`. Testen: `node tools/kivuli_test.js
   <versie> <duka 1|2>` maakt schermafbeeldingen van een heel bezoek.
-- Nog open: zijn eigen spullen (de zakken uit `claude/kivuli_items.md`) en zijn eigen winkelscherm (de binnenkant van zijn
-  mantel); nu verkoopt hij een greep uit de spullen van Duka.
+- Hij verkoopt zijn eigen spullen (zie hieronder), een per speler per bezoek. Nog open: zijn eigen winkelscherm (de
+  binnenkant van zijn mantel).
+
+## De spullen van Kivuli en de itemslots (25-11-2026)
+
+Kivuli verkoopt vijf eigen spullen (`MPC_WINKEL` met `kivuli: true`, alleen te zien bij hem: `wkkZichtbaar`), naast de
+kalebas. `kivBesluit` kiest er 2 of 3. Ieder koopt er hooguit een per bezoek (`islotKivKoop`, "Kivuli sells you only one
+thing."). Een gekocht ding gaat in je tas (`islotTas`, in de inventory onder I); daar zet je het zelf in **slot R** of
+**slot T** (`islotZet`, de knoppen Slot R en Slot T). R en T gebruiken het (`islotToets`), herstarten is nu **Shift+R**
+(R alleen nog als je dood bent, na het eind en in het Duel), en het oefendoel van de sandbox staat op **Y**. De actiebalk
+heeft twee vakken erbij (`islot0`, `islot1`) met het plaatje en het aantal.
+
+| ding | prijs | wat |
+| --- | --- | --- |
+| Sack o' Bones | 25 | een witte stofwolk van 6 s (1,15 Amir breed); elke vijand die erin loopt is 2,5 s blind, wie al blind is niet opnieuw |
+| Sack o' Fangs | 30 | de zak valt op de looplijn, een zwarte slang met gouden banden komt eruit en bijt steeds de dichtstbijzijnde vijand, 5 beten (elk een treffer); de vijanden negeren hem |
+| Jar o' Fire Ants | 25 | een muur van mieren, 5 s, een Amir breed, voor je; vijanden komen er niet door en wie erin staat deinst terug, projectielen vliegen eroverheen |
+| Oil of Mirrors | 35 | 5 s onzichtbaar voor vijanden (jij en je team zien je op 40% met een glasrand); aanvallen maakt je zichtbaar, een verdwaalde klap raakt je wel en maakt je ook zichtbaar |
+| Ketemba Clay | 30 | 8 s klei onder je voeten: niet springen, 15% trager, dubbele schade (bovenop de bonus van je wapen); plakstappen, een hardere klap en kleiklonten van je voeten |
+
+Hoe het werkt (zoek op `ISLOT`):
+- `islotStart(m, zelf)` start een effect, bij iedereen: de gebruiker stuurt `{t:'isl', k, x, h, f}` (in `MP_DOOR`). De
+  host denkt voor de wolk, de slang en de mieren (`islotStap`), net als voor de vijanden; treffers gaan via `islotRaak`.
+- Mirrors: `mpcDoel` slaat een onzichtbare speler over, en tijdens de update van de vijanden zet `islotMirOm` hem even op
+  de plek waar hij verdween, zodat ze daar zoeken. Een klap die hem toch echt raakt (binnen 0,6 Amir) telt en maakt hem
+  zichtbaar (`islotMirEind`, `{t:'islm'}`).
+- Clay: `islotDubbelNu` zet `critNu` voor de speer en vermenigvuldigt `straalSchadeK` voor de stokken; een gast stuurt
+  `x2` mee in zijn treffer (`mh`). De stappen: `sounds/kivuli/klei_stap1.mp3` en `klei_stap2.mp3` (ElevenLabs, gekozen
+  door Tom, even hard als de gewone stappen), de klap `sounds/brutus_raak.mp3`.
+- Bazen zitten niet in de vijandlijsten, dus de mieren en Mirrors werken niet op een baas.
+- Beelden: `items/kivuli/*.png` (Grok, gekozen door Tom); de slang `enemies/slang_kivuli/` uit `tools/slang_kivuli.py`.
+- Sandbox: de rij **Kivuli items** stopt er een in je tas. Testen: `node tools/islot_test.js [map]`.
