@@ -182,8 +182,11 @@ Scripts uit de sessie: /home/claude/stok/puppet2.py (tilt 3, stokken 5 en 7).
   de hand op de grond steunt ligt de stok plat onder de hand. Bukken: de stokken hangen eerst omlaag, dan een stok bij de kin
   en de andere plat onder de geplante hand.
 - Bakken: `python3 tools/stok_bak.py --alleen bukken,sluipen`, de regels `bukken` en `sluipen` in `STOK.slip.punt`.
-- Open: in de vasthoudframes van het bukken (8-11) draait de kinstok van vlak naar voren tot rechtop; in de ademlus
-  (`DUCK_HOLD_SEQ`) zwaait hij dus heen en weer.
+- Vasthouden (25-11-2026): de kinstok draaide in frame 8-11 van vlak naar voren tot rechtop, dus in de ademlus
+  (`DUCK_HOLD_SEQ`) zwaaide hij heen en weer, en rechtop viel de vuist achter de stok weg. Nu hebben 9-11 de plaatsing van
+  frame 8 (vlak naar voren, 7 graden; de vuist beweegt in die frames hooguit een pixel), in `plaatsing.json`, in
+  `bron/stokhoeken.json` (voor `stok_variant.py`) en in `STOK.slip.punt`. De winkelstokken (klauw, goud, ardhi) zijn
+  voor die drie frames opnieuw gebakken, net als de vachtmaskers (`node tools/vacht_bak.js --alleen /bukken/bukken_`).
 
 ## De grondklap (16-11-2026, Test 76)
 

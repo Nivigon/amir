@@ -935,6 +935,14 @@ niet met `STOK_AAN` of in een level met `broekKeuze` of een eigen `skin`).
   als het niet de gewone is). Het vaantje waait in de hand net als op de rug (`pfRugWind`): stil wiegt het, rennend
   waait het naar achteren. Zolang iets laadt het gebakken frame. Stel je de speer
   bij in de tool, draai dan met de export `mkuki_spel_bak.py`, `mkuki_spel_zones.py` en `mkuki_spel_los.py`.
+- **De vuist in het bukken (25-11-2026).** In `bukken_hold_1-4_speer` en `bukken_in_8_speer` was de achterste vuist (die de
+  speer bij de kin vasthoudt) weggegumd met het weg-masker van het lijf, en de vuistlaag (`_boven.png`) stond op een vaste
+  plek: in de ademlus viel de vuist half of helemaal weg. Hersteld zonder de tool: het lijf is daar nu het speerloze
+  Mkuki-frame (`bukken/bukken_hold_N.png`, zelfde lijf, 120 px naar rechts op het speercanvas) met zijn zonekaart, de
+  boven-laag is de vuist daaruit, en de speer (`los.json`, `_sm.png`) is die van hold 1, verschoven met de vuist mee
+  (hold 2: 1, -5; hold 3: 0, 4; hold 4: -1, 3; in_8: 0, -14). Het gebakken frame en de kleine set opnieuw. Let op: draai je
+  `mkuki_spel_los.py` opnieuw uit de tool, dan komt de oude fout terug, tenzij de vuist daar ook goed staat.
+  Nog over: in `bukken_in_6_speer` zit onder de kin een restje van de vuist (een overgangsframe van 35 ms).
 - **De idle glad (23-11-2026).** De 20 Grok-frames van `idle/idle_sp` verschilden elk een beetje: nek en kralen
   veranderden van vorm en schort en broek wiebelden tot 5 px op en neer, terwijl in de oude idle alles vanaf de heup
   stilstaat. `tools/mkuki_idle_glad.py <mkuki-checkout>` maakt ze uit een lijf: frame 0 (bewaard in
