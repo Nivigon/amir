@@ -1109,6 +1109,11 @@ Met de speer blijven het de outfits van Mkuki.
 ## De winkel als kamer (24-11-2026)
 
 De winkel van Co-op is geen paneel meer maar de winkelkamer zelf (ontwerp in het project: `claude/winkel_c_ontwerp.md`).
+
+De inrichting (26-11-2026): de toonbank staat op -21020 (`MPC_WINKEL_KAMER.toonbank`, was -21250), zodat de doorgang met het
+doek achter Duka helemaal in beeld staat; het linkerraam (-20850) en de paal (-20725) schoven mee. Kivuli versie 2 rekent vanaf
+de toonbank en leunt daarom op 570 (was 800), tegen de muur voor de straatdeur. Schuif je de toonbank weer, kijk dan ook `KIV.plek`
+na (`node tools/kivuli_test.js 2 1`).
 Opent E bij de toonbank de winkel en staat Amir in een kamer met `winkel` (`wkkKan`), dan gaat `wkk.aan` en krijgt
 `#winkelui` de klasse `kamer`: het oude paneel is weg, het spel loopt door (`paused = false`, de toetsen kiezen alleen), zodat
 de marktman en de teamgenoten bewegen.
