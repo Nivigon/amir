@@ -285,7 +285,9 @@ alles laag raakt. Hij kost een lading van de lage zwaai (`swLading`, het vak in 
   vlakker gedraaid rond de vuist zodat de spelstok van 155 px de grond raakt en er niet door gaat). Gebakken met
   `tools/stok_bak.py --alleen laag`, maat 1 (gelijk aan het bukken).
 - Tempo `STOK.ms.laag`: de arm omhoog (0,2 s), de tell (0,11 s), de slag (0,24 s), de klap op positie 20-22 (zo'n 0,55 s na
-  de druk), dan 0,26 s vast. Actief `STOK.actief.laag` 20-22.
+  de druk), dan 0,26 s vast. Actief `STOK.actief.laag` 15-22 (26-11-2026, Tom: hij raakt wat de stok in beeld raakt): de
+  punt per frame in `STOK.puntPer.laag`, gemeten in de frames, zodat de neergaande zwaai ook een vijand hoger op raakt,
+  bijvoorbeeld op een galerij vanaf een rieten dak. Daarvoor raakte alleen de klap op de grond (20-22).
 - Proefrit: `tools/laag_test.js [map]` (een slang voor hem, bukken, slaan, schermafdrukken).
 - Wegzakken (16-11-2026): in de clip zakt de hele Amir midden in de slag tot 28 px (frame 9-12) en vallen zijn voeten
   onder de rand van het Animeer-canvas, daarna komt hij 5 px hoger uit dan hij begon. In het spel zakte hij zo door de
