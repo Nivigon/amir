@@ -1183,10 +1183,10 @@ iedereen op (`kivStart`). Lobby: **Kivuli comes** (`kivVaak`: 1 in 3 shops, Ever
   <versie> <duka 1|2>` maakt schermafbeeldingen van een heel bezoek.
 - Hij verkoopt zijn eigen spullen (zie hieronder), een per speler per bezoek.
 - De mantel (zijn eigen scherm, `kivMantel`, blok "de mantel van Kivuli"): met E bij hem opent niet het doek van Duka maar de
-  binnenkant van zijn mantel (`design/kivuli/mantel.png`, petrol voering, bron `_kivuli/cloak6b.png` uit de sessie). Zes haken
+  binnenkant van zijn mantel (`design/kivuli/mantel.png`, 838x646 met grote prijskaartjes: zijaanzicht, de jas hangt aan zijn schouder en zijn opgeheven arm slaat de voorflap open, petrol voering, uit een Grok-plaat; de eerdere voorkant uit `_kivuli/cloak6b.png` is vervangen omdat de spullen op de binnenflap horen te hangen). Zes haken in twee kolommen van drie
   (`KM.pos`, % van de plaat), 3 of 4 gevuld uit zijn voorraad op vaste plekken per bezoek (`kivSlots`, een schudbeurt op de
-  inhoud, dus bij iedereen gelijk), het prijslabel als pil onder het ding, onderin de strook met alleen de naam, en onder het paneel een donkere plaquette met de uitleg en zo nodig
-  waarom het niet kan (`#kmbox`, vaste hoogte van vier regels, de tekst krimpt tot hij past, `--k`). Hover of klik kiest (goud gloeit), een dubbelklik (`mpcDubbelKlik`), Enter of Buy
+  inhoud, dus bij iedereen gelijk), het prijslabel als pil onder het ding, en onder het paneel een donkere plaquette met het gekozen ding groot links (`#kmgroot`), de naam, de uitleg en zo nodig
+  waarom het niet kan (`#kmbox`, vaste hoogte, de tekst krimpt tot hij past, `--k`). Hover of klik kiest (goud gloeit), een dubbelklik (`mpcDubbelKlik`), Enter of Buy
   koopt; pijltjes en Tab lopen langs de gevulde haken. Het paneel staat aan de kant tegenover hem (`kivMantelKant`: hij links
   van 40% van het scherm dan rechts, rechts van 60% dan links, in het midden de kant waar Amir niet staat; `kiv.sx` en `kiv.ax`
   zet `kivTeken`), de tekstballon van de marktman springt naar de andere kant (`kmlinks`). Een gekocht ding is weg voor
