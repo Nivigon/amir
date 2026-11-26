@@ -1123,6 +1123,10 @@ de marktman en de teamgenoten bewegen.
   plank van de winkel (`plank_touw.png` via `winkelMetSchaduw`, breder en leeg, `wkkPlank`). De bordjes, de prijslabels en de
   gloed van het gekozen ding gaan in `wkk.na` en worden in `binnenNa` na het schemer getekend (`wkkNaTeken`), anders dimt de
   kamer ze. Voor de muis bewaart `wkkScherm` per ding en bordje de rechthoek op het scherm (de transformatie van het moment).
+- **Niets onder het doek** (26-11-2026): de bordjes hangen in een blok van twee bij twee (`WKK.bord.kol`), de bovenste rij aan
+  de balk, de onderste aan de bovenste. Elk beeld leest `wkkDoekRand` de linkerrand van het doek (DOM) en rekent die terug
+  naar de tekencoördinaten; staat de uitstalplek te ver naar rechts (een gast, wiens camera zijn eigen Amir volgt, zag Team
+  onder het doek verdwijnen), dan schuiven de uitstalplek en het blok naar links tot ze `WKK.marge` naast het doek staan.
 - **Wat waar ligt**: `WKK.waar` (artikel naar categorie). Een artikel met `eis` dat zelf niet op een uitstalplek ligt is een upgrade
   van zijn ouder en staat als icoontje in het doek (`wkkOuder`, `wkkUpgrades`): Full Circle: more damage en all around, Ardhi's Roots.
   Give 5 gold staat bij Team, een keer per teamgenoot.
