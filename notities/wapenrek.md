@@ -17,6 +17,9 @@ Geen bestaand level heeft er een.
 - **E** ervoor (`rekTrek`, in `toggleSpear` na het skelet en de losse speer): met lege handen gaat er een speer in je hand
   (je eigen speer ergens in de wereld wordt een losse speer, `eigenSpeerNeer`, zoals bij `losTrek`); met je hand vol gaat hij
   op de rug als daar plek is (`rugErbij`); zijn die allebei vol, dan wiebelt het rek en klinkt `dontneedthis`.
+- Ligt je eigen speer (in de grond, geworpen of in een lijk) ook binnen bereik, dan gaat die voor: E pakt hem en het rek
+  blijft vol (`rekBij` geeft dan niets, ook geen E boven het rek). Zo pak je een speciale speer niet per ongeluk van het rek.
+  Een losse speer op de grond (`losTrek`) ging al voor het rek.
 - De gepakte speer glijdt nog even omhoog uit het rek en vervaagt (`WAPENREK.uit`). Een leeg rek blijft staan, zonder E.
 - Na een dood staat het rek weer vol (`rekReset` in `restart`).
 - De speren hebben het rode lint, niet het blauwe vaantje van het skelet.

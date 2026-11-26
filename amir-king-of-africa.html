@@ -800,6 +800,7 @@
   .wkk-tip em{display:block;font-style:normal;color:#f6d77a;margin-top:3px}
   #winkelui.coop.kamer #wkzeg{display:block;left:40px;top:44vh;max-width:240px;padding:8px 12px;border-radius:4px;background:rgba(28,16,8,.82);border:2px solid #5a3a1c;color:#f3dfb4;font:15px 'Bree Serif',Georgia,serif;box-shadow:none}
   #winkelui.coop.kamer #wkzeg::after{display:none}
+  #winkelui.coop.kamer #wkzeg:empty{display:none}
   #winkelui{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(20,12,6,.62);z-index:6}
   #winkelui.on{display:flex}
   #winkelui .wkdoos{display:flex;flex-direction:column;align-items:center;gap:12px;padding:22px 28px;border-radius:14px;
@@ -18887,6 +18888,8 @@ function rekReset(){
 function rekBij(){
   if (tribeStok() && STOK_AAN) return null;      // de stoktribe vecht met de stokken: geen speren om te pakken
   if (!wapenrekken.length) return null;
+  // je eigen speer binnen bereik gaat voor: dat kan een speciale speer zijn, en het rek blijft dan vol voor later
+  if (spearNear()) return null;
   const half = WAPENREK.hoog * WAPENREK.w / WAPENREK.h * CHAR_H * nowScale() / 2, reik = javReach();
   let best = null, bestD = Infinity;
   for (const r of wapenrekken){
@@ -23185,7 +23188,7 @@ const STOK = {
         draaiterug: [50, 42, 42, 42, 42, 60],
         blok: [40, 33, 33, 33, 33, 33, 33, 33, 33, 33, 40, 60, 150] },
   tempo: { slag: 0.65, stapslag: 1, slag2: 1, grondklap: 1, laag: 1, draaislag: 0.85, draaiterug: 0.9, blok: 0.6, blokNeer: 0.35 },   // minder is sneller
-  actief: { slag: [6, 7, 8, 9], stapslag: [19, 20, 21], slag2: [11, 12, 13], grondklap: [], laag: [20, 21, 22], draaislag: [3, 4, 5, 6] },   // de grondklap raakt met de golf (GK), niet met de punt
+  actief: { slag: [6, 7, 8, 9], stapslag: [19, 20, 21], slag2: [11, 12, 13], grondklap: [], laag: [15, 16, 17, 18, 19, 20, 21, 22], draaislag: [3, 4, 5, 6] },   // de grondklap raakt met de golf (GK), niet met de punt
   punt: { slag: [-110, 120], stapslag: [-230, 120], slag2: [-235, 186], grondklap: [-103, 372], laag: [-220, 372], draaislag: [-150, 110] },   // grondklap: de punt van de voorste stok op het contactframe, daar begint de golf
   reik: { slag: 40, stapslag: 55, slag2: 50, grondklap: 0, laag: 50, draaislag: 55 },
   heel: true,                // de slag raakt over de hele stok: van Amirs lijf tot voorbij de punt, alleen aan de voorkant
@@ -23195,6 +23198,9 @@ const STOK = {
   // De x blijft die van punt (het bereik naar voren verandert niet), de y is waar de stok in dat frame op die x ligt
   // (gemeten in de frames). Zonder dit raakte de stapslag een hyena niet terwijl de stok zichtbaar op zijn rug landde
   puntPer: { stapslag: { 19: [-230, 145], 20: [-230, 191], 21: [-230, 201] },   // frames 25, 26, 27
+             // de lage slag: de stok komt van boven naar voren omlaag, en raakt alles wat hij onderweg raakt, ook een vijand
+             // op een galerij boven een rieten dak (Tom). De punt per frame gemeten in laag_15 tot laag_20; 21 en 22 op de grond
+             laag: { 15: [-185, 108], 16: [-225, 167], 17: [-248, 222], 18: [-254, 273], 19: [-249, 317], 20: [-238, 351] },
              slag: { 7: [-110, 205], 8: [-110, 205], 9: [-110, 205] } },
   tonOnder: 60,              // tegen een ton: de slag raakt over de hele stok, van Amir tot de punt, en zoveel sprite-eenheden
                              // onder de punt (de punt komt op borsthoogte uit, boven de ton, en reikt er voorbij)
@@ -39504,7 +39510,7 @@ const KIV = {
   dukaBij: 200,              // zo ver van de deur (wereld) komt Duka uit de achterkamer: hij ziet Kivuli nog net vertrekken
   tijd: 45,                  // zo lang is hij er, vanaf de eerste die hem aanspreekt (s)
   bij: 190,                  // zo dichtbij voor E (wereld)
-  plek: { 1: { van: 560, naar: 240 }, 2: { naar: 800, nadert: 420 }, 3: { x: 220 } },   // vanaf winkel.x (wereld)
+  plek: { 1: { van: 560, naar: 240 }, 2: { naar: 570, nadert: 300 }, 3: { x: 220 } },   // vanaf winkel.x (wereld); 2 leunt tegen de muur voor de straatdeur (570: de toonbank schoof 230 op, 26-11-2026); nadert: zo dicht bij de toonbank komt hij binnen
   psst: 13,                  // zolang niemand hem aanspreekt: elke zoveel s psst
   stilNa: 4, geenDukaT: 3.2,
   lach: { src: 'sounds/kivuli/lach.mp3', vol: 0.85 },   // zijn lachje met de mond dicht (ElevenLabs), heel soms (kivLach) // geen Duka: zo lang stil na zijn vertrek, en zo lang staat de tekst voor het team naar buiten gaat
@@ -39557,8 +39563,18 @@ function kivZak(naam, lijst){
 }
 function kivBesluit(){
   const C = pvp.coop, R = pvp.regels.coop, keus = R.kivuli == null ? 4 : R.kivuli;
-  if (!keus || C.ep || C.kivGeweest) return null;
-  C.kivGeweest = true;
+  if (!keus || C.ep) return null;
+  // hoe vaak (kivVaak): 0 een op de drie winkelbezoeken uit een knikkerzak (een verse zak per potje, in C),
+  // 1 bij elk bezoek, 2 alleen het eerste bezoek (zoals vroeger)
+  const vaak = R.kivVaak || 0;
+  if (vaak === 2){ if (C.kivGeweest) return null; C.kivGeweest = true; }
+  else if (vaak === 0){
+    if (!C.kivZak || !C.kivZak.length){
+      const z = C.kivZak = [true, false, false];
+      for (let i = z.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [z[i], z[j]] = [z[j], z[i]]; }
+    }
+    if (!C.kivZak.pop()) return null;
+  }
   const versie = keus === 4 ? kivZak('versie', [1, 2, 3]) : keus;
   const dk = R.kivDuka || 0, duka = dk === 1 ? true : dk === 2 ? false : kivZak('duka', [true, false]);
   // zijn voorraad: de kalebas, en 2 of 3 dingen zonder eis (geen upgrades, geen Give gold); zijn eigen spullen komen later
@@ -39598,7 +39614,7 @@ function kivStart(kv){
     mijnUI: false, kant: null, slots: kivSlots(kv.voorraad), sel: -1, klaar: {}, klaarT: null, weg: false, uit: false, gekocht: false, zeg: null, zegT: 0, psstT: KIV.psst, wacht: 2.2, dukaFase: null, dukaT: 0, gezegd: {} });
 }
 // is Kivuli er (nog), zodat Duka weg is en E bij hem de winkel opent?
-function kivDukaWeg(){ return !!(kiv.aan && !(kiv.duka && kiv.dukaFase)); }          // Duka niet tekenen
+function kivDukaWeg(){ return !!(kiv.dukaVerstopt || (kiv.aan && !(kiv.duka && kiv.dukaFase))); }   // Duka niet tekenen (dukaVerstopt: ook in de fade de winkel uit)
 function kivToonbankDicht(){ return !!(kiv.aan && kiv.dukaFase !== 'terug'); }   // E bij de toonbank doet nog niets (Duka is er nog niet terug)
 function kivHier(){ return !!(kiv.aan && kiv.w && !kiv.uit && kiv.fase !== 'leeg' && !kiv.weg); }
 function kivWinkel(){ return !!(kiv.aan && kiv.mijnUI && winkelUIAan); }
@@ -39799,6 +39815,14 @@ function kivTeken(groundY, scale, cx){
   }
   if (kiv.zeg && kiv.zegT > 0 && kiv.zegWie === 'duka') kivWolk(cx + (dukaX(kiv.w) - world), voet - A * DUKA.tall - 10, kiv.zeg, kiv.zegT);
 }
+// Duka praat in de winkelkamer in dezelfde wolk boven zijn hoofd als Kivuli, niet meer in een los vak links (mpcZeg)
+const dukaZeg = { tekst: '', tot: 0 };
+function dukaZegTeken(groundY, scale, cx){
+  const t = (dukaZeg.tot - performance.now()) / 1000; if (!dukaZeg.tekst || t <= 0) return;
+  const b = binnenBij(world), w = b && b.winkel; if (!w || w.koopman === false || kivDukaWeg()) return;
+  const A = CHAR_H * scale;
+  kivWolk(cx + (dukaX(w) - world), groundY + 0.04 * A - A * DUKA.tall - 10, dukaZeg.tekst, t);
+}
 // een tekstwolkje boven een hoofd, met een puntje naar beneden
 function kivWolk(x, y, tekst, t){
   ctx.save();
@@ -39808,14 +39832,21 @@ function kivWolk(x, y, tekst, t){
   for (const wd of woorden){ const p = r ? r + ' ' + wd : wd; if (ctx.measureText(p).width > 250 && r){ regels.push(r); r = wd; } else r = p; }
   regels.push(r);
   const lh = 23, B = Math.max(...regels.map(s => ctx.measureText(s).width)) + 28, H = regels.length * lh + 16;
-  const x0 = x - B / 2, y0 = y - H - 12;
+  // binnen beeld houden: de ballon schuift naar binnen, het puntje blijft boven de spreker (Tom, 25-11-2026)
+  const m = ctx.getTransform(), sx = m.a || 1, sy = m.d || 1, rnd = 10;
+  const links = (0 - m.e) / sx + rnd, rechts = (cv.width - m.e) / sx - rnd, boven = (0 - m.f) / sy + rnd;
+  let x0 = x - B / 2, y0 = y - H - 12;
+  if (x0 + B > rechts) x0 = rechts - B;
+  if (x0 < links) x0 = links;
+  if (y0 < boven) y0 = boven;
+  const px = Math.max(x0 + 16, Math.min(x0 + B - 16, x)), mx = x0 + B / 2;   // het puntje, op de rand van de ballon
   ctx.fillStyle = 'rgba(246,232,200,0.96)'; ctx.strokeStyle = '#3a2414'; ctx.lineWidth = 2.5;
   ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x0, y0, B, H, 12); else ctx.rect(x0, y0, B, H);
-  ctx.moveTo(x - 9, y0 + H); ctx.lineTo(x, y0 + H + 12); ctx.lineTo(x + 9, y0 + H);
+  ctx.moveTo(px - 9, y0 + H); ctx.lineTo(px, y0 + H + 12); ctx.lineTo(px + 9, y0 + H);
   ctx.fill(); ctx.stroke();
-  ctx.fillStyle = 'rgba(246,232,200,1)'; ctx.fillRect(x - 8, y0 + H - 3, 16, 4);
+  ctx.fillStyle = 'rgba(246,232,200,1)'; ctx.fillRect(px - 8, y0 + H - 3, 16, 4);
   ctx.fillStyle = '#2e1a0c'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  regels.forEach((s, i) => ctx.fillText(s, x, y0 + 8 + i * lh));
+  regels.forEach((s, i) => ctx.fillText(s, mx, y0 + 8 + i * lh));
   ctx.restore();
 }
 // ---- Kivuli: de sfeer (Tom, 25-11-2026) ----
@@ -39905,7 +39936,7 @@ function kivMantelToon(){
       b.style.left = KM.pos[i][0] + '%'; b.style.top = KM.pos[i][1] + '%';
       b.innerHTML = '<img src="' + wkkBeeldSrc(q) + '" alt=""><span class="km-pr"></span>';
       b.onmouseenter = () => kivSel(i);
-      b.onclick = () => { if (kiv.sel === i) wkkKoop(); else kivSel(i); };
+      b.onclick = () => { const dubbel = mpcDubbelKlik('kiv' + i); kivSel(i); if (dubbel) wkkKoop(); };   // een klik kiest, dubbelklik of Buy koopt
       haken.append(b);
     });
   }
@@ -40727,7 +40758,11 @@ const ISLOT = {
   // de mieren: een muur van zoveel Amir aan elke kant van de kalebas; vijanden gaan er niet overheen, wie erin staat deinst terug
   ants: { duur: 5, breed: 1, voor: 0.9, n: 330, deins: 9 },
   // onzichtbaar: zoveel s, zoveel zichtbaar voor jezelf en je team; de eerste aanval eruit telt dubbel (dubbelT s lang)
-  mirrors: { duur: 5, alfa: 0.4, rand: 'rgba(200,236,255,1)', dubbelT: 0.6, bij: 0.6 },
+  mirrors: { duur: 5, alfa: 0.4, rand: 'rgba(200,236,255,1)', dubbelT: 0.6, bij: 0.6,
+             // het zoeken: een zoekpunt binnen straal Amir van de plek waar je verdween, minstens minStap ver, nieuw als hij er
+             // binnen raak is of na zoekT seconden; het doel ligt voor Amir voor de groep uit (voorK per soort), buiten zijn aanval
+             straal: 5, minStap: 1.5, raak: 0.6, zoekT: [1.5, 3.2], voor: 3.5,
+             voorK: { schildmannen: 6, zweepmannen: 6, scorps: 6, fosforSlangen: 6, hyenas: 8, kruisbogen: 30 } },
   // de klei: zoveel s, zo snel loop je, en elke treffer telt dubbel (de crit, en de stokken via straalSchadeK)
   klei: { duur: 8, traag: 0.85, stapVol: 1, raakVol: 0.85 }
 };
@@ -40736,7 +40771,7 @@ const MPC_WINKEL_KIV = {
   bones:   { uitleg: 'Throw it down. A cloud of stinking bone dust surrounds you. Enemies that walk in are blinded.', sfeer: 'Crushed bones from... oh boy.' },
   fangs:   { uitleg: 'Set the sack down. A snake slithers out and strikes the nearest enemy. It leaves after five bites.', sfeer: "Don't open it near your feet." },
   ants:    { uitleg: "Set the jar down. Fire ants swarm the ground. Enemies won't cross them, and those caught inside fall back. Arrows and spears fly over.", sfeer: 'An ant bites. A fire ant burns.' },
-  mirrors: { uitleg: "Drink it and vanish from your enemies' eyes. Attacking breaks the spell. Stray hits still find you.", sfeer: 'Liquid glass from the Temple of Kemara.' },
+  mirrors: { uitleg: "Drink it and vanish from your enemies' eyes. They roam around searching for you and do not strike. Attacking breaks the spell.", sfeer: 'Liquid glass from the Temple of Kemara.' },
   klei:    { uitleg: "Smear it under your feet. You can't jump, but every blow lands twice as hard.", sfeer: 'Feet of stone. Fists of thunder.' }
 };
 let islotTas = {}, islot = [null, null], islotKivKoop = false;
@@ -40843,17 +40878,49 @@ function islotMirFilter(p){ return islotMirAan(p) ? 'drop-shadow(0 0 1.5px ' + I
 function islotKleiAan(){ return islotKleiT > 0; }
 function islotDubbelNu(){ return islotKleiT > 0 || islotDubbelT > 0; }
 function islotLoopK(){ return islotKleiT > 0 ? ISLOT.klei.traag : 1; }
-// een update van een soort vijanden met een onzichtbaar doel: hij zoekt op de plek waar je verdween. Raakt hij daar iets,
-// dan telt dat alleen als je er echt nog staat (dan ben je ook weer zichtbaar); anders gaat de stand terug
-function islotMirOm(p, f){
+// een update van een soort vijanden met een onzichtbaar doel: hij valt niet aan maar zoekt. Elke vijand kiest een eigen
+// zoekpunt rond de plek waar je verdween (islotMirZoek) en loopt erheen; is hij er, dan kiest hij een volgend. Daarvoor
+// draait de update in twee groepen (wie naar links zoekt en wie naar rechts), met het doel telkens ISLOT.mirrors.voor
+// voor de groep uit, zodat niemand binnen zijn aanval komt. Loopt er een door je heen, dan merkt hij niets. Zonder lijst
+// (k) de oude manier: hij zoekt op de plek waar je verdween, en een klap daar (binnen ISLOT.mirrors.bij) maakt je zichtbaar
+function islotMirZoek(o, m, A){
+  const M = ISLOT.mirrors;
+  if (o.mirVan !== m || m.t < o.mirTot || Math.abs(o.x - o.mirZ) < M.raak * A){
+    let z = o.x;
+    for (let i = 0; i < 6 && Math.abs(z - o.x) < M.minStap * A; i++) z = m.x + (Math.random() * 2 - 1) * M.straal * A;
+    if (Math.abs(z - o.x) < M.minStap * A) z = o.x + (o.x > m.x ? -1 : 1) * M.minStap * A;
+    o.mirVan = m; o.mirZ = z; o.mirTot = m.t - (M.zoekT[0] + Math.random() * (M.zoekT[1] - M.zoekT[0]));
+  }
+  return o.mirZ < o.x ? -1 : 1;
+}
+function islotMirOm(p, f, k){
   const m = islotMir[p];
   if (!m || m.t <= 0) return f();
-  const oud = mpcLees(), oudHurt = hurt;
-  world = m.x; ph = m.h;
-  try { f(); }
+  const oud = mpcLees(), oudHurt = hurt, A = islotA(), M = ISLOT.mirrors;
+  const q = k ? mpcLijst(k) : null, lijst = q && !q.los ? q.l().slice() : null;
+  try {
+    camSwap = null;                                  // playerX leest camSwap voor world: zonder dit zag hij je toch
+    if (!lijst || !lijst.length){ world = m.x; ph = m.h; f(); }
+    else {
+      const kant = { '-1': [], '1': [] };
+      for (const o of lijst) kant[mpcLeeft(o) ? islotMirZoek(o, m, A) : 1].push(o);
+      let samen = [];
+      const voor = (M.voorK[k] || M.voor) * A;
+      for (const d of [-1, 1]){
+        const rij = kant[d];
+        if (!rij.length) continue;
+        mpcZet(q, rij);
+        world = d < 0 ? Math.min(...rij.map(o => o.x)) - voor : Math.max(...rij.map(o => o.x)) + voor;
+        ph = m.h;
+        f();
+        samen = samen.concat(q.l());
+      }
+      mpcZet(q, samen);
+    }
+  }
   finally {
-    const raak = lives < oud[4], A = islotA();
-    const bij = Math.abs(oud[0] - m.x) < ISLOT.mirrors.bij * A && Math.abs(oud[1] - m.h) < CHAR_H * 0.5;
+    const raak = lives < oud[4];
+    const bij = !lijst && Math.abs(oud[0] - m.x) < M.bij * A && Math.abs(oud[1] - m.h) < CHAR_H * 0.5;
     if (raak && bij){ const l = lives, iv = invuln, h = hurt; mpcSchrijf(oud); lives = l; invuln = iv; hurt = h; islotMirEind(p, false); }
     else { mpcSchrijf(oud); hurt = oudHurt; }
   }
@@ -48703,7 +48770,7 @@ function bdPlaatje(naam){
   return imgReady(img) ? vgPlaatje(img, false, naam === 'liaan' ? 0.35 : 0, VG_RW.kleur, BLADERDAK.vaag) : null;
 }
 function drawBladerdak(groundY, scale){
-  if (!rwSilhouetAan()) return;
+  if (!rwSilhouetAan() || binnenNu()) return;   // binnen geen bladerdak voor de camera
   const B = BLADERDAK, lv = sandbox ? SB_RW_LEVEL : level, zaad = lvZaad(lv);
   const diep = Math.max(0, camDiepte(scale));
   const zicht = 1 - Math.max(0, Math.min(1, (diep - VOORGROND.weg[0]) / (VOORGROND.weg[1] - VOORGROND.weg[0])));
@@ -48840,6 +48907,7 @@ function vgStrook(cfg, wx){
   return null;
 }
 function drawVoorgrond(groundY, scale){
+  if (binnenNu()) return;                        // binnen (een kamer, de winkel) staat er geen gras of struik voor de camera
   const cfg = voorgrondNu();
   if (!cfg) return;
   const V = VOORGROND;
@@ -61978,7 +62046,7 @@ function loop(now){
         ctx.restore();
       }
     }
-    winkelVoor(groundY, scale, cx); kivTeken(groundY, scale, cx);   // binnen: de marktman en de toonbank, voor de personages en achter Amir (zie "de winkel")
+    winkelVoor(groundY, scale, cx); kivTeken(groundY, scale, cx); dukaZegTeken(groundY, scale, cx);   // binnen: de marktman en de toonbank, voor de personages en achter Amir (zie "de winkel")
 
     // de speer die in de grond staat, met een E erboven als je dichtbij bent
     if (!spearFound && spearX !== null && !jav && !imgReady(spearImg)){
@@ -75971,7 +76039,7 @@ function mpStandaard(){
   for (const q of MP_SOORTEN) vij[q.k] = q.var ? 'beide' : 'aan';
   return { modus: 'coop', kaart: 'dye',
            duel: { rondes: 3, levens: 3, rolKoel: true, winkel: false, goud0: 100, winkelEerst: true, winkelNa: 1, goudErbij: 50 },
-           coop: { start: 1, erbij: 1, winkelNa: 3, pauze: 10, rek: 4, kalebas: 30, goud0: 0, winkelEerst: false, kivuli: 4, kivDuka: 0, beginner: false, vij, licht: Object.assign({}, MPC_VERSIE.standaard) } };
+           coop: { start: 1, erbij: 1, winkelNa: 3, pauze: 10, rek: 4, kalebas: 30, goud0: 0, winkelEerst: false, kivuli: 4, kivVaak: 0, kivDuka: 0, beginner: false, vij, licht: Object.assign({}, MPC_VERSIE.standaard) } };
 }
 // de instellingen van de host, bewaard op dit apparaat; wat ontbreekt komt uit de standaard
 function mpLaadInst(sleutel){
@@ -75983,7 +76051,7 @@ function mpLaadInst(sleutel){
       st.kaart = MP_KAARTEN[st.modus].some(k => k.id === w.kaart) ? w.kaart : MP_KAARTEN[st.modus][0].id;   // de Co-op episode: het startlevel
       Object.assign(st.duel, w.duel || {});
       const c = w.coop || {};
-      for (const k of ['start', 'erbij', 'winkelNa', 'pauze', 'rek', 'kalebas', 'goud0', 'kivuli', 'kivDuka']) if (typeof c[k] === 'number') st.coop[k] = c[k];
+      for (const k of ['start', 'erbij', 'winkelNa', 'pauze', 'rek', 'kalebas', 'goud0', 'kivuli', 'kivVaak', 'kivDuka']) if (typeof c[k] === 'number') st.coop[k] = c[k];
       if (typeof c.winkelEerst === 'boolean') st.coop.winkelEerst = c.winkelEerst;
       if (typeof c.beginner === 'boolean') st.coop.beginner = c.beginner;
       for (const q of MP_SOORTEN) if (c.vij && typeof c.vij[q.k] === 'string') st.coop.vij[q.k] = c.vij[q.k];
@@ -76014,8 +76082,9 @@ const MP_COOP_RIJEN = [
   { k: 'kalebas', naam: 'Gourd chance in a barrel', min: 0, max: 100, stap: 10, een: '%' },
   { k: 'goud0', naam: 'Starting gold', min: 0, max: 400, stap: 10 },          // ieder begint met zoveel in zijn beurs (mpCoopStart)
   { k: 'winkelEerst', naam: 'Start in the shop', vink: true },                // voor ronde 1 eerst allemaal naar de winkel
-  // Kivuli bij het eerste winkelbezoek (kivBesluit): welke versie, en of Duka daarna komt
-  { k: 'kivuli', naam: 'Kivuli in the first shop', keus: [[4, 'Random'], [1, 'At the counter'], [2, 'Walks in'], [3, 'Flips a coin'], [0, 'Off']] },
+  // Kivuli in de winkel (kivBesluit): hoe vaak, welke versie, en of Duka daarna komt
+  { k: 'kivVaak', naam: 'Kivuli comes', keus: [[0, '1 in 3 shops'], [1, 'Every shop'], [2, 'First shop only']] },
+  { k: 'kivuli', naam: 'Kivuli in the shop', keus: [[4, 'Random'], [1, 'At the counter'], [2, 'Walks in'], [3, 'Flips a coin'], [0, 'Off']] },
   { k: 'kivDuka', naam: 'Duka after Kivuli', keus: [[0, 'Sometimes'], [1, 'Always'], [2, 'Never']] }
 ];
 // bouwt de regels van een modus: een schuif, een keuzelijst of een vinkje per rij
@@ -77169,7 +77238,8 @@ const MPC = {
   rond: { dx: 0, y: 290, r: 330, ry: 150 }   // ry: de halve hoogte (plat, zoals FC.breed). Full Circle rondom (alleen hier te koop): een cirkel om Amir heen, net als FC.breed in canvas-px van de combo
 };
 // de winkelkamer van Co-op: de strook (r tot l) en de toonbank; de spelers komen binnen bij de deurkant
-const MPC_WINKEL_KAMER = { deur: -20130, r: -20000, l: -21700, toonbank: -21250, plek: [-20300, -20480, -20660] };   // per slot
+// toonbank -21020 (26-11-2026, was -21250): zo staat de doorgang met het doek achter Duka helemaal in beeld
+const MPC_WINKEL_KAMER = { deur: -20130, r: -20000, l: -21700, toonbank: -21020, plek: [-20300, -20480, -20660] };   // per slot
 // de achterkamer van de winkel in Ishmul (het geheim, WINKEL.geheim): waar je uitkomt, de kist en wat erin zit
 const MPC_ACHTERKAMER = { r: -22200, l: -24400, plek: -22320, kist: -23900, goud: 30 };   // 2200 breed, zoals een gewone kamer (smaller zoomt binnenZoom in)
 // de weg naar de winkel: na de laatste kill van de ronde nog `wacht` seconden op straat (de host telt, fase 'naarWinkel'),
@@ -77250,8 +77320,8 @@ const MP_COOP_LEVEL = (() => {
   // de winkel (stuk 3): een binnenkamer ver van de straat, zonder deur naar buiten. Na elke winkelNa rondes gaan allebei
   // er met een fade heen (mpcWinkelIn) en ook weer uit (mpcWinkelUit); E bij de toonbank opent het winkelscherm
   lv.binnen = [{ gevel: null, r: MPC_WINKEL_KAMER.r, l: MPC_WINKEL_KAMER.l,
-                 ramen: [ { x: -20600, h: 420 }, { x: -21050, h: 420 } ],
-                 palen: [ { x: -20850, h: 0 } ],
+                 ramen: [ { x: -20600, h: 420 }, { x: -20850, h: 420 } ],   // het linkerraam en de paal schoven mee met de toonbank
+                 palen: [ { x: -20725, h: 0 } ],
                  winkel: { x: MPC_WINKEL_KAMER.toonbank, seed: 523, koopman: true },
                  planken: [ { x: -20450, h: 380, soort: 'touw', seed: 71 } ],
                  sierDeuren: [ { x: MPC_WINKEL_KAMER.deur, gordijn: 'indigo_streep' } ] }];   // rechts de deur naar de straat (alleen beeld; Kivuli komt erdoor)
@@ -77582,7 +77652,7 @@ function mpcStofUpdate(f){
 }
 function mpcUpdateKaal(orig, k){
   return function(...a){
-    if (!mpCoopAan()) return islotMirOm(0, () => orig.apply(this, a));   // Oil of Mirrors: hij zoekt waar je verdween (ISLOT)
+    if (!mpCoopAan()) return islotMirOm(0, () => orig.apply(this, a), k);   // Oil of Mirrors: hij zoekt waar je verdween (ISLOT)
     if (!pvp.host) return;
     const wacht = hinderHoud(k);                         // de regie van een hinderlaag: wie al binnen is wacht tot FIGHT!
     try { mpcUpdateGroepen(orig, k, this, a); }
@@ -77593,16 +77663,16 @@ function mpcUpdateKaal(orig, k){
 function mpcUpdateGroepen(orig, k, self, a){
   const q = mpcLijst(k), alle = q.l().slice(), groep = new Map();
   for (const o of alle){ const p = mpcDoel(o); if (!groep.has(p)) groep.set(p, []); groep.get(p).push(o); }
-  if (!alle.length || (groep.size === 1 && groep.has(0))){ islotMirOm(0, () => orig.apply(self, a)); return; }
+  if (!alle.length || (groep.size === 1 && groep.has(0))){ islotMirOm(0, () => orig.apply(self, a), k); return; }
   const host = groep.get(0) || [];
   mpcZet(q, host);
-  if (host.length || !dead) islotMirOm(0, () => orig.apply(self, a));
+  if (host.length || !dead) islotMirOm(0, () => orig.apply(self, a), k);
   let samen = q.l().slice();
   for (const [p, rij] of groep){
     if (p === 0) continue;
     mpcZet(q, rij);
     mpcWisselIn(p);
-    try { islotMirOm(p, () => orig.apply(self, a)); } finally { mpcWisselUit(); }
+    try { islotMirOm(p, () => orig.apply(self, a), k); } finally { mpcWisselUit(); }
     samen = samen.concat(q.l());
   }
   mpcZet(q, samen);
@@ -79080,7 +79150,9 @@ function mpcWinkelUit(){
   const C = pvp.coop;
   if (!C.inWinkel) return;
   C.inWinkel = false; C.mijnKlaar = false; C.wkKlaar = {}; C.vertrek = null; mpcLaatste = null;   // Undo geldt alleen bij deze marktman
+  const dukaWeg = kivDukaWeg();                       // kwam Duka niet terug, dan ook niet in de fade naar buiten (tot het volgende bezoek)
   winkelUIDicht(); mpcOntdooi(); winkelGeheimZet(false); kivStart(null);
+  if (dukaWeg) kiv.dukaVerstopt = true;
   const r = wapenrekken[0]; if (r){ r.n = pvp.regels.coop.rek; r.uit = null; }
   const x = mpStarts()[pvpStartSlot()];
   stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: terrainH(x), face: pvpStartSlot() === 1 ? 1 : -1 }, T: MPC_WINKEL_WEG.fade, binnen: true };
@@ -79302,7 +79374,7 @@ function wkkRaak(x, y){
   for (const d of wkk.rects) if (in_(d.r)) return { ding: d.i };
   return null;
 }
-// de muis: over een ding licht het op, een klik kiest het (een tweede klik koopt); over een bordje wisselt de categorie
+// de muis: over een ding licht het op, een klik kiest het (een dubbelklik koopt, of de knop Buy); over een bordje wisselt de categorie
 addEventListener('pointermove', e => {
   if (!wkkAan() || e.pointerType === 'touch') return;
   const h = wkkRaak(e.clientX, e.clientY);
@@ -79314,8 +79386,9 @@ addEventListener('pointerdown', e => {
   if (e.target.closest && e.target.closest('#wkkamer')) return;   // het doek en de knoppen hebben hun eigen klik
   const h = wkkRaak(e.clientX, e.clientY); if (!h) return;
   e.preventDefault(); e.stopPropagation();
-  if (h.bord != null){ wkkKies(h.bord, 0); return; }
-  if (h.ding === wkk.i && !wkk.upg) wkkKoop(); else wkkKies(null, h.ding);
+  if (h.bord != null){ mpcDubbel = { id: null, t: 0 }; wkkKies(h.bord, 0); return; }
+  const dubbel = mpcDubbelKlik('wkk' + wkk.cat + '_' + h.ding);
+  if (dubbel && h.ding === wkk.i && !wkk.upg) wkkKoop(); else wkkKies(null, h.ding);
 }, true);
 document.getElementById('wkkkoop').onclick = () => wkkKoop();
 document.getElementById('wkkundo').onclick = () => mpcUndo();
@@ -79388,8 +79461,15 @@ new MutationObserver(() => { if (wkkAan()) wkkToon(); }).observe(document.getEle
 function mpcZeg(soort){
   const kv = kivWinkel(), l = kv ? KIV_ZEG[soort] || KIV_ZEG.koop : MPC_ZEG[soort] || MPC_ZEG.koop, el = document.getElementById('wkzeg');
   if (!el) return;
-  if (kv && soort === 'open'){ el.textContent = l.join(' ').replace('{n}', ['Two', 'Three', 'Four', 'Five'][Math.max(0, kiv.voorraad.length - 2)] || 'Some'); return; }   // Kivuli legt het altijd kort uit
-  el.textContent = l[Math.floor(Math.random() * l.length)];
+  const tekst = kv && soort === 'open' ? l.join(' ').replace('{n}', ['Two', 'Three', 'Four', 'Five'][Math.max(0, kiv.voorraad.length - 2)] || 'Some')   // Kivuli legt het altijd kort uit
+              : l[Math.floor(Math.random() * l.length)];
+  if (wkk.aan){                                        // de winkelkamer: een wolk boven het hoofd van wie er praat, zoals overal
+    el.textContent = '';
+    if (kv){ if (kiv.zeg !== tekst || !(kiv.zegT > 0)) kivZeg(tekst, 2.6 + tekst.length * 0.045, 'kiv'); }
+    else { dukaZeg.tekst = tekst; dukaZeg.tot = performance.now() + (2.6 + tekst.length * 0.045) * 1000; }
+    return;
+  }
+  el.textContent = tekst;
 }
 // het zijpaneel naast de prijslijst: wat je aanklikte, met de sfeertekst (schuin de bron eronder), wat het doet en Buy
 let mpcKeus = null;                                  // {id, q, aan}: het gekozen artikel
@@ -79480,6 +79560,13 @@ function mpcDraagToon(){
 let mpcTab = 'wapen';
 const MPC_DUBBEL_MS = 400;          // twee klikken op hetzelfde artikel binnen zoveel ms is kopen
 let mpcDubbel = { id: null, t: 0 };
+// is deze klik de tweede op hetzelfde ding, kort na de eerste? Zo koopt een enkele klik nooit, ook niet in de winkelkamer en
+// de mantel van Kivuli, waar de muis het ding er al bij het aanwijzen voor kiest
+function mpcDubbelKlik(id){
+  const nu = performance.now(), dubbel = mpcDubbel.id === id && nu - mpcDubbel.t < MPC_DUBBEL_MS;
+  mpcDubbel = dubbel ? { id: null, t: 0 } : { id, t: nu };
+  return dubbel;
+}
 function mpcWinkelToon(){
   const C = mpcWs(), el = document.getElementById('wkcoop');
   el.innerHTML = '';
@@ -79521,8 +79608,7 @@ function mpcWinkelToon(){
       // een klik: het zijpaneel (mpcInfoToon); een tweede klik op hetzelfde artikel kort daarna: meteen kopen. Zelf
       // bijgehouden, want de klik bouwt de kaarten opnieuw op, zodat de browser nooit een dblclick op een knop zag
       b.onclick = () => {
-        const nu = performance.now(), dubbel = mpcDubbel.id === id && nu - mpcDubbel.t < MPC_DUBBEL_MS;
-        mpcDubbel = dubbel ? { id: null, t: 0 } : { id, t: nu };
+        const dubbel = mpcDubbelKlik(id);
         mpcKeus = { id, q, aan };
         if (dubbel) mpcWinkelKoop(q, aan); else mpcWinkelToon();
       };

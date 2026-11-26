@@ -1109,6 +1109,11 @@ Met de speer blijven het de outfits van Mkuki.
 ## De winkel als kamer (24-11-2026)
 
 De winkel van Co-op is geen paneel meer maar de winkelkamer zelf (ontwerp in het project: `claude/winkel_c_ontwerp.md`).
+
+De inrichting (26-11-2026): de toonbank staat op -21020 (`MPC_WINKEL_KAMER.toonbank`, was -21250), zodat de doorgang met het
+doek achter Duka helemaal in beeld staat; het linkerraam (-20850) en de paal (-20725) schoven mee. Kivuli versie 2 rekent vanaf
+de toonbank en leunt daarom op 570 (was 800), tegen de muur voor de straatdeur. Schuif je de toonbank weer, kijk dan ook `KIV.plek`
+na (`node tools/kivuli_test.js 2 1`).
 Opent E bij de toonbank de winkel en staat Amir in een kamer met `winkel` (`wkkKan`), dan gaat `wkk.aan` en krijgt
 `#winkelui` de klasse `kamer`: het oude paneel is weg, het spel loopt door (`paused = false`, de toetsen kiezen alleen), zodat
 de marktman en de teamgenoten bewegen.
@@ -1122,7 +1127,7 @@ de marktman en de teamgenoten bewegen.
   van zijn ouder en staat als icoontje in het doek (`wkkOuder`, `wkkUpgrades`): Full Circle: more damage en all around, Ardhi's Roots.
   Give 5 gold staat bij Team, een keer per teamgenoot.
 - **Besturing** (`wkkToets`): links en rechts kiezen, omhoog en omlaag (of Q, Tab) wisselen de categorie, Enter of spatie koopt,
-  Backspace is Undo, R is Ready; Escape en E sluiten zoals altijd. De muis: hover kiest, een klik op het gekozen ding koopt, een
+  Backspace is Undo, R is Ready; Escape en E sluiten zoals altijd. De muis: hover en klik kiezen, een dubbelklik koopt (`mpcDubbelKlik`, een enkele klik nooit), een
   klik op een bordje wisselt (`pointermove`/`pointerdown` met capture).
 - **Het doek** (`#wkkamer`, `wkkToon`): naam, upgrade-label, uitleg, citaat, de upgrade-icoontjes met een hover-kaartje (`wkkTip`),
   de prijs, en de knoppen Buy, Leave, Ready en Undo. De regel bovenin (`.wkk-bericht`) spiegelt `#wkuitleg` en `#wkvertrek` van de
@@ -1137,9 +1142,11 @@ de marktman en de teamgenoten bewegen.
 
 ## Kivuli, de reizende handelaar (25-11-2026)
 
-Bij het eerste winkelbezoek van Co-op Survival (niet in de Co-op episode) staat Kivuli in de winkel en is Duka er nog niet.
+Bij een op de drie winkelbezoeken van Co-op Survival (niet in de Co-op episode) staat Kivuli in de winkel en is Duka er nog niet.
+Welk bezoek dat is gaat met een knikkerzak van drie, een raak (`C.kivZak`, een verse zak per potje), dus twee bezoeken
+achter elkaar kan, en drie zonder ook. Vroeger kwam hij alleen bij het eerste bezoek; dat kan nog met **Kivuli comes**.
 De host besluit het in `kivBesluit` en stuurt het mee met `{t:'winkel', g, kv}`; `mpcWinkelIn(geheim, kv)` zet het bij
-iedereen op (`kivStart`). Lobby: **Kivuli in the first shop** (Random, At the counter, Walks in, Flips a coin, Off) en
+iedereen op (`kivStart`). Lobby: **Kivuli comes** (`kivVaak`: 1 in 3 shops, Every shop, First shop only), **Kivuli in the shop** (Random, At the counter, Walks in, Flips a coin, Off) en
 **Duka after Kivuli** (Sometimes, Always, Never); Random en Sometimes gaan met een knikkerzak (`kivZak`).
 
 - Versie 1: hij staat al in de kamer, loopt een stukje naar de toonbank en kijkt over zijn schouder naar het team.
@@ -1176,10 +1183,10 @@ iedereen op (`kivStart`). Lobby: **Kivuli in the first shop** (Random, At the co
   <versie> <duka 1|2>` maakt schermafbeeldingen van een heel bezoek.
 - Hij verkoopt zijn eigen spullen (zie hieronder), een per speler per bezoek.
 - De mantel (zijn eigen scherm, `kivMantel`, blok "de mantel van Kivuli"): met E bij hem opent niet het doek van Duka maar de
-  binnenkant van zijn mantel (`design/kivuli/mantel.png`, 682x605: zijaanzicht, de jas hangt aan zijn schouder en zijn opgeheven arm slaat de voorflap open, petrol voering, uit een Grok-plaat; de eerdere voorkant uit `_kivuli/cloak6b.png` is vervangen omdat de spullen op de binnenflap horen te hangen). Zes haken in twee kolommen van drie
+  binnenkant van zijn mantel (`design/kivuli/mantel.png`, 838x646 met grote prijskaartjes: zijaanzicht, de jas hangt aan zijn schouder en zijn opgeheven arm slaat de voorflap open, petrol voering, uit een Grok-plaat; de eerdere voorkant uit `_kivuli/cloak6b.png` is vervangen omdat de spullen op de binnenflap horen te hangen). Zes haken in twee kolommen van drie
   (`KM.pos`, % van de plaat), 3 of 4 gevuld uit zijn voorraad op vaste plekken per bezoek (`kivSlots`, een schudbeurt op de
-  inhoud, dus bij iedereen gelijk), het prijslabel als pil onder het ding, en onder het paneel een donkere plaquette met de naam, de uitleg en zo nodig
-  waarom het niet kan (`#kmbox`, vaste hoogte, de naam staat er bovenin, de tekst krimpt tot hij past, `--k`). Hover of klik kiest (goud gloeit), een tweede klik, Enter of Buy
+  inhoud, dus bij iedereen gelijk), het prijslabel als pil onder het ding, en onder het paneel een donkere plaquette met het gekozen ding groot links (`#kmgroot`), de naam, de uitleg en zo nodig
+  waarom het niet kan (`#kmbox`, vaste hoogte, de tekst krimpt tot hij past, `--k`). Hover of klik kiest (goud gloeit), een dubbelklik (`mpcDubbelKlik`), Enter of Buy
   koopt; pijltjes en Tab lopen langs de gevulde haken. Het paneel staat aan de kant tegenover hem (`kivMantelKant`: hij links
   van 40% van het scherm dan rechts, rechts van 60% dan links, in het midden de kant waar Amir niet staat; `kiv.sx` en `kiv.ax`
   zet `kivTeken`), de tekstballon van de marktman springt naar de andere kant (`kmlinks`). Een gekocht ding is weg voor
@@ -1203,15 +1210,20 @@ heeft twee vakken erbij (`islot0`, `islot1`) met het plaatje en het aantal.
 | Sack o' Bones | 25 | een witte stofwolk van 6 s (1,15 Amir breed); elke vijand die erin loopt is 2,5 s blind, wie al blind is niet opnieuw |
 | Sack o' Fangs | 30 | de zak valt op de looplijn, een zwarte slang met gouden banden komt eruit en bijt steeds de dichtstbijzijnde vijand, 5 beten (elk een treffer); de vijanden negeren hem |
 | Jar o' Fire Ants | 25 | een muur van mieren, 5 s, een Amir breed, voor je; vijanden komen er niet door en wie erin staat deinst terug, projectielen vliegen eroverheen |
-| Oil of Mirrors | 35 | 5 s onzichtbaar voor vijanden (jij en je team zien je op 40% met een glasrand); aanvallen maakt je zichtbaar, een verdwaalde klap raakt je wel en maakt je ook zichtbaar |
+| Oil of Mirrors | 35 | 5 s onzichtbaar voor vijanden (jij en je team zien je op 40% met een glasrand); ze vallen niet aan maar rennen zoekend rond; aanvallen maakt je zichtbaar |
 | Ketemba Clay | 30 | 8 s klei onder je voeten: niet springen, 15% trager, dubbele schade (bovenop de bonus van je wapen); plakstappen, een hardere klap en kleiklonten van je voeten |
 
 Hoe het werkt (zoek op `ISLOT`):
 - `islotStart(m, zelf)` start een effect, bij iedereen: de gebruiker stuurt `{t:'isl', k, x, h, f}` (in `MP_DOOR`). De
   host denkt voor de wolk, de slang en de mieren (`islotStap`), net als voor de vijanden; treffers gaan via `islotRaak`.
-- Mirrors: `mpcDoel` slaat een onzichtbare speler over, en tijdens de update van de vijanden zet `islotMirOm` hem even op
-  de plek waar hij verdween, zodat ze daar zoeken. Een klap die hem toch echt raakt (binnen 0,6 Amir) telt en maakt hem
-  zichtbaar (`islotMirEind`, `{t:'islm'}`).
+- Mirrors: `mpcDoel` slaat een onzichtbare speler over. Tijdens de update van de vijanden zoekt elke vijand een eigen
+  zoekpunt binnen 5 Amir van de plek waar je verdween (`islotMirZoek`, nieuw als hij er is of na 1,5 tot 3,2 s), en
+  `islotMirOm` draait de update in twee groepen (wie naar links zoekt, wie naar rechts) met het doel telkens een stuk
+  voor de groep uit (`ISLOT.mirrors.voor`, per soort `voorK`: 3,5 Amir, 6 voor schildbandiet, zweepman, schorpioen en
+  fosforslang, 8 voor de hyena, 30 voor de kruisboog), zodat niemand binnen zijn aanval komt. Zo rennen ze zoekend
+  rond en slaan ze niet; een vijand die door je heen loopt merkt niets. `camSwap` gaat daarbij op null, want
+  `playerX` leest die voor `world`. Aanvallen maakt je zichtbaar (`islotMirEind`, `{t:'islm'}`). Op verzoek van de
+  opdrachtgever: eerst zochten ze op de plek waar je verdween en sloegen ze daar in het niets.
 - Clay: `islotDubbelNu` zet `critNu` voor de speer en vermenigvuldigt `straalSchadeK` voor de stokken; een gast stuurt
   `x2` mee in zijn treffer (`mh`). De stappen: `sounds/kivuli/klei_stap1.mp3` en `klei_stap2.mp3` (ElevenLabs, gekozen
   door Tom, even hard als de gewone stappen), de klap `sounds/brutus_raak.mp3`.
