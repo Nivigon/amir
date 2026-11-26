@@ -61,6 +61,10 @@ mentor: { spoor, finish, prijs: {x, h}, win, verlies, vallen: [grappen], station
 
 ## De kruipstam (`kruipstammen`)
 
+**Vervangen (26-11-2026):** The First Hunt heeft nu op beide plekken (-3175 en -7730) een korte holle stam van droog
+savannehout met een boma erop (`holstamSoort: 'savanne'`, `holstammen: [{x, s: 0.45, n: 0.5, boma: true}]`, zie "de
+holle stam" in `notities/wegwijzers.md`). De kruipstam hieronder zit nog in de code, maar geen level gebruikt hem.
+
 Geen zwevende rots meer (de opdrachtgever wil niets dat nergens aan vastzit): een omgevallen dode stam op twee keien, een
 Grok-plaat (`design/tutorial/stam_keien.png`, gemaakt met de stijl van `design/tree.png` en `design/boulder.png`, wit
 weggeknipt). `kruipstammen: [{x, s}]`, `x` het midden. readLevel zet er een onzichtbare zwevende laag onder

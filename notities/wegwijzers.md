@@ -196,6 +196,17 @@ lessen en alle afgekeurde versies staan in de projectnotitie `claude/holle_stam_
   een zigzag en sterke demping, blijven binnen de stam en vliegen dan door de dichtstbijzijnde opening naar buiten (omhoog
   of opzij). Na 4 tot 6,5 s komen ze rustig door een opening terug naar hun plek. Geen sporen: losse stipjes.
 
+### Savannesoort en boma (`HOLSTAM_SOORT`, `HOLSTAM_BOMA`)
+
+Met `holstamSoort: 'savanne'` op een level gebruikt de stam de platen uit `design/savanne/holstam/` (droog gebleekt hout,
+Grok-edits van de regenwoudbronnen: schil f814dda3, binnen da68db84, rand 80ac0c12, bronnen in `bron/`). Omdat het edits
+zijn liggen ze precies op de regenwoudplaten (98% overlap), dus alle `bron`-knippen gelden ongewijzigd. Geen mos, geen kit,
+geen voet (wortels/varens), eigen licht (`holstamSoortZet` zet de waarden per level terug of om). Met `boma: true` op een
+stam ligt er een wal van doorntakken bovenop (`design/savanne/holstam/boma.png`, Grok 08282799, getekend in
+`holstamBomaTeken` achter de schil, met een donkere laag erachter) en wordt het dak `(1 - zak) * h` Amir hoger: ruim boven
+de sprong (208), dus alleen kruipend kom je erdoor. The First Hunt gebruikt dit in plaats van de kruipstam op keien
+(`{x, s: 0.45, n: 0.5, boma: true}`). Projectnotitie: `claude/savanne_holstam_opnieuw.md`.
+
 ### Gaten in de schors (`HOLSTAM.gat`)
 
 Een steek of lage zwaai binnen in de stam raakt de binnenwand op de speerpunt (`holstamSlag`). Elke slag spat scherven
