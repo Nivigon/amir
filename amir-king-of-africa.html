@@ -7244,8 +7244,10 @@ const TUT_1 = {
               {r: -8200, l: -10550, h: 110, grond: true}, {r: -8600, l: -10550, h: 220, grond: true},
               {r: -9050, l: -10550, h: 320, grond: true} ],
   ledges: [ {x: -1800, h: 265, s: 0.6} ],
-  // twee omgevallen stammen op keien: alleen kruipend kom je eronder door (KRUIPSTAM)
-  kruipstammen: [ {x: -3175}, {x: -7730} ],
+  // twee korte holle stammen van droog savannehout met een boma (een wal van doorntakken) erop: eroverheen springen kan
+  // niet, alleen kruipend kom je erdoor (HOLSTAM, soort savanne). Eerst waren het stammen op keien (KRUIPSTAM).
+  holstamSoort: 'savanne',
+  holstammen: [ {x: -3175, s: 0.45, n: 0.5, boma: true}, {x: -7730, s: 0.45, n: 0.5, boma: true} ],   // kort: een half middenstuk
   // een smal gat (gewoon springen), een breed ravijn (alleen met een sprintsprong) en het gat in de race
   gaps: [ {x: -4380, w: 200}, {x: -5650, w: 400}, {x: -7100, w: 220} ],
   npcs: [], water: [], thickets: [], spawns: [],
@@ -16941,6 +16943,8 @@ function schachtLand(diep){
 }
 const HOLSTAM = {
   dir: 'design/regenwoud/holstam/',
+  platen: 'design/regenwoud/holstam/',   // schil, binnen en rand (per soort, zie HOLSTAM_SOORT); de kit en de gaten komen altijd uit dir
+  soort: '',
   bron: { b: 2031, h: 576, L: 470, R: 1560, ov: 40,   // de plaat en de knippen voor de drie stukken (bronpixels)
           vloer: 472, top: 118, plafond: 122, knip: 486,   // looplijn binnen (op de grond), bovenkant (bovenop lopen), plafond binnen, waar hij in de grond verdwijnt
           rand: [0.16, 0.10], lip: -6 },          // het deel van de kolom boven en onder dat dicht blijft als de voorkant vervaagt; lip: de onderrand loopt tot zoveel boven de looplijn door, over Amirs voeten (zo sta je erin)
@@ -16977,13 +16981,29 @@ const HOLSTAM = {
   bundels: { a: 0.3, blur: 16 },                      // lichtbundels binnen, schuin door de openingen
   zwam: { paddo: 0.3, gloei: 0.38 }                   // losse paddenstoeltjes (level.zwammen) en aan de voet: hoogte in Amir
 };
+// Soorten (level.holstamSoort): dezelfde vorm en knippen (de platen zijn Grok-edits van de regenwoudbronnen, dus ze liggen
+// precies op elkaar), ander hout en ander licht. Savanne: droog gebleekt hout zonder mos of zwammen, voor The First Hunt
+// (Grok-posts schil f814dda3, binnen da68db84, rand 80ac0c12; projectnotitie claude/savanne_holstam_opnieuw.md).
+// Met boma: true ligt er een wal van doorntakken bovenop (een boma, zoals herders hun vee omheinen, Grok-post 08282799):
+// het dak wordt zo hoog dat niemand eroverheen springt, je moet erdoor kruipen (HOLSTAM_BOMA).
+const HOLSTAM_SOORT = {
+  savanne: { platen: 'design/savanne/holstam/', schilFilter: 'brightness(0.84) saturate(0.9)', mos: null, aankleed: null,
+             voet: false, voetDonker: 0.3, kopDonker: 0.28, licht: 0.18, randLicht: { kleur: '255,190,120', a: 0.45, dik: 10 } }
+};
+const HOLSTAM_BOMA = { h: 0.8, zak: 0.4, breed: 1.06, achter: { s: 0.92, dx: 0.05, filter: 'brightness(0.42) sepia(0.4) saturate(0.9)' }, filter: 'brightness(0.66) sepia(0.32) saturate(0.95)' };   // hoogte in Amir; zoveel zakt hij in de stam; hooguit zo breed als de stam; een donkere laag erachter
+const HOLSTAM_BASIS = {};
+function holstamSoortZet(s){
+  if (!Object.keys(HOLSTAM_BASIS).length) for (const k of ['platen', 'schilFilter', 'mos', 'aankleed', 'voet', 'voetDonker', 'kopDonker', 'licht', 'randLicht']) HOLSTAM_BASIS[k] = HOLSTAM[k];
+  Object.assign(HOLSTAM, HOLSTAM_BASIS, HOLSTAM_SOORT[s] || {}, { soort: s || '' });
+}
 let holstamImgs = null;
 function holstamLaad(){
   if (holstamImgs) return;
-  holstamImgs = { schil: new Image(), binnen: new Image() };
-  holstamImgs.schil.src = HOLSTAM.dir + 'schil.png';
-  holstamImgs.binnen.src = HOLSTAM.dir + 'binnen.png';
-  holstamImgs.rand = zetBron(new Image(), HOLSTAM.dir + 'rand.png', () => console.warn('ontbreekt: holstam/rand'));
+  holstamImgs = { schil: new Image(), binnen: new Image(), soort: HOLSTAM.soort };
+  holstamImgs.schil.src = HOLSTAM.platen + 'schil.png';
+  holstamImgs.binnen.src = HOLSTAM.platen + 'binnen.png';
+  holstamImgs.rand = zetBron(new Image(), HOLSTAM.platen + 'rand.png', () => console.warn('ontbreekt: holstam/rand'));
+  if (HOLSTAM.soort === 'savanne') holstamImgs.boma = zetBron(new Image(), HOLSTAM.platen + 'boma.png', () => console.warn('ontbreekt: holstam/boma'));
   holstamImgs.kit = {};
   for (const k of HOLSTAM.kit) holstamImgs.kit[k] = zetBron(new Image(), HOLSTAM.dir + 'kit/' + k + '.png', () => console.warn('ontbreekt: holstam/kit/' + k));
   const G = HOLSTAM.gat, laad = n => zetBron(new Image(), HOLSTAM.dir + 'gat/' + n + '.png', () => console.warn('ontbreekt: gat/' + n));
@@ -16991,7 +17011,12 @@ function holstamLaad(){
   holstamImgs.scherf = {};
   for (const k in G.scherven) holstamImgs.scherf[k] = Array.from({ length: G.scherven[k] }, (_, i) => laad(k + '_' + i));
 }
-function holstamLaadLevel(lv){ if (lv && ((lv.holstammen && lv.holstammen.length) || (lv.zwammen && lv.zwammen.length))) holstamLaad(); }
+function holstamLaadLevel(lv){
+  if (!lv) return;
+  const s = lv.holstamSoort || '';
+  if (s !== HOLSTAM.soort){ holstamSoortZet(s); holstamImgs = null; }   // een andere soort: andere platen
+  if ((lv.holstammen && lv.holstammen.length) || (lv.zwammen && lv.zwammen.length)) holstamLaad();
+}
 function holstamLijst(){ return (level && level.holstammen) || []; }
 function holstamN(q){ return Math.max(0, Math.min(3, q.n != null ? Number(q.n) : 0.5)); }
 function holstamK(q){ return HOLSTAM.hoog * CHAR_H * (Number(q.s) || 1) / HOLSTAM.bron.h; }   // sprite-eenheden per bronpixel
@@ -17004,11 +17029,13 @@ function holstamMaat(q){
 // het dak bij een stam (in readLevel en de sandbox): een onzichtbare zwevende laag over bijna de hele lengte
 function holstamDak(q){
   const M = holstamMaat(q), rand = 0.02 * M.w + (M.plafond < CHAR_H ? 0.16 * CHAR_H * nowScale() : 0);   // een kleine stam: het dak pas binnen de opening, zodat Amir tot in de opening loopt en daar moet bukken
-  return { r: M.r - rand, l: M.l + rand, h: M.top, onder: M.plafond, look: 'geen', holstam: true, hq: Number(q.x) };
+  const h = q.boma ? M.top + (1 - HOLSTAM_BOMA.zak) * HOLSTAM_BOMA.h * CHAR_H : M.top;   // met een boma erop: te hoog om over te springen
+  return { r: M.r - rand, l: M.l + rand, h, onder: M.plafond, look: 'geen', holstam: true, hq: Number(q.x) };
 }
 // het mos van de Grok-plaat was lichter en geler dan het mos van het regenwoud (de grondrand, de hangende stam):
 // een keer bij het bakken donkerder, voller en iets groener (HOLSTAM.mos). Alleen waar het groen is; de bast blijft.
 function holstamMosKleur(c){
+  if (!HOLSTAM.mos) return;
   const M = HOLSTAM.mos, g = c.getContext('2d'), d = g.getImageData(0, 0, c.width, c.height), p = d.data;
   const glad = (a, b, x) => Math.max(0, Math.min(1, (x - a) / (b - a)));
   for (let i = 0; i < p.length; i += 4){
@@ -17087,7 +17114,7 @@ function holstamRng(x){
 function holstamKitKlaar(){ const K = holstamImgs && holstamImgs.kit; return !!K && imgReady(holstamImgs.rand) && HOLSTAM.kit.every(k => imgReady(K[k])); }
 function holstamAmirBron(){ return HOLSTAM.bron.h / HOLSTAM.hoog; }   // zoveel bronpixels is een Amir
 function holstamAankleed(q, schil){
-  if (!holstamKitKlaar()) return schil;
+  if (!HOLSTAM.aankleed || !holstamKitKlaar()) return schil;
   const K = holstamImgs.kit, A = HOLSTAM.aankleed, B = HOLSTAM.bron, w = schil.width, h = schil.height, r = holstamRng(q.x), am = holstamAmirBron();
   const tussen = (a, b) => a + (b - a) * r(), aantal = v => Math.round(tussen(v[0], v[1] + 0.49));
   const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
@@ -17159,7 +17186,7 @@ function holstamLipBak(bw){
 }
 // de voet: wortels uit de koppen de grond in, en een paar paddenstoeltjes en varens (uit zijn x)
 function holstamVoetTeken(q, M, S, scale){
-  if (!holstamKitKlaar()) return;
+  if (HOLSTAM.voet === false || !holstamKitKlaar()) return;
   const K = holstamImgs.kit, r = holstamRng(q.x + 1), am = CHAR_H * scale, sq = Math.min(1.2, Number(q.s) || 1);
   if (!q._voet){
     const v = [];
@@ -17325,6 +17352,20 @@ function holstamSchil(q, b, S){
   if (v > 0.001) holstamPlaat(b.rand, S, v / HOLSTAM.vaag);
   holstamSchaduw(S);
 }
+// de boma: een wal van doorntakken bovenop de stam, onderaan in de stam gezakt (de schil ligt eroverheen), met een
+// donkere, iets kleinere laag erachter voor diepte. Zo breed als het beeld, maar hooguit de stam (dan iets samengedrukt).
+function holstamBomaTeken(q, M, S, scale){
+  const im = q.boma && holstamImgs && holstamImgs.boma; if (!im || !imgReady(im)) return;
+  const Bo = HOLSTAM_BOMA, h = Bo.h * CHAR_H * scale, w = Math.min(h * im.width / im.height, Bo.breed * S.w);
+  const top = S.gy - M.top * scale, y = top - (1 - Bo.zak) * h, cx = S.x + S.w / 2;
+  ctx.save();
+  ctx.filter = Bo.achter.filter;
+  const ah = h * Bo.achter.s, aw = w * Bo.achter.s;
+  ctx.drawImage(im, cx - aw / 2 + Bo.achter.dx * w, y + h - ah - 0.04 * h, aw, ah);
+  ctx.filter = Bo.filter;                         // de doorns waren fel wit naast de zachte savanne: warmer en donkerder
+  ctx.drawImage(im, cx - w / 2, y, w, h);
+  ctx.restore();
+}
 // achter de personages: de binnenkant, en de schil als Amir bovenop staat
 function holstamAchter(groundY, scale, cx){
   holstamDenTeken(groundY, scale, cx);
@@ -17332,6 +17373,7 @@ function holstamAchter(groundY, scale, cx){
   for (const q of holstamLijst()){
     const b = holstamBak(q); if (!b) continue;
     const M = holstamMaat(q), S = holstamScherm(q, M, groundY, scale, cx); if (!holstamZichtbaar(S)) continue;
+    holstamBomaTeken(q, M, S, scale);
     const uit = holstamUitzichtNu(q, M, S, scale);
     if (uit){ ctx.save(); const p = new Path2D(); p.rect(S.x - 50, S.y - 50, S.w + 100, S.knip - S.y + 100); p.addPath(uit); ctx.clip(p, 'evenodd'); holstamPlaat(b.binnen, S, 1); ctx.restore(); }
     else holstamPlaat(b.binnen, S, 1);
@@ -65066,9 +65108,10 @@ function readLevel(txt){
            // zwevende savannelagen: een dik savanneblok in de lucht, zie "zwevende savannelaag"
            kruipstammen: Array.isArray(o.kruipstammen) ? o.kruipstammen.map(q => ({ x: Number(q.x), s: Number(q.s) || 1 })) : undefined,
            zwammen: Array.isArray(o.zwammen) ? o.zwammen.map(q => ({ x: Number(q.x), k: q.k === 'gloei' ? 'gloei' : 'paddo', v: q.v ? 1 : 0, s: Number(q.s) || 1, f: !!q.f })) : undefined,   // losse paddenstoeltjes (HOLSTAM.zwam)
-           holstammen: Array.isArray(o.holstammen) ? o.holstammen.map(q => ({ x: Number(q.x), s: Number(q.s) || 1, n: q.n != null ? Number(q.n) : undefined, vlieg: q.vlieg === true, anker: q.anker === 'r' ? 'r' : undefined,
+           holstammen: Array.isArray(o.holstammen) ? o.holstammen.map(q => ({ x: Number(q.x), s: Number(q.s) || 1, n: q.n != null ? Number(q.n) : undefined, vlieg: q.vlieg === true, anker: q.anker === 'r' ? 'r' : undefined, boma: q.boma === true || undefined,
                                                                        hol: q.hol ? { dx: Number(q.hol.dx) || 0, inhoud: ['goud', 'ruimte', 'uitzicht', 'ingang'].includes(q.hol.inhoud) ? q.hol.inhoud : 'kalebas', vondst: q.hol.vondst === 'kist' ? 'kist' : 'kalebas', goud: q.hol.goud != null ? Number(q.hol.goud) : undefined, f: !!q.hol.f, kruis: q.hol.kruis === true, h: q.hol.h != null ? Number(q.hol.h) : undefined } : undefined })) : undefined,   // de holle stam (HOLSTAM)
-           zwevers: (o.zwevers || []).concat((o.kruipstammen || []).map(kruipstamDak)).concat((o.schachtbomen || []).map(q => schachtMuur({ x: Number(q.x), s: Number(q.s) || 1 }))).concat((o.holstammen || []).map(q => holstamDak({ x: Number(q.x), s: Number(q.s) || 1, n: q.n, anker: q.anker }))).map(q => {
+           holstamSoort: o.holstamSoort ? String(o.holstamSoort) : undefined,   // het hout van de holle stam (HOLSTAM_SOORT): savanne
+           zwevers: (o.zwevers || []).concat((o.kruipstammen || []).map(kruipstamDak)).concat((o.schachtbomen || []).map(q => schachtMuur({ x: Number(q.x), s: Number(q.s) || 1 }))).concat((o.holstammen || []).map(q => holstamDak({ x: Number(q.x), s: Number(q.s) || 1, n: q.n, anker: q.anker, boma: q.boma }))).map(q => {
              const h = Number(q.h) || 0;
              let onder = q.onder != null ? Number(q.onder) : h - ZWEEF.dik;
              if (onder >= h) onder = h - ZWEEF.dik;          // de onderkant ligt altijd onder de looplijn
