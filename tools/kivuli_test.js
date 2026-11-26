@@ -18,7 +18,7 @@ const srv = http.createServer((q, r) => { const f = path.join(ROOT, decodeURICom
   await p.evaluate(() => { const h = document.getElementById('hint'); if (h) h.style.display = 'none'; });
   await p.waitForTimeout(3500); await foto('1_binnen');
   await p.waitForTimeout(4000); await foto('2_wacht');
-  if (V === 2){ await p.evaluate(() => { world = kiv.w.x + 330; }); await p.waitForTimeout(500); await foto('3a_deur'); await p.waitForTimeout(3000); await foto('3_komt'); await p.waitForTimeout(5000); await foto('3b_leunt'); }
+  if (V === 2){ await p.evaluate(() => { world = kiv.w.x + KIV.plek[2].nadert - 90; }); await p.waitForTimeout(500); await foto('3a_deur'); await p.waitForTimeout(3000); await foto('3_komt'); await p.waitForTimeout(5000); await foto('3b_leunt'); }
   await p.evaluate(() => { world = kiv.x + (kiv.v === 2 ? -130 : 130); facing = kiv.v === 2 ? 1 : -1; });
   await p.waitForTimeout(400);
   console.log('E', await p.evaluate(() => JSON.stringify({ e: binnenEBij(), og: onGround, kan: kivKanPraat(), hier: kivHier(), aan: kiv.aan, kw: !!kiv.w, uit: kiv.uit, weg: kiv.weg, fase: kiv.fase, w: world })));
