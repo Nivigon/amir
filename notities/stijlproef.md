@@ -39,6 +39,11 @@ naar ruwer (ae35351f, veranderde weinig: edit op edit houdt de vorm vast). Uitge
 Props `graanschuur_rond`, `graanschuur_ladder`, `graanschuur_mand` (decor, 2,2 tot 2,6 Amir hoog), in Test 97 tussen
 de hutten en bij de loopput, en in de sandbox in de rij Savannedorp. Ze zijn wat gladder dan de hutten.
 
+## Alles bij elkaar: Test 99 en Test 100
+Test 99 (Savanna) zet de nieuwe savannestukken op een rij. Test 100 (Savanna village) is het dorp zoals het bedoeld is: per
+hut een graanschuur ernaast, de putten tussen de huizen, de loopput als dorpsplein, dan de kei, de platte rots, de holle
+savannestam en de drie rotsen met richels (dezelfde richels als Test 99, door de robot tot boven beklommen). Uitzicht middag.
+
 ## De loopput (LOOPPUT)
 Een lage, brede put om op te staan en overheen te springen, in twee soorten (regel 9 van de stijlsheet: elk landschap
 een eigen gezicht):
