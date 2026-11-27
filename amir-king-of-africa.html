@@ -34056,7 +34056,7 @@ function stadSoortLaad(st){
   const zet = (k, src) => { if (!stadImgs[k]) stadImgs[k] = zetBron(new Image(), STAD_DIR + src, () => console.warn('ontbreekt: stad ' + src)); };
   if (st && (st.accenten || (st.gevels || []).some(g => g.takel))){ zet('takelArm', STAD_TAKEL.arm.src); zet('takelMand', STAD_TAKEL.mand.src); }
   if (st && st.accenten) for (const n in STAD_RAMEN.soorten) zet('raam_' + n, 'raam_' + n + '.png');
-  if (st && (st.luifels || []).some(q => q.raam)) zet('raam_luiken', 'raam_luiken.png');   // het raam onder een strakke luifel
+  if (st && ((st.luifels || []).some(q => q.raam) || (st.gevels || []).some(g => !g.soort))) zet('raam_luiken', 'raam_luiken.png');   // het raam onder een strakke luifel, en de losse luiken
   if (((st && st.gevels) || []).some(g => STAD_BALKON.soorten.includes(g.balkon)) || (st && st.accenten)){   // de balustrades van een balkon
     if (!stadImgs.balkonVoor) stadImgs.balkonVoor = zetBron(new Image(), STAD_DIR + STAD_BALKON.voor.src, () => console.warn('ontbreekt: stad ' + STAD_BALKON.voor.src));
     if (!stadImgs.balkonZij) stadImgs.balkonZij = zetBron(new Image(), STAD_DIR + STAD_BALKON.zij.src, () => console.warn('ontbreekt: stad ' + STAD_BALKON.zij.src));
@@ -34064,6 +34064,11 @@ function stadSoortLaad(st){
   }
 }
 function stadLees(o){
+  const st = stadLeesBasis(o);
+  if (st.accenten) stadAccentLuifels(st);           // de luifels die de accenten kozen (zie "accenten")
+  return st;
+}
+function stadLeesBasis(o){
   const n = v => Number(v) || 0;
   return { paleis: o.paleis != null ? n(o.paleis) : null, seed: n(o.seed) || 1,
            gevels: (o.gevels || []).map(q => ({ x: n(q.x), hoog: Math.max(1, Math.min(4, Math.round(n(q.hoog) || 1))), f: q.f ? 1 : 0,
@@ -34091,7 +34096,7 @@ function stadLees(o){
            // of aan de muur van een huis (gevel, wand 'l' of 'r'): de paal tegen die muur, de doek steekt van het huis af de
            // straat in, h de hoogte van het lage eind en voet waar de paal ophoudt (sprite-eenheden boven de grond), maat de
            // grootte, kleur 'indigo', zak de doorzakking in Amir, worp de opsprong (zie "de springdoek")
-           luifels: (o.luifels || []).filter(q => q.kant === 'l' || q.kant === 'r' || q.gevel != null).map(q => q.gevel != null
+           luifels: (o.luifels || []).filter(q => !q.auto && (q.kant === 'l' || q.kant === 'r' || q.gevel != null)).map(q => q.gevel != null
              ? { gevel: Math.round(n(q.gevel)), wand: q.wand === 'l' ? 'l' : 'r', luifel: q.wand === 'l' ? 'r' : 'l',
                  h: n(q.h), voet: n(q.voet), maat: n(q.maat) || 1, zak: n(q.zak), worp: n(q.worp) || 0,
                  ...(q.kleur === 'indigo' || q.kleur === 'oker' ? { kleur: q.kleur } : {}), ...(q.ritme ? { ritme: true } : {}),
@@ -34434,12 +34439,18 @@ const STAD_RAMEN = {
     tralie:    { w: 292, h: 337, k: [45, 45, 248, 293] },
     pot:       { w: 317, h: 416, k: [49, 49, 269, 368] }
   },
-  kans: 0.4           // met accenten aan: zoveel van de ramen van een oud huis wordt een ander raam
+  kans: 0.4,          // met accenten aan: zoveel van de ramen van een oud huis wordt een ander raam
+  luiken: 0.35,       // en daarvan gaat zoveel eerst naar de luiken (de rest gelijk verdeeld over alle soorten)
+  los: 0.14           // zonder accenten (elk bestaand level): zoveel van de ramen van een oud huis krijgt alleen de luiken, als decor
 };
+// de losse luiken: in elk level met een oud huis, niet in een level met een tint (het stuk muur rond het raam houdt zijn kleur)
+const stadLuikenLos = st => !(level && level.tint) && (st.gevels || []).some(g => !g.soort && g.ramen !== false);
 // Met stad.accenten: true kiest het spel zelf: ongeveer een op de vier huizen krijgt een balkon of een takel, hooguit een
 // per huis en nooit twee huizen met een accent naast elkaar, en op het oude huis zijn sommige ramen anders. Wat een gevel
 // zelf zegt (balkon, takel, ramen: false) gaat voor. Per seed vast. Geen bestaand level heeft het.
-const STAD_ACCENT = { kans: 0.27, takel: 0.45 };   // kans op een accent per huis, en daarvan zoveel een takel (de rest een balkon)
+// Ook een luifel: de strakke luifel met het luik eronder aan de zijmuur, op een verdieping (stadAccentLuifels). Is er naast
+// het huis geen ruimte voor de doek (een buurhuis, een galerij, een trap aan die kant), dan blijft hij weg (stadLuifelRuimte).
+const STAD_ACCENT = { kans: 0.35, takel: 0.3, luifel: 0.35 };   // kans op een accent per huis, daarvan zoveel een takel, zoveel een luifel (de rest een balkon)
 function stadAccenten(st){
   if (st._acc && st._acc.n === (st.gevels || []).length) return st._acc.lijst;
   const lijst = (st.gevels || []).map(() => ({}));
@@ -34451,12 +34462,39 @@ function stadAccenten(st){
       if (stadGeenDak(g) || vorig || h(0) >= STAD_ACCENT.kans){ vorig = false; return; }
       vorig = true;
       if (h(1) < STAD_ACCENT.takel && g.soort !== 'toren') a.takel = h(2) < 0.5 ? 'l' : 'r';
+      else if (h(1) < STAD_ACCENT.takel + STAD_ACCENT.luifel && (g.hoog || 1) >= 2)
+        a.luifel = { wand: h(2) < 0.5 ? 'l' : 'r', raam: 1 + Math.floor(h(3) * ((g.hoog || 1) - 1)), kleur: h(4) < 0.3 ? 'oker' : null };
       else if ((g.hoog || 1) >= 2) a.balkon = h(2) < 0.5 ? 'nis' : (h(3) < 0.5 ? 'hoekL' : 'hoekR');
       else vorig = false;
     });
   }
   st._acc = { n: (st.gevels || []).length, lijst };
   return lijst;
+}
+// de luifels die de accenten kozen, achter de luifels van het level zelf (auto: ze tellen alleen als er ruimte is)
+function stadAccentLuifels(st){
+  const lijst = stadAccenten(st);
+  st.luifels = (st.luifels || []).filter(q => !q.auto);
+  lijst.forEach((a, gi) => { if (!a.luifel) return;
+    const L = a.luifel;
+    st.luifels.push({ gevel: gi, wand: L.wand, luifel: L.wand === 'l' ? 'r' : 'l', raam: L.raam, maat: 0.55, stijl: 'strak', auto: true,
+                      ...(L.kleur ? { kleur: L.kleur } : {}) });
+  });
+}
+// is er naast het huis plek voor een luifel van de accenten? Geen ander huis, galerij of buitentrap onder de doek, op elk scherm
+// opnieuw (een huis schaalt mee, zijn x ligt vast). Een luifel uit het level zelf staat altijd.
+function stadLuifelRuimte(p, scale){
+  if (!p.auto) return true;
+  const S = level && level.stad; if (!S) return false;
+  const lm = stadLuifelMaat(p, scale), marge = 0.25 * CHAR_H * scale, a = lm.left - marge, b = lm.right + marge;
+  const raak = (l, r) => r > a && l < b;
+  for (let j = 0; j < (S.gevels || []).length; j++){
+    if (j === p.gevel) continue;
+    const q = stadGevelMaat(S.gevels[j], scale); if (raak(q.left, q.right)) return false;
+  }
+  for (const gl of S.galerijen || []){ const q = stadGalerijMaat(gl, scale, S.gevels); if (q && raak(q.left, q.right)) return false; }
+  for (const t of S.trappen || []) if (t.gevel === p.gevel && (t.kant === 'l') === (p.wand === 'l')) return false;
+  return true;
 }
 // het balkon en de takel van gevel gi: wat hij zelf zegt, anders wat de accenten kozen
 const stadAccentVan = (st, gi) => {
@@ -34514,15 +34552,17 @@ function stadTakelRuimte(st, gi, m, kant, scale){
 // andere ramen: per raam van het oude huis (STAD_NACHT.ramen.gevel) een vaste keuze uit de seed, of het gewone raam
 function stadRamenTeken(gi, G, delen, hoog, y0, f, geenRaam){
   if ((G.img || 'gevel') !== 'gevel') return;
-  const st = level.stad, g = st.gevels[gi]; if (!st.accenten || g.ramen === false) return;
+  const st = level.stad, g = st.gevels[gi]; if (g.ramen === false) return;
+  const acc = !!st.accenten; if (!acc && !stadLuikenLos(st)) return;   // zonder accenten: alleen de losse luiken, als decor
   const R = STAD_NACHT.ramen.gevel, namen = Object.keys(STAD_RAMEN.soorten);
   let y = y0;
   delen.forEach((d, j) => {
     const v = j === delen.length - 1 ? 0 : hoog - j, dh = (d[1] - d[0]) * f;
     if (j > 0 && v > 0 && !(geenRaam && geenRaam.has(v))) R.forEach((q, ri) => {
       if (q[1] < d[0] || q[3] > d[1]) return;
-      if (gordijnHash(st.seed, gi, 60 + v * 7 + ri) >= STAD_RAMEN.kans) return;
-      const naam = namen[Math.floor(gordijnHash(st.seed, gi, 80 + v * 7 + ri) * namen.length)];
+      if (gordijnHash(st.seed, gi, 60 + v * 7 + ri) >= (acc ? STAD_RAMEN.kans : STAD_RAMEN.los)) return;
+      const kies = gordijnHash(st.seed, gi, 80 + v * 7 + ri);
+      const naam = !acc || kies < STAD_RAMEN.luiken ? 'luiken' : namen[Math.floor((kies - STAD_RAMEN.luiken) / (1 - STAD_RAMEN.luiken) * namen.length)];
       const im = stadImgs['raam_' + naam], S = STAD_RAMEN.soorten[naam]; if (!im || !imgReady(im)) return;
       const sx = (q[2] - q[0]) / (S.k[2] - S.k[0]), sy = (q[3] - q[1]) / (S.k[3] - S.k[1]);
       ctx.drawImage(im, (q[0] - S.k[0] * sx) * f, y + (q[1] - d[0] - S.k[1] * sy) * f, S.w * sx * f, S.h * sy * f);
@@ -35318,6 +35358,7 @@ function stadStalY(L, x, S){
   return S[S.length - 1][1];
 }
 function stadLuifelPlats(p, scale, out){
+  if (!stadLuifelRuimte(p, scale)) return;         // een luifel van de accenten zonder plek naast het huis
   if (p.stijl === 'strak' && p.gevel != null){     // de strakke luifel: een stuk, op de hoogte van de stallijn onder Amirs midden
     // (op de helling anders de hoogste plek onder zijn voeten, en dan stond hij op de bovenrand), iets lager: je staat in de kuil
     const lm = stadLuifelMaat(p, scale), L = lm.L, th = terrainH(lm.wand), S = L.stal, zak = L.kuil.amir * stadKuilDiep(p) * CHAR_H;
@@ -41614,6 +41655,7 @@ function stadLuifelVoor(groundY, scale, cx){
 }
 // voor: alleen de doek zelf, met de kuil zoveel keer zo diep (de voorrand na Amir, zie stadLuifelVoor)
 function stadLuifelTeken(p, groundY, scale, cx, zicht, voor){
+  if (!stadLuifelRuimte(p, scale)) return;
   if (p.stijl === 'strak' && p.gevel != null){ stadLuifelStrakTeken(p, groundY, scale, cx, zicht); return; }
   if (!stadKlaar('luifel')) return;
   const lm = stadLuifelMaat(p, scale), L = lm.L, sx = cx + (lm.left - world);
@@ -72868,7 +72910,7 @@ function sbAccenten(){
   sbAccentSeed += 7;
   stadSoortLaad(level.stad);
   sbLagen = 'stad_dag'; lichtMengKey = null; sbLagenToon();
-  flashHint('Accenten: het spel kiest zelf balkons, takels en andere ramen (elke klik een andere straat)');
+  flashHint('Accenten: het spel kiest zelf balkons, takels, luifels en andere ramen (elke klik een andere straat)');
   cv.focus();
 }
 document.getElementById('sbaccenten').onclick = () => sbAccenten();
