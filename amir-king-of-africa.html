@@ -28694,6 +28694,9 @@ function mentorKleur(im){
 // Stof en geluid zoals bij Amir: de renlus (amirren.mp3) zachter naarmate hij verder van je af is, stof bij de afzet
 // en de landing, en bij de rol het rolgeluid en het stof van ROL_STOF. Zonder gids.json tekent hij de omgekleurde Amir.
 const GIDS = { src: 'design/tutorial/gids/gids.json', fps: { idle: 12, verteller: 12 }, pas: 344,   // pas: een renlus in wereld-eenheden (Amir 287, de gids 1,2 keer zo groot)
+  vMax: 30,                                                        // hoogte per spoorbeeld bij de afzet (vol omhoog)
+  lucht: { sprong: [[0, 16], [0.2, 21], [0.42, 26], [0.58, 40], [0.72, 66], [1, 76]],   // strekken, kort intrekken op de top, benen omlaag
+           groot: [[0, 2], [0.45, 12], [0.7, 24], [1, 36]] },                           // de sprintsprong: gestrekt, dan intrekken voor de landing
   kop: 1.02,
                geluid: { ver: 1100, ren: 0.45, rol: 0.7, sprint: 420 } };
 let gids = null;                                 // gids.json als hij binnen is, 'laden' onderweg
@@ -28720,6 +28723,25 @@ function gidsRenFrame(){
   const u = ((mentor.renD || 0) / GIDS.pas) % 1;
   return 2 * Math.floor(u * 12) + 1;
 }
+// De sprong in de lucht: de houding volgt zijn verticale snelheid, zoals Amir (afzet, stijgen, top, vallen), niet de tijd.
+// De clip van de gids zit van frame 24 tot 68 in dezelfde houding (knieen op, kleed uit): als film afgespeeld hing hij zo
+// de hele sprong in de lucht als een mediterende monnik. Nu: fase 0 is vol omhoog (GIDS.vMax), 0,5 de top, 1 vol omlaag,
+// en GIDS.lucht zet per soort sprong fase om in een frame (punten [fase, frame], ertussen lineair).
+function gidsLuchtFrame(anim, s, i){
+  const S = mentor.spoor, rij = (s === 0 ? S.start : S.segs[s - 1]).f, f = rij[i];
+  if (!f || f[8]) return null;                                    // op de grond: afzet en landing zoals het spoor ze geeft
+  const a = rij[Math.max(0, i - 1)], b = rij[Math.min(rij.length - 1, i + 1)];
+  const vy = (b[1] - a[1]) / Math.max(1, Math.min(rij.length - 1, i + 1) - Math.max(0, i - 1));
+  const fase = Math.max(0, Math.min(1, 0.5 - 0.5 * vy / GIDS.vMax));
+  const pt = GIDS.lucht[anim];
+  for (let k = 1; k < pt.length; k++){
+    if (fase <= pt[k][0] || k === pt.length - 1){
+      const [f0, a0] = pt[k - 1], [f1, a1] = pt[k], t = Math.max(0, Math.min(1, (fase - f0) / Math.max(1e-6, f1 - f0)));
+      return Math.round(a0 + (a1 - a0) * t);
+    }
+  }
+  return null;
+}
 function gidsKlaar(){ return gids && gids !== 'laden' && mentor && mentor.spoor; }
 // het frame van de gids nu: [anim, index]
 function gidsNu(){
@@ -28727,6 +28749,10 @@ function gidsNu(){
   const rij = gids.spoor.segs[s];
   let [anim, af] = rij && rij[i] ? rij[i] : ['idle', -1];
   if (anim === 'ren') return ['ren', gidsRenFrame()];
+  if (GIDS.lucht[anim] && i < rij.length){                       // in de lucht: de houding volgt zijn snelheid, zoals bij Amir
+    const lf = gidsLuchtFrame(anim, s, i);
+    if (lf != null) return [anim, lf];
+  }
   if (anim === 'idle'){
     const m = mentor, st = mentorStation(), V = gids.anims.verteller;
     if (m.fase === 'wacht' && st && st.zeg && m.t * GIDS.fps.verteller < V.n) return ['verteller', Math.floor(m.t * GIDS.fps.verteller)];
