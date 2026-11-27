@@ -279,14 +279,18 @@ async function shoveProef(R){
   const duw = async (wie, A, B) => {                   // A duwt, B kijkt; de bandiet staat 110 sprite-eenheden voor A
     const id = await H.page.evaluate(() => { const b = bandieten.find(b => mpcLeeft(b) && b.mpId != null); return b ? b.mpId : null; });
     for (const r of R) await r.page.evaluate(() => { world = -900; ph = 0; facing = 1; });
+    await H.page.evaluate(id => { for (let i = bandieten.length - 1; i >= 0; i--) if (bandieten[i].mpId !== id) bandieten.splice(i, 1); }, id);   // alleen deze bandiet: een tweede in de strook maakt er terecht een steek van
     await H.page.evaluate(id => { const b = bandieten.find(b => b.mpId === id); b.x = -2000; b.base = 0; b.knock = 0; b.rust = 3; b.traag = 0; }, id);
     await A.page.evaluate(() => { world = -2000 + 110 * nowScale(); ph = 0; facing = -1; shoveKoel = 0; atkCooldown = 0; hurt = 0; invuln = 3; });
     await wacht(900);                                  // de bandiet en A staan bij iedereen op hun plek
-    if (A === H) await H.page.evaluate(id => { const b = bandieten.find(b => b.mpId === id); b.x = -2000; b.knock = 0; b.rust = 3; }, id);   // de host denkt zelf: hij mag intussen niet weglopen
+    if (A === H) await H.page.evaluate(id => { for (let i = bandieten.length - 1; i >= 0; i--) if (bandieten[i].mpId !== id) bandieten.splice(i, 1); const b = bandieten.find(b => b.mpId === id); b.x = -2000; b.knock = 0; b.rust = 3; }, id);   // de host denkt zelf: hij mag intussen niet weglopen
     const voor = await H.page.evaluate(id => bandieten.find(b => b.mpId === id).x, id);
     const gzVoor = await G.page.evaluate(id => { const b = bandieten.find(b => b.mpId === id); return b ? b.x : null; }, id);
     const doel = await A.page.evaluate(() => { const d = shoveDoel(); return d ? d.soort : null; });
     meld(doel === 'bandiet', wie + ': shoveDoel kiest de bandiet (' + doel + ')');
+    if (doel !== 'bandiet') console.log('  waarom:', await A.page.evaluate(() => JSON.stringify({ koel: shoveKoel, shoveA: !!shoveA, spear, onGround, jump, fell, x: Math.round(world), ph,
+      vij: shoveVijanden().filter(v => sbLeeft(v.s)).map(v => v.soort + '@' + Math.round((v.s.x - world) * facing / nowScale()) + ' h' + Math.round(v.s.base || 0) + (v.s.air > 0 ? ' lucht' : '')) })));
+    await B.page.evaluate(() => { window.__klap = 0; if (!window.__klapO){ window.__klapO = shoveKlap; shoveKlap = function(){ window.__klap++; return window.__klapO.apply(this, arguments); }; } });
     await A.page.evaluate(() => { cv.focus(); startAttack(); });
     meld(await A.page.evaluate(() => !!shoveA), wie + ': de shove loopt bij hem zelf');
     const B_slot = await A.page.evaluate(() => pvp.mij);
@@ -297,6 +301,7 @@ async function shoveProef(R){
     meld(mk, B.wie + ': het frame heeft een Mkuki-skin (de losse speer uit los.json)');
     await wacht(1200);
     const na = await H.page.evaluate(id => bandieten.find(b => b.mpId === id).x, id);
+    meld(await B.page.evaluate(() => window.__klap > 0), B.wie + ' hoort en ziet de duw van ' + wie + ' (geluid en stofwolkjes, shvK)');
     meld(voor - na > 60, 'de host duwt de bandiet terug: ' + Math.round(voor) + ' naar ' + Math.round(na) + ' (' + Math.round(voor - na) + ' px)');
     const gzNa = await G.page.evaluate(id => { const b = bandieten.find(b => b.mpId === id); return b ? b.x : null; }, id);
     meld(gzVoor != null && gzVoor - gzNa > 60, 'de gast ziet hem terug schuiven: ' + Math.round(gzVoor) + ' naar ' + Math.round(gzNa));
