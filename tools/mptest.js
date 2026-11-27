@@ -54,6 +54,7 @@
 //                                        van een Co-op episode in plaats van Survival (zonder de proef van --ep)
 //   node tools/mptest.js --geensnel      zonder het nagebootste snelle kanaal (zoals via het relais)
 //   node tools/mptest.js --proef --winkeleerst   met Start in the shop: kijkt na dat ook elke gast in de winkel begint
+//                                        en dat elk bordje (ook Team) te klikken is, niet onder het doek (--breed --hoog: de schermmaat)
 //   node tools/mptest.js --tlog          de tester-logging (TLOG): elk venster is een tester (host, gast, gast2), de regels
 //                                        naar de Google Sheet worden onderschept en aan het eind getoond (niets gaat echt weg)
 //   node tools/mptest.js --kaart ishmul  Co-op Survival op een andere map (een id uit MP_KAARTEN.coop; standaard dye)
@@ -876,7 +877,7 @@ async function elk(H, G){
   const browser = await chromium.launch();
   const ramen = [];
   for (const wie of ['host', 'gast', 'gast2'].slice(0, N_SPELERS)){
-    const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    const ctx = await browser.newContext({ viewport: { width: +opt('--breed', 1280), height: +opt('--hoog', 720) } });
     const tlogRegels = [];
     if (args.includes('--tlog')){
       await ctx.addInitScript(n => { try { localStorage.setItem('amir.rol', 'tester'); localStorage.setItem('amir.tester', n); } catch (e) {} }, 'test' + wie);
@@ -1142,6 +1143,30 @@ async function elk(H, G){
     const rugG = await Promise.all(ramen.map(r => r.page.evaluate(() => dukaRug(winkelMan))));
     meld(rugG.every(x => x), 'Duka staat bij iedereen tegelijk met zijn rug naar je toe (' + JSON.stringify(rugG) + ')');
     meld(n > 10 && mis <= 3, 'Duka doet bij iedereen hetzelfde (' + (n - mis) + ' van de ' + n + ' gelijk, ' + rug + ' keer met zijn rug)');
+    // elk bordje (ook Team) te klikken: niet onder het doek of een andere knop, waar Amir ook staat in de kamer
+    for (const r of ramen){
+      const terug = await r.page.evaluate(() => { const w = world; world = MPC_WINKEL_KAMER.toonbank + 40; onGround = true; jump = null; if (!winkelUIAan) winkelUIOpen(); return w; });
+      const mis = [];
+      for (const dx of [-600, -300, 0, 300, 600, 900]){
+        await r.page.evaluate(dx => { world = MPC_WINKEL_KAMER.toonbank + 40 + dx; onGround = true; jump = null; }, dx);
+        await wacht(250);
+        const uit = await r.page.evaluate(() => {
+          if (!winkelUIAan || !wkk.borden.length) return ['geen bordjes'];
+          const f = [];
+          for (const b of wkk.borden){
+            const cx = b.r.x + b.r.w / 2, cy = b.r.y + b.r.h / 2, el = document.elementFromPoint(cx, cy);
+            const naam = wkkCats()[b.i].naam;
+            if (cx < 0 || cy < 0 || cx > innerWidth || cy > innerHeight) f.push(naam + ' buiten beeld');
+            else if (el && el.closest && el.closest('#wkkamer')) f.push(naam + ' onder ' + (el.id || el.className));
+          }
+          return f;
+        });
+        for (const u of uit) mis.push('+' + dx + ': ' + u);
+        if (shots && dx === 900){ fs.mkdirSync(shots, { recursive: true }); await r.page.screenshot({ path: path.join(shots, 'bordjes_' + r.wie + '.png') }); }
+      }
+      await r.page.evaluate(w => { winkelUIDicht(); world = w; }, terug);
+      meld(!mis.length, r.wie + ': alle bordjes te klikken op ' + await r.page.evaluate(() => innerWidth + 'x' + innerHeight) + (mis.length ? ' (' + mis.slice(0, 4).join('; ') + ')' : ''));
+    }
   }
   if (stokken.length && !args.includes('--neer')){   // --neer: alleen de val, niet de hele stokkenproef
     await wacht(1500);
