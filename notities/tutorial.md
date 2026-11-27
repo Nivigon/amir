@@ -97,6 +97,11 @@ De opdrachtgever vond de gids naast Amir slecht bewegen. Gemeten (niet geschat) 
   `GIDS.pas` 344: Amirs lus is 287, de gids is 1,2 keer zo groot), met de 12 oneven frames.
 - **De sprong hing en jaagde.** Tien beelden dezelfde stijgende houding, dan frame 26 tot 62 in vier beelden. `gids_glad.py`
   verdeelt elk luchtstuk (sprong, groot) gelijkmatig over de tijd in de lucht.
+- **In de lucht hing hij als een mediterende monnik.** De clip `jump_and_land` zelf zet af en zweeft dan bijna twee
+  seconden met de knieen op (frame 24 tot 68 is een houding). Nu volgt de houding in de lucht zijn verticale snelheid, net
+  als bij Amir: `gidsLuchtFrame`, `GIDS.vMax` en `GIDS.lucht` (sprong: strekken 16 tot 21, top 22 tot 40, vallen 66 tot
+  76; groot: gestrekt, dan intrekken). Afzet en landing op de grond blijven uit het spoor. De gelijkmatige verdeling van
+  `gids_glad.py` geldt nu alleen nog waar de snelheid niets kiest.
 - **De grootte klopte wel.** Gemeten op zijn haarknot (rond, dus vanuit elke hoek even groot): 17 tot 19 eenheden in idle,
   ren, buk, sluip en groot. Lichaamshoogte zegt hier niets (een ren is lager), en een hoofd als maat ook niet (breder of
   smaller per kijkhoek). De les: meet schaal op iets ronds of iets dat in elke houding gelijk blijft.
