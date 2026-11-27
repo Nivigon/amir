@@ -60,10 +60,12 @@ SCHAAL = {'idle': 1, 'verteller': 1, 'rc': 0.8, 'jump_and_land': 1.72, 'grote_sp
 # schaalt elk frame terug naar de maat van het eerste.
 ZOOM_VAST = ('idle',)
 # Hoe groot elke animatie in het spel getekend wordt, bovenop de schaal van de vellen (gids.json: k per animatie; gidsTeken
-# vermenigvuldigt ermee). 27-11-2026, Tom in de hoogte-tool: in beweging kromp hij zichtbaar naast Amir (rennend even groot
-# als Amir, staand 1,2 keer), omdat zijn ren, buk en sluip dieper en schuiner zijn dan die van Amir. De vellen blijven zoals
-# ze zijn; alleen het tekenen in het spel schaalt.
-GROOTTE = {'idle': 1, 'verteller': 1, 'ren': 1.135, 'sprong': 1.135, 'groot': 1.135, 'buk': 1.135, 'sluip': 1.135, 'rol': 1.135}
+# vermenigvuldigt ermee). 27-11-2026: eerst 1,135 voor alles in beweging (hij leek te krimpen als hij ging rennen), maar
+# daarmee leek hij rennend juist groter. Gemeten (hoofd van de idle als sjabloon, op schaal gezocht in elk frame): op 1 is
+# zijn hoofd in ren, buk, sluip en sprong even groot als in de idle, net als bij Amir (diens hoofd is in zijn ren ook even
+# groot als in zijn idle). Dat hij rennend lager is komt door de houding. Het krimpen dat Tom eerst zag kwam vooral van de
+# idle-clip die 6% inzoomde (rechtgezet met ZOOM_VAST). Alleen de sprintsprong had een iets kleiner hoofd: 1,05.
+GROOTTE = {'idle': 1, 'verteller': 1, 'ren': 1, 'sprong': 1, 'groot': 1.05, 'buk': 1, 'sluip': 1, 'rol': 1}
 SPEER = {'staal': (178, 184, 190), 'staalDonker': (104, 110, 118), 'hout': (112, 72, 42), 'houtDonker': (70, 44, 26)}
 
 # de animaties: welke frames uit welke clip

@@ -62,12 +62,12 @@ zegt `design/tutorial/gids/gids.json` welk frame van de gids erbij hoort. Kop in
   er een gladde kromme door en schaalt elk frame terug naar frame 0. Nu staan idle en verteller allebei op 316 tot 320 px
   in het vel. Alleen een animatie opnieuw bouwen: `python3 tools/gids_bouw.py idle` (het spoor blijft staan), dan
   `tools/gids_glad.py`.
-- **Groter in beweging (27-11-2026).** Gemeten naast Amir: staand 1,2 keer Amir, maar rennend even groot als Amir en
-  gebukt of sluipend 0,77 keer, omdat zijn ren, buk en sluip dieper en schuiner zijn. Tom zag hem krimpen zodra hij ging
-  rennen. `GROOTTE` in `gids_bouw.py` (in gids.json `k` per animatie) tekent ren, sprong, groot, buk, sluip en rol op 1,135;
-  idle en verteller op 1. De vellen blijven gelijk, `gidsTeken` schaalt vanaf zijn voeten. Gecontroleerd: sluipend past hij
-  nog onder de holle stam. Afgesteld met de tool https://claude.ai/artifact/SpQZiaU7nnS4NmwNtANnzQ (alle animaties naast
-  elkaar op een schermafdruk van het level, hoogte per animatie).
+- **Maat in beweging (27-11-2026).** Eerst ren, sprong, buk, sluip en rol op 1,135 gezet (hij leek rennend te krimpen),
+  daarna leek hij rennend juist te groot. Gemeten met het idle-hoofd als sjabloon: op 1 is zijn hoofd in elke animatie even
+  groot als in de idle, en bij Amir is dat ook zo. Rennend is hij lager door de houding, niet door de maat. Het krimpen kwam
+  vooral van de inzoomende idle (ZOOM_VAST). Nu alles op 1, de sprintsprong op 1,05 (iets kleiner hoofd). `GROOTTE` in
+  `gids_bouw.py`, `k` in gids.json. Les: ijk de maat op het hoofd, niet op de lichaamshoogte. Tool:
+  https://claude.ai/artifact/SpQZiaU7nnS4NmwNtANnzQ
 - Nog niet gebruikt: `gahurk`, `hurk_en_omkijk`, `hurkenwenk` (voor de panter-sluiples) en `deelsbruikbaar_vertellen`.
 - Open: de speer los (nu omgekleurd in de frames), een klim voor de richel (hij springt nu), een rustig loopje.
 
