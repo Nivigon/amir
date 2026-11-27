@@ -1237,7 +1237,8 @@ hoe hij er staat; daarna komt Duka soms niet. Een nieuw level met winkels krijgt
 - **Duka komt niet**: de toonbank blijft dicht (`kivToonbankDicht`), de winkel is dan voor dat level op. Er is geen Ready en geen
   weg naar buiten zoals in Survival (`kivDukaStap` stuurt `winkelUit` alleen met `inWinkel`).
 - **De banner** in een episode (`mpcWinkelBanner`): alleen "A stranger in the shop: press E to talk to him", geen Ready-teksten.
-- Nog in geen level gezet: welke winkel hem krijgt is een keuze per level.
+- **Waar hij staat**: in Clay City 4: The Narrow Lanes (1 van de 4 winkels van The Clay City) en in Ambush 4: Market at Dusk
+  (1 van de 3 van The Smugglers' Cellar). Welke winkel hem krijgt is een keuze per level.
 
 ## Verkopen in de winkel van Co-op (27-11-2026)
 
