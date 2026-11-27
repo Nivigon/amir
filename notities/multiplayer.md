@@ -1219,6 +1219,46 @@ iedereen op (`kivStart`). Lobby: **Kivuli comes** (`kivVaak`: 1 in 3 shops, Ever
   Not done) vroegtijdig weg in plaats van de 45 s af te wachten (`kivAllesKlaar` in `kivStap`). Alleen de eerste die hem aanspreekt
   zet de klok; Done telt pas als de klok loopt.
 
+## Kivuli in een level (27-11-2026)
+
+Gevraagd: Kivuli komt regelmatig in de winkels van de levels, altijd in een vaste winkel van dat level, met de variatie in
+hoe hij er staat; daarna komt Duka soms niet. Een nieuw level met winkels krijgt hem in gemiddeld 1 van de 4 winkels.
+
+- **Het veld**: `binnen: [{ ..., winkel: { x, seed, koopman, kivuli: true } }]`. Alleen in een Co-op episode (ook The Clay
+  City, solo); readLevel neemt het mee. Survival blijft het oude: `kivBesluit` met de knikkerzak, en `C.ep` sluit hem daar uit.
+- **De host beslist** bij het laden van het level (`mpEpKivStart`, na `mpEpNaStart`): `kivBesluit(true)` kiest de versie, Duka
+  erna (`kivZak`, 1 op 2, of wat de lobby zegt) en de voorraad, en zet het in `C.kivEp` (met het level `i`). Hij stuurt
+  `{t:'kivep', i, kv}`, en nog een keer bij `mpLaadLos`, zodat een gast die nog laadde het ook heeft.
+- **Pas als je binnenkomt** (`kivEpBinnen`, vanuit `kivStap`): ieder zet Kivuli op als hij zelf de winkel in gaat, dus het
+  wachten en binnenlopen begint als jij er bent. Versie 2 (binnen en leunen) komt in een episode bij ieder binnen als hij zelf
+  bij de toonbank komt, zonder `kivin` (de host kan nog buiten staan). De klok en Done gaan zoals in Survival.
+- **Een andere winkel** in hetzelfde level: `kivStap` doet niets als `kiv.w` een andere winkel is, en `kivDukaWeg(w)` laat Duka
+  daar gewoon staan.
+- **Duka komt niet**: de toonbank blijft dicht (`kivToonbankDicht`), de winkel is dan voor dat level op. Er is geen Ready en geen
+  weg naar buiten zoals in Survival (`kivDukaStap` stuurt `winkelUit` alleen met `inWinkel`).
+- **De banner** in een episode (`mpcWinkelBanner`): alleen "A stranger in the shop: press E to talk to him", geen Ready-teksten.
+- Nog in geen level gezet: welke winkel hem krijgt is een keuze per level.
+
+## Verkopen in de winkel van Co-op (27-11-2026)
+
+`MPC_VERKOOP` (0,4), `mpcVerkoopHeb`, `mpcVerkoopNiet`, `mpcVerkoop`, `mpcVerkoopKnop`, `mpcAfgeef`, `#wkkverkoop`, `#wkinfoverkoop`.
+
+- **Wat**: alles wat je kocht en nog hebt, ook wat blijft (Extra life, Gris-gris, Full Circle en zijn upgrades, de stokken,
+  Ground slam, het speerslot, de speersoorten, Silver Pride en de veren), plus de kalebassen en het gif in je tas. Niet: Give 5 gold
+  en de spullen van Kivuli, en Kivuli koopt niets.
+- **De prijs**: 40% van wat je betaalde, naar beneden afgerond, minstens 1 (`mpcBetaald`: bij trappen de prijs van de hoogste,
+  in Co-op solo `prijsSolo`). Kopen en verkopen geeft dus nooit winst.
+- **Wanneer niet** (`mpcVerkoopNiet`): een upgrade die erop bouwt eerst (Full Circle na more damage en all around, Hardwood na
+  Lion Claw, Gold King en Ardhi's Grip, de laatste Ardhi's Reach na Roots en Bloom), een speerslot als het leeg is, een speer alleen
+  een gewone op je rug, een extra leven niet als het je laatste is.
+- **Weghalen** gaat met `mpcAfgeef`, dezelfde takken als Undo (Undo roept het nu ook aan); `gewoon` pakt een gewone speer van de rug.
+- **Buy back**: na een verkoop is `mpcLaatste` `{q, prijs, verkocht: true}`, en Undo koopt het terug voor die prijs
+  (`mpcWinkelKoop(q, null, vast)`; een kalebas gaat dan terug in je tas, `tas` in `mpcLaatste`). Undo werkt nu ook in de winkel van
+  een episode (`mpcUndoKan` keek alleen naar `inWinkel`).
+- **Knoppen**: in het doek (`#wkkverkoop`, gebrand oranje naast Buy, **S** verkoopt) en in het oude paneel van het Duel
+  (`#wkinfoverkoop`). Grijs als het niet kan; een klik schudt en zegt waarom.
+- **Logging**: `tlogKoop(k, prijs, false, true)` schrijft `sell:k:prijs`. Je goud is van jezelf, er gaat niets over het netwerk.
+
 ## De spullen van Kivuli en de itemslots (25-11-2026)
 
 Kivuli verkoopt vijf eigen spullen (`MPC_WINKEL` met `kivuli: true`, alleen te zien bij hem: `wkkZichtbaar`), naast de
