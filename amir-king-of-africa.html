@@ -4409,15 +4409,36 @@ const SHOVE = {
   minDuw: 70,                             // en minstens zoveel terug (sprite-eenheden)
   zwaar: 0.5,                             // de kooiman met zijn kooi schuift maar half zo ver en wankelt niet
   raakVan: 206, raakTot: 333,             // de strook waar de punt van de gewone steek raakt (TIP_DX van ATK_ACTIVE, plus steekR)
-  hoog: 90                                // alleen wie op Amirs eigen hoogte staat (wereld-px)
+  hoog: 90,                               // alleen wie op Amirs eigen hoogte staat (wereld-px)
+  // het geluid van de duw (ElevenLabs: de schacht tegen een borst). De klap zit 0,18 s in het bestand: vanaf start
+  // speelt hij, zodat de klap op het duwmoment valt. Ver weg (een teamgenoot in Co-op) zachter, tot stil op `ver` px
+  geluid: { src: 'sounds/shove_duw.mp3', start: 0.15, vol: 0.85, stemmen: 3, ver: 1400 }
 };
-let shoveA = null, shoveKoel = 0, shoveBank = null;   // shoveA: {i, acc, kant, doel}: de shove loopt
+let shoveA = null, shoveKoel = 0, shoveBank = null, shoveSnd = null;   // shoveA: {i, acc, kant, doel}: de shove loopt
 function shoveLaad(){
+  if (!shoveSnd) shoveSnd = banStemmen(SHOVE.geluid.src, SHOVE.geluid.stemmen);
   if (shoveBank) return;
   shoveBank = Array.from({ length: SHOVE.n }, (_, i) => loadQuiet(uniq([AMIR, AMIR_GROOT]).map(d => d + SHOVE.dir + 'shove_' + (i < 10 ? '0' : '') + i + '.png')));
 }
 // de aanvalsklok bij het duwmoment: de rest van de shove (na raakStap) plus SHOVE.na, in seconden
 function shoveKlok(){ let t = 0; for (let i = SHOVE.raakStap; i < SHOVE.reeks.length; i++) t += SHOVE.reeks[i][1]; return t / 24 + SHOVE.na; }
+// de duw klinkt en stuift: het geluid (vol: 1 dichtbij) en mini-stofwolkjes bij de voeten van de vijand, die met de
+// duw meedrijven, plus een wolkje bij de voorste voet van Amir. Ook bij een teamgenoot (shvK, in Co-op)
+function shoveKlap(vx, vbase, kant, ax, abase, vol){
+  shoveLaad();
+  if (wantSound && vol > 0.02){
+    const G = SHOVE.geluid, a = shoveSnd.pool[shoveSnd.beurt++ % shoveSnd.pool.length];
+    try { a.currentTime = G.start; } catch (e) {}
+    a.volume = Math.min(1, G.vol * vol);
+    a.play().catch(() => {});
+  }
+  if (inGap(vx) || waterDepthAt(vx, vbase) > 0.2) return;
+  for (let i = 0; i < 4; i++)
+    stofWolk(vx - kant * 12 + (Math.random() - 0.5) * 34, 1 + Math.random() * 6, vbase, kant * (70 + Math.random() * 90), 6 + Math.random() * 5, 0.45 + Math.random() * 0.3, 0.55);
+  for (let i = 0; i < 6; i++) stofKorrel(vx + (Math.random() - 0.5) * 30, vbase, kant * (40 + Math.random() * 120), 60 + Math.random() * 90);
+  if (ax != null && !inGap(ax)) stofWolk(ax + kant * 28, 1, abase, kant * 25, 6, 0.4, 0.45);
+}
+function shoveKlapVol(x){ return Math.max(0, 1 - Math.abs(x - playerX()) / SHOVE.geluid.ver); }
 function shoveKlaar(){ return !!shoveBank && shoveBank.every(i => i.complete && i.naturalWidth); }
 function shoveBeeld(){ return shoveA && shoveBank ? shoveBank[SHOVE.reeks[Math.min(shoveA.i, SHOVE.reeks.length - 1)][0]] : null; }
 // wie staat er voor Amir: per vijand zijn lijst, soort, halve lijfbreedte (wereld-px) en of hij te duwen is
@@ -4489,10 +4510,18 @@ function shoveRaak(){
     const a = mpcVind(s);
     if (a) pvpZendAan(0, { t: 'shvR', a, id: s.mpId, kant });
     puffWorld(s.x, 5, kant * 200, 1, s.base || 0);
+    shoveKlap(s.x, s.base || 0, kant, playerX(), ph, 1);
+    shoveKlapZend(s.x, s.base || 0, kant);
     shake = Math.max(shake, 0.12); hitstop = Math.max(hitstop, 0.06);
     return;
   }
   shoveDuw(v, kant, d);
+  shoveKlap(s.x, s.base || 0, kant, playerX(), ph, 1);
+  shoveKlapZend(s.x, s.base || 0, kant);
+}
+// in Co-op hoort en ziet een teamgenoot de duw ook (shvK, de host stuurt hem door naar de andere gast)
+function shoveKlapZend(x, base, kant){
+  if (typeof pvp !== 'undefined' && pvp && pvp.coop) pvpZend({ t: 'shvK', x: Math.round(x), b: Math.round(base), k: kant, ax: Math.round(playerX()), ah: Math.round(ph) });
 }
 // de duw zelf: bij de host (ook voor een gast, met zijn stand) of zonder Co-op. d: hoe ver de vijand voor Amir staat
 function shoveDuw(v, kant, d){
@@ -76831,7 +76860,7 @@ const pvpNu = () => performance.now() / 1000;
 // de vijandstand bevestigd heeft (vAk). Een gast heeft er een, naar de host (slot 0). Elk bericht draagt het slot van wie
 // het maakte (`p`); de host zet het zelf op wat binnenkomt (een gast kan niet voor een ander spreken) en stuurt wat de
 // andere gasten ook moeten weten door (MP_DOOR), en een bericht voor een gast (`naar`) alleen naar die. Zie notities/pvp.md.
-const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'naam', 'rek', 'symPak', 'zh', 'bn', 'wkklaar', 'rematch', 'gk', 'blokK', 'kivpraat', 'kivweg', 'isl', 'islm', 'ah', 'kivklaar']);
+const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'naam', 'rek', 'symPak', 'zh', 'bn', 'wkklaar', 'rematch', 'gk', 'blokK', 'kivpraat', 'kivweg', 'isl', 'islm', 'ah', 'kivklaar', 'shvK']);
 function pvpGasten(){ return pvp ? Object.keys(pvp.peers).map(Number).filter(p => p !== 0) : []; }
 function pvpRelay(){ return !!pvp && Object.values(pvp.peers).some(pe => pe.conn.relay); }
 function pvpPeerNieuw(conn, p){
@@ -79637,7 +79666,8 @@ function mpCoopOntvang(m){
   if (m.t === 'blokG'){ const o = pvp.host && bandieten.find(v => v.mpId === m.id);   // een gast ving zijn klap op het stokblok
     if (o && mpcLeeft(o) && pvpAnderNu(m.p)){ mpcWisselIn(m.p); try { stokBlokGestuit(o); } finally { mpcWisselUit(); } } return true; }
   if (m.t === 'banP'){ if (pvp.host) mpcPareerVanGast(m); return true; }   // een bandiet pareerde de steek van een gast
-  if (m.t === 'shvR'){ if (pvp.host) mpcShoveVanGast(m); return true; }   // de shove van een gast duwt een vijand (SHOVE)
+  if (m.t === 'shvR'){ if (pvp.host) mpcShoveVanGast(m); return true; }
+  if (m.t === 'shvK'){ if (!laadWacht && m.p !== pvp.mij) shoveKlap(+m.x || 0, +m.b || 0, m.k === 1 ? 1 : -1, +m.ax || 0, +m.ah || 0, shoveKlapVol(+m.x || 0)); return true; }   // de duw van een teamgenoot: geluid en stof (SHOVE)   // de shove van een gast duwt een vijand (SHOVE)
   if (m.t === 'crit'){ if (!pvp.host && !laadWacht) critFx(m.x, m.h, true); return true; }
   if (m.t === 'blokK'){ if (!laadWacht){ houtRaak(STOK.toon.blok, 0.6); puffWorld(m.x, 4, 0, 0.8, m.h); } return true; }   // het stokblok van een ander
   if (m.t === 'gifOp'){ if (gifHits > 0){ gifHits--; invHud(); } return true; }   // de host zette mijn gif op een vijand: een treffer minder
