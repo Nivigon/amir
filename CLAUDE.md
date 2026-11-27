@@ -9,9 +9,9 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 
 ## Regels
 
-**1. Levels van een echte episode blijven met rust.** Nu is er geen bevroren episode meer: De Valse Koning is
-op verzoek weggehaald, en The Roofs of Kumbasa (`KUM_1` tot en met `KUM_8`) staat net als De Belegerde Stad, De Gouden
-Poort en De Rivierstad tussenin (geen proefstuk, wel aanpassen als de opdracht erom vraagt). Wijst de opdrachtgever
+**1. Levels van een echte episode blijven met rust.** Nu is er geen bevroren episode meer: De Valse Koning,
+Oaktown, De Belegerde Stad, De Gouden Poort, De Rivierstad en The Roofs of Kumbasa zijn op verzoek weggehaald, en
+The Clay City (`KLEI_1` tot en met `KLEI_7`) staat tussenin (geen proefstuk, wel aanpassen als de opdracht erom vraagt). Wijst de opdrachtgever
 weer een episode als bevroren aan, dan geldt het volgende daarvoor. De Episode Test levels (`TEST_1` en verder) de episode Baboon tests (`BAB_1` en verder), de episode Murghtaan (`MUR_1` en verder) en de episode Test levels stad (`STAD_1` en verder) vallen niet onder deze regel: ze zijn er
 juist om aan te rommelen. De leveldefinities van een echte episode zijn bevroren: er komt geen nieuwe vijand, prop, tip, potion of aangepast
 getal in, ook niet even om iets te laten zien. Alleen als de opdracht een level bij naam noemt
@@ -225,7 +225,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | bodem en sneeuwdek | `sneeuw` | notities/wegwijzers.md |
 | grondsoort per plek: stroken straat of rots in de bodem | `GRONDSOORT`, `grondStrokenTeken`, `grondTegelVan` | notities/grondsoort.md |
 | het verhaal bij een episode | `VERHAAL`, `SLOT`, `verhaalToon()` | notities/episodes.md |
-| Episode The Roofs of Kumbasa: acht stadslevels, makkelijk tot extreem, verstopte kisten op de daken, Nyundo in indigo | `KUM_1`, `KUM_LEVELS`, `KUM_TINT`, `menuKum` | notities/episodes.md |
+| Episode The Clay City: zeven stadslevels, geen tribe en geen talents maar de kit van Co-op; bij Play kies je wapen en moeilijkheid (Young Whelp, Lion, Hunter XL), spawns, kalebassen en tonnen met `van`/`tot` | `KLEI`, `KLEI_1`, `KLEI_LEVELS`, `kleiZwaar`, `kleiSpeel`, `menuKlei`, `dkzwaar` | notities/episodes.md |
 | Episode Test levels | `TEST_1`, `TEST_51`, `KAART_BLAD` | notities/episodes.md |
 | Episode Baboon tests | `BAB_1`, `BAB_4`, `BAB_LEVELS` | notities/episodes.md |
 | Episode Murghtaan: de hyena-baas (baas, regel 12), de roedel, de reveal en de kevers | `MUR_1`, `MUR`, `makeMurg`, `updateMurg`, `hitMurg`, `murKevers`, `murKlem` | notities/episodes.md |
@@ -233,10 +233,6 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de pin van Murghtaan 2: schouderblik in de slip (tell), sprong, alleen de rol ontwijkt; happen in het ritme 1, 1, 2, steken op de hap pareert; startkeuze levens/onaantastbaar en extra hyena's; afstellen onder Instellingen | `MURC.pin`, `murcPinStap`, `murcPinHap`, `murcPinAmir`, `MURC_PIN_SCHUIF`, `murcKeuze` | notities/episodes.md |
 | Murghtaan 3: de opening (vreten aan een lijk, omkijken met freeze en naam, whoop, roedel van drie achter een muur, dan de charge) | `MUR_3`, `MURC_INTRO`, `murcIntroStap`, `murcVries`, `murcRoedelKomt` | notities/episodes.md |
 | Episode Test levels stad | `STAD_1`, `STAD_LEVELS`, `menuStad` | notities/episodes.md |
-| Episode Oaktown: zeven straten met poorten, 50 kills | `OAK_1`, `OAK_STRATEN`, `menuOak` | notities/oaktown.md |
-| Episode De Belegerde Stad: zeven stadslevels, moeilijk tot extreem | `BEL_1`, `BEL_LEVELS`, `menuBel` | notities/episodes.md |
-| Episode De Gouden Poort: tien stadslevels, makkelijk tot mega, met goud, winkels en Nyundo | `GP_1`, `GP_LEVELS`, `menuGP`, `gpSpeel` | notities/episodes.md |
-| Episode De Rivierstad: vijftien stadslevels over drie dagen, bruggen, schatkisten, vier winkels en Nyundo in rode oker | `RIV_1`, `RIV_LEVELS`, `menuRiv`, `RIV_TINT` | notities/episodes.md |
 | de schatkist: E en het goud spat eruit, vaak op een moeilijke plek; kopgeld voor een aanvoerder en Nyundo; de makkelijke schildbandiet in een bruin kleed | `KIST`, `kistE`, `drawKisten`, `goudKopgeld`, `SCHB_TINT` | notities/episodes.md |
 | goud: een goudstuk per kill, de winkelprijs (5 goud) en de munt van de koning (een talentpunt extra) | `GOUD`, `goudKill`, `goudReset`, `muntE` | notities/episodes.md |
 | multikill: kills binnen 3 s na elkaar zijn een reeks, een kraal per kill, Double, Triple of Multi Kill, een stinger en 1 goud extra; het levelrapport na het level; in elk level aan | `MKILL`, `mkillKill`, `mkillStap`, `mkillRapport`, `mkStat` | notities/multikill.md |
@@ -548,7 +544,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
    en hut aan de start, Amir begint aan de rand van het level en de camera kijkt er niet voorbij
    (zie het veld `rand`). Dat geldt voor elk nieuw level vanaf nu; de bestaande levels houden hun
    rotswand (rule 1, en een speerval zit in die wand). De Maker had al een kale start (`kaleKlif`).
-2. De naam in de array van die reeks (`KUM_LEVELS`, `TEST_LEVELS`, `STOK_LEVELS`, `RW_LEVELS`, `TUT_LEVELS`, `BAB_LEVELS`, `STAD_LEVELS`, `OAK_LEVELS`, `BEL_LEVELS`, `GP_LEVELS`, `RIV_LEVELS` of `KUM_LEVELS`).
+2. De naam in de array van die reeks (`KLEI_LEVELS`, `TEST_LEVELS`, `STOK_LEVELS`, `RW_LEVELS`, `TUT_LEVELS`, `BAB_LEVELS`, `MUR_LEVELS` of `STAD_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
    De voorgrond komt er vanzelf bij (zie hierboven); zet alleen een eigen `voorgrond` als het level
@@ -562,13 +558,13 @@ Die vijf stappen, plus: een knop in `menuEpisodes` (het scherm Campaign, onder S
 een nieuwe testreeks die geen echte episode is, zoals Baboon tests, krijgt juist een knop in het Test Lab, `menuLab`,
 met een Back-knop met de klasse `menulab`), een eigen `menuXxx`-blok in de
 HTML naar het voorbeeld van `menuTest`, en die aanmelden in `buildCards`,
-`markCards` en `showMenu` (die kiezen nu tussen `cardsKum`/`menuKum`, `cardsBab`/`menuBab`,
-`cardsStad`/`menuStad`, `cardsOak`/`menuOak` en `cardsTest`/`menuTest`, en `toMenu` ook), en de reeks in `tools/speelrobot.js`,
+`markCards` en `showMenu` (die kiezen nu tussen `cardsKlei`/`menuKlei`, `cardsBab`/`menuBab`,
+`cardsStad`/`menuStad` en `cardsTest`/`menuTest`, en `toMenu` ook), en de reeks in `tools/speelrobot.js`,
 `tools/runecheck.js` en `tools/beeldgelijk.js`. De Terug-knop van een episodescherm krijgt de klasse `menuepisodes` (terug naar
-Episodes), niet `menuback` (dat gaat naar het Levels-scherm). Een nieuwe episode begint altijd met de tribekeuze: `runStart` in zijn speelknop, en `tribeLijst` geeft
-hem alleen wat de speler verdiend heeft (alleen `TEST_LEVELS` krijgt alles). Wil de episode een
-verhaal, zet dan de tekst in `VERHAAL` en `SLOT` en `verhaalAan` in zijn speelknop. The Roofs of Kumbasa is het
-voorbeeld van een episode met verhaal, goud en Nightmare (`btnnightmareKum`).
+Episodes), niet `menuback` (dat gaat naar het Levels-scherm). Een episode begint met de tribekeuze (`runStart` in zijn speelknop,
+`tribeLijst` geeft hem alleen wat de speler verdiend heeft, alleen `TEST_LEVELS` krijgt alles), tenzij de opdrachtgever het anders
+vraagt: The Clay City heeft geen tribe en geen talents, maar de kit van Co-op en een keuze van wapen en moeilijkheid (`kleiSpeel`).
+Wil de episode een verhaal, zet dan de tekst in `VERHAAL` en `SLOT` en `verhaalAan` in zijn speelknop (nu heeft geen episode er een).
 
 ### Een vijand of prop toevoegen
 
@@ -696,7 +692,7 @@ of `muur` raakt, en of die strook in beeld ligt.
 
 ```
 node tools/runecheck.js                 alle levels, op 1280x720, 852x393, 1440x620 en 1920x1080
-node tools/runecheck.js "Roofs"         alleen de levels waarvan de naam dit bevat
+node tools/runecheck.js "Clay"          alleen de levels waarvan de naam dit bevat
 node tools/runecheck.js --formaat 25    het schuifje Formaat
 node tools/runecheck.js --schermen 1280x720,852x393
 ```

@@ -4,61 +4,29 @@
 
 `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop
 
-## Episode The Roofs of Kumbasa
+## Episode The Clay City
 
-`KUM_1` tot en met `KUM_8` en `KUM_LEVELS`: acht stadslevels, van makkelijk tot extreem, gevraagd als vervanging van De
-Valse Koning (die is weggehaald, met zijn menu, verhaal en ondertitels). Menu `menuKum`, `cardsKum`, knop `btnKum` in
-`menuEpisodes`; Spelen is `gpSpeel` (tribekeuze, goud op 0, het verhaal), en de knop Nightmare (`btnnightmareKum`) neemt
-de Nightmare over die De Valse Koning had. Teksten in het spel in het Engels (regel 5).
+`KLEI`, `KLEI_1` tot en met `KLEI_7`, `KLEI_LEVELS`, `kleiZwaar`, `kleiSpeel`, `kleiKies`, `menuKlei`, `cardsKlei`, `btnKlei`, `dkzwaar`
 
-Alleen mensen en hyena's, en Nyundo als enige baas (Roofs 8, gevraagd, regel 12), in indigo
-(`KUM_TINT.nyundo`, dertig treffers). Twee aanvoerders in eigen kleur: Sefu de wever (3, groen, razernij) en Zuri de
-verfmeester (6, schaduw met stofspoor en razernij, opent de eindpoort).
+Op verzoek van de opdrachtgever (27-11-2026): de vijf stadsepisodes (Oaktown, De Belegerde Stad, De Gouden Poort, De
+Rivierstad en The Roofs of Kumbasa) zijn uit het spel, en Campaign heeft nu een eenvoudige stadsepisode van zeven levels.
 
-De rode draad zijn verstopte kisten die je alleen haalt met de volle sprong en een doek. Die plekken zijn letterlijk
-overgenomen uit levels waar de sprongen al nagemeten zijn, met dezelfde maten: de doekkraam naar de galerij op 730
-(Rivier 3, in 1 en 5), de trampoline-luifels in de steeg (Stad 10, in 3 naar de galerij op 1059, en in 2 en 7 naar het
-hoogste dak), de takel (Rivier 8, in 4) en de stelling op de dam (Rivier 6, in 6). Verschuif je daar een huis, meet de
-sprong dan opnieuw.
-
-Een luifel hangt altijd boven een raam, op de hoogte van de voorramen (`raam`, zoals Stad 10); `levelcheck.py` geeft FOUT op
-een luifel aan een muur zonder raam (regel `luifel boven een raam`). In 2 en 7 hingen eerst de rechte springdoeken van Stad 9
-(boven het balkon en boven het lage dak); die zijn vervangen door de steeg van Stad 10: het korte balkon (`balkon` 0,6), een
-steeg van 1,7 Amir, indigo boven het raam van de eerste verdieping, rood aan de overkant boven dat van de tweede, en een
-derde (indigo, raam 3) onder het dak van huis 4. Rood naar die derde vraagt een stuit van 1,3 of meer (de top van 1,42 ligt
-zo'n 50 boven de doek), dus twee goede stuiten; indigo naar rood de volle 1,42, net als in Stad 10. In 7 kreeg het lage huis
-(2) dezelfde steeg naar huis 1 (indigo op raam 1 van huis 2, rood op raam 2 van huis 1, dan het dak op); alles links van
-huis 1 schoof daarvoor 306 naar links. Wie daar mist valt op straat en loopt de route opnieuw.
-
-| level | moeite | wat erin zit |
-| --- | --- | --- |
-| 1 The Ferry Steps | makkelijk | wapenrek, winkel, waterval met brug, kist boven de doeken |
-| 2 The Dyers' Lane | makkelijk | stadstrappen, drie luifels in de steeg, kist en munt op het hoogste dak, waterval, rover uit een deur |
-| 3 The Weavers' Court | gemiddeld | trampoline, alle huistypes (reliefhuis met nis, pilarenhuis met takel en gordijn, vervallen huis, ruine, toren, winkelhuis), winkel, verdieping met ladder en boog, leemmuur, wapenrek bij een kraam, Sefu |
-| 4 The Fountain Square | gemiddeld/zwaar | regen, takel naar de galerij, fontein op een plein, verhoogde straat met de onderlaag, deuren beneden en boven, kooiman-duel |
-| 5 The Lantern Alleys | zwaar | nacht, vier straten in een raster met minimap en `accenten`, dertig kills, hinderlaag, zweepman in fasen, hoorn |
-| 6 The Dye Falls | heel zwaar | onweer, de dam, wapenrek op de kam, stelling met kist, waterval, `bandietGolf` met `niveau`, Zuri, eindpoort |
-| 7 The High Door | extreem | de route van Stad 9 naar de einddeur, met twee steegjes luifels (Stad 10) in plaats van de springdoeken, de garde op de daken |
-| 8 The Indigo Brute | extreem | het plein met Nyundo (opzet van Rivier 10) |
-
-### Moeilijker gemaakt (na de eerste versie)
-
-De eerste versie speelde te makkelijk. De oorzaken, en wat er veranderd is:
-
-- **Hoogteverschil als schuilplek.** Vijanden gaan geen trede op en de bandiet slaat niet over een hoogteverschil
-  (`banZelfdeHoogte`). Op de dam van 6 stond elke rover alleen op een smalle trede, een schietschijf; die staan nu als
-  groep voor de dam (schildman met twee rovers) en als groep boven op de kam, met de schutter die de trap af schiet. De
-  leemmuur vlak voor Sefu in 3 is weg: bovenop was Amir voor hem onbereikbaar.
-- **Vijanden een voor een.** In 4, 5, 6 en 7 staan ze vaker in groepjes van twee of drie.
-- **Te veel genezing.** De kisten geven ongeveer een derde minder (20 tot 35), elk level heeft hooguit een kalebas in
-  de tonnen (op het plein van 8 een van de twee), en de winkel van Nana Efua in 6 is weg.
-- **Gratis sluipkills.** Vanaf 4 staan schutters en elites met `draai` of `pat` in plaats van `rug`; 1 tot 3 houden hun
-  ruggen, om het sluipen te leren.
-- **Overslaan in 7.** De elite, de kooiman en de hoornschutter stonden links van de trap omhoog (de voet op -5772),
-  buiten de route. Nu staan de elite en de kooiman bij de voet van de trap en de schutter op de galerij.
-
-Wapenrekken stonden nog in geen enkel level, en `readLevel` nam het veld niet over; dat doet hij nu. Een rek staat op de
-grond of de terrashoogte (`terrainH`), niet op een dak of zwever.
+- **Geen tribe, geen talents.** `kleiSpeel` doet `runReset` in plaats van `runStart`; zonder `RUN.tribeId` en buiten een
+  testreeks geeft `tribeLijst` niets, slaat `tribeNaLevel` de boom over en heb je 3 levens.
+- **De kit van Co-op.** Elk level heeft `stof: true` (stof in de ogen met de speer), `rugMax: 1` en `speerInHand: true`;
+  Full Circle staat aan zoals in de Co-op episodes. Met de stokken zet `wapenKeuzeLevel` de grondklap aan, met de
+  afkoeling van Co-op (`gkKoelDuur` kijkt ook naar `KLEI_LEVELS`).
+- **Het keuzescherm.** Bij Play opent `duoKeuzeToon` met twee rijen: Difficulty (`dkzwaar`, `duoKeuze.zwaar`: `easy`,
+  `normal`, `hard`, in beeld Young Whelp, Lion, Hunter XL) en Weapon (`dkwapen`; `wapenKeuzeAan` geldt ook voor
+  `KLEI_LEVELS`). Geen outfit: zonder `broekKeuze` is het de standaard (Mkuki Outfit 1, of de oude Bhubesi met de stokken).
+  De keuze blijft staan (`amir.duoKeuze`); `duoKeuzeNodig` vraagt het alleen bij Play (`kleiKies`), niet bij elk volgend level.
+- **De moeilijkheid.** `setLevel` haalt een Clay City-level door `kleiZwaar` voor `readLevel`: een spawn, kalebas of ton
+  met `van: 'normal'`/`'hard'` komt pas vanaf die stand, met `tot` hooguit tot die stand. Op Young Whelp is de
+  schildbandiet de makkelijke (`niveau: 'makkelijk'`, met `schildKleur` het bruine kleed). Na de keuze leest
+  `kleiSpeel` het level opnieuw. Level 1 heeft zo 3 vijanden op Young Whelp, 5 op Lion en 7 op Hunter XL.
+- **De levels.** Rechte straten met huizen, galerijen, trappen (2), een rivier met een brug (3), leemmuren (6) en
+  kramen met tonnen; geen baas, geen goud, geen winkels, geen verhaal. Ochtend, dag, middag, avond, nacht, avond, nacht.
+  Testbalk en testtoetsen staan uit (`testBalkMag`).
 
 ## Episode Test levels
 
@@ -70,21 +38,6 @@ grond of de terrashoogte (`terrainH`), niet op een dak of zwever.
 De Valse Koning; een knop in het Test Lab (`menuLab`, `btnStad`, City tests), het scherm `menuStad` met `cardsStad`. Stad 1 is de straat
 met de lange galerij en het gevecht erop; het stond eerst als Test 59 tussen de Test levels. Eronder loopt de stadmuziek, Market Shadows
 (`MUZIEK_STAD`, `music/marketshadows.mp3`, in elk stadlevel), en net als overal heeft Amir 1 reserve-speer op de rug (`RUG_STANDAARD`).
-
-## Episode Oaktown
-
-`OAK_1` (makkelijk, alleen zandslangen) en `OAK_2` (moeilijk, alleen mensen) en `OAK_LEVELS`: zeven korte straten op een
-kaart als een dobbelsteen met zes ogen, op een raster met knooppunten (een poort de diepte in, een pad naar voren) en een minimap; je speelt een level uit met 50 kills (het
-veld `straten`, zie `notities/oaktown.md`). Beide levels delen de kaart (`OAK_STRATEN`, `OAK_STAD`, `OAK_TERRAS`,
-`OAK_KALEBAS`). Met de tribekeuze (`runStart`); een knop in `menuEpisodes` (`btnOak`), het scherm `menuOak` met `cardsOak`.
-
-## Episode De Belegerde Stad
-
-`BEL_1` tot en met `BEL_7` en `BEL_LEVELS`: zeven stadslevels, moeilijk tot extreem, zelf ontworpen op verzoek. Geen echte
-episode in de zin van regel 1 (er is nu geen bevroren episode), maar ook geen proefstuk: pas ze aan als de opdracht erom vraagt.
-Geen baas (regel 12). Met de tribekeuze (`runStart`); een knop in `menuEpisodes` (`btnBel`), het scherm `menuBel` met `cardsBel`.
-De opbouw leunt op de stadlevels: 1 en 6 op Stad 1 (lift en toren), 2 op Stad 2 (trappen), 3 op Stad 3 (bruggen), 5 op Stad 4
-(de koningsweg); 4 en 7 zijn nieuw. Level 7 heeft een `bandietGolf` met dolken bovenop de vaste spawns.
 
 ## Episode Baboon tests
 
@@ -189,43 +142,6 @@ van hem (`murg.muurX`, in `murKlem`, getekend als lijn) houdt Amir weg; een spee
 roedel dood: omkijken, een korte freeze, en dan `murcAanzet` (de draai naar Amir is nog een harde wissel). De camera schuift in de
 opening naar hem toe (`murcIntroCam`). De sets `vreet`, `omkijk`, `omkijk_lus` en `whoop` komen uit `tools/murc_intro_sets.py`
 (clips in `enemies/hyena_baas/bron/`); proefrit: `node tools/murc_intro_test.js [map]`.
-
-## Episode De Gouden Poort
-
-`GP_1` tot en met `GP_10` en `GP_LEVELS`: tien stadslevels van makkelijk tot mega, zelf ontworpen op verzoek (regel 3), met
-Nyundo als baas van level 8 (regel 12, gevraagd). Net als De Belegerde Stad geen echte episode in de zin van regel 1: pas ze
-aan als de opdracht erom vraagt. Een knop in `menuEpisodes` (`btnGP`), het scherm `menuGP` met `cardsGP`. De speelknop en een
-dubbelklik op een kaartje gaan via `gpSpeel`: de tribekeuze, het goud op 0 (`goudBegin`) en `verhaalAan`, zodat elk level
-(ook een later gekozen) een tekstje uit `VERHAAL` krijgt; `SLOT` na level 10. De latere levels hebben de namiddag
-(`stad_middag`) en de avond (`stad_avond`) als lucht, twee extra scenes naast `stad_dag`.
-
-Per level: 1 losse rovers en sluipen; 2 binnen, met de munt boven in het huis van de baas (een slapende wacht ervoor); 3 de
-eerste winkel en Bako (aanvoerder, einde); 4 de stadsmuur van leem (terrassen van 170 tot 1530, een houten stelling tot 1870);
-5 De Kroonwijk, acht rechte straten in een raster van drie bij drie (`GP_5_STRATEN`, `raster: true`, `doel: 0`), kapitein Zaki in de Goudsmedenpunt; 6 binnen en de
-tweede winkel; 7 Kwame de poortwachter en de eindpoort (een pleinpoort met `einde: true`); 8 het plein met Nyundo, zoals
-Stad 6; 9 de garde, de derde winkel en de schatkamer met de kluis; 10 een `bandietGolf`, geen winkel, de goudvorst (16 levens,
-`sluip: false`).
-
-## Episode De Rivierstad
-
-`RIV_1` tot en met `RIV_15` en `RIV_LEVELS`: vijftien stadslevels van makkelijk tot mega, zelf ontworpen op verzoek (regel 3), met
-Nyundo als baas van level 10 (regel 12, gevraagd). Geen echte episode in de zin van regel 1. Een knop in `menuEpisodes` (`btnRiv`),
-het scherm `menuRiv` met `cardsRiv`; spelen gaat via `gpSpeel`, net als De Gouden Poort (tribekeuze, `goudBegin`, `verhaalAan`),
-met een tekstje per level in `VERHAAL` en `SLOT` na level 15.
-
-Drie dagen, elk van `stad_ochtend` (het ochtendgloren, een nieuwe scene) via `stad_dag` en `stad_middag` naar `stad_avond` en
-`stad_nacht`. Weer: regen in 4, 5 en 11, een zandstorm in 8, onweer in 14 en 15. Elk level heeft `goud`, `kopgeld` en `schildKleur`.
-
-Per level: 1 losse rovers, de eerste brug, een kist in een huis; 2 een rivier met en een zonder brug, hyena's, een kist op de
-galerij; 3 de eerste winkel, een kist boven de doeken, Jabari (aanvoerder, 6, einde); 4 regen, de eerste zweepman, een snelle val
-(`val: true`), een kist boven in een huis met een verdieping; 5 de eerste nacht, sluipen, een kist achter een boog; 6 de dam van leem
-(de opzet van Goud 4) met een dolkwerper op de trap en een kist op de stelling; 7 drie kamers achter elkaar (de kist in de achterste) en
-de tweede winkel; 8 zandstorm, hyena's in roedels, twee bruggen, de takel als enige weg naar de kist; 9 Kofi (12) en de eindpoort;
-10 het plein met Nyundo bij nacht, `hp: 24` en rode oker (`tint`), met vier fakkels zodat Amir te zien blijft; 11 de derde winkel en een kist boven op de toren (1388);
-12 schutters op alle galerijen, een kist boven in een huis; 13 drie rivieren (de laatste zonder brug), de vierde winkel en twee
-kisten; 14 onweer, een `bandietGolf` met `niveau: true` (een nieuwe rover alleen op Amirs hoogte, en een rover die op een trede
-van de dam vastzit telt niet mee voor `max`, `GOLF_NIVEAU`) en de grote dam met een kist op de stelling; 15 een golf die niet ophoudt en Simba Kivuli (20,
-`sluip: false`). De tinten van de bazen staan in `RIV_TINT`.
 
 ## de schatkist: E en het goud spat eruit
 
