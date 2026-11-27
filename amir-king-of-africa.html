@@ -36045,7 +36045,8 @@ const STAD_TRAP = {
   gloed: 420,                                                 // vanaf zo dichtbij gloeit de trap zacht op
   uit: 0.2, glij: 0.6, in: 0.22,                              // seconden: Amir vervaagt, de camera glijdt naar de uitgang, Amir komt terug
   dim: 0.35,                                                  // zo donker wordt het beeld tijdens de glijvlucht (niet zwart: je ziet waar je heen gaat)
-  gevecht: 950, laag: 150                                     // een vijand zo dichtbij en zo weinig hoger of lager: geen trap
+  gevecht: 950, laag: 150,                                    // een vijand zo dichtbij en zo weinig hoger of lager: geen trap
+  coopGevecht: 450                                            // Co-op: alleen zo dichtbij, en niet als hij dichter bij een teamgenoot staat (stadInGevecht)
 };
 function stadNiveau(n){ return n <= 0 ? 0 : stadVerdieping(n); }
 function stadTrapLees(q){
@@ -36159,11 +36160,25 @@ function stadTrapPlats(scale){
   }
   return out;
 }
-// in een gevecht: een levende vijand dichtbij op dezelfde hoogte (een vijand boven of onder je telt niet)
+// in een gevecht: een levende vijand dichtbij op dezelfde hoogte (een vijand boven of onder je telt niet). In Co-op
+// telt hij alleen binnen STAD_TRAP.coopGevecht, en niet als hij dichter bij een levende teamgenoot staat dan bij jou: met
+// 950 px hield een vijand buiten beeld, of een die met een ander vocht, de trap voor iedereen in de buurt dicht
 function stadInGevecht(){
-  const T = STAD_TRAP;
+  const T = STAD_TRAP, coop = typeof mpCoopAan === 'function' && mpCoopAan();
+  const r = coop ? T.coopGevecht : T.gevecht;
   for (const lijst of [snakes, scorps, panthers, hyenas, bandieten, schildmannen, kooimannen, kruisbogen, fosforSlangen, zweepmannen])
-    for (const s of lijst) if (camLeeft(s) && Math.abs(s.x - world) < T.gevecht && Math.abs((s.base || 0) - ph) < T.laag) return true;
+    for (const s of lijst) if (camLeeft(s) && Math.abs(s.x - world) < r && Math.abs((s.base || 0) - ph) < T.laag && !(coop && stadVijandBijAnder(s))) return true;
+  return false;
+}
+// Co-op: staat deze vijand dichter bij een levende teamgenoot dan bij mij? Dan is hij met die ander bezig (dezelfde maat
+// als mpcDoel: de hoogte telt anderhalf keer)
+function stadVijandBijAnder(s){
+  const sh = s.base || 0, afst = (x, h) => Math.abs(s.x - x) + Math.abs(sh - h) * 1.5, mij = afst(world, ph);
+  for (const p of pvp.spelers){
+    if (p === pvp.mij) continue;
+    const g = pvpAnderNu(p);
+    if (g && g.x != null && !g.d && afst(g.x, g.h || 0) < mij) return true;
+  }
   return false;
 }
 // staat Amir bij een trap? { t, q, boven } of null
@@ -36190,8 +36205,8 @@ function geenWapen(){ return !STOK_AAN && !spear && !rugSperen.length; }
 let stadTrapFade = null;                         // { t, doel: {x, h, face}, gewisseld, camX0, camY0 }
 function stadTrapE(){
   const b = stadTrapBij(); if (!b) return false;
-  if (stadInGevecht()){ flashHint('Niet nu: er staat een vijand in de buurt'); return true; }
-  if (geenWapen()){ flashHint('Pak je speer eerst'); return true; }
+  if (stadInGevecht()){ flashHint('Not now: an enemy is close'); return true; }
+  if (geenWapen()){ flashHint('Grab your spear first'); return true; }
   const q = b.q;
   stadTrapFade = { t: 0, gewisseld: false,
                    doel: b.boven ? { x: q.voetX, h: q.hb, face: -q.uit } : { x: q.gatX, h: q.ht, face: q.uit } };
@@ -36651,7 +36666,7 @@ function straatDoorDruk(s, kant){
   if (!straatRaster() || stadTrapFade || straatFade || dead || !onGround || jump) return;
   const u = straatUitgangen(s, nowScale()).find(q => q.soort === 'door' && q.kant === kant); if (!u) return;
   if (stadInGevecht()){
-    const nu = performance.now(); if (nu - straatDoorMeld > 1000){ straatDoorMeld = nu; flashHint('Niet nu: er staat een vijand in de buurt'); }
+    const nu = performance.now(); if (nu - straatDoorMeld > 1000){ straatDoorMeld = nu; flashHint('Not now: an enemy is close'); }
     return;
   }
   straatKnoopGa(u);
@@ -36697,8 +36712,8 @@ function straatPoortBij(){
 function straatE(){
   const p = straatPoortBij(); if (!p) return false;
   if (straatRaster()) return straatKnoopGa(p);
-  if (stadInGevecht()){ flashHint('Niet nu: er staat een vijand in de buurt'); return true; }
-  if (geenWapen()){ flashHint('Pak je speer eerst'); return true; }
+  if (stadInGevecht()){ flashHint('Not now: an enemy is close'); return true; }
+  if (geenWapen()){ flashHint('Grab your spear first'); return true; }
   if (!straatVan(p.naar)) return true;
   straatFade = { t: 0, gewisseld: false, van: straatNu, naar: p.naar };
   return true;
@@ -36940,8 +36955,8 @@ function straatUitgangBij(){
 }
 // de wissel: als de stadstrap (stadTrapFade), met de straat erbij; Amir kijkt de kant op waar hij heen ging
 function straatKnoopGa(u){
-  if (stadInGevecht()){ flashHint('Niet nu: er staat een vijand in de buurt'); return true; }
-  if (geenWapen()){ flashHint('Pak je speer eerst'); return true; }
+  if (stadInGevecht()){ flashHint('Not now: an enemy is close'); return true; }
+  if (geenWapen()){ flashHint('Grab your spear first'); return true; }
   const t = straatVan(u.naar); if (!t) return true;
   const sc = nowScale(), j = t.knoop.indexOf(u.knoop), d = straatRichting(t);
   // door een doorgang kom je aan de rand van de volgende straat binnen, anders bij zijn knoop
@@ -36957,7 +36972,7 @@ function straatKnoopGa(u){
 function straatKnoopToets(richting){
   if (!straatRaster() || !running || paused || stadTrapFade || straatFade || dead || !onGround || jump) return false;
   const u = straatUitgangBij().find(q => q.soort === (richting === 'op' ? 'poort' : 'pad')); if (!u) return false;
-  if (stadInGevecht()){ flashHint('Niet nu: er staat een vijand in de buurt'); return false; }
+  if (stadInGevecht()){ flashHint('Not now: an enemy is close'); return false; }
   return straatKnoopGa(u);
 }
 // een huis naast een poort schuift opzij. De poort schaalt mee met het scherm, de huizen staan op een vaste x: op een
@@ -37225,7 +37240,7 @@ function wkDeurE(){
 function binnenE(){
   const a = binnenEBij(); if (!a) return false;
   if (a.soort === 'klaar'){ wkDeurE(); return true; }
-  if (stadInGevecht()){ flashHint('Niet nu: er staat een vijand in de buurt'); return true; }
+  if (stadInGevecht()){ flashHint('Not now: an enemy is close'); return true; }
   if (a.soort === 'winkel'){ winkelUIOpen(); return true; }
   if (a.soort === 'kivuli'){ kivPraat(); return true; }
   const deur = a.soort === 'in' || a.soort === 'uit' || a.soort === 'boog';
