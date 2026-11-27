@@ -1001,6 +1001,15 @@ async function elk(H, G){
   }, ["FOUT_GEZIEN", "laadOpen", "laadMis", "laadKapot", "stofStraal", "sand", "rocksL", "dwarrel", "holstamScherven", "losseSperen", "wapenrekken", "beetStukken", "goudapen", "fakkelVonken", "straalLijst", "straalMotes", "zhTauPlekken", "grains", "wdust", "rugSperen", "speerKopie", "prooiLijst", "prooiRanden", "vachtKlCache", "broekLapCache", "mkSkinBeeld", "mkLapCache", "critZak", "critFxLijst", "dust", "snowflakes", "weerDruppels", "mistStoten", "schildStof", "chips", "tonnen", "tonLens", "dkLijst", "dkCache", "waterRingen", "waterDruppels", "waterPlonzen", "splashes", "ravijnen", "stadNachtGloed", "fakkelLichten", "stadDeurWarmCache", "stadStroken", "stadDoorgangCache", "gifVijanden", "gifWacht", "gifFx", "gifPlas", "goudVliegers", "kisten", "runeGeraakt", "runeFlits", "runeSperen", "hppotions", "hppotionFx", "venom", "splat", "snakes", "lawaaiPulsen", "scorps", "panthers", "snowPuffs", "snowFx", "hyenas", "kooimannen", "vogels", "meelmannen", "meelzakken", "kruisbogen", "krbPijlen", "banVonken", "banDolken", "bandieten", "murKevers", "zweepmannen", "schildmannen", "bloedRand", "fosforSlangen", "fosforBrok", "fosforGroepen", "props", "grass", "scaleCache", "persKlad", "woedeVonken", "mpNaamBakken", "ravijnStenen"]);
   if (args.includes('--winkeleerst')){
     for (const r of ramen) meld(await tot(r.page, () => pvp.coop.inWinkel && binnenBij(world), null, 10000), r.wie + ': Start in the shop, ook ' + r.wie + ' staat in de winkel');
+    // E bij de deur van de winkel (WK_DEUR): de eerste vraagt, de tweede is Ready, nog een keer Not ready
+    await wacht(2500);
+    const d = await ramen[1].page.evaluate(() => {
+      const b = binnenBij(world), x = b.sierDeuren[0].x; world = x; ph = binnenVloer(x, 0);
+      const a = binnenEBij(), uit = [a && a.soort];
+      binnenE(); uit.push(pvp.coop.mijnKlaar); binnenE(); uit.push(pvp.coop.mijnKlaar); binnenE(); uit.push(pvp.coop.mijnKlaar);
+      return uit;
+    });
+    meld(JSON.stringify(d) === '["klaar",false,true,false]', ramen[1].wie + ': E bij de deur van de winkel vraagt, dan Ready, dan Not ready (' + JSON.stringify(d) + ')');
   }
   if (stokken.length){
     await wacht(1500);

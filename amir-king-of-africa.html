@@ -38561,6 +38561,9 @@ function binnenEBij(px = world){
     return { soort: 'kivuli', x: kiv.x, h: 0 };   // Kivuli: E bij hem
   if (hier.winkel && !(hier.winkel === kiv.w && kivToonbankDicht()) && world - hier.winkel.x < WINKEL.eBij && Math.abs(ph - binnenVloer(world, 0)) < 12)   // voor de toonbank: de winkel (zie "de winkel"); zolang Kivuli er is niet
     return { soort: 'winkel', x: hier.winkel.x + 40, h: 0 };
+  const wC = hier.winkel && !pvp.dw && mpcWs();         // de winkel van Co-op: E bij de deur naar de straat is Ready (WK_DEUR)
+  if (wC && wC.inWinkel) for (const d of (hier.sierDeuren || []))
+    if (Math.abs(world - d.x) < V && Math.abs(ph - binnenVloer(world, 0)) < 12) return { soort: 'klaar', x: d.x, h: 0 };
   for (const q of binnenDeuren(hier)){
     if (!(Math.abs(world - q.deur) < V && Math.abs(ph - binnenDeurH(q)) < 12)) continue;
     const d = { gevel: q.gevel, verdieping: binnenDeurV(q) }, dm = stadDeurMaat(d, sc), vloer = stadDeurVloer(d, sc);
@@ -38579,8 +38582,20 @@ function binnenEBij(px = world){
   }
   return null;
 }
+// de deur van de winkel van Co-op (WK_DEUR): de eerste E vraagt "Ready to leave?", een tweede E binnen WK_DEUR.vraag
+// seconden zet Ready (mpcKlaarDruk, net als de knop). Ben je al Ready, dan is E daar meteen Not ready
+const WK_DEUR = { vraag: 3 };
+let wkDeurVraag = 0;   // tot wanneer (performance.now) de vraag openstaat
+function wkDeurE(){
+  const C = mpcWs(); if (!C || !C.inWinkel) return;
+  const nu = performance.now();
+  if (C.mijnKlaar || nu < wkDeurVraag){ wkDeurVraag = 0; mpcKlaarDruk(); return; }
+  wkDeurVraag = nu + WK_DEUR.vraag * 1000;
+  flashHint('Ready to leave? Press E again', WK_DEUR.vraag * 1000);
+}
 function binnenE(){
   const a = binnenEBij(); if (!a) return false;
+  if (a.soort === 'klaar'){ wkDeurE(); return true; }
   if (stadInGevecht()){ flashHint('Niet nu: er staat een vijand in de buurt'); return true; }
   if (a.soort === 'winkel'){ winkelUIOpen(); return true; }
   if (a.soort === 'kivuli'){ kivPraat(); return true; }
@@ -39090,6 +39105,12 @@ function binnenNa(groundY, scale, cx){
   kivDonkerNa(G, groundY, scale, cx);                  // Kivuli er: de kamer donker met de lichtpoel van zijn lantaarn (zie "Kivuli: de sfeer")
   wkkNaTeken();                                         // de winkel als kamer: bordjes, labels en het gekozen ding over het schemer heen (WKK)
   if (E) stadTrapE_Teken(cx + (E.x - world), groundY - E.h * scale - 1.45 * A, false);
+  if (E && E.soort === 'klaar'){                        // de deur van de winkel: wat E hier doet, boven de knop (WK_DEUR)
+    const C = mpcWs(), t = C && C.mijnKlaar ? 'Not ready' : performance.now() < wkDeurVraag ? 'Ready to leave? E' : 'Ready';
+    ctx.save(); ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillStyle = 'rgba(30,22,16,0.85)'; const w = ctx.measureText(t).width + 14, x = cx + (E.x - world), y = groundY - E.h * scale - 1.45 * A - 36;
+    ctx.fillRect(x - w / 2, y - 20, w, 22); ctx.fillStyle = '#ffe9c4'; ctx.fillText(t, x, y - 2); ctx.restore();
+  }
 }
 
 // ---- de winkel en de inrichting: een toonbank, een schap en planken met spullen ----
@@ -79188,10 +79209,10 @@ function mpcWinkelAnderKlaar(){
 }
 function mpcWinkelBanner(){
   const C = mpcWs(), wie = pvp.dw ? 'your opponent' : pvp.spelers.length > 2 ? 'your teammates' : 'your teammate', ander = mpcWinkelAnderKlaar();
-  if (C.vertrek && mpcVertrekTekst){ pvpBanner(mpcVertrekTekst + (C.mijnKlaar ? ' Press E at the counter for Not ready.' : '')); return; }
+  if (C.vertrek && mpcVertrekTekst){ pvpBanner(mpcVertrekTekst + (C.mijnKlaar ? ' Press E at the door or the counter for Not ready.' : '')); return; }
   if (!pvp.dw && kivToonbankDicht()){ pvpBanner(C.mijnKlaar ? 'Ready. Waiting for ' + wie + '...' : kiv.weg ? '' : kiv.praat ? 'He stays only a moment. Talk to him (E), then Ready' : 'A stranger in the shop: press E to talk to him'); return; }
   pvpBanner(C.mijnKlaar ? 'Ready. Waiting for ' + wie + '...'
-    : (ander ? ander + ' ' : '') + (pvp.dw ? 'Shop: buy what you need, then Ready' : 'Shop: press E at the counter, then Ready'));
+    : (ander ? ander + ' ' : '') + (pvp.dw ? 'Shop: buy what you need, then Ready' : 'Shop: press E at the counter, then Ready (or E at the door)'));
 }
 // weer de straat op, bij iedereen: het rek is weer vol, en bij de host begint de pauze naar de volgende ronde
 function mpcWinkelUit(){
