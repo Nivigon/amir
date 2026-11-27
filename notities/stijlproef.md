@@ -56,3 +56,9 @@ knippen verlengd (een strook herhaald), zodat de balk boven Amirs hoofd uitkomt.
 - Nagekeken met Playwright: tegen de muur, de sprong, staan, de steek en de worp bovenop, eraf lopen.
 - In Test 97 de savanneversie na de drie putten (x -7150). In de sandbox in de rij **Savannedorp**: **Loopput**,
   **Loopput stad** (elke klik een verder) en **Weg**.
+
+## De oude 3/4-hutten vervangen
+De hut bij de rotswand aan de start (`HUT`), de verre hut (prop `hut`) en de dorpsplaten (`VILLAGE`: de vijf hutten, de
+voorgrondhut en de put) wijzen nu naar het savannedorp (hut_rond, hut_koepel_groot, hut_koepel_hoog, put_steen). De namen
+blijven, dus levels en de Maker veranderen niet; alleen The First Hunt gebruikt de dorpsplaten. Nog oud en 3/4: het
+kookafdak (`cooking_shelter`) en alle winterversies (`*_sneeuw`, `villeaghut_sneeuw`); de oude platen staan nog op schijf.
