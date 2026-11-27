@@ -36,6 +36,8 @@ import json, os, subprocess, sys, tempfile, glob
 import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from gids_kleur import kleur   # de kleuren van de gids (Indigo Sage)
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 BRON = os.path.join(ROOT, 'design/tutorial/gids/bron')
@@ -170,7 +172,8 @@ def inpak(cellen):
     return (BLAD_B if y else x), y + rij_h, plek
 
 
-def opslaan(blad, pad):
+def opslaan(blad, pad, schaal=1.0):
+    blad = kleur(blad, schaal)   # Indigo Sage (28-11-2026), zie tools/gids_kleur.py
     blad.quantize(256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).save(pad, optimize=True)   # 256 kleuren, zoals Duka
 
 
@@ -223,7 +226,7 @@ def bouw(alleen=None):
             blad.paste(im, (x, y))
             fr.append([x, y, im.width, im.height, round(ax, 1), round(ay, 1)])
         opslaan(blad, os.path.join(UIT, naam + '.png'))
-        opslaan(verklein(blad, (bw + 1) // 2, (bh + 1) // 2), os.path.join(KLEIN, naam + '.png'))
+        opslaan(verklein(blad, (bw + 1) // 2, (bh + 1) // 2), os.path.join(KLEIN, naam + '.png'), 0.5)
         info['anims'][naam] = {'src': f'design/tutorial/gids/{naam}.png', 'n': len(cellen), 'stap': stap, 'k': GROOTTE.get(naam, 1), 'f': fr}
         print(naam, len(cellen), 'blad', blad.size, round(bw * bh * 4 / 1048576, 1), 'MiB')
     if alleen:
