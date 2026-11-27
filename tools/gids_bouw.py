@@ -37,7 +37,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from gids_kleur import kleur   # de kleuren van de gids (Indigo Sage)
+from gids_kleur import kleur   # de kleuren van de gids (Indigo Sage), per frame voor de speer erop komt
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 BRON = os.path.join(ROOT, 'design/tutorial/gids/bron')
@@ -69,6 +69,15 @@ ZOOM_VAST = ('idle',)
 # idle-clip die 6% inzoomde (rechtgezet met ZOOM_VAST). Alleen de sprintsprong had een iets kleiner hoofd: 1,05.
 GROOTTE = {'idle': 1, 'verteller': 1, 'ren': 1, 'sprong': 1, 'groot': 1.05, 'buk': 1, 'sluip': 1, 'rol': 1}
 SPEER = {'staal': (178, 184, 190), 'staalDonker': (104, 110, 118), 'hout': (112, 72, 42), 'houtDonker': (70, 44, 26)}
+# 28-11-2026 (Tom): de gids draagt de Mkuki-basisspeer van Amir (met het rode doek) in plaats van de omgekleurde Grok-speer.
+# Per frame: de lengteas en de punt van de groene speer (zoals hieronder in speer()), dan Amirs speer erlangs, de punt op de
+# punt, even lang als de Grok-speer in de idle (SPEER_LEN, in pixels van de idle-clip; per clip gedeeld door SCHAAL). Het
+# lijf komt er weer overheen (de vuist om de schacht); wat van de Grok-speer niet onder Amirs speer valt wordt leeg, of
+# lijf als het midden in het lijf ligt. Wijst de speer naar links, dan wordt hij gespiegeld (het doek blijft boven).
+# None = de oude omgekleurde Grok-speer (SPEER).
+SPEER_AMIR = {'pad': os.path.join(ROOT, 'karakters/amir/mkuki_spel/bron/amirspeer_proj.png'),
+              'punt': (623, 33), 'kont': (0, 42.5)}
+SPEER_LEN = 595
 
 # de animaties: welke frames uit welke clip
 ANIMS = {
@@ -146,6 +155,73 @@ def speer(c, al, groen):
     return c
 
 
+def speer_amir(c, al, groen, lengte):
+    """de groene speer vervangen door Amirs Mkuki-speer (SPEER_AMIR), zie boven"""
+    gr = groen | (ndi.binary_dilation(groen, iterations=2) & ((c[..., 1] - np.maximum(c[..., 0], c[..., 2])) > 8))
+    if groen.sum() < 30:
+        al[gr] = 0
+        return c
+    ys, xs = np.where(groen)
+    P = np.stack([xs, ys], 1).astype(float); m = P.mean(0)
+    _, _, vt = np.linalg.svd(P - m, full_matrices=False)
+    t = (P - m) @ vt[0]; L = t.max() - t.min()
+    dwars = np.abs((P - m) @ vt[1])
+    # de punt: het eind waar hij het breedst is (het blad), gemeten zonder wat tegen het lijf aan ligt (een groene vlek bij
+    # de vuist leek anders een blad); twijfel (minder dan 1,3 keer zo breed) dan het eind dat het verst van het lijf af ligt
+    lijf0 = (al > 0.5) & ~groen
+    vrij = ~ndi.binary_dilation(lijf0, iterations=6)[ys, xs]
+    lo, hi = (t < t.min() + 0.2 * L) & vrij, (t > t.max() - 0.2 * L) & vrij
+    med = np.median(dwars)
+    breed_lo = np.percentile(dwars[lo], 90) - med if lo.sum() > 10 else 0
+    breed_hi = np.percentile(dwars[hi], 90) - med if hi.sum() > 10 else 0
+    if max(breed_lo, breed_hi) > 1.3 * max(min(breed_lo, breed_hi), 0.5):
+        naar_lo = breed_lo > breed_hi
+    else:
+        ly, lx = np.where(lijf0); zw = np.array([lx.mean(), ly.mean()]) if len(lx) else m
+        naar_lo = np.linalg.norm(m + vt[0] * t.min() - zw) > np.linalg.norm(m + vt[0] * t.max() - zw)
+    d = vt[0] * (-1 if naar_lo else 1)                                     # naar de punt
+    T = m + d * ((P - m) @ d).max()                                        # de punt
+    n = np.array([-d[1], d[0]]) if d[0] >= 0 else np.array([d[1], -d[0]])  # naar links gespiegeld: het doek blijft boven
+    sp = SPEER_AMIR.setdefault('_im', np.asarray(Image.open(SPEER_AMIR['pad']).convert('RGBA')).astype(np.float32) / 255)
+    Ti, Bi = np.array(SPEER_AMIR['punt'], float), np.array(SPEER_AMIR['kont'], float)
+    e = (Ti - Bi) / np.linalg.norm(Ti - Bi); f = np.array([-e[1], e[0]])
+    k = np.linalg.norm(Ti - Bi) / lengte                                   # beeldpixels van de speer per framepixel
+    H, W = al.shape
+    hb = sp.shape[0] / k                                                   # halve breedte ruim genomen
+    hoeken = np.array([T + d * u + n * v for u in (-lengte - 4, 4) for v in (-hb, hb)])
+    x0, y0 = np.floor(hoeken.min(0)).astype(int); x1, y1 = np.ceil(hoeken.max(0)).astype(int) + 1
+    x0, y0, x1, y1 = max(x0, 0), max(y0, 0), min(x1, W), min(y1, H)
+    laag = np.zeros((H, W, 4), np.float32)
+    if x1 > x0 and y1 > y0:
+        yy, xx = np.mgrid[y0:y1, x0:x1].astype(float)
+        u = (xx - T[0]) * d[0] + (yy - T[1]) * d[1]; v = (xx - T[0]) * n[0] + (yy - T[1]) * n[1]
+        bx = Ti[0] + k * (u * e[0] + v * f[0]); by = Ti[1] + k * (u * e[1] + v * f[1])
+        pm = np.dstack([sp[..., :3] * sp[..., 3:], sp[..., 3]])
+        for ch in range(4):
+            laag[y0:y1, x0:x1, ch] = ndi.map_coordinates(pm[..., ch], [by, bx], order=1, mode='constant', cval=0)
+    sa = laag[..., 3]
+    # wat van de Grok-speer overblijft: midden in het lijf (lijf aan beide kanten dwars op de speer) vullen met lijf, anders leeg
+    lijf = (al > 0.5) & ~gr
+    rest = gr & (sa < 0.5)
+    alb = al.copy(); alb[gr] = 0
+    if rest.any():
+        ry, rx = np.where(rest); w = 10
+        def op(dx, dy):
+            qx = np.clip(np.round(rx + dx).astype(int), 0, W - 1); qy = np.clip(np.round(ry + dy).astype(int), 0, H - 1)
+            return lijf[qy, qx]
+        binnen = op(n[0] * w, n[1] * w) & op(-n[0] * w, -n[1] * w)
+        if binnen.any():
+            _, (iy, ix) = ndi.distance_transform_edt(~lijf, return_indices=True)
+            by_, bx_ = ry[binnen], rx[binnen]
+            c[by_, bx_] = c[iy[by_, bx_], ix[by_, bx_]]; alb[by_, bx_] = 1
+    a2 = alb[..., None]
+    uit = c / 255 * a2 + laag[..., :3] * (1 - a2)
+    nal = alb + sa * (1 - alb)
+    c[...] = np.clip(uit / np.maximum(nal, 1e-4)[..., None] * 255, 0, 255)
+    al[...] = nal
+    return c
+
+
 def verklein(im, w, h):
     """Lanczos op voorvermenigvuldigde alfa: de kleur van de lege pixels lekt niet in de rand"""
     a = np.asarray(im.convert('RGBA')).astype(np.float32) / 255
@@ -172,8 +248,7 @@ def inpak(cellen):
     return (BLAD_B if y else x), y + rij_h, plek
 
 
-def opslaan(blad, pad, schaal=1.0):
-    blad = kleur(blad, schaal)   # Indigo Sage (28-11-2026), zie tools/gids_kleur.py
+def opslaan(blad, pad):
     blad.quantize(256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).save(pad, optimize=True)   # 256 kleuren, zoals Duka
 
 
@@ -209,25 +284,32 @@ def bouw(alleen=None):
                 c, al, groen = key(cache[clip][i])
                 lijf = (al > 0.5) & ~groen
                 ys, xs = np.where(lijf)
-                c = speer(c, al, groen)
+                # eerst de kleuren (Indigo Sage, met de groene speer er nog in), dan de speer: zo blijft het rode doek rood
+                kl = np.asarray(kleur(Image.fromarray(np.dstack([c, al * 255]).clip(0, 255).astype(np.uint8)), 1 / s)).astype(np.float32)
+                c = kl[..., :3].copy()
+                wz = al * ~groen                                   # het lijf zonder speer: daarop zet gids_glad.py het anker
+                c = speer_amir(c, al, groen, SPEER_LEN / SCHAAL[clip]) if SPEER_AMIR else speer(c, al, groen)
                 rgba = np.dstack([c, al * 255]).clip(0, 255).astype(np.uint8)
                 ys2, xs2 = np.where(al > 0.04)
                 x0, x1, y0, y1 = xs2.min(), xs2.max() + 1, ys2.min(), ys2.max() + 1
                 im = Image.fromarray(rgba[y0:y1, x0:x1])
                 im = verklein(im, max(1, round(im.width * s)), max(1, round(im.height * s)))
                 anker = ((xs.min() + xs.max()) / 2 - x0) * s, (ys.max() + 1 - y0) * s     # midden en onderkant van het lijf
-                cellen.append((im, anker))
+                zx = ((wz.sum(0) * np.arange(wz.shape[1])).sum() / max(wz.sum(), 1e-6) - x0) * im.width / (x1 - x0)
+                cellen.append((im, anker, round(float(zx), 1)))
         stap = STAP.get(naam, 1); nvol[naam] = len(cellen)
         cellen = cellen[::stap]
         bw, bh, plek = inpak(cellen)
         blad = Image.new('RGBA', (bw, bh), (0, 0, 0, 0))
         fr = []
-        for (im, (ax, ay)), (x, y) in zip(cellen, plek):
+        zw = []
+        for (im, (ax, ay), zx), (x, y) in zip(cellen, plek):
             blad.paste(im, (x, y))
             fr.append([x, y, im.width, im.height, round(ax, 1), round(ay, 1)])
+            zw.append(zx)
         opslaan(blad, os.path.join(UIT, naam + '.png'))
-        opslaan(verklein(blad, (bw + 1) // 2, (bh + 1) // 2), os.path.join(KLEIN, naam + '.png'), 0.5)
-        info['anims'][naam] = {'src': f'design/tutorial/gids/{naam}.png', 'n': len(cellen), 'stap': stap, 'k': GROOTTE.get(naam, 1), 'f': fr}
+        opslaan(verklein(blad, (bw + 1) // 2, (bh + 1) // 2), os.path.join(KLEIN, naam + '.png'))
+        info['anims'][naam] = {'src': f'design/tutorial/gids/{naam}.png', 'n': len(cellen), 'stap': stap, 'k': GROOTTE.get(naam, 1), 'f': fr, 'zw': zw}
         print(naam, len(cellen), 'blad', blad.size, round(bw * bh * 4 / 1048576, 1), 'MiB')
     if alleen:
         for naam in alleen:

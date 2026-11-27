@@ -6,7 +6,7 @@ Wat het in design/tutorial/gids/gids.json rechtzet (meting 27-11-2026, zie notit
 1. Het anker (gx) van elk frame. gids_bouw.py zette het op het midden van het hele plaatje, met de speer en de wapperende
    sjaal erbij. Daardoor stond zijn hoofd in de idle 27 eenheden van het anker, in de ren 0 en in het sluipen -45: bij elke
    wissel van animatie sprong hij opzij, en binnen de renlus schoof zijn hoofd 23 eenheden heen en weer. Nu is gx het
-   zwaartepunt van zijn silhouet (alfa-gewogen), dat glad meebeweegt; gy blijft de onderkant (zijn voeten).
+   zwaartepunt van zijn silhouet (alfa-gewogen, zonder de speer als gids_bouw.py dat meegeeft: 'zw'), dat glad meebeweegt; gy blijft de onderkant (zijn voeten).
 2. De sprong in de lucht. Het spoor koppelde de clip aan Amirs sprong: tien beelden dezelfde stijgende houding, dan in vier
    beelden frame 26 tot 62 (negen keer te snel), dan de landing. Nu loopt elk luchtstuk (sprong en groot) gelijkmatig
    van zijn eerste naar zijn laatste frame; afzet en landing op de grond blijven zoals ze waren.
@@ -27,11 +27,14 @@ def ankers(g):
     for naam, a in g['anims'].items():
         vel = np.array(Image.open(os.path.join(ROOT, a['src'])).convert('RGBA'))[:, :, 3].astype(float)
         voor = []
-        for f in a['f']:
+        zw = a.pop('zw', None)   # het zwaartepunt zonder speer uit gids_bouw.py (28-11-2026: de dikkere Mkuki-speer trok het anker mee)
+        for k, f in enumerate(a['f']):
             fx, fy, fw, fh, gx, gy = f
             al = vel[fy:fy + fh, fx:fx + fw]
             som = al.sum()
             mx = (al.sum(axis=0) * np.arange(al.shape[1])).sum() / som if som else gx
+            if zw:
+                mx = zw[k]
             voor.append(round(gx - mx, 1))
             f[4] = round(float(mx), 1)
         print(f'{naam:9s} anker verschoven {min(voor):6.1f} .. {max(voor):6.1f} px')

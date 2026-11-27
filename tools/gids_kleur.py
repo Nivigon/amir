@@ -2,10 +2,11 @@
 Teal jas -> indigo, roestrode sjaal en sjerp -> saffraan, broek -> donker indigo; zandrand, huid, koper en
 speer blijven.
   python3 tools/gids_kleur.py      kleurt de vellen in design/tutorial/gids/ en klein/design/tutorial/gids/ om
-gids_bouw.py roept kleur() ook aan bij het opslaan, zodat een nieuwe bouw de kleur houdt. Draai dit script dus alleen
-op vellen die nog teal zijn (op een al omgekleurd vel doet het niets meer: geen teal of roestrood over).
+gids_bouw.py roept kleur() per frame aan (voor de Mkuki-speer erop komt, zodat het rode doek van de speer rood blijft), zodat
+een nieuwe bouw de kleur houdt. Dit script los draaien hoeft dus niet meer; op de huidige vellen zou het het doek van de
+speer saffraan maken.
 
-Hoe: per pixel in HSV. Teal = tint 180-215 graden, verzadiging > 0,35. Roestrood = tint < 14 of > 345 met verzadiging > 0,72, of tint < 17 met verzadiging > 0,8
+Hoe: per pixel in HSV. Jas en broek = tint 110-265 graden (niet de groene speer), verzadiging > 0,2. Roestrood = tint < 14 of > 345 met verzadiging > 0,72, of tint < 17 met verzadiging > 0,8
 (lichte rafels); huidschaduw (tot 0,65) en koper (0,67) blijven eronder.
 De rode streep op het gezicht en de kraaltjes hebben dezelfde kleur als de sjaal; die blijven rood doordat kleine losse
 vlekjes (kleiner dan KLEIN_VLEK pixels, geschaald met het vel) niet meedoen, behalve snippers die tegen de sjaal
@@ -37,25 +38,28 @@ def kleur(im, schaal=1.0):
     zicht = a[..., 3] > 0
     # jas en broek samen: in een paar clips (groot, ren) is de broek net zo teal als de jas, dus kleur kan ze niet scheiden.
     # Ze schuiven als één familie naar indigo; de tint-afstand wordt kleiner (x0,3), de broek blijft donkerder.
-    jas = zicht & (H > 180) & (H < 265) & (S > 0.2) & (V > 0.06)
+    groenSpeer = (a[..., 1] - np.maximum(a[..., 0], a[..., 2])) > 30 / 255   # de groene speer uit de bron (als die er nog in zit)
+    jas = zicht & (H > 110) & (H < 265) & (S > 0.2) & (V > 0.06) & ~groenSpeer   # vanaf 110: in de sprong is de jas soms groenig
     kern = zicht & (((H < 14) | (H > 345)) & (S > 0.72) | (H < 17) & (S > 0.8)) & (V > 0.15)   # huidschaduw tot ca. 0,65, koper 0,67
-    # in sommige clips (sprong) is de sjaal in de schaduw oranjebruin (tint tot 24); die doet mee als hij vastzit aan een
-    # flink stuk echte sjaal, losse oranje plekjes (koper) niet
-    ruim = kern | (zicht & ((H < 25) | (H > 345)) & (S > 0.68) & (V > 0.12))
-    lab, n = ndi.label(ruim, structure=np.ones((3, 3)))
+    lab, n = ndi.label(kern, structure=np.ones((3, 3)))
     roest = np.zeros_like(kern)
     if n:
         idx = range(1, n + 1)
-        maat = np.asarray(ndi.sum(ruim, lab, idx)); kernmaat = np.asarray(ndi.sum(kern, lab, idx))
-        groot = np.zeros(n + 1, bool); groot[1:] = kernmaat >= KLEIN_VLEK * schaal * schaal
+        maat = np.asarray(ndi.sum(kern, lab, idx))
+        groot = np.zeros(n + 1, bool); groot[1:] = maat >= KLEIN_VLEK * schaal * schaal
         sjaal = groot[lab]
         # losse snippers van de sjaal (franjes, rafels, door een lijntje afgesneden) liggen er vlak tegenaan en gaan mee;
         # de gezichtsstreep (ca. 60 px) en verdwaalde pixels op huid en koper liggen verder weg of zijn groter
         afst = ndi.distance_transform_edt(~sjaal)
         dichtst = np.asarray(ndi.minimum(afst, lab, idx))
         licht = np.asarray(ndi.mean(V, lab, idx))                   # schaduw op de huid is donkerder dan de stof
-        mee = groot.copy(); mee[1:] |= (kernmaat > 0) & (maat < 40 * schaal * schaal) & (dichtst <= 6 * schaal + 0.5) & (licht > 0.35)
+        mee = groot.copy(); mee[1:] |= (maat < 40 * schaal * schaal) & (dichtst <= 6 * schaal + 0.5) & (licht > 0.35)
         roest = mee[lab]
+        # in sommige clips (sprong) is de sjaal in de schaduw oranjebruin (tint tot 24); die pixels gaan mee als ze aan de
+        # sjaal vastzitten, maar hooguit zo'n 8 pixels (op het vel) ver: anders kruipt het via de huid naar de gezichtsstreep
+        extra = zicht & ~kern & ((H < 25) | (H > 345)) & (S > 0.68) & (V > 0.12)
+        groei = ndi.binary_dilation(roest, structure=np.ones((3, 3)), iterations=max(1, round(8 * schaal)), mask=extra | roest)
+        roest = roest | (groei & extra)
     uit = hsv.copy()
     for m, (doel, (rh, rs, rv)) in [(jas, KLEUREN['jas']), (roest, KLEUREN['sjaal'])]:
         th, ts, tv = _hsv(doel)
