@@ -33,6 +33,12 @@ savanne_hutten_2d.md.
 Putten: `design/savanne/putten/` (put_leem, put_steen, put_shaduf), Grok 2b165ff8. Ze staan in Test 97 na de hutten.
 In de sandbox onder Decor, rij **Savannedorp**: een knop per hut en put (`data-sdorp`).
 
+Graanschuren (28-11): `design/savanne/graanschuren/` (graanschuur_rond op pootjes, graanschuur_ladder met een ladder
+ertegen, graanschuur_mand gevlochten op een vlonder), Grok 9f5d1617 met de hutten als stijlreferentie, daarna een edit
+naar ruwer (ae35351f, veranderde weinig: edit op edit houdt de vorm vast). Uitgeknipt met `tools/graanschuur_knip.py`.
+Props `graanschuur_rond`, `graanschuur_ladder`, `graanschuur_mand` (decor, 2,2 tot 2,6 Amir hoog), in Test 97 tussen
+de hutten en bij de loopput, en in de sandbox in de rij Savannedorp. Ze zijn wat gladder dan de hutten.
+
 ## De loopput (LOOPPUT)
 Een lage, brede put om op te staan en overheen te springen, in twee soorten (regel 9 van de stijlsheet: elk landschap
 een eigen gezicht):
