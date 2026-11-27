@@ -253,3 +253,28 @@ waarden bovenin het script (`STAAL`, `KLEUR`) en opnieuw draaien.
 - **De winkel.** 40 goud, tab Spears, met de sfeertekst "A shield is a promise. The Piercer breaks promises." (Elder Mwangi of
   the Mkuki). Het zijpaneel en de inventory (I) tonen de kansen uit `SPEER_KANS` (`speerKrachtTekst`) en hoe Z werkt.
 - **Sandbox:** Speer en spullen, **Shield Piercer** (`sbPiercer`), en een schildbandiet onder Vijanden.
+
+## De shove (SHOVE)
+
+Aanvallen met de speer terwijl een mens-vijand te dichtbij staat en de steek niemand zou raken: Amir duwt hem terug tot op
+steekafstand (`shoveDoel`, `shoveStart`, `shoveStap`, `shoveRaak`). Op verzoek van de opdrachtgever (27-11-2026).
+
+- **De keuze** valt in `startAttack`, na Full Circle en voor de reeks: `shoveDoel` loopt alle vijanden op Amirs hoogte
+  langs (`shoveVijanden`). Zit iemand in de strook waar de punt van de gewone steek raakt (`raakVan` tot `raakTot`,
+  sprite-eenheden: `TIP_DX` van `ATK_ACTIVE` plus `steekR`), dan is het een gewone steek. Anders de dichtstbijzijnde vijand
+  die met zijn lijf voor die strook staat; is dat een mens (bandiet, schildbandiet, kruisboogbandiet, zweepman, kooiman),
+  dan de shove, is het een dier of baas, dan gewoon steken. Niet bij een razende bandiet, een springende schildbandiet,
+  een Co-op-gast (de host denkt voor de vijanden) of met de stokken.
+- **Het duwen** op stap `raakStap` van de reeks (frame 8, 0,29 s na de druk): `ver` = tot zijn midden op `doel` (270) staat,
+  minstens `minDuw`, als knock (snelheid = afstand maal ln 50). Bandiet: `s.knock` (maal 1,2, zijn knock remt harder),
+  `rust` en `traag` op `wankel`; schildbandiet: `flinch` met `knockV`, het schild blijft heel; kooiman: half zo ver
+  (`zwaar`), geen wankel; kruisboogbandiet en zweepman hebben geen knock: `shoveGlij` in hun update schuift ze met hun
+  eigen move (regel 7) en houdt ze `wankel` stil. Geen schade, wel `lawaaiPuls`, stof, een kleine schok en hitstop.
+- **Afkoeling** `koel` (2 s): zolang is een aanval een gewone steek. Geraakt tijdens de shove breekt hem af.
+- **De frames**: `karakters/amir/aanval/shove/shove_00..12.png` (594x301, het canvas van de steek, grondlijn 297), gebakken
+  met de gewone speer; de Mkuki-skin heeft ze in `mkuki_spel/aanval/shove/` met `_lijf`, `_zones`, `_lijf_zones` en de
+  speer los in `los.json` (`proj`, achter het lijf, `b: 1`). Uit een Grok-clip van Mkuki met een groene speer: de
+  groene pixels gemeten (punt en voet, voor `los.json`) en weggehaald. De zonekaarten zijn op kleur geraden (een
+  histogram van de bestaande Mkuki-kaarten): broek, schort, kralen en armbanden; riem en schuine band blijven bruin.
+- **Sandbox**: de knop **Shove** naast Combo. Proefrit: `node tools/shove_test.js [map]` (bandiet, twee bandieten, vrij,
+  schildbandiet, kruisboogbandiet, zweepman, kooiman, hyena).
