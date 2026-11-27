@@ -52,6 +52,7 @@
 //                                        haperingen, de bytes en berichten per seconde over de lijn (per soort bericht), en een
 //                                        CPU-profiel met de functies die de meeste tijd kosten. Met --epkaart 0 of b3 een level
 //                                        van een Co-op episode in plaats van Survival (zonder de proef van --ep)
+//   node tools/mptest.js --hostfps 25,30 de host op 25 fps met tot 30 ms hik: de gast hoort nog vloeiend te zien
 //   node tools/mptest.js --geensnel      zonder het nagebootste snelle kanaal (zoals via het relais)
 //   node tools/mptest.js --proef --winkeleerst   met Start in the shop: kijkt na dat ook elke gast in de winkel begint
 //   node tools/mptest.js --tlog          de tester-logging (TLOG): elk venster is een tester (host, gast, gast2), de regels
@@ -130,6 +131,9 @@ const soorten = opt('--soorten', null);
 const stokken = (opt('--stokken', '') || '').split(',').filter(Boolean);   // wie de stokken kiest
 const net = (opt('--net', '0,0,0')).split(',').map(Number), [LAT, JIT, VERLIES] = [net[0] || 0, net[1] || 0, net[2] || 0];
 const geenSnel = args.includes('--geensnel');
+// --hostfps 25 of 25,20: de host tekent hooguit zoveel beelden per seconde, met tot zoveel ms willekeurige hik erbovenop
+// (een trage laptop als host: de gast hoort dan nog vloeiend te zien, zie pvpNetKlok)
+const hostFps = (opt('--hostfps', '') || '').split(',').map(Number);
 const N_SPELERS = Math.max(2, Math.min(3, Number(opt('--spelers', 3))));
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png',
@@ -885,6 +889,16 @@ async function elk(H, G){
         route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
       });
     }
+    if (wie === 'host' && hostFps[0] > 0) await ctx.addInitScript(([fps, hik]) => {
+      const raf = window.requestAnimationFrame.bind(window); let vorig = 0, wacht = 1000 / fps, rij = [], loopt = false;
+      const tik = t => {                                 // een gezamenlijke tik: alles wat op dit beeld wacht gaat samen
+        if (t - vorig < wacht){ raf(tik); return; }
+        vorig = t; wacht = 1000 / fps + Math.random() * (hik || 0);
+        const nu = rij; rij = []; loopt = false;
+        for (const cb of nu) cb(t);
+      };
+      window.requestAnimationFrame = cb => { rij.push(cb); if (!loopt){ loopt = true; raf(tik); } return rij.length; };
+    }, [hostFps[0], hostFps[1] || 0]);
     const page = await ctx.newPage();
     const fouten = new Set();
     page.on('pageerror', e => fouten.add('fout: ' + e.message + (e.stack ? ' @ ' + (e.stack.split('\n')[1] || '').trim() : '')));
