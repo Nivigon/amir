@@ -225,7 +225,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | bodem en sneeuwdek | `sneeuw` | notities/wegwijzers.md |
 | grondsoort per plek: stroken straat of rots in de bodem | `GRONDSOORT`, `grondStrokenTeken`, `grondTegelVan` | notities/grondsoort.md |
 | het verhaal bij een episode | `VERHAAL`, `SLOT`, `verhaalToon()` | notities/episodes.md |
-| Episode The Clay City: zeven stadslevels, geen tribe en geen talents maar de kit van Co-op; bij Play kies je wapen en moeilijkheid (Young Whelp, Lion, Hunter XL), spawns, kalebassen en tonnen met `van`/`tot` | `KLEI`, `KLEI_1`, `KLEI_LEVELS`, `kleiZwaar`, `kleiSpeel`, `menuKlei`, `dkzwaar` | notities/episodes.md |
+| Episode The Clay City: zeven stadslevels als solo Co-op episode (reeks `c`): geen tribe en geen talents, de kit, het goud en de winkel van Co-op (in level 2, 4, 6 en 7); bij Play kies je wapen en moeilijkheid (Young Whelp, Lion, Hunter XL), spawns, kalebassen en tonnen met `van`/`tot` | `KLEI`, `KLEI_1`, `KLEI_LEVELS`, `kleiZwaar`, `kleiSpeel`, `kleiCoopStart`, `kleiCoopStop`, `pvp.klei`, `MPC_EPS`, `menuKlei`, `dkzwaar` | notities/episodes.md |
 | Episode Test levels | `TEST_1`, `TEST_51`, `KAART_BLAD` | notities/episodes.md |
 | Episode Baboon tests | `BAB_1`, `BAB_4`, `BAB_LEVELS` | notities/episodes.md |
 | Episode Murghtaan: de hyena-baas (baas, regel 12), de roedel, de reveal en de kevers | `MUR_1`, `MUR`, `makeMurg`, `updateMurg`, `hitMurg`, `murKevers`, `murKlem` | notities/episodes.md |
@@ -563,7 +563,7 @@ HTML naar het voorbeeld van `menuTest`, en die aanmelden in `buildCards`,
 `tools/runecheck.js` en `tools/beeldgelijk.js`. De Terug-knop van een episodescherm krijgt de klasse `menuepisodes` (terug naar
 Episodes), niet `menuback` (dat gaat naar het Levels-scherm). Een episode begint met de tribekeuze (`runStart` in zijn speelknop,
 `tribeLijst` geeft hem alleen wat de speler verdiend heeft, alleen `TEST_LEVELS` krijgt alles), tenzij de opdrachtgever het anders
-vraagt: The Clay City heeft geen tribe en geen talents, maar de kit van Co-op en een keuze van wapen en moeilijkheid (`kleiSpeel`).
+vraagt: The Clay City heeft geen tribe en geen talents, maar loopt als solo Co-op episode met de kit en de winkel van Co-op en een keuze van wapen en moeilijkheid (`kleiSpeel`, `kleiCoopStart`).
 Wil de episode een verhaal, zet dan de tekst in `VERHAAL` en `SLOT` en `verhaalAan` in zijn speelknop (nu heeft geen episode er een).
 
 ### Een vijand of prop toevoegen

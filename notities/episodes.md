@@ -6,27 +6,35 @@
 
 ## Episode The Clay City
 
-`KLEI`, `KLEI_1` tot en met `KLEI_7`, `KLEI_LEVELS`, `kleiZwaar`, `kleiSpeel`, `kleiKies`, `menuKlei`, `cardsKlei`, `btnKlei`, `dkzwaar`
+`KLEI`, `KLEI_1` tot en met `KLEI_7`, `KLEI_LEVELS`, `kleiZwaar`, `kleiSpeel`, `kleiCoopStart`, `kleiCoopStop`, `kleiKies`,
+`pvp.klei`, `MPC_EPS.c`, `menuKlei`, `cardsKlei`, `btnKlei`, `dkzwaar`
 
 Op verzoek van de opdrachtgever (27-11-2026): de vijf stadsepisodes (Oaktown, De Belegerde Stad, De Gouden Poort, De
-Rivierstad en The Roofs of Kumbasa) zijn uit het spel, en Campaign heeft nu een eenvoudige stadsepisode van zeven levels.
+Rivierstad en The Roofs of Kumbasa) zijn uit het spel, en Campaign heeft nu een eenvoudige stadsepisode van zeven levels,
+met de kit en de winkel van Co-op.
 
-- **Geen tribe, geen talents.** `kleiSpeel` doet `runReset` in plaats van `runStart`; zonder `RUN.tribeId` en buiten een
-  testreeks geeft `tribeLijst` niets, slaat `tribeNaLevel` de boom over en heb je 3 levens.
-- **De kit van Co-op.** Elk level heeft `stof: true` (stof in de ogen met de speer), `rugMax: 1` en `speerInHand: true`;
-  Full Circle staat aan zoals in de Co-op episodes. Met de stokken zet `wapenKeuzeLevel` de grondklap aan, met de
-  afkoeling van Co-op (`gkKoelDuur` kijkt ook naar `KLEI_LEVELS`).
-- **Het keuzescherm.** Bij Play opent `duoKeuzeToon` met twee rijen: Difficulty (`dkzwaar`, `duoKeuze.zwaar`: `easy`,
-  `normal`, `hard`, in beeld Young Whelp, Lion, Hunter XL) en Weapon (`dkwapen`; `wapenKeuzeAan` geldt ook voor
-  `KLEI_LEVELS`). Geen outfit: zonder `broekKeuze` is het de standaard (Mkuki Outfit 1, of de oude Bhubesi met de stokken).
-  De keuze blijft staan (`amir.duoKeuze`); `duoKeuzeNodig` vraagt het alleen bij Play (`kleiKies`), niet bij elk volgend level.
-- **De moeilijkheid.** `setLevel` haalt een Clay City-level door `kleiZwaar` voor `readLevel`: een spawn, kalebas of ton
-  met `van: 'normal'`/`'hard'` komt pas vanaf die stand, met `tot` hooguit tot die stand. Op Young Whelp is de
-  schildbandiet de makkelijke (`niveau: 'makkelijk'`, met `schildKleur` het bruine kleed). Na de keuze leest
-  `kleiSpeel` het level opnieuw. Level 1 heeft zo 3 vijanden op Young Whelp, 5 op Lion en 7 op Hunter XL.
+- **Een solo Co-op episode.** The Clay City is reeks `c` van `MPC_EPS` (naast `a`, de Co-op episode, en `b`, The
+  Smugglers' Cellar), met `winkel: true` en een eigen high score (`amir.kleiBest.solo`). Je komt er niet via de lobby:
+  Play (`kleiSpeel`) opent het keuzescherm, en `kleiCoopStart` bouwt dan een solo `pvp` zoals `mpSoloOpen` (met
+  `klei: true`, het wapen in `pvp.wapen[0]`) en start via `mpSpelStart` met kaart `'c' + level`. Daarna loopt alles als
+  in de Co-op episode: `mpCoopStart`, `mpEpHostStap` en `mpEpVolgende` naar het volgende level, het eindscherm
+  (`mpEpEindToon`) met Shift+O voor opnieuw. Escape (`mpNaarLobby`) en Esc op het eindscherm gaan naar `kleiCoopStop`:
+  de verbinding dicht en terug naar de kaartjes, op het level waar je was.
+- **Geen tribe, geen talents, de kit van Co-op.** `runReset`, `levelList = PVP_LEVELS`, en `mpCoopStart` zet `stof`,
+  `rugMax: 1`; met de stokken zet `mpWapenLevel` de grondklap aan (`GK.koelCoop`). Full Circle en de rest koop je.
+- **De winkel.** Goud per kill en `MPC_EP.levelGoud` per gehaald level (solo met `MP_SOLO.goudFactor`). De winkel van
+  Co-op staat in een huis in level 2, 4, 6 en 7, als in The Smugglers' Cellar: een `binnen` met `winkel` en de houten
+  vloer (`zwevers`) op de strook -20000 tot -22200; E bij de deur, binnen de toonbank met de prijslijst van Co-op.
+- **Het keuzescherm.** Twee rijen: Difficulty (`dkzwaar`, `duoKeuze.zwaar`: `easy`, `normal`, `hard`, in beeld Young
+  Whelp, Lion, Hunter XL) en Weapon (`dkwapen`; `wapenKeuzeAan` geldt ook voor `KLEI_LEVELS` zolang er geen `pvp` is).
+  `duoKeuzeNodig` vraagt het alleen bij Play (`kleiKies`). Geen outfit: `pvp.broek[0]` is de standaard van slot 0
+  (`MP_OUTFIT_STANDAARD`, met de stokken `MP_VACHT_STANDAARD`).
+- **De moeilijkheid.** `mpCoopStart` haalt het level door `kleiZwaar` als `pvp.klei`: een spawn, kalebas of ton met
+  `van: 'normal'`/`'hard'` komt pas vanaf die stand, met `tot` hooguit tot die stand. Op Young Whelp is de schildbandiet
+  de makkelijke (`niveau: 'makkelijk'`, met `schildKleur` het bruine kleed). Level 1 heeft zo 3 vijanden op Young Whelp,
+  5 op Lion en 7 op Hunter XL. Ook `setLevel` gebruikt `kleiZwaar`, voor de kaartjes.
 - **De levels.** Rechte straten met huizen, galerijen, trappen (2), een rivier met een brug (3), leemmuren (6) en
-  kramen met tonnen; geen baas, geen goud, geen winkels, geen verhaal. Ochtend, dag, middag, avond, nacht, avond, nacht.
-  Testbalk en testtoetsen staan uit (`testBalkMag`).
+  kramen met tonnen; geen baas, geen verhaal. Ochtend, dag, middag, avond, nacht, avond, nacht.
 
 ## Episode Test levels
 
