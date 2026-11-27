@@ -47,8 +47,9 @@ zegt `design/tutorial/gids/gids.json` welk frame van de gids erbij hoort. Kop in
   per animatie alleen elk zoveelste frame (bijvoorbeeld `{'idle': 2, 'verteller': 2, 'sprong': 2}`, rond 70 MiB).
 - Animaties: idle (heen en terug), verteller (een keer als hij wacht en iets uitlegt: alleen handgebaren, mond dicht, kijkt
   niet naar de camera), ren (lus van 24 op afstand, sprinten gaat sneller door de lus), sprong (de hoge korte sprong;
-  uit de ren zonder het rechtop staan), groot (de sprintsprong, boven 380 px/s: station 8 en de race; opspringen is de
-  clip achteruit), buk, sluip (lus van 58), rol (roll1, roll2 en roll3 achter elkaar).
+  uit de ren zonder het rechtop staan; sinds 27-11-2026 ook bij het ravijn en in de race, op verzoek van de
+  opdrachtgever, omdat die het meest op Amirs sprong lijkt: `SPRINT` in `gids_bouw.py` staat uit), groot (de
+  sprintsprong, zit nog in de vellen maar het spoor gebruikt hem niet meer; terug met `SPRINT = 380`), buk, sluip (lus van 58), rol (roll1, roll2 en roll3 achter elkaar).
 - Het roze in het haar: Grok tekent een paarse glans in het donkere haar en de knot. Het keyen haalt dat weg met despill
   (waar rood en blauw samen boven groen uitkomen gaat dat eraf).
 - De speer is in de bron egaal groen (#00C800), zodat hij weg of te vervangen is. `SPEER` in het script kleurt hem om (de
@@ -90,7 +91,11 @@ payoff komt als hij de speer krijgt). Alle teksten staan in het project: `claude
   keer als blok (geen meeschrijvende letters bij ingesproken tekst), donkere ondergrond, het naambordje als wie-praat, en
   buiten beeld aan de rand met een pijltje naar hem. Erbij: het spreekteken, drie golvende streepjes achter HUNTER
   zolang zijn stem klinkt (in `mentorWolkTeken`).
-- Nu ingesproken: start (2 regels), kruipen en rollen (uitleg en lof). De andere stations hebben nog alleen tekst.
+- Nu ingesproken (27-11-2026): alle stations van deel 1 (uitleg en lof), de race (station, aankondiging, aftellen, winst,
+  verlies), de nog-regels en de valgrappen. Nog niet: de regels bij stilstaan (de functie bestaat nog niet) en deel 2.
+- `nogStem` per station: de stem bij `nog`, hooguit eens per `GIDS_STEM.nogOpnieuw` (8 s) zolang de speler stilstaat.
+  `valStem` op de mentor hoort per plek bij `vallen`; de grap komt uit een knikkerzak, nooit twee keer dezelfde achter
+  elkaar.
 - Nieuwe regel: mp3 in `design/tutorial/stem/` (stilte eraf, genormaliseerd), `stem`/`okStem` op het station, de `zeg`
   gelijk aan wat hij zegt (zonder tags als [chuckles]), dan `tools/gen-offline-manifest.py`.
 
@@ -178,7 +183,7 @@ op als de tekst wisselt. De grootte schaalt met de hoogte van het scherm. De bal
 ## Open
 
 - De panter aan het eind (de sluiples: hoog gras, omkijken met een tell, de speer van de mentor, steken): het volgende stuk.
-- De stem voor de overige stations, de race en de vallen (zie "De stem van de gids").
+- De stem bij stilstaan (de wachtregels uit `claude/tutorial_stemteksten.md`) en deel 2 met de panter.
 - Op een telefoon staan er nog toetsen in de wolk in plaats van de knoppen.
 - `offline-assets.json` kent het spoor nog niet: draai `tools/gen-offline-manifest.py` op een volledige checkout. Zonder het
   spoor is het level gewoon speelbaar, alleen zonder mentor.

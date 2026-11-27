@@ -84,7 +84,7 @@ SPRONG = {1: (2, 10), 2: (14, 16), 3: (18, 24), 4: (26, 62), 5: (66, 74), 6: (82
 SPRONG_REN = {1: (19, 19), 2: (20, 20), 3: (20, 22), 4: (26, 62), 5: (66, 74), 6: (82, 94)}   # uit de ren: niet eerst rechtop staan met de speer verticaal
 STIL = 200                                                         # px/s: daaronder springt hij uit stilstand (de hoge korte sprong)
 GROOT = {1: (36, 36), 2: (33, 22), 3: (20, 6), 4: (3, 0), 5: (2, 22), 6: (24, 39)}         # grote_sprong, 2 en 3 achteruit
-SPRINT = 380                                                       # px/s: daarboven is het de grote sprong
+SPRINT = 10**9                                                     # px/s: daarboven de grote sprong; uit (27-11-2026, Tom): ook bij het ravijn en in de race jump_and_land, dat lijkt op Amirs sprong (was 380)
 REN = {'start': 0, 'n': 24, 'px': 330}
 SLUIP_FPS = 24
 
