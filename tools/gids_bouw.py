@@ -59,6 +59,11 @@ SCHAAL = {'idle': 1, 'verteller': 1, 'rc': 0.8, 'jump_and_land': 1.72, 'grote_sp
 # meet het script per frame de lijfhoogte, legt er een gladde kromme door (graad 2, zodat het ademen niet meetelt) en
 # schaalt elk frame terug naar de maat van het eerste.
 ZOOM_VAST = ('idle',)
+# Hoe groot elke animatie in het spel getekend wordt, bovenop de schaal van de vellen (gids.json: k per animatie; gidsTeken
+# vermenigvuldigt ermee). 27-11-2026, Tom in de hoogte-tool: in beweging kromp hij zichtbaar naast Amir (rennend even groot
+# als Amir, staand 1,2 keer), omdat zijn ren, buk en sluip dieper en schuiner zijn dan die van Amir. De vellen blijven zoals
+# ze zijn; alleen het tekenen in het spel schaalt.
+GROOTTE = {'idle': 1, 'verteller': 1, 'ren': 1.135, 'sprong': 1.135, 'groot': 1.135, 'buk': 1.135, 'sluip': 1.135, 'rol': 1.135}
 SPEER = {'staal': (178, 184, 190), 'staalDonker': (104, 110, 118), 'hout': (112, 72, 42), 'houtDonker': (70, 44, 26)}
 
 # de animaties: welke frames uit welke clip
@@ -177,7 +182,7 @@ def bouw(alleen=None):
     cache = {}; nvol = {}
     for naam, delen in ANIMS.items():
         if alleen and naam not in alleen:
-            info['anims'][naam] = oud['anims'][naam]
+            info['anims'][naam] = dict(oud['anims'][naam], k=GROOTTE.get(naam, 1))
             continue
         cellen = []
         for clip, rng in delen:
@@ -217,7 +222,7 @@ def bouw(alleen=None):
             fr.append([x, y, im.width, im.height, round(ax, 1), round(ay, 1)])
         opslaan(blad, os.path.join(UIT, naam + '.png'))
         opslaan(verklein(blad, (bw + 1) // 2, (bh + 1) // 2), os.path.join(KLEIN, naam + '.png'))
-        info['anims'][naam] = {'src': f'design/tutorial/gids/{naam}.png', 'n': len(cellen), 'stap': stap, 'f': fr}
+        info['anims'][naam] = {'src': f'design/tutorial/gids/{naam}.png', 'n': len(cellen), 'stap': stap, 'k': GROOTTE.get(naam, 1), 'f': fr}
         print(naam, len(cellen), 'blad', blad.size, round(bw * bh * 4 / 1048576, 1), 'MiB')
     if alleen:
         for naam in alleen:
