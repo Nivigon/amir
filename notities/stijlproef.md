@@ -25,7 +25,9 @@ Recht van voren; even rustige vlakken als de stadsmuur; kleur binnen de familie;
 de stad niet heeft; en niet te veel lijken op een ander landschap.
 
 ## Hutten en putten
-`design/savanne/hutten/`: Grok eebf2583 (hut_rond) en 2fa55f54 (de twee koepels). Zie de projectnotitie
+`design/savanne/hutten/`: Grok eebf2583 (hut_rond) en 2fa55f54 (de twee koepels). Daarna in een keer verweerd (Grok
+53cc987f): oker en roodbruin leem in de kleur van de savannegrond, strepen, afgebrokkeld met leemsteen eronder, grijs
+riet. Wit en schoon leken ze op huizen van Ishmul; nu horen ze bij een klein, arm dorp. Zie de projectnotitie
 savanne_hutten_2d.md.
 
 Putten: `design/savanne/putten/` (put_leem, put_steen, put_shaduf), Grok 2b165ff8. Ze staan in Test 97 na de hutten.
@@ -34,9 +36,9 @@ In de sandbox onder Decor, rij **Savannedorp**: een knop per hut en put (`data-s
 ## De loopput (LOOPPUT)
 Een lage, brede put om op te staan en overheen te springen, in twee soorten (regel 9 van de stijlsheet: elk landschap
 een eigen gezicht):
-- **savanne** (de standaard, `design/savanne/putten/put_loop_savanne.png`, Grok 48c99908): een verweerde put van gestapelde
-  veldsteen met droge leem, afgebrokkeld, losse stenen en grasplukjes aan de voet, een deksel van takken, kromme
-  acaciatakken met grastouw en een kalebas ernaast. Voor een klein, arm of verlaten dorp.
+- **savanne** (de standaard, `design/savanne/putten/put_loop_savanne.png`, Grok d77b641d): de steenput van het dorp
+  (put_steen) breed en laag gemaakt, met gevorkte takken, een houten deksel en een kruik ernaast, net zo rustig geschilderd
+  als de rest. Een eerdere, verweerde versie (Grok 48c99908) zag er te echt uit naast de stad en is vervangen.
 - **stad** (`soort: 'stad'`, `put_loop_stad.png`, Grok fee91518): de gepleisterde leemput met een rond houten deksel,
   rechte palen en een kuipemmer. Hoort eerder in Ishmul.
 
