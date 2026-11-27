@@ -113,6 +113,15 @@ In Test 74 (`stokken: true`), de sandboxknop **Stokken**, en in Multiplayer als 
   Boven zijn health-balk staat dan STUNNED in geel, dat zacht naklopt en in de laatste 0,3 s vervaagt, en eronder een geel
   balkje dat in de duur van de stun leegloopt (`stunLabelTeken`, in `vijandHpBalk`).
 - Een spawn met `hp` (zonder aanvoerder) geeft een bandiet zoveel levens; Test 74 gebruikt de elite-garde met 5, zoals Co-op.
+- **Van de rand geslagen** (op verzoek van de opdrachtgever, 27 november 2026): blok, stun-counter, slag. Krijgt een bandiet
+  die nog gestund is (`stokStun`) een gewone slag of stapslag, en ligt er binnen `STOK_RAND.bereik` (110) achter zijn hielen
+  een ravijn of put (`gatOp`), dan krijgt hij genoeg terugstoot om de rand te halen (`stokRandDuw`, minstens `v` maal de
+  afstand, en `rust` zodat hij niet meteen terugrent). Stuit hij op de rand (`banMove`), dan schuift hij erover, wipt even en
+  valt erin (`banRandVal`, met `ravijnValt` en `s.ravijnVal.b0`); hij vervaagt over `vervaag` diepte en telt als kill
+  (`banDoodTel`, dezelfde tellers als `hitBandiet`). Een muur, kei of takelbrug ertussen houdt hem tegen, zonder stun of
+  te ver van de rand gebeurt er niets bijzonders. Alleen de bandiet: de stun-counter stunt alleen hem. Een uitzondering op
+  regel 7. Nagemeten in de sandbox met een gat in `level.gaps`: 30 en 100 px van de rand valt hij erin, zonder stun of 300 px
+  ervandaan niet.
 
 ## De punt zakt mee (18-11-2026)
 

@@ -25521,8 +25521,45 @@ function stokTreffer(s, wx, h, sx, deel){
       if (s.stokReeks < R.n){ s.inv = 0; s.rust = R.rust; s.knock *= R.knock; }
       if (atkStok === 'stapslag') s.knock = (s.x < playerX() ? -1 : 1) * STOK.stapslag.knock;   // de stap duwt hem terug, net genoeg dat de tweede slag hem nog raakt
       else { s.stokReeks = 0; s.rust = R.naRust; }   // de laatste van de reeks: de gewone dekking die hitBandiet zette
+      if (s.stokStun > 0) stokRandDuw(s);            // blok, counter (stun), slag: aan de rand van een ravijn slaat hij erin (STOK_RAND)
     }
   }
+}
+// ---- van de rand geslagen: blok, stun-counter, slag ----
+// Op verzoek van de opdrachtgever (27 november 2026): een bandiet die gestund is door de counter van de stokken (stokStun)
+// en dan een slag krijgt terwijl hij aan de rand van een ravijn staat, slaat erin en is dood. Een uitzondering op regel 7
+// (vijanden komen niet over een ravijn), alleen door deze slag. Ligt er binnen `bereik` achter zijn hielen een ravijn of
+// put (gatOp), dan krijgt hij minstens zoveel terugstoot dat hij de rand haalt (`v` maal de afstand); stuit hij daar
+// (banMove), dan begint de val (banRandVal, met ravijnValt, en hij vervaagt over `vervaag` diepte). Een muur, een kei of
+// een takelbrug ertussen houdt hem gewoon tegen.
+const STOK_RAND = { bereik: 110, v: 4.4, rust: 0.7, vervaag: CHAR_H * 1.6 };
+function stokRandDuw(s){
+  const d = Math.sign(s.knock) || (s.x < playerX() ? -1 : 1), base = s.base || 0;
+  const halfL = BAN_LIJF.half * banScale();
+  for (let a = 0; a <= STOK_RAND.bereik; a += 6){
+    const x = s.x + d * (halfL + a);
+    if (takelDraagt(x, base)) return;
+    if (!gatOp(x, base)) continue;
+    s.knock = d * Math.max(Math.abs(s.knock), (a + 24) * STOK_RAND.v);
+    s.randVal = true; s.rust = Math.max(s.rust, STOK_RAND.rust);   // hij glijdt weerloos naar de rand, en rent niet meteen terug
+    return;
+  }
+}
+// de val zelf: hij stuit op de rand (banMove), staat het ravijn daar echt, dan schuift hij erover en valt
+function banRandVal(s, d){
+  const base = s.base || 0, halfL = BAN_LIJF.half * banScale();
+  const voet = s.x + d * (halfL + 8);
+  const g = gatOp(voet, base);
+  if (!g || takelDraagt(voet, base)) return false;
+  const gl = g.x - g.w / 2, gr = g.x + g.w / 2;
+  s.x = Math.max(gl + 4, Math.min(gr - 4, s.x + d * halfL * 1.3));   // boven het gat, niet voorbij de overkant
+  s.ravijnVal = { v: -120, b0: base };            // een klein wipje, dan omlaag
+  s.knock = 0; s.randVal = false; s.fcVal = false; s.stokStun = 0; s.stokStunIdle = false;
+  s.hp = 0; s.flash = 0.3; s.inv = 99;
+  banSterf();
+  puffWorld(s.x, 6, 0, 0.9, base);
+  banDoodTel(s);
+  return true;
 }
 // de stokken raken een andere vijand dan de bandiet (slang, schorpioen, fosforslang, hyena, kooiman,
 // kruisboogbandiet, zweepman): dezelfde houtklap als de gewone slag op een bandiet (stokTreffer), zonder de reeks of de stun.
@@ -53058,7 +53095,10 @@ function banScheidHouding(s){
 }
 function updateBandiet(s, dt, plats, cliff){
   if (achterMasker(s.x, s.base) || s.sneakVast) return;                     // bevroren achter een masker dat er nog ligt
-  if (ravijnValt(s, dt, 'weg')) return;              // in het open ravijn gevallen
+  if (ravijnValt(s, dt, 'weg')){                     // in het open ravijn gevallen
+    if (s.ravijnVal && s.ravijnVal.b0 != null) s.alpha = Math.max(0, 1 + (s.base - s.ravijnVal.b0) / STOK_RAND.vervaag);   // van de rand geslagen (STOK_RAND): hij vervaagt in de diepte
+    return;
+  }
   if (s.vFade != null && s.vFade < 1) s.vFade = Math.min(1, s.vFade + dt / DEUR.verschijn);   // uit de deuropening: faadt uit het donker op
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
@@ -53136,12 +53176,13 @@ function updateBandiet(s, dt, plats, cliff){
   // de terugstoot van een treffer dooft uit
   if (s.knock !== 0){
     if (!banMove(s, s.knock * dt, plats, cliff)){
+      if (s.randVal && banRandVal(s, Math.sign(s.knock))) return;   // gestund en geraakt aan de rand van een ravijn: hij slaat erin (STOK_RAND)
       // de draaislag aan de rand van een galerij of dak: hij slaat eraf, als hij beneden veilig neerkomt (FC_VAL)
       const L = s.fcVal ? fcValLanding(s, Math.sign(s.knock), BAN_LIJF.half * banScale(), plats, cliff) : null;
       s.knock = 0; s.fcVal = false;
       if (L){ fcValStart(s, L); return; }
     }
-    else { s.knock *= Math.pow(0.02, dt); if (Math.abs(s.knock) < 4){ s.knock = 0; s.fcVal = false; } }
+    else { s.knock *= Math.pow(0.02, dt); if (Math.abs(s.knock) < 4){ s.knock = 0; s.fcVal = false; s.randVal = false; } }
   }
 
   // de galerijsprong van de chaser (zie BAN_GJ): aan de rand hurken, afzetten, vallen, landen, opkijken
@@ -53378,7 +53419,7 @@ function banPareer(s, vonkWx, vonkY){
 function hitBandiet(s){
   const doorDekking = (atkCombo || stokDoor()) && atkFrame >= 0 && steekLive();   // de derde slag (COMBO) en de counter met de stokken slaan door zijn dekking heen
   const gjLucht = banGjLucht(s);                   // in de galerijsprong van de chaser: wel te raken (op verzoek van de opdrachtgever)
-  if ((s.inv > 0 && !doorDekking) || s.state === 'dood' || s.state === 'vault' || (s.air > 0 && !gjLucht)) return false;   // in de lucht (de vault, van boven neerkomend) is hij niet te raken
+  if (s.ravijnVal || (s.inv > 0 && !doorDekking) || s.state === 'dood' || s.state === 'vault' || (s.air > 0 && !gjLucht)) return false;   // in de lucht (de vault, van boven neerkomend) is hij niet te raken
   if (razAan(s) && !gifTikNu) return false;          // razend (zie RAZ): niets komt erdoor, ook de derde slag en de tweede speer niet
   if (comboX){                                     // de duw (DUW): geen schade, alleen ver terug en even stil
     if (s.duwId === duwId) return false;            // een keer per duw
@@ -53407,11 +53448,15 @@ function hitBandiet(s){
   if (s.bloed) s.bloedWacht = true;                   // bloed: de val loopt op tot het reel-frame, dan spuit het bloed uit zijn borst
   banSterf();                                         // zijn doodskreet
   puffWorld(s.x, 6, 0, 0.9, s.base || 0);
+  banDoodTel(s);
+  return true;
+}
+// een bandiet is dood: de tellers (golf, arena, kill, aanvoerder). Ook voor wie in een ravijn geslagen is (banRandVal)
+function banDoodTel(s){
   if (level && level.bandietGolf) golfKill();
   if (arenaAap && arenaAap.ban) arenaAap.kills++;              // de teller van de bandiet-arena (ook de takel-passagiers)
   vijandDood(false, s);
   if (s.aanvoerder) aanvoerderDood(s);               // de aanvoerder: het level is uit of de eindpoort gaat open
-  return true;
 }
 
 // ---- de razernij van de aanvoerder: een meter die oploopt, dan even razend, dan uitgeput ----

@@ -44,6 +44,8 @@ door de rand van een ravijn: niet lopend, niet met een sprong of een duik, en ze
 ook niet aan de overkant op. Zo is een kei of een ravijn voor de speler een schuilplek.
 Een schuilplek, geen veilige plek: een slang of schorpioen naast de kei mag Amir bovenop die
 kei nog bijten of steken, want hun beet reikt tot de hoogte van een kei. Dat is zo bedoeld.
+Uitzondering op verzoek van de opdrachtgever: een bandiet die gestund is door de counter van de stokken en dan een slag
+krijgt aan de rand van een ravijn, slaat erin en is dood (`STOK_RAND`, `banRandVal`, zie `notities/stokken.md`).
 Een uitzondering mag alleen als de opdracht er expliciet om vraagt, of in een gevecht met
 een eindbaas als je daar zelf voor kiest omdat het dat gevecht beter maakt; zeg dan
 achteraf dat en waarom. Voor de panter is dat het veld `over: true` in zijn spawn
