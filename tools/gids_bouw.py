@@ -1,6 +1,7 @@
 # De gids van The First Hunt (design/tutorial/gids/): de Grok-clips van Tom (26/27-11-2026) naar spritebladen, en het
 # spoor van de mentor (design/tutorial/mentor_spoor.json) gekoppeld aan zijn eigen animaties.
-#   python3 tools/gids_bouw.py
+#   python3 tools/gids_bouw.py            alles
+#   python3 tools/gids_bouw.py idle       alleen die animatie(s), de rest van gids.json en het spoor blijven staan
 # Leest de mp4's uit design/tutorial/gids/bron/ en schrijft per animatie een blad (<anim>.png) en gids.json.
 #
 # Keyen: magenta weg met een smalle ramp (0,92 en 0,62 van de achtergrond-key), randen terugrekenen zonder de achtergrond,
@@ -52,6 +53,12 @@ KLEIN = os.path.join(ROOT, 'klein/design/tutorial/gids')
 STAP = {}                              # reserve: alleen elk zoveelste frame houden, bv. {'idle': 2} (nu niet nodig)
 SCHAAL = {'idle': 1, 'verteller': 1, 'rc': 0.8, 'jump_and_land': 1.72, 'grote_sprong': 0.85,
           'slowcrouch': 0.66, 'lowcrouch': 0.66, 'roll1': 0.68, 'roll2': 0.68, 'roll3': 0.69}
+# Clips waarin Grok langzaam inzoomt (27-11-2026): in de idle werd de gids over de clip 5 tot 6% groter (frame 0 641 px,
+# het eind 672 px; de hele figuur, niet rechter op staan). Omdat de idle heen en weer speelt zwol hij in het spel op en
+# kromp hij weer, en bij de wissel naar de verteller (die wel even groot blijft) sprong hij ineens 13 px kleiner. Hier
+# meet het script per frame de lijfhoogte, legt er een gladde kromme door (graad 2, zodat het ademen niet meetelt) en
+# schaalt elk frame terug naar de maat van het eerste.
+ZOOM_VAST = ('idle',)
 SPEER = {'staal': (178, 184, 190), 'staalDonker': (104, 110, 118), 'hout': (112, 72, 42), 'houtDonker': (70, 44, 26)}
 
 # de animaties: welke frames uit welke clip
@@ -160,18 +167,35 @@ def opslaan(blad, pad):
     blad.quantize(256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).save(pad, optimize=True)   # 256 kleuren, zoals Duka
 
 
-def bouw():
+def bouw(alleen=None):
+    """alleen: een lijst animaties om opnieuw te bouwen; de rest van gids.json (en het spoor) blijft dan staan. Kan alleen
+    als het aantal frames van die animaties gelijk blijft (het spoor wijst naar framenummers); draai daarna gids_glad.py."""
     os.makedirs(UIT, exist_ok=True); os.makedirs(KLEIN, exist_ok=True)
     f0 = LENGTE / IDLE_H
     info = {'lengte': LENGTE, 'px': round(1 / PIX, 6), 'anims': {}}
+    oud = json.load(open(os.path.join(UIT, 'gids.json'))) if alleen else None
     cache = {}; nvol = {}
     for naam, delen in ANIMS.items():
+        if alleen and naam not in alleen:
+            info['anims'][naam] = oud['anims'][naam]
+            continue
         cellen = []
         for clip, rng in delen:
             if clip not in cache:
                 cache[clip] = frames(clip, range(145))
             s = f0 * SCHAAL[clip] * PIX
+            zoom = {i: 1.0 for i in rng}
+            if clip in ZOOM_VAST:
+                hs = []
+                for i in rng:
+                    c, al, groen = key(cache[clip][i])
+                    ys = np.where((al > 0.5) & ~groen)[0]
+                    hs.append(ys.max() + 1 - ys.min())
+                kr = np.polyval(np.polyfit(np.arange(len(hs)), hs, 2), np.arange(len(hs)))
+                zoom = {i: kr[0] / kr[k] for k, i in enumerate(rng)}
+                print(f'{clip}: zoom van de clip rechtgezet, {min(zoom.values()):.3f} .. {max(zoom.values()):.3f}')
             for i in rng:
+                s = f0 * SCHAAL[clip] * PIX * zoom[i]
                 c, al, groen = key(cache[clip][i])
                 lijf = (al > 0.5) & ~groen
                 ys, xs = np.where(lijf)
@@ -195,8 +219,14 @@ def bouw():
         opslaan(verklein(blad, (bw + 1) // 2, (bh + 1) // 2), os.path.join(KLEIN, naam + '.png'))
         info['anims'][naam] = {'src': f'design/tutorial/gids/{naam}.png', 'n': len(cellen), 'stap': stap, 'f': fr}
         print(naam, len(cellen), 'blad', blad.size, round(bw * bh * 4 / 1048576, 1), 'MiB')
-    info['spoor'] = koppel(nvol)                                   # in frames van de volle reeks
-    if any(v['stap'] > 1 for v in info['anims'].values()):        # het spoor wijst naar frames van de volle reeks
+    if alleen:
+        for naam in alleen:
+            if info['anims'][naam]['n'] != oud['anims'][naam]['n']:
+                raise SystemExit(f'{naam}: aantal frames veranderd, bouw alles opnieuw (zonder argumenten)')
+        info['spoor'] = oud['spoor']
+    else:
+        info['spoor'] = koppel(nvol)                               # in frames van de volle reeks
+    if not alleen and any(v['stap'] > 1 for v in info['anims'].values()):   # het spoor wijst naar frames van de volle reeks
         for rij in info['spoor']['segs']:
             for k, e in enumerate(rij):
                 if e and e[1] >= 0: rij[k] = [e[0], e[1] // info['anims'][e[0]]['stap']]
@@ -270,4 +300,4 @@ def koppel(nvol):
 
 
 if __name__ == '__main__':
-    bouw()
+    bouw(sys.argv[1:] or None)                                     # bv. python3 tools/gids_bouw.py idle

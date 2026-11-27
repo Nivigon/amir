@@ -56,6 +56,12 @@ zegt `design/tutorial/gids/gids.json` welk frame van de gids erbij hoort. Kop in
 - Schaal: per clip geijkt op het hoofd (`SCHAAL`), de gids staand 1,2 x Amir (ongeveer bandietmaat).
 - Stof en geluid: de renlus van Amir (`amirren.mp3`), zachter naarmate hij verder van je af is; stof bij de afzet en de
   landing; bij de rol het rolgeluid en het stof van `ROL_STOF`.
+- **De idle zoomde in (27-11-2026).** In de Grok-clip werd de gids van het eerste tot het laatste idle-frame 5 tot 6%
+  groter (de hele figuur). De idle speelt heen en weer, dus hij zwol op en kromp weer, en bij de wissel naar de verteller
+  (die even groot blijft) sprong hij tot 13 px kleiner. `ZOOM_VAST` in `gids_bouw.py` meet per frame de lijfhoogte, legt
+  er een gladde kromme door en schaalt elk frame terug naar frame 0. Nu staan idle en verteller allebei op 316 tot 320 px
+  in het vel. Alleen een animatie opnieuw bouwen: `python3 tools/gids_bouw.py idle` (het spoor blijft staan), dan
+  `tools/gids_glad.py`.
 - Nog niet gebruikt: `gahurk`, `hurk_en_omkijk`, `hurkenwenk` (voor de panter-sluiples) en `deelsbruikbaar_vertellen`.
 - Open: de speer los (nu omgekleurd in de frames), een klim voor de richel (hij springt nu), een rustig loopje.
 
