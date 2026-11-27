@@ -377,7 +377,9 @@
   #mpeind.on{display:block}
   #mpeind p{margin:6px 0}
   #mpeind .kop{font-size:34px;font-weight:700}
+  #mpeind .score{font-size:24px;font-weight:700}
   #mpeind .best{color:#ffe28a}
+  #mpeind .best.nieuw{font-size:24px;font-weight:700;text-shadow:0 0 12px rgba(255,200,80,.6)}
   #mpeind .klein{font-size:15px;opacity:.8;margin-top:14px}
   .bigbtn{position:relative;min-width:210px;padding:16px 26px!important;font-size:20px!important;font-weight:700;
     letter-spacing:.05em;text-transform:uppercase;border:1px solid rgba(231,173,82,.4);border-radius:11px;
@@ -78494,6 +78496,7 @@ const MPC = {
   boven: 5,                 // hooguit zoveel boven (galerij en balkon) tegelijk, daarna komen ze beneden
   balkon: 2,                // hooguit zoveel kruisboogschutters op het balkon van het middenhuis
   reviveNa: 20,             // zoveel seconden na een dood komt de revive-ton
+  eindRust: 0.5,            // zoveel seconden blijft het lijk nog liggen na de val, voor het eindscherm komt (mpcEindWacht)
   vriesMax: 6,              // staat de wereld langer zo lang stil (een freeze die niet afliep), dan gaat hij los (mpcVriesWacht)
   wissel: 150,              // een vijand wisselt pas van doel als een ander zoveel dichterbij is
   hz: 20,                   // standberichten van de vijanden per seconde (via het relais PVP_RELAY.hz)
@@ -79599,7 +79602,12 @@ function mpcDodenStap(){
   const C = pvp.coop, S = pvp.spelers;
   for (const p of S){ if (mpcDood(p)){ if (C.doodT[p] == null) C.doodT[p] = C.t; } else delete C.doodT[p]; }
   for (const k in C.doodT) if (!S.includes(+k)) delete C.doodT[k];
-  if (S.every(mpcDood) && !mpcReviveKomt()){ mpcEinde(); return; }   // een hart of de veren brengen nog iemand terug: nog geen game over
+  if (S.every(mpcDood) && !mpcReviveKomt()){         // een hart of de veren brengen nog iemand terug: nog geen game over
+    if (C.eindOm == null) C.eindOm = C.t + mpcEindWacht();   // eerst de val van de laatste uitspelen, dan pas het eindscherm
+    if (C.t >= C.eindOm) mpcEinde();
+    return;
+  }
+  C.eindOm = null;
   for (const k in C.reviveTon){                       // niet meer dood: weg met zijn ton
     if (C.doodT[k] != null) continue;
     const t = C.reviveTon[k]; delete C.reviveTon[k];
@@ -79634,9 +79642,17 @@ function mpcVolgendeRonde(){
   C.fase = 'wacht'; C.klok = R.pauze;
   mpcBanner('Round ' + (C.ronde + 1) + ' in ' + R.pauze + ' s', 2);
 }
+// zo lang na de laatste dood komt het eindscherm: de val (NEER) speelt eerst uit, plus NEER.scherm en MPC.eindRust. Solo
+// weten we hoe ver onze eigen val is (in een ravijn gestort ligt hij meteen); met een team kan de laatste een ander zijn,
+// dus dan de langste val
+function mpcEindWacht(){
+  if (pvp.solo) return (neer ? Math.max(0, neerDuur(neer.set) - neer.t) : 0) + NEER.scherm + MPC.eindRust;
+  return Math.max(neerDuur('mk'), neerDuur('stok')) + NEER.scherm + MPC.eindRust;
+}
 function mpcEinde(){
   const C = pvp.coop;
   if (C.fase === 'uit') return;
+  C.eindOm = null;
   const e = { score: C.score, ronde: C.ronde, tijd: Math.round(C.t), kills: C.kills, ep: C.ep ? { i: C.ep.i, alles: !!C.ep.alles } : undefined };
   pvpZend({ t: 'ceind', e });
   mpcEindToon(e);
@@ -79645,7 +79661,7 @@ function mpcEinde(){
 function mpcEindSleutel(){
   const v = pvp.regels.coop.vij;
   // de chaser kwam later: met hem uit is de sleutel dezelfde als van voor hem, zodat de oude records blijven gelden
-  return 'amir.coopBest.' + MP_SOORTEN.filter(q => q.k !== 'chaser' || (v[q.k] && v[q.k] !== 'uit')).map(q => q.k + '=' + v[q.k]).join(',');
+  return 'amir.coopBest.' + (pvp.solo ? 'solo.' : '') + MP_SOORTEN.filter(q => q.k !== 'chaser' || (v[q.k] && v[q.k] !== 'uit')).map(q => q.k + '=' + v[q.k]).join(',');
 }
 function mpcEindToon(e){
   const C = pvp.coop;
@@ -79659,13 +79675,23 @@ function mpcEindToon(e){
   el.innerHTML = '';
   const regel = (t, k) => { const p = document.createElement('p'); p.textContent = t; if (k) p.className = k; el.append(p); };
   regel('Game over', 'kop');
-  regel('Team score: ' + e.score);
+  regel((pvp.solo ? 'Score: ' : 'Team score: ') + e.score, 'score');
   regel('Survived until round ' + e.ronde + ', in ' + m + ':' + s + ' (' + e.kills + ' kills)');
-  regel(e.score > best ? 'New best score with these enemies!' : 'Best with these enemies: ' + best, 'best');
-  regel('Shift+O: play again (' + (pvp.spelers.length > 2 ? 'everyone presses' : 'both press') + ' Shift+O)   Esc: back to the lobby', 'klein');
+  mpcHighRegel(regel, e.score, best, (pvp.solo ? 'Solo' : 'Team') + ' high score with these enemies');
+  regel('Shift+O: play again' + mpcIedereen() + '   Esc: back to the lobby', 'klein');
   el.classList.add('on');
   pvpBanner('');
 }
+// de regel over de high score op het eindscherm: nieuw (met de oude erbij), gelijk, of hoe hoog hij staat. De high score
+// telt per apparaat, solo en met een team apart, en per keuze van vijanden (mpcEindSleutel)
+function mpcHighRegel(regel, score, best, wat){
+  if (score > best) regel('New high score!' + (best > 0 ? ' (previous: ' + best + ')' : ''), 'best nieuw');
+  else if (score === best && best > 0) regel('You matched your high score: ' + best, 'best');
+  else if (best > 0) regel(wat + ': ' + best, 'best');
+  else regel('No high score yet: score points to set one', 'best');
+}
+// wie Shift+O moet drukken: solo zeg je niets, met een team allebei of iedereen
+function mpcIedereen(){ return pvp.solo ? '' : ' (' + (pvp.spelers.length > 2 ? 'everyone presses' : 'both press') + ' Shift+O)'; }
 // de symbolen van de revive-tonnen: wie erbij is pakt er een, en de dode van dat symbool staat naast hem op
 function mpcSymboolStap(){
   const C = pvp.coop;
@@ -80084,7 +80110,7 @@ function mpEpWinkel(){ const C = pvp && pvp.coop; return !!(C && C.ep && MPC_EPS
 function mpEpReeks(kaart){ return String(kaart || '').charAt(0) === 'b' ? 'b' : 'a'; }
 function mpEpKaartLevel(kaart){ return parseInt(String(kaart || '0').replace(/^b/, ''), 10) || 0; }
 function mpEpLijst(){ return MPC_EPS[mpEpReeks(pvp && pvp.regels && pvp.regels.kaart)].levels(); }
-function mpEpBestSleutel(){ return MPC_EPS[mpEpReeks(pvp && pvp.regels && pvp.regels.kaart)].best; }
+function mpEpBestSleutel(){ return MPC_EPS[mpEpReeks(pvp && pvp.regels && pvp.regels.kaart)].best + (pvp && pvp.solo ? '.solo' : ''); }   // solo een eigen high score
 // de soort van een vijand uit een spawn, voor de punten (MPC.punten): de lijst zegt het
 const MPC_EP_SOORT = { snakes: 'slang', scorps: 'scorp', hyenas: 'hyena', kooimannen: 'kooiman',
                        kruisbogen: 'kruisboog', bandieten: 'bandiet', schildmannen: 'schildman', zweepmannen: 'zweepman',
@@ -80197,18 +80223,19 @@ function mpEpEindToon(e){
   el.innerHTML = '';
   const regel = (t, k) => { const p = document.createElement('p'); p.textContent = t; if (k) p.className = k; el.append(p); };
   const naam = mpEpLijst()[e.ep.i].name.replace(MPC_EP.naamKop, '');
-  const iedereen = pvp.spelers.length > 2 ? 'everyone presses' : 'both press';
+  const scoreWoord = pvp.solo ? 'Score: ' : 'Team score: ';
   if (e.ep.alles){
     regel('Episode complete!', 'kop');
-    regel('Team score: ' + e.score);
+    regel(scoreWoord + e.score, 'score');
     regel('All ' + mpEpLijst().length + ' levels in ' + m + ':' + s + ' (' + e.kills + ' kills)');
-    regel(e.score > best ? 'New best score!' : 'Best score: ' + best, 'best');
-    regel('Shift+O: play the episode again (' + iedereen + ' Shift+O)   Esc: back to the lobby', 'klein');
+    mpcHighRegel(regel, e.score, best, 'Episode high score');
+    regel('Shift+O: play the episode again' + mpcIedereen() + '   Esc: back to the lobby', 'klein');
   } else {
     regel('Game over', 'kop');
-    regel('The whole team fell in level ' + (e.ep.i + 1) + ': ' + naam);
-    regel('Team score: ' + e.score + ', ' + m + ':' + s + ' (' + e.kills + ' kills)');
-    regel('Shift+O: try this level again (' + iedereen + ' Shift+O)   Esc: back to the lobby', 'klein');
+    regel((pvp.solo ? 'You fell in level ' : 'The whole team fell in level ') + (e.ep.i + 1) + ': ' + naam);
+    regel(scoreWoord + e.score + ', ' + m + ':' + s + ' (' + e.kills + ' kills)', 'score');
+    regel('No high score: that only counts when you finish the whole episode', 'best');
+    regel('Shift+O: try this level again' + mpcIedereen() + '   Esc: back to the lobby', 'klein');
   }
   el.classList.add('on');
   pvpBanner('');
