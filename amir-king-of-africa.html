@@ -2268,6 +2268,7 @@
         <label>Stof in de ogen</label>
         <button id="sbstof" title="Gebukt F vasthouden: Amir veegt stof op naar een vijand die hem aankijkt. Hij is even blind en de volgende treffer telt dubbel. Gebukt F tikken blijft de lage zwaai.">Stof: uit</button>
         <button id="sbcombo" title="Drie steken kort na elkaar: de derde is een draaislag. Standaard aan als terugslag. Rond: uit, terugslag (telt enkel, zet de vijand ver terug), schade (telt dubbel, met een flits op de treffer) beide (wat het talent Full Circle van Mkuki geeft) en knop (geen derde slag; X speelt de draaislag los af als duw, zonder schade, met 8 s afkoeling). Druk tijdens de tweede steek nog een keer en hij gaat er direct in over.">Combo: uit</button>
+        <button id="sbshove" class="on" title="De shove: aanvallen met de speer terwijl een mens-vijand te dichtbij staat en de steek niemand raakt: Amir duwt hem terug tot op steekafstand, zonder schade, met een korte wankel en 2 s afkoeling (SHOVE).">Shove: aan</button>
       </div>
       <div class="row">
         <label>Reserve op de rug</label>
@@ -4371,6 +4372,126 @@ function stofEind(){                           // hij staat waar zijn lijf aan h
   }
   stofA = null;
   atkCooldown = Math.max(atkCooldown, 0.15);
+}
+// ---- de shove: een vijand die te dichtbij staat terugduwen naar steekafstand ----
+// Aanvallen met de speer terwijl er een vijand te dichtbij staat (binnen de punt van de steek) en de steek niemand zou
+// raken: Amir zakt even in, pakt de speer rechtop met twee handen en duwt hem met zijn hele lijf terug tot op
+// steekafstand. Geen schade, een korte wankel, en daarna een afkoeling. Zou de steek wel iemand raken (een ander
+// verderop), dan steekt hij gewoon, en de vijand vlak bij hem kan hem dan raken. Alleen mensen worden geduwd
+// (bandiet, schildbandiet, kruisboogbandiet, zweepman, kooiman); staat er een dier of baas het dichtst bij, dan steekt
+// hij gewoon. De frames komen uit Grok (Mkuki met een groene speer); de speer zit er los op via los.json (MK_LOS), op
+// het canvas van de steek (SPR_W, SPR_H, SPR_GROUND).
+const SHOVE = {
+  aan: true,
+  dir: 'aanval/shove/',
+  n: 13,                                  // shove_00 tot en met shove_12
+  // [frame, ticks van 1/24 s]: inzakken, de duw, vasthouden, terug naar de stand (samen zo'n 1,1 s)
+  reeks: [[1, 1], [2, 1], [3, 2], [5, 1], [6, 1], [7, 1], [8, 1], [9, 2], [10, 3], [11, 3], [7, 2], [5, 2], [3, 2], [1, 2], [0, 2]],
+  raakStap: 6,                            // bij deze stap van de reeks (frame 8, armen gestrekt) raakt de speer hem: 0,29 s na de druk
+  koel: 2,                                // afkoeling in seconden; zolang steekt hij gewoon, ook als er iemand te dichtbij staat
+  wankel: 0.4,                            // zo lang staat de vijand stil na de duw: tijd voor een steek, niet voor twee
+  doel: 270,                              // waar hij heen gaat: zijn midden op deze afstand voor Amir, waar de steek raakt (sprite-eenheden)
+  minDuw: 70,                             // en minstens zoveel terug (sprite-eenheden)
+  zwaar: 0.5,                             // de kooiman met zijn kooi schuift maar half zo ver en wankelt niet
+  raakVan: 206, raakTot: 333,             // de strook waar de punt van de gewone steek raakt (TIP_DX van ATK_ACTIVE, plus steekR)
+  hoog: 90                                // alleen wie op Amirs eigen hoogte staat (wereld-px)
+};
+let shoveA = null, shoveKoel = 0, shoveBank = null;   // shoveA: {i, acc, kant, doel}: de shove loopt
+function shoveLaad(){
+  if (shoveBank) return;
+  shoveBank = Array.from({ length: SHOVE.n }, (_, i) => loadQuiet(uniq([AMIR, AMIR_GROOT]).map(d => d + SHOVE.dir + 'shove_' + (i < 10 ? '0' : '') + i + '.png')));
+}
+function shoveKlaar(){ return !!shoveBank && shoveBank.every(i => i.complete && i.naturalWidth); }
+function shoveBeeld(){ return shoveA && shoveBank ? shoveBank[SHOVE.reeks[Math.min(shoveA.i, SHOVE.reeks.length - 1)][0]] : null; }
+// wie staat er voor Amir: per vijand zijn lijst, soort, halve lijfbreedte (wereld-px) en of hij te duwen is
+function shoveVijanden(){
+  const k = nowScale(), mens = 0.2 * CHAR_H * k, r = [];
+  const zet = (L, soort, half, duw) => { for (const s of L) r.push({ s, L, soort, half: typeof half === 'function' ? half(s) : half, duw }); };
+  zet(bandieten, 'bandiet', () => BAN_LIJF.half * banScale(), true);
+  zet(schildmannen, 'schildman', () => SCHB_LIJF.half * schbScale(), true);
+  zet(kruisbogen, 'kruisboog', mens, true);
+  zet(zweepmannen, 'zweepman', mens, true);
+  zet(kooimannen, 'kooiman', () => KOOI_LIJF.half * kooiScale() * 0.6, true);
+  zet(hyenas, 'hyena', mens * 1.4, false);
+  zet(snakes, 'slang', mens, false);
+  zet(scorps, 'schorpioen', mens, false);
+  zet(panthers, 'panter', mens * 1.5, false);
+  if (brutus) r.push({ s: brutus, L: null, soort: 'brutus', half: mens * 1.6, duw: false });
+  return r;
+}
+// Mag de aanval een shove zijn? Dan de vijand die geduwd wordt, anders null (en dan steekt hij gewoon)
+function shoveDoel(){
+  if (!SHOVE.aan || shoveA || shoveKoel > 0 || !spear || atkMes || stokAan() || !onGround || jump || fell) return null;
+  if (mpcGast()) return null;                     // Co-op bij een gast: de host denkt voor de vijanden, dus daar gewoon steken
+  const k = nowScale(), px = playerX(), kant = facing === 1 ? 1 : -1;
+  const van = SHOVE.raakVan * k, tot = SHOVE.raakTot * k;
+  let dicht = null;
+  for (const v of shoveVijanden()){
+    const s = v.s;
+    if (!sbLeeft(s) || s.air > 0 || s.dropping || Math.abs((s.base || 0) - ph) > SHOVE.hoog) continue;
+    const d = (s.x - px) * kant;                  // hoe ver voor Amir (negatief: achter hem)
+    if (d < -v.half * 0.5) continue;              // achter hem: daar duwt hij niet
+    if (d + v.half >= van && d - v.half <= tot) return null;   // de steek raakt iemand: gewoon steken
+    if (d + v.half < van && (!dicht || d < dicht.d)) dicht = { ...v, d };
+  }
+  if (!dicht || !dicht.duw) return null;          // niemand te dichtbij, of het dichtst bij staat een dier of baas
+  if (dicht.soort === 'bandiet' && razAan(dicht.s)) return null;          // razend: niets houdt hem tegen
+  if (dicht.soort === 'schildman' && (schbOnaantastbaar(dicht.s) || dicht.s.exe)) return null;
+  return dicht;
+}
+function shoveStart(doel){
+  shoveLaad();
+  if (!shoveKlaar()) return false;                // de frames zijn er nog niet: dan maar een gewone steek
+  shoveA = { i: 0, acc: 0, kant: facing === 1 ? 1 : -1, doel };
+  shoveKoel = SHOVE.koel; duckT = 0;
+  if (wantSound){ const t = document.getElementById('thrust'); t.currentTime = 0; t.volume = 0.7; t.playbackRate = 0.75; t.play().catch(() => {}); }
+  return true;
+}
+function shoveStap(dt){                          // elk beeld: de afkoeling, de frames, het duwmoment en het eind
+  if (shoveKoel > 0) shoveKoel = Math.max(0, shoveKoel - dt);
+  if (!shoveA) return;
+  if (dead || hurt > 0 || fell || jump || !onGround){ shoveA = null; return; }   // geraakt tijdens de shove: hij is kwetsbaar
+  facing = shoveA.kant;
+  shoveA.acc += dt * 24;
+  while (shoveA && shoveA.acc >= SHOVE.reeks[shoveA.i][1]){
+    shoveA.acc -= SHOVE.reeks[shoveA.i][1];
+    shoveA.i++;
+    if (shoveA.i === SHOVE.raakStap) shoveRaak();
+    if (shoveA.i >= SHOVE.reeks.length){ shoveA = null; atkCooldown = Math.max(atkCooldown, 0.1); }
+  }
+}
+// de speer raakt hem: terug tot op steekafstand, en even stil. Is hij intussen buiten bereik, dan duwt hij in de lucht
+function shoveRaak(){
+  const v = shoveA.doel, s = v.s, k = nowScale(), kant = shoveA.kant;
+  if (!sbLeeft(s) || s.air > 0) return;
+  const d = (s.x - playerX()) * kant;
+  if (d < -v.half || d - v.half > SHOVE.raakVan * k) return;
+  const zwaar = v.soort === 'kooiman' ? SHOVE.zwaar : 1;
+  const ver = Math.max(SHOVE.minDuw * k, SHOVE.doel * k - d) * zwaar;
+  const snel = kant * ver * 3.91;                 // een knock dooft uit met 0,02 per seconde: de afstand is snel / ln 50
+  if (v.soort === 'bandiet'){                      // zijn knock remt iets harder af (banMove): een vijfde erbij, dan komt hij ook op steekafstand
+    s.knock = snel * 1.2; s.counter = false; banSet(s, 'run');
+    s.rust = Math.max(s.rust || 0, SHOVE.wankel); s.traag = Math.max(s.traag || 0, SHOVE.wankel);
+  } else if (v.soort === 'schildman'){             // hij wankelt terug achter zijn schild; het schild houdt het (geen schildstuk eraf)
+    s.state = 'flinch'; s.frame = SCHB.flinchVan; s.acc = 0; s.knockV = snel; s.naTerug = true; s.inv = SCHB.invHit;
+  } else if (v.soort === 'kooiman'){
+    s.knock = snel;
+  } else {                                         // kruisboogbandiet en zweepman: zijn eigen glij en wankel (shoveGlij)
+    s.shoveV = snel; s.shoveRust = SHOVE.wankel;
+  }
+  lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);
+  puffWorld(s.x, 5, kant * 200, 1, s.base || 0);
+  shake = Math.max(shake, 0.12); hitstop = Math.max(hitstop, 0.06);
+}
+// de kruisboogbandiet en de zweepman hebben geen knock zoals de bandiet: hier schuiven ze terug (met hun eigen move,
+// dus niet over een kei of ravijn, regel 7) en staan ze even stil. true: hij wankelt nog, de rest van zijn update wacht
+function shoveGlij(s, dt, beweeg){
+  if (s.shoveV){
+    if (!beweeg(s.shoveV * dt)) s.shoveV = 0;
+    else { s.shoveV *= Math.pow(0.02, dt); if (Math.abs(s.shoveV) < 4) s.shoveV = 0; }
+  }
+  if (s.shoveRust > 0){ s.shoveRust = Math.max(0, s.shoveRust - dt); return true; }
+  return false;
 }
 const stofRnd = (a, b) => a + Math.random() * (b - a);
 function stofSneeuw(wx){ return winterOn() || sneeuwAt(wx) >= BAV_STOF.sneeuwVanaf; }
@@ -26414,7 +26535,7 @@ function speerNaam(blauw){ const s = SPEER_SOORTEN[speerSoortId(blauw) || 'stand
 function rugSort(){ rugSperen.sort((a, b) => speerRang(a.blauw) - speerRang(b.blauw)); }
 // mag de speer in de hand nu wisselen: hij moet er zijn, en Amir is niet bezig met een steek, worp, zwaai of trek
 function speerWisselMag(){
-  return spearFound && !dead && !thr && atkFrame < 0 && swFrame < 0 && rugTrekT <= 0 && !stofA;
+  return spearFound && !dead && !thr && atkFrame < 0 && swFrame < 0 && rugTrekT <= 0 && !stofA && !shoveA;
 }
 function speerSorteer(){
   if (!rugAan() || !rugSperen.length){ speerOrdeVuil = false; return; }
@@ -26629,7 +26750,7 @@ function thrDir(){ return facing === 1 ? 1 : -1; }
 // ---- spannen en werpen --------------------------------------------------
 function canThrow(){
   return spear && !dead && hurt <= 0 && onGround && !jump && !fell
-      && atkFrame < 0 && swFrame < 0 && swRecover <= 0 && duckT <= 0 && !stofA;
+      && atkFrame < 0 && swFrame < 0 && swRecover <= 0 && duckT <= 0 && !stofA && !shoveA;
 }
 function thrPress(){
   // op speltijd, niet op de wandklok: wie vasthoudt en pauzeert, hervat met dezelfde lading, en op een
@@ -28284,8 +28405,9 @@ function gidsStemDuur(f){ const a = f && gidsStemPool[f]; return a && isFinite(a
 function gidsStemStap(){
   if (!gidsStemNu) return;
   if (!mentorAan() || !running || !wantSound){ gidsStemStop(); return; }
-  if (paused && !gidsStemNu.paused && !gidsStemNu.ended){ gidsStemNu.pause(); gidsStemPauze = true; }
-  else if (!paused && gidsStemPauze){ gidsStemPauze = false; gidsStemNu.play().catch(() => {}); }
+  const stil = paused || laadWacht;
+  if (stil && !gidsStemNu.paused && !gidsStemNu.ended){ gidsStemNu.pause(); gidsStemPauze = true; }
+  else if (!stil && gidsStemPauze){ gidsStemPauze = false; gidsStemNu.play().catch(() => {}); }
 }
 function mentorDelen(st){ return st && st.zeg ? [].concat(st.zeg) : []; }
 function mentorZegNu(st){ const d = mentorDelen(st); return d[Math.min(d.length - 1, mentor.deel || 0)] || ''; }
@@ -28363,7 +28485,7 @@ function mentorUpdate(dt){
   if (m.stemI !== m.i){ m.stemI = m.i; m.deel = 0; m.stemDeel = -1; m.stemT = 0; }
   const delen = mentorDelen(st), stem = [].concat(st.stem || []);
   const deelTekst = delen[m.deel] || '';
-  if (m.stemDeel !== m.deel && (Math.abs(world - mentorX()) < GIDS_STEM.bij || !stem[m.deel])){
+  if (m.stemDeel !== m.deel && !laadWacht && (Math.abs(world - mentorX()) < GIDS_STEM.bij || !stem[m.deel])){   // niet achter het laadscherm
     m.stemDeel = m.deel; m.stemT = 0;
     if (stem[m.deel]) gidsStemSpeel(stem[m.deel]);
   }
@@ -28638,6 +28760,15 @@ function mentorWolkTeken(){
   if (ctx.letterSpacing !== undefined) ctx.letterSpacing = (fs * 0.12) + 'px';
   ctx.fillText(C.naam, x + pad, y + pad * 0.75);
   if (ctx.letterSpacing !== undefined) ctx.letterSpacing = '0px';
+  // het spreekteken: drie golvende streepjes achter de naam zolang zijn stem klinkt (wie praat er, zie GIDS_STEM)
+  if (gidsStemBezig() && !gidsStemPauze){
+    const n0 = fs * 0.55, bx = x + pad + naamB + fs * 0.25, by = y + pad * 0.75 + n0 * 0.5, sw = Math.max(2, fs * 0.13);
+    ctx.fillStyle = C.rand;
+    for (let i = 0; i < 3; i++){
+      const hh = n0 * (0.35 + 0.65 * Math.abs(Math.sin(m.klok * (7 + i * 2.3) + i * 1.7)));
+      mentorRond(bx + i * sw * 1.9, by - hh / 2, sw, hh, sw / 2); ctx.fill();
+    }
+  }
   ctx.font = '700 ' + fs + 'px Archivo, "Helvetica Neue", Arial, sans-serif';
   ctx.textBaseline = 'middle';
   regels.forEach((rg, i) => {
@@ -30661,7 +30792,7 @@ function glijWolk(zij, k){
 let glij = 0, glijStof = 0;      // glijsnelheid in wereld-px/s (met teken), en de stoftimer
 function glijStart(){
   if (!RENSTOOT.aan || !spear || dead || hurt > 0 || jump || !onGround || fell) return;
-  if (atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || duckT > 0 || stofA || !keys['Shift']) return;
+  if (atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || duckT > 0 || stofA || shoveA || !keys['Shift']) return;
   const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
   const right = keys['ArrowRight'] || keys['d'] || keys['D'];
   if (left === right || waterDepthAt(world, ph) > 0.3) return;
@@ -30797,7 +30928,7 @@ function rolStart(tenue){
   if (rolW && rolW.los && rolW.naLos >= ROL_WORP.afbreek){ rolW = null; rolKoel = 0; }   // de nazwaai afbreken met een rol
   if (!ROL.aan || rol || rolKoel > 0) return;
   if (dead || hurt > 0 || schijnLigt() || amirVast() || jump || !onGround || fell || zhOntwaakT > 0) return;
-  if (atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || thr || glij !== 0 || stofA) return;
+  if (atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || thr || glij !== 0 || stofA || shoveA) return;
   if (waterDepthAt(world, ph) > 0.3) return;
   const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
   const right = keys['ArrowRight'] || keys['d'] || keys['D'];
@@ -31194,7 +31325,7 @@ function startAttack(){
   if (gkAan() && !onGround && downKey() && !gkKan() && !gkFase && (gkKoelT > 0 || straalMoe())) balkSchud('grondklap');   // nog aan het afkoelen: het vak schudt
   // de stoktribe: omlaag is ook mediteren (STRAAL). Slaan breekt de meditatie af (ook de trance), dan is het de lage slag
   if (stokAan() && straalTrance && !straalFase && onGround && !dead && hurt <= 0){ straalMediT = 0; straalNu = null; straalVrijZ = null; straalTrance = false; }
-  if (dead || hurt > 0 || schijnLigt() || jump || amirVast() || stofA) return;
+  if (dead || hurt > 0 || schijnLigt() || jump || amirVast() || stofA || shoveA) return;
   if (stokAan() && duckT > 0){ stokLaagSlag(); return; }   // gebukt met de stokken: de lage slag naar voren (STOK.laag), ook in Multiplayer
   if (stokAan()){ stokAanval(); return; }       // de stokken: de slag, of de counter na een blok (zie STOK)
   if (atkFrame >= 0){                            // already thrusting
@@ -31216,6 +31347,8 @@ function startAttack(){
     const m = fcModus();
     if (m && fcOpenDoel()){ comboStart(); fcSoort = m; return; }
   }
+  const shDoel = shoveDoel();                      // te dichtbij en de steek raakt niemand: de shove (zie SHOVE)
+  if (shDoel && shoveStart(shDoel)) return;
   if (comboKetenKan()){                            // de derde slag: tel de steken in de reeks (niet met de duw op X)
     comboTel = comboSinds <= COMBO.keten ? comboTel + 1 : 1;
     if (comboTel >= 3){ comboStart(); return; }
@@ -31345,7 +31478,7 @@ function startJump(){
   if (typeof tutEvent === 'function') tutEvent('jump');
   if (thr && thr.held && rigMik()) return;         // de mik-rig: pijl omhoog is mikken, geen sprong
   thrAfbreken();                                   // springen tijdens het spannen: de worp gaat niet door
-  if (dead || hurt > 0 || schijnLigt() || atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || thr || stofA) return;
+  if (dead || hurt > 0 || schijnLigt() || atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || thr || stofA || shoveA) return;
   if (stadAan() && stadSprong()) return;             // de stad: net na het opwippen van een doek alsnog de hoge sprong
   if (doorvalStart()) return;                        // omlaag + springen op een houten galerij: erdoorheen zakken (DOORVAL)
   if (!onGround && coyote > 0 && (!jump || jump.phase === 'air') && pvh <= 0){ takeOff(); return; }
@@ -46288,7 +46421,7 @@ function restart(){
     SLANG_EEN_KLAP = !!(level && level.slangEenKlap);   // slangen (ook de fosforslang) in een klap dood, ook met de balk aan
   }
   if (!sandbox) ZICHT_AAN = !!(level && level.zicht);   // vijanden zien je alleen als er niets tussen zit (zie "zicht"); de sandbox met een knop
-  if (!sandbox){ STOF.aan = !!(level && level.stof) || stofVanTribe(); } stofA = null; stofKoel = 0; zwaaiHoud = null;
+  if (!sandbox){ STOF.aan = !!(level && level.stof) || stofVanTribe(); } stofA = null; stofKoel = 0; zwaaiHoud = null; shoveA = null; shoveKoel = 0; if (SHOVE.aan) shoveLaad();
   if (!sandbox) COMBO.aan = !!(level && level.combo);   // de derde slag (zie COMBO)
   atkCombo = false; comboBuf = false; comboTel = 0; comboSinds = 99; comboX = false; fcSoort = null; duwKoel = 0;
   if (!hintEl.classList.contains('gone')) hintEl.textContent = HINT_START.replace(', Q drinken', STOF.aan ? ', gebukt F vasthouden stof in de ogen, Q drinken' : ', Q drinken');   // stof in de ogen (zie STOF): X, met stof: true in het level of met Mkuki
@@ -51500,6 +51633,7 @@ function updateKruisboog(s, dt, plats, cliff){
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0)   s.inv   = Math.max(0, s.inv - dt);   // de korte onkwetsbaarheid na een treffer (hitKruisboog); zonder dit bleef hij na de eerste treffer voorgoed onraakbaar
   if (s.slag > 0)  s.slag  = Math.max(0, s.slag - dt * 3);
+  if (s.state !== 'dood' && shoveGlij(s, dt, st => krbMove(s, st, plats, cliff))) return;   // de shove van Amir (SHOVE)
   if (s.state === 'dood'){                          // het lijk blijft liggen
     s.doodT += dt;
     if (!s.klaar) krbAnim(s, dt);
@@ -56243,6 +56377,7 @@ function updateZweepman(s, dt, plats, cliff){
   s.t += dt;
   s.base = opstapVolg(s, vloerBij(s.x, s.base), dt);   // over een opstapje glijdend
   rijsDraagtMob(s, dt);                               // het dek draagt hem in elke stand, ook midden in een slag
+  if (s.state !== 'dood' && shoveGlij(s, dt, st => zwmMove(s, st, plats, cliff))) return;   // de shove van Amir (SHOVE)
   const zS = zwmScale();
   if (s.knockV !== 0){ zwmMove(s, s.knockV * dt, plats, cliff); s.knockV *= Math.pow(0.02, dt); if (Math.abs(s.knockV) < 12) s.knockV = 0; }
   if (s.state === 'dood' && s.dood){ if (s.arm) zwmArmStap(s, dt); zwmDruppelStap(s, dt); zwmDoodStap(s, dt); return; }   // fase 2: de Grok-val
@@ -61964,7 +62099,7 @@ function loop(now){
   stokBlokStap(dt);                              // de stokken: het blok op C (zie STOK)
   if (stokBlokNu()) dir = 0;                     // blokken doe je stilstaand
   for (const b of bandieten) if (b.stokStun > 0) b.stokStun = Math.max(0, b.stokStun - dt);   // ook als de host zelf de speer heeft: in Co-op stunt een gast met stokken, en anders bleef de bandiet voor altijd staan
-  schildStap(dt, attacking || throwing || swFrame >= 0 || swRecover > 0 || !!stofA);   // het schild: op met C, weg zolang hij steekt of werpt
+  schildStap(dt, attacking || throwing || swFrame >= 0 || swRecover > 0 || !!stofA || !!shoveA);   // het schild: op met C, weg zolang hij steekt of werpt
   if (swFrame >= 0){
     swAcc += dt * SWEEP_FPS;
     while (swAcc >= 1){ swFrame++; swAcc -= 1; }
@@ -61973,7 +62108,8 @@ function loop(now){
   } else if (swRecover > 0) swRecover = Math.max(0, swRecover - dt);
   sweepLaden(dt);                                // de ladingen van de lage zwaai komen terug
   stofStap(dt);                                  // stof in de ogen: de frames, het geluid en het werpmoment (zie STOF)
-  if (stofA) dir = 0;                            // tijdens de veeg staat hij (de pas zit in de animatie)
+  shoveStap(dt);                                 // de shove: de frames, het duwmoment en de afkoeling (zie SHOVE)
+  if (stofA || shoveA) dir = 0;                  // tijdens de veeg en de shove staat hij (de pas zit in de animatie)
   if (swFrame >= SWEEP_FROM && swFrame <= SWEEP_TO && onGround && ph < 5
       && waterDepthAt(world, ph) < 0.2){
     spawnSweepSand(dt);                                  // alleen op het zand, niet op rots of in water
@@ -61990,7 +62126,7 @@ function loop(now){
     // ook zonder pijl omlaag: anders stond hij daar gebukt stil. Overal elders blijft het: geen pijl omlaag, geen sluipen.
     const dakNu = zweefDakBoven(halfWNow);
     const laagDak = onGround && dakNu - ph < CHAR_H && dir !== 0;
-    const canDuck = (downHeld || laagDak) && onGround && !jump && !dead && hurt <= 0 && !schijnLigt() && !attacking && !throwing && !fell && !amirVast() && !schildOp() && !stofA || (straalTrance || straalMediT > 0) && onGround || zhNeerT > 0 && onGround && !dead;   // in de trance (STRAAL) blijft hij geknield; Silver Pride: even bukken om het hart neer te leggen
+    const canDuck = (downHeld || laagDak) && onGround && !jump && !dead && hurt <= 0 && !schijnLigt() && !attacking && !throwing && !fell && !amirVast() && !schildOp() && !stofA && !shoveA || (straalTrance || straalMediT > 0) && onGround || zhNeerT > 0 && onGround && !dead;   // in de trance (STRAAL) blijft hij geknield; Silver Pride: even bukken om het hart neer te leggen
     if (canDuck) duckT = Math.min(1, duckT + dt / DUCK_IN_T);
     else duckT = Math.max(0, duckT - dt / DUCK_OUT_T);
     if (duckT >= 1) duckHoldAcc += dt * DUCK_HOLD_FPS; else duckHoldAcc = 0;
@@ -62089,7 +62225,7 @@ function loop(now){
   }
   if (sweepBuf > 0){
     sweepBuf = Math.max(0, sweepBuf - dt);
-    if (onGround && !fell && swFrame < 0 && swRecover <= 0 && atkFrame < 0 && !stofA && spear && !dead && hurt <= 0 && sweepReady()
+    if (onGround && !fell && swFrame < 0 && swRecover <= 0 && atkFrame < 0 && !stofA && !shoveA && spear && !dead && hurt <= 0 && sweepReady()
         && swLading >= 1 && !amirVast() && (!jump || jump.phase === 'land')){
       jump = null; duckT = 1; duckHoldAcc = 0; sweepBuf = 0;   // meteen vanuit de landing de zwaai in
       startSweep();
@@ -62328,6 +62464,8 @@ function loop(now){
     const useSneak = !!(snkImg && snkImg.complete && snkImg.naturalWidth);
     const stofImg = stofA && stofBank ? stofBank[Math.min(STOFA.ticks.length - 1, stofA.f)] : null;   // stof in de ogen (zie STOF)
     const useStof = !useSneak && !!(stofImg && stofImg.complete && stofImg.naturalWidth);
+    const shoveImg = shoveBeeld();                   // de shove (zie SHOVE): op het canvas van de steek, dus de gewone maat hieronder
+    const useShove = !useSneak && !useStof && !!(shoveImg && shoveImg.complete && shoveImg.naturalWidth);
     const comboImg = attacking && atkCombo && comboBank ? comboBank[Math.min(COMBO.ticks.length - 1, atkFrame)] : null;   // de derde slag (COMBO)
     const useCombo = !useSneak && !useStof && !!(comboImg && comboImg.complete && comboImg.naturalWidth);
     const stokImg = ((atkStok === 'grondklap' || atkStok === 'laag') && attacking) || (!useSneak && !useStof && !useRolW && !useRol && !useThrow && !useJump && !useSweep && !useCrawl && !useDuck) ? stokBeeld(attacking, moving, frame)
@@ -62337,7 +62475,7 @@ function loop(now){
     // stil op de rand van een trede, met de speer: de trappose (AMIR_TRAP)
     const trapNu = (!moving && !attacking && onGround && set === sets.sp && !mesInHand() && amirSteen <= 0 && !dead)
       ? amirTrapPose(scaleNow, autoFlip && facing === 1, pWorld) : null;
-    const img = useSneak ? snkImg : useStof ? stofImg : useRolW ? rwImg : useRol ? rolImg
+    const img = useSneak ? snkImg : useStof ? stofImg : useShove ? shoveImg : useRolW ? rwImg : useRol ? rolImg
               : useThrow ? thrImg
               : useJump ? jimg
               : useSweep ? swImg
@@ -62350,7 +62488,7 @@ function loop(now){
     // het mes in zijn hand: bij een steek, stilstaand of lopend (in een sprong, gebukt of kruipend zit het weg)
     const mesHand = !mesInHand() || amirSteen > 0 || useStok ? null
                   : attacking && atkMes ? mesSteekHand(Math.min(atkFrame, MES.steek.length - 1))
-                  : (useStof || useRol || useThrow || useJump || useSweep || useCrawl || useDuck || attacking) ? null
+                  : (useStof || useShove || useRol || useThrow || useJump || useSweep || useCrawl || useDuck || attacking) ? null
                   : moving ? MES.hand.loop[frame % MES.hand.loop.length] : houding.aan ? MES.hand.dreig : MES.hand.stil;
     if (mesHand) mesLaad();
     if (img && img.complete){
@@ -75352,6 +75490,10 @@ document.getElementById('sbcombo').onclick = () => {
   else if (sbComboSoort === 'doorbraak') sbComboSoort = 'knop';
   else COMBO.aan = false;
   comboKnopToon(); cv.focus();
+};
+document.getElementById('sbshove').onclick = e => {   // de shove aan of uit (SHOVE)
+  SHOVE.aan = !SHOVE.aan; if (SHOVE.aan) shoveLaad(); shoveA = null;
+  e.currentTarget.textContent = 'Shove: ' + (SHOVE.aan ? 'aan' : 'uit'); e.currentTarget.classList.toggle('on', SHOVE.aan); cv.focus();
 };
 document.getElementById('sbworp').onclick = e => {
   sbWorpSchaal = !sbWorpSchaal;

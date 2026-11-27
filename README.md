@@ -433,6 +433,7 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | kruipen | gebukt een pijltje links of rechts; onder een lage laag waar hij niet rechtop past is links of rechts genoeg | joystick omlaag en opzij; onder een lage laag alleen opzij |
 | lage zwaai | bukken en spatie | joystick omlaag en ✦ |
 | stoten | spatie (korte tik) | ✦ (korte tik) |
+| een vijand wegduwen (shove) | spatie, als er een vijand te dichtbij staat en je steek niemand zou raken | ✦, net zo |
 | stoten vanuit een sprint | Shift en een pijltje, dan spatie: hij glijdt remmend door | joystick ver uit, dan ✦ |
 | **speer recht vooruit** | **spatie vasthouden, loslaten** | **✦ vasthouden, loslaten** |
 | **speer in een boog** | **langer vasthouden, dan loslaten** | **langer vasthouden, dan loslaten** |
@@ -447,6 +448,10 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | schild op (alleen met een schild) | C vasthouden | de schildknop vasthouden |
 
 Sprint Amir, dan schopt elke pas een klein wolkje stof op (in de winter sneeuwstof). Binnen en op een houten vloer niet, op de straat van de stad minder. In de sandbox staat het onder Speer en spullen, bij **Loopstof**: alleen in de sprint, ook bij gewoon lopen, of uit, en met **Wolkjes** hoe groot.
+
+### De shove
+
+Staat een vijand zo dicht op je dat je speerpunt hem voorbij zou steken, en zou je steek ook niemand anders raken, dan steekt Amir niet maar duwt hij: hij zakt even in, pakt de speer rechtop met twee handen en duwt de vijand met zijn hele lijf terug tot op steekafstand. Dat doet geen schade; de vijand wankelt heel even, net lang genoeg voor een steek. Daarna moet de shove 2 seconden afkoelen, en in die tijd steek je gewoon. Staat er verderop een vijand die je steek wel raakt, dan steek je, en is de vijand vlak bij je vrij om jou te raken. Alleen mensen laten zich duwen (de bandiet, de schildbandiet, die achter zijn schild terugwankelt zonder dat het schild schade krijgt, de kruisboogbandiet, de zweepman, en de kooiman maar half zo ver); staat er een dier of een baas het dichtst bij, dan steek je gewoon. Alleen met de speer, en in Co-op alleen bij de host. In de sandbox zet je het aan en uit met de knop **Shove**, naast Combo.
 
 ### De speerworp
 

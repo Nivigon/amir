@@ -66,6 +66,11 @@ payoff komt als hij de speer krijgt). Alle teksten staan in het project: `claude
   "goed zo" blijft minstens zo lang staan als `okStem` duurt.
 - Nooit twee regels tegelijk; bij pauze stil en daarna verder; buiten het level weg (`gidsStemStap`, elk beeld). De
   regels tellen mee in `PRAAT_STEMMEN`, zodat Amir er niet doorheen roept.
+- Niet achter het laadscherm: zolang `laadWacht` loopt begint hij niet, en een regel die al klinkt pauzeert.
+- De wolk is de ondertitel (keuze 27-11-2026, uit de richtlijnen voor ondertitels in games): de tekst bij de spreker, in een
+  keer als blok (geen meeschrijvende letters bij ingesproken tekst), donkere ondergrond, het naambordje als wie-praat, en
+  buiten beeld aan de rand met een pijltje naar hem. Erbij: het spreekteken, drie golvende streepjes achter HUNTER
+  zolang zijn stem klinkt (in `mentorWolkTeken`).
 - Nu ingesproken: start (2 regels), kruipen en rollen (uitleg en lof). De andere stations hebben nog alleen tekst.
 - Nieuwe regel: mp3 in `design/tutorial/stem/` (stilte eraf, genormaliseerd), `stem`/`okStem` op het station, de `zeg`
   gelijk aan wat hij zegt (zonder tags als [chuckles]), dan `tools/gen-offline-manifest.py`.
