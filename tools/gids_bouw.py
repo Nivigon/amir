@@ -13,6 +13,14 @@
 # grootte van het hoofd (27-11-2026, naast de idle gelegd). LENGTE is de gids staand in sprite-eenheden: 1,2 x Amir (de
 # idle_ns van Amir is 275 hoog), ongeveer bandietmaat.
 #
+# Resolutie (27-11-2026): de vellen staan op de resolutie van Amirs eigen sprites. Amir staand is in
+# karakters/amir/mkuki_spel/idle/idle_ns.png 276 px (AMIR_H), de gids staat in zijn vellen GIDS_KEER (1,15) keer zo hoog.
+# LENGTE blijft de maat in de wereld; PX in gids.json zegt hoeveel wereld-eenheden een pixel van het vel is, zodat hij
+# in beeld even groot blijft. Verkleinen met Lanczos op voorvermenigvuldigde alfa (geen donkere of roze rand), en de
+# frames staan strak ingepakt: elk frame zijn eigen rechthoek (f: x, y, b, h, ankerX, ankerY) in plaats van een raster
+# met de maat van het grootste frame. Daarnaast een halve set in klein/ voor Beeld: Licht (zelfde gids.json, het spel
+# deelt de rechthoeken door de factor van het plaatje, zie gidsTeken). gen-klein.py laat die set staan (EIGEN).
+#
 # Koppelen: het spoor bestaat uit beelden van Amir. Per beeld van het spoor kiest dit script een frame van de gids:
 #  idle   -> 'idle' (het spel kiest zelf: de vertel-clip als hij net iets uitlegt, anders de idle-lus)
 #  ren    -> rc, een lus van 24 frames, op afstand (24 frames per 330 px, dus sprinten gaat sneller door de lus)
@@ -35,6 +43,13 @@ SPOOR = os.path.join(ROOT, 'design/tutorial/mentor_spoor.json')
 
 LENGTE = 1.2 * 275                     # de gids staand, in sprite-eenheden
 IDLE_H = 641                           # de gids staand in de idle-clip, in pixels
+AMIR_H = 276                           # Amir staand in zijn idle-sprite (alleen de figuur), in pixels
+GIDS_KEER = 1.15                       # de gids staand in zijn vellen: zoveel keer Amir
+PIX = GIDS_KEER * AMIR_H / LENGTE      # pixels van het vel per wereld-eenheid (de wereldmaat blijft LENGTE)
+RAND = 2                               # lege pixels om elk frame in het vel, ook na halveren nog een
+BLAD_B = 4096                          # breedte van een vel (hooguit 4096 hoog en breed: de grens van zwakke videokaarten)
+KLEIN = os.path.join(ROOT, 'klein/design/tutorial/gids')
+STAP = {}                              # reserve: alleen elk zoveelste frame houden, bv. {'idle': 2} (nu niet nodig)
 SCHAAL = {'idle': 1, 'verteller': 1, 'rc': 0.8, 'jump_and_land': 1.72, 'grote_sprong': 0.85,
           'slowcrouch': 0.66, 'lowcrouch': 0.66, 'roll1': 0.68, 'roll2': 0.68, 'roll3': 0.69}
 SPEER = {'staal': (178, 184, 190), 'staalDonker': (104, 110, 118), 'hout': (112, 72, 42), 'houtDonker': (70, 44, 26)}
@@ -115,17 +130,47 @@ def speer(c, al, groen):
     return c
 
 
+def verklein(im, w, h):
+    """Lanczos op voorvermenigvuldigde alfa: de kleur van de lege pixels lekt niet in de rand"""
+    a = np.asarray(im.convert('RGBA')).astype(np.float32) / 255
+    pm = np.dstack([a[..., :3] * a[..., 3:], a[..., 3]])
+    kan = [np.asarray(Image.fromarray(pm[..., i]).resize((w, h), Image.LANCZOS)) for i in range(4)]
+    al = np.clip(kan[3], 0, 1)
+    rgb = np.clip(np.dstack(kan[:3]) / np.maximum(al, 1e-4)[..., None], 0, 1)
+    al[al < 3 / 255] = 0                                   # het waas van de Lanczos-overslag weg
+    rgb[al == 0] = 0
+    return Image.fromarray((np.dstack([rgb, al[..., None]]) * 255 + 0.5).astype(np.uint8))
+
+
+def inpak(cellen):
+    """strak inpakken in rijen (planken), de hoogste frames eerst; geeft de maat van het vel en de plek per frame"""
+    volg = sorted(range(len(cellen)), key=lambda k: -cellen[k][0].height)
+    plek = [None] * len(cellen)
+    x = y = rij_h = 0
+    for k in volg:
+        w, h = cellen[k][0].width + 2 * RAND, cellen[k][0].height + 2 * RAND
+        if x + w > BLAD_B:
+            x, y, rij_h = 0, y + rij_h, 0
+        plek[k] = (x + RAND, y + RAND)
+        x += w; rij_h = max(rij_h, h)
+    return (BLAD_B if y else x), y + rij_h, plek
+
+
+def opslaan(blad, pad):
+    blad.quantize(256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).save(pad, optimize=True)   # 256 kleuren, zoals Duka
+
+
 def bouw():
-    os.makedirs(UIT, exist_ok=True)
+    os.makedirs(UIT, exist_ok=True); os.makedirs(KLEIN, exist_ok=True)
     f0 = LENGTE / IDLE_H
-    info = {'lengte': LENGTE, 'anims': {}}
-    cache = {}
+    info = {'lengte': LENGTE, 'px': round(1 / PIX, 6), 'anims': {}}
+    cache = {}; nvol = {}
     for naam, delen in ANIMS.items():
         cellen = []
         for clip, rng in delen:
             if clip not in cache:
                 cache[clip] = frames(clip, range(145))
-            s = f0 * SCHAAL[clip]
+            s = f0 * SCHAAL[clip] * PIX
             for i in rng:
                 c, al, groen = key(cache[clip][i])
                 lijf = (al > 0.5) & ~groen
@@ -135,23 +180,32 @@ def bouw():
                 ys2, xs2 = np.where(al > 0.04)
                 x0, x1, y0, y1 = xs2.min(), xs2.max() + 1, ys2.min(), ys2.max() + 1
                 im = Image.fromarray(rgba[y0:y1, x0:x1])
-                w, h = max(1, round(im.width * s)), max(1, round(im.height * s))
-                im = im.resize((w, h), Image.LANCZOS)
+                im = verklein(im, max(1, round(im.width * s)), max(1, round(im.height * s)))
                 anker = ((xs.min() + xs.max()) / 2 - x0) * s, (ys.max() + 1 - y0) * s     # midden en onderkant van het lijf
                 cellen.append((im, anker))
-        cw = max(c[0].width for c in cellen) + 2; ch = max(c[0].height for c in cellen) + 2
-        cols = max(1, min(len(cellen), 4096 // cw))
-        rows = (len(cellen) + cols - 1) // cols
-        blad = Image.new('RGBA', (cols * cw, rows * ch), (0, 0, 0, 0))
-        ankers = []
-        for k, (im, (ax, ay)) in enumerate(cellen):
-            x, y = (k % cols) * cw, (k // cols) * ch
-            blad.paste(im, (x + 1, y + 1))
-            ankers.append([round(ax + 1, 1), round(ay + 1, 1)])
-        blad.quantize(256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).save(os.path.join(UIT, naam + '.png'), optimize=True)   # 256 kleuren, zoals Duka
-        info['anims'][naam] = {'src': f'design/tutorial/gids/{naam}.png', 'n': len(cellen), 'cols': cols, 'cw': cw, 'ch': ch, 'anker': ankers}
-        print(naam, len(cellen), 'cel', cw, ch, 'blad', blad.size)
-    info['spoor'] = koppel(info)
+        stap = STAP.get(naam, 1); nvol[naam] = len(cellen)
+        cellen = cellen[::stap]
+        bw, bh, plek = inpak(cellen)
+        blad = Image.new('RGBA', (bw, bh), (0, 0, 0, 0))
+        fr = []
+        for (im, (ax, ay)), (x, y) in zip(cellen, plek):
+            blad.paste(im, (x, y))
+            fr.append([x, y, im.width, im.height, round(ax, 1), round(ay, 1)])
+        opslaan(blad, os.path.join(UIT, naam + '.png'))
+        opslaan(verklein(blad, (bw + 1) // 2, (bh + 1) // 2), os.path.join(KLEIN, naam + '.png'))
+        info['anims'][naam] = {'src': f'design/tutorial/gids/{naam}.png', 'n': len(cellen), 'stap': stap, 'f': fr}
+        print(naam, len(cellen), 'blad', blad.size, round(bw * bh * 4 / 1048576, 1), 'MiB')
+    info['spoor'] = koppel(nvol)                                   # in frames van de volle reeks
+    if any(v['stap'] > 1 for v in info['anims'].values()):        # het spoor wijst naar frames van de volle reeks
+        for rij in info['spoor']['segs']:
+            for k, e in enumerate(rij):
+                if e and e[1] >= 0: rij[k] = [e[0], e[1] // info['anims'][e[0]]['stap']]
+    # de controle: hoe hoog staat de gids in zijn vel, naast Amir
+    im, (x, y) = None, info['anims']['idle']['f'][0][:2]
+    w, h = info['anims']['idle']['f'][0][2:4]
+    a = np.asarray(Image.open(os.path.join(UIT, 'idle.png')).convert('RGBA'))[y:y + h, x:x + w, 3] > 128
+    ys, xs = np.where(a[:, int(w * 0.27):])                          # zonder de speer links
+    print(f'gids staand {ys.max() + 1 - ys.min()} px, Amir {AMIR_H} px: {(ys.max() + 1 - ys.min()) / AMIR_H:.3f} keer')
     json.dump(info, open(os.path.join(UIT, 'gids.json'), 'w'), separators=(',', ':'))
     print('gids.json', os.path.getsize(os.path.join(UIT, 'gids.json')), 'bytes')
 
@@ -163,7 +217,7 @@ def soort(b):
     raise SystemExit('onbekend beeld in het spoor: ' + b)
 
 
-def koppel(info):
+def koppel(nvol):
     S = json.load(open(SPOOR))
     B = S['beelden']
     # het anker van elk beeld van Amir: midden en onderkant van zijn figuur, in beeldpixels, plus de maat van het beeld
@@ -172,7 +226,7 @@ def koppel(info):
         a = np.asarray(Image.open(os.path.join(ROOT, b)).convert('RGBA'))[..., 3] > 128
         ys, xs = np.where(a)
         ankers.append([round((xs.min() + xs.max()) / 2, 1), int(ys.max() + 1), a.shape[1], a.shape[0]])
-    n = {k: v['n'] for k, v in info['anims'].items()}
+    n = dict(nvol)
     uit = {'amir': ankers, 'segs': []}
     for sg in [S['start']] + S['segs']:
         f = sg['f']; rij = [None] * len(f)
