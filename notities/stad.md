@@ -187,6 +187,11 @@ Losse stukken die een huis anders maken zonder nieuwe gevelplaat (D2 in `notitie
   een takel of een luifel (`STAD_ACCENT`), hooguit een per huis en nooit twee huizen met een accent naast elkaar; een huis dat zelf
   een balkon of takel heeft telt mee. Op het oude huis wordt ongeveer 40 procent van de ramen een ander raam. Geen
   bestaand level heeft het; een nieuw stadslevel mag het aanzetten.
+- **De losse zijluiken** (`STAD_ZIJLUIK`, `stadZijLuiken`, `stadZijLuikenTeken`, `stadLuikZij`): het luik van de strakke
+  luifel, maar zonder luifel: een open luik op de zijmuur van een huis, alsof daar een raampje openstaat. Puur decor, in elk
+  level (ook de bestaande, op verzoek van de opdrachtgever), per seed vast: ongeveer een op de drie zijmuren van een huis van
+  2 hoog of meer, op een verdieping, alleen waar naast de muur plek is (geen buurhuis, galerij, buitentrap, takel, hoekbalkon
+  of luifel aan die kant), op elk scherm opnieuw gerekend.
 - **De luifel als accent** (`stadAccentLuifels`, `stadLuifelRuimte`): de strakke luifel met het luik eronder (zie "de strakke
   luifel"), zonder ritme, aan een zijmuur boven het raam van een verdieping (huizen van 2 hoog en meer), indigo of soms oker.
   `stadLees` zet hem in `stad.luifels` met `auto: true` (een tweede keer lezen zet ze opnieuw, niet dubbel). Hij is er alleen

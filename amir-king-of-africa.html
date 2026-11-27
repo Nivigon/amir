@@ -34056,7 +34056,7 @@ function stadSoortLaad(st){
   const zet = (k, src) => { if (!stadImgs[k]) stadImgs[k] = zetBron(new Image(), STAD_DIR + src, () => console.warn('ontbreekt: stad ' + src)); };
   if (st && (st.accenten || (st.gevels || []).some(g => g.takel))){ zet('takelArm', STAD_TAKEL.arm.src); zet('takelMand', STAD_TAKEL.mand.src); }
   if (st && st.accenten) for (const n in STAD_RAMEN.soorten) zet('raam_' + n, 'raam_' + n + '.png');
-  if (st && ((st.luifels || []).some(q => q.raam) || (st.gevels || []).some(g => !g.soort))) zet('raam_luiken', 'raam_luiken.png');   // het raam onder een strakke luifel, en de losse luiken
+  if (st && ((st.luifels || []).some(q => q.raam) || (st.gevels || []).some(g => (g.hoog || 1) >= 2))) zet('raam_luiken', 'raam_luiken.png');   // het raam onder een strakke luifel, en de losse luiken
   if (((st && st.gevels) || []).some(g => STAD_BALKON.soorten.includes(g.balkon)) || (st && st.accenten)){   // de balustrades van een balkon
     if (!stadImgs.balkonVoor) stadImgs.balkonVoor = zetBron(new Image(), STAD_DIR + STAD_BALKON.voor.src, () => console.warn('ontbreekt: stad ' + STAD_BALKON.voor.src));
     if (!stadImgs.balkonZij) stadImgs.balkonZij = zetBron(new Image(), STAD_DIR + STAD_BALKON.zij.src, () => console.warn('ontbreekt: stad ' + STAD_BALKON.zij.src));
@@ -41400,8 +41400,49 @@ function stadPleinPoortTeken(groundY, scale, cx, zicht){
   if (bij){ const A = CHAR_H * scale, m = stadPleinPoortMaat(bij, scale);
     straatBordje(cx + (bij.x - world), groundY - terrainH(bij.x) * scale - (m.R.h - m.R.boogTop) * m.f - A * 0.25, level.brutus ? 'Het plein verlaten?  E' : 'Door de poort?  E', true, A); }   // net boven de boog
 }
+// De losse zijluiken (STAD_ZIJLUIK): een open luik op de zijmuur van een huis, zonder luifel, puur decor; het ziet eruit
+// alsof daar een raampje openstaat. In elk level, per seed vast, op een verdieping (huizen van 2 hoog en meer), alleen
+// aan een kant waar plek is: geen buurhuis, galerij, buitentrap, takel, hoekbalkon of luifel aan die kant
+const STAD_ZIJLUIK = { kans: 0.3, ruimte: 0.6 };   // kans per zijmuur, en zoveel Amir vrij naast de muur
+function stadZijLuiken(S, scale){
+  const C = S._zijluik;
+  if (C && C.sc === scale && C.n === (S.gevels || []).length) return C.lijst;
+  const lijst = [], A = CHAR_H * scale, vrij = STAD_ZIJLUIK.ruimte * A;
+  const maten = (S.gevels || []).map(g => stadGevelMaat(g, scale));
+  const gal = (S.galerijen || []).map(gl => stadGalerijMaat(gl, scale, S.gevels)).filter(Boolean);
+  (S.gevels || []).forEach((g, gi) => {
+    if ((g.hoog || 1) < 2 || stadGeenDak(g)) return;
+    const m = maten[gi], acc = stadAccentVan(S, gi);
+    for (const w of ['l', 'r']){
+      const h = n => gordijnHash(S.seed, gi, 120 + (w === 'l' ? 0 : 10) + n);
+      if (h(0) >= STAD_ZIJLUIK.kans) continue;
+      const wx = w === 'l' ? m.left : m.right, a = w === 'l' ? wx - vrij : wx, b = w === 'l' ? wx : wx + vrij;
+      const raak = (l, r) => r > a && l < b;
+      if (maten.some((q, j) => j !== gi && raak(q.left, q.right))) continue;
+      if (gal.some(q => raak(q.left, q.right))) continue;
+      if ((S.trappen || []).some(t => t.gevel === gi && (t.kant === 'l') === (w === 'l'))) continue;
+      if ((S.luifels || []).some(q => q.gevel === gi && q.wand === w)) continue;
+      if (acc.takel && ((acc.takel === 'r') !== !!g.f) === (w === 'r')) continue;   // de takel aan deze kant (gespiegeld met de gevel)
+      if (acc.balkon && acc.balkon.startsWith('hoek')) continue;                      // een hoekbalkon: liever geen luik ernaast
+      lijst.push({ x: wx, dir: w === 'l' ? -1 : 1, k: 1 + Math.floor(h(1) * ((g.hoog || 1) - 1)) });
+    }
+  });
+  S._zijluik = { sc: scale, n: (S.gevels || []).length, lijst };
+  return lijst;
+}
+function stadZijLuikenTeken(S, groundY, scale, cx, zicht){
+  if (!stadKlaar('raam_luiken')) return;
+  const R = STAD.plein.luifelStrak.raamZij, A = CHAR_H * scale, hP = R.hoog * A;
+  for (const z of stadZijLuiken(S, scale)){
+    const wx = cx + (z.x - world);
+    if (!zicht(z.dir < 0 ? wx - hP : wx, hP)) continue;
+    const top = stadVerdieping(z.k) + (R.midden + R.hoog / 2) * CHAR_H;
+    stadLuikZij(wx, z.dir, groundY - (terrainH(z.x) + top) * scale, hP, false);
+  }
+}
 function stadPutTeken(groundY, scale, cx, zicht){
   const S = level.stad;
+  stadZijLuikenTeken(S, groundY, scale, cx, zicht);   // de losse zijluiken (zie "accenten")
   for (const p of (S.luifels || [])) stadLuifelTeken(p, groundY, scale, cx, zicht);   // de losse luifels, zonder put
   if (!(S.putten || []).length || !stadKlaar('put')) return;
   const im = stadImgs.put;
@@ -41594,17 +41635,25 @@ function stadRaamZijTeken(p, lm, groundY, scale, cx){
   if (!p.raam || !stadKlaar('raam_luiken')) return;
   const L = lm.L, R = L.raamZij, A = CHAR_H * scale, im = stadImgs.raam_luiken, q = stadQ(im, 1), th = terrainH(lm.wand);
   const topH = lm.bh(stadStalY(L, L.wand - 30, L.onder)) - R.onder * CHAR_H;   // net onder de doek bij de muur
-  const hP = (p.raamHoog || R.hoog) * A, wP = hP * R.luik[2] / R.luik[3], ty = groundY - (th + topH) * scale;   // raamHoog: een kleiner raam voor deze luifel
-  const wx = cx + (lm.wand - world), k = R.kozijn * A, dir = lm.dir;
+  const hP = (p.raamHoog || R.hoog) * A, ty = groundY - (th + topH) * scale;   // raamHoog: een kleiner raam voor deze luifel
+  stadLuikZij(cx + (lm.wand - world), lm.dir, ty, hP, true);
+}
+// het opengeklapte luik op een zijmuur: wx de muur op het scherm, dir -1 de linkermuur, ty de bovenkant, hP de hoogte;
+// schaduw: bovenin de schaduw van een luifel erboven
+function stadLuikZij(wx, dir, ty, hP, schaduw){
+  const R = STAD.plein.luifelStrak.raamZij, A = CHAR_H * nowScale(), im = stadImgs.raam_luiken, q = stadQ(im, 1);
+  const wP = hP * R.luik[2] / R.luik[3], k = R.kozijn * A;
   ctx.save();
   ctx.fillStyle = '#4a2e18'; ctx.fillRect(dir < 0 ? wx - k : wx, ty, k, hP);              // de kozijnrand langs de muur
   ctx.fillStyle = 'rgba(255, 220, 170, 0.18)'; ctx.fillRect(dir < 0 ? wx - k : wx + k * 0.6, ty, k * 0.4, hP);   // licht op de rand
   ctx.translate(dir < 0 ? wx - k : wx + k, ty);
   if (dir > 0) ctx.scale(-1, 1);                   // aan een rechtermuur zitten de scharnieren links
   ctx.drawImage(im, R.luik[0] * q, R.luik[1] * q, R.luik[2] * q, R.luik[3] * q, -wP, 0, wP, hP);
-  const gr = ctx.createLinearGradient(0, 0, 0, hP * 0.45);   // de schaduw van de luifel bovenin
-  gr.addColorStop(0, 'rgba(20, 12, 6, 0.45)'); gr.addColorStop(1, 'rgba(20, 12, 6, 0)');
-  ctx.fillStyle = gr; ctx.fillRect(-wP, 0, wP + k, hP * 0.45);
+  if (schaduw){
+    const gr = ctx.createLinearGradient(0, 0, 0, hP * 0.45);   // de schaduw van de luifel bovenin
+    gr.addColorStop(0, 'rgba(20, 12, 6, 0.45)'); gr.addColorStop(1, 'rgba(20, 12, 6, 0)');
+    ctx.fillStyle = gr; ctx.fillRect(-wP, 0, wP + k, hP * 0.45);
+  }
   ctx.restore();
   ctx.fillStyle = '#3d2614';                       // de vensterbank
   ctx.fillRect(dir < 0 ? wx - k - wP * 0.25 : wx, ty + hP - 0.03 * A, k + wP * 0.25, 0.03 * A);
