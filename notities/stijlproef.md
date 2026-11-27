@@ -97,3 +97,33 @@ het verschil klein; het gaat erom dat alle rots uit dezelfde kleur komt.
 - Maakt `tools/rotsdecor_knip.py` of `tools/rots_vulling.py` een plaat opnieuw, kopieer die dan eerst naar
   `bron/rotsen_oud/` en draai `rots_warm.py` erna, anders is hij weer koel grijs.
 - Nog niet gedaan: de winterversies (`*_sneeuw.png`).
+
+## Rotsen met richels (KOPJE, 28-11)
+
+De savanne-tegenhanger van de galerij: een rots met richels waar je op kunt staan, en onder een hoge richel door kunt lopen.
+Tom wilde iets wat de rand van de galerij geeft, maar geen gebouw. Hoe we er kwamen:
+
+- Een losse overhangende richel (rotsmassa met een plaat eraan) werkte, maar de bovenkant was te dun: de voeten van de animaties
+  staan dan op een streep. **Het bovenvlak moet zo diep zijn als dat van de galerij** (ongeveer een vijfde Amir), anders kloppen
+  de animaties niet. De richel komt daarom uit de Grok-plaat van een rotswand met een diepe richel (`bron/wandrichel.png`).
+- Een stenen bank en een paddenstoel-tafel: Grok tekent "slab on supports" als meubel. Een rotsmassa met een richel ervoor werkt wel.
+- Richels als losse schijven voor de rots zweven. Met **schaduw onder de richel op de rots** (alleen waar steen is) en de pilaren
+  donker lezen ze als uitstekend: daar kun je op staan. De lichte rand bovenop helpt ook.
+- Tom: "dit is een rots waar richels op kunnen zitten". Dus een bouwset: drie rotsvormen als achtergrond (het kopje, de tafelrots,
+  de gespleten rots) en een richel van elke lengte die je erop zet.
+
+Hoe het werkt (`level.kopjes`, `KOPJE`):
+- De rots is achtergrond, niet beloopbaar (behalve de platte top van de tafelrots, `dak`). Hij wordt een keer gebakken met de
+  schaduw van zijn richels erop (`kopjeRotsBeeld`, source-atop).
+- Een richel is het eind, het middenstuk zo vaak als nodig en het gespiegelde eind (`kopjeRichelBeeld`); de overgang zit al in
+  de platen. Breedte in wereld-eenheden, zodat de getekende rand op de botsing ligt.
+- Botsing: per richel een zwever met look `geen` en een onderkant (`kopjeDaken`), zoals de loopput.
+- Hoogtes: een sprong haalt zo'n 190. Een eerste richel tot ongeveer 160 vanaf de grond, en dan treden van hooguit 170. Laat
+  richels die boven elkaar liggen maar een klein stukje overlappen: daar stoot Amir zijn hoofd en springt hij door naar boven.
+  In Test 97 zijn alle drie de rotsen door de robot van de grond tot boven beklommen.
+- Sandbox: de rij Rotsen met richels (Kopje, Tafelrots, Gespleten rots, Weg).
+
+Nog niet: de Maker, de kleine spriteset, en de sneeuwversies.
+
+Bijvangst: brede platen tekenen met `K.w * k` (sprite-eenheden maal `scale`) terwijl de botsing in wereld-eenheden rekent, wijkt
+af bij brede dingen. Bij de loopput is dat een paar pixels; voor de rotsen rekent de breedte daarom in wereld-eenheden.
