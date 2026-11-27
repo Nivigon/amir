@@ -41488,8 +41488,10 @@ const ISLOT = {
     mirrors: { naam: 'Oil of Mirrors',   img: 'items/kivuli/oil_of_mirrors.png' },
     klei:    { naam: 'Ketemba Clay',     img: 'items/kivuli/ketemba_clay.png' }
   },
-  // de wolk: blijft liggen waar je hem gooit; breed en hoog in Amir; een vijand die erin loopt is zoveel s blind (een keer per wolk)
-  bones: { duur: 6, blind: 2.5, breed: 1.15, hoog: 1.1, wolkPerS: 9, burst: 12, kleur: [250, 249, 245], rand: [205, 203, 198], a: 0.4 },
+  // de wolk: blijft liggen waar je hem gooit; breed en hoog in Amir; een vijand die erin loopt is zoveel s blind (een keer per wolk).
+  // Een speler in de wolk (Amir of een teamgenoot) is voor schutters niet goed te zien: elk projectiel mist hem (islotInWolk).
+  // De wolk is anderhalf keer zo groot als eerst (1,15 en 1,1), met meer en grotere plukken (deelR) zodat hij net zo dicht oogt
+  bones: { duur: 6, blind: 2.5, breed: 1.725, hoog: 1.65, wolkPerS: 14, burst: 18, deelR: 1.25, kleur: [250, 249, 245], rand: [205, 203, 198], a: 0.4 },
   // de slang: zoveel beten en dan weg; snelheid in Amir per s, het bereik van een beet en hoe lang een beet duurt
   fangs: { beten: 5, v: 1.25, reik: 0.55, beetT: 0.62, beetFrame: 5, zoek: 6, maxT: 20, zak: 0.32 },
   // de mieren: een muur van zoveel Amir aan elke kant van de kalebas; vijanden gaan er niet overheen, wie erin staat deinst terug
@@ -41505,7 +41507,7 @@ const ISLOT = {
 };
 // de teksten in de winkel en de inventory (de uitleg en het citaat koos de opdrachtgever)
 const MPC_WINKEL_KIV = {
-  bones:   { uitleg: 'Throw it down. A cloud of stinking bone dust surrounds you. Enemies that walk in are blinded.', sfeer: 'Crushed bones from... oh boy.' },
+  bones:   { uitleg: 'Throw it down. A cloud of stinking bone dust surrounds you. Enemies that walk in are blinded, and nothing they throw or shoot can find you inside.', sfeer: 'Crushed bones from... oh boy.' },
   fangs:   { uitleg: 'Set the sack down. A snake slithers out and strikes the nearest enemy. It leaves after five bites.', sfeer: "Don't open it near your feet." },
   ants:    { uitleg: "Set the jar down. Fire ants swarm the ground. Enemies won't cross them, and those caught inside fall back. Arrows and spears fly over.", sfeer: 'An ant bites. A fire ant burns.' },
   mirrors: { uitleg: "Drink it and vanish from your enemies' eyes. They roam around searching for you and do not strike. Attacking breaks the spell.", sfeer: 'Liquid glass from the Temple of Kemara.' },
@@ -41538,6 +41540,14 @@ function islotGeluid(k, vol){
   const a = bron.cloneNode(); geluidAan(a); a.volume = Math.max(0, Math.min(1, vol)); a.play().catch(() => {});
 }
 const islotA = () => CHAR_H * nowScale();           // een Amir in wereld-x
+// staat iemand op (x, h) in een wolk van Sack o' Bones? Dan mist elk projectiel hem (bout, dolk, gif, vogel). De wolken
+// liggen bij iedereen (islotStart), en elke speler beslist zelf of een projectiel hem raakt, dus dit geldt ook voor een teamgenoot
+function islotInWolk(x, h){
+  if (!islotFx.length) return false;
+  const B = ISLOT.bones, R = B.breed * islotA();
+  for (const e of islotFx) if (e.k === 'bones' && e.t < B.duur && Math.abs(x - e.x) < R && Math.abs((h || 0) - e.h) < CHAR_H * B.hoog) return true;
+  return false;
+}
 function islotMij(){ return pvp ? pvp.mij : 0; }
 function islotGezag(){ return !(pvp && pvp.coop) || !!pvp.host; }
 function islotIets(){ return ISLOT.dingen.some(k => islotTas[k] > 0) || islot[0] || islot[1]; }
@@ -41711,7 +41721,7 @@ function islotStap(dt){
         const n = e.t < 0.4 ? B.burst * dt / 0.4 : B.wolkPerS * dt;
         e.acc += n;
         while (e.acc >= 1){ e.acc--; const a = Math.PI + Math.random() * Math.PI, r = Math.random() * R, vers = e.t < 0.4;
-          e.deel.push({ x: e.x + Math.cos(a) * r, hh: Math.abs(Math.sin(a)) * r / nowScale() * 0.7 + 4, r: 16 + Math.random() * 16,
+          e.deel.push({ x: e.x + Math.cos(a) * r, hh: Math.abs(Math.sin(a)) * r / nowScale() * 0.7 + 4, r: (16 + Math.random() * 16) * B.deelR,
                         vx: (Math.random() - 0.5) * 24 + (vers ? Math.cos(a) * 120 : 0), vh: 2 + Math.random() * 12, t: 0, leven: 1.6 + Math.random() * 1.0 }); }
         if (gezag) for (const S of STOF_SOORTEN) for (const s of S.lijst()){
           if (e.geraakt.has(s) || !S.mag(s)) continue;
@@ -47195,7 +47205,7 @@ function updateVenom(dt, scale){
     const px = cxWorld() + (v.x - world);
     const hitBody = Math.abs(v.x - world) < PLAYER_HALF_W * CHAR_H * scale + 10 * scale
                  && v.h > ph && v.h < ph + CHAR_H * duckShare;
-    if (hitBody && invuln <= 0 && !dead){
+    if (hitBody && invuln <= 0 && !dead && !islotInWolk(world, ph)){   // in de wolk van Sack o' Bones mist het gif
       if (v.knock) knockVenomRaak(v.x < world);    // de knockslang: geen schade, wel terugstoot
       else hurtPlayer(v.x < world);
       makeSplat(v.x, v.h, v.knock); venom.splice(i, 1); continue;
@@ -51532,7 +51542,7 @@ function updateVogels(dt){
       vogelAnim(v, dt);
       // raakt hij Amir, dan een leven eraf en weg; raakt hij de grond of duurt het te lang, dan kapot
       const hx = VOGEL_RAAK / vz + 32, hh = VOGEL_RAAK / (sc * vz);
-      if (!dead && invuln <= 0 && !godMode && !woedeAan()
+      if (!dead && invuln <= 0 && !godMode && !woedeAan() && !islotInWolk(playerX(), ph)
           && Math.abs(v.x - playerX()) < hx && v.h + hh > ph && v.h - hh < ph + CHAR_H){
         hurtPlayer(v.vx > 0, v.duel ? 0.5 : 1); v.weg = true;    // de duel-vogel doet een half leven
       } else if (v.h <= vloerBij(v.x, v.h)){ v.h = vloerBij(v.x, v.h); vogelKapot(v); }   // de grond, of een dak of galerij van de stad
@@ -64120,7 +64130,7 @@ function loop(now){
             if (v){ krbPijlen.splice(i, 1); continue; }  // gevangen: hij zit nu in de huid (amirSchild.bouten)
           }
         }
-        if (b.st === 'vlieg' && !b.terug && invuln <= 0 && !dead && !godMode && !woedeAan()){
+        if (b.st === 'vlieg' && !b.terug && invuln <= 0 && !dead && !godMode && !woedeAan() && !islotInWolk(world, ph)){   // in de wolk van Sack o' Bones mist hij
           const ox = cx + (b.px - world), oy = groundY - b.ph * scale;   // het hele stuk van dit beeld, zodat hij niet door Amir heen schiet
           const box = { l: Math.min(ox, dx) - r, r: Math.max(ox, dx) + r, t: Math.min(oy, dy) - r, b: Math.max(oy, dy) + r };
           if (hitBy(box, pbox)){
@@ -64489,7 +64499,7 @@ function loop(now){
       for (let i = banDolken.length - 1; i >= 0; i--){
         const d = banDolken[i];
         const dx = cx + (d.x - world), dy = groundY - d.h * scale;
-        if (!d.stuck && invuln <= 0 && !dead && !godMode && !woedeAan()){   // raakt hij Amir?
+        if (!d.stuck && invuln <= 0 && !dead && !godMode && !woedeAan() && !islotInWolk(world, ph)){   // raakt hij Amir? (in de wolk van Sack o' Bones niet)
           const r = BAN_DOLK.r * dscol, dbox = { l: dx - r, r: dx + r, t: dy - r, b: dy + r };
           if (hitBy(dbox, pbox)){ tlogHint('bandietdolk'); hurtPlayer(d.vx > 0); banDolken.splice(i, 1); continue; }
         }

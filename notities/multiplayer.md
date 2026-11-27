@@ -1222,7 +1222,7 @@ heeft twee vakken erbij (`islot0`, `islot1`) met het plaatje en het aantal.
 
 | ding | prijs | wat |
 | --- | --- | --- |
-| Sack o' Bones | 25 | een witte stofwolk van 6 s (1,15 Amir breed); elke vijand die erin loopt is 2,5 s blind, wie al blind is niet opnieuw |
+| Sack o' Bones | 25 | een witte stofwolk van 6 s (1,725 Amir breed, 1,65 hoog); elke vijand die erin loopt is 2,5 s blind, wie al blind is niet opnieuw; wie erin staat (ook een teamgenoot) wordt door geen projectiel geraakt: bout, dolk, gif en vogel vliegen erdoor (`islotInWolk`) |
 | Sack o' Fangs | 30 | de zak valt op de looplijn, een zwarte slang met gouden banden komt eruit en bijt steeds de dichtstbijzijnde vijand, 5 beten (elk een treffer); de vijanden negeren hem |
 | Jar o' Fire Ants | 25 | een muur van mieren, 5 s, een Amir breed, voor je; vijanden komen er niet door en wie erin staat deinst terug, projectielen vliegen eroverheen |
 | Oil of Mirrors | 35 | 5 s onzichtbaar voor vijanden (jij en je team zien je op 40% met een glasrand); ze vallen niet aan maar rennen zoekend rond; aanvallen maakt je zichtbaar |
