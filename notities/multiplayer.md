@@ -1186,7 +1186,7 @@ iedereen op (`kivStart`). Lobby: **Kivuli comes** (`kivVaak`: 1 in 3 shops, Ever
   komt hij pas uit de achterkamer als Kivuli `KIV.dukaBij` (200) van de deur is, zodat hij hem nog net ziet vertrekken, en loopt hij
   naar zijn plek ("Who was THAT?", of "You bought WHAT from him?" als er iets gekocht is) en gaat de winkel
   gewoon verder. Komt hij niet: even stil, een windvlaag, "Duka didn't come." en de host stuurt het team de straat op.
-- Zolang Kivuli er is doet E bij de toonbank niets en is Duka niet te zien (`kivDukaWeg`, `kivToonbankDicht`).
+- Zolang Kivuli er is doet E bij de toonbank niets en is Duka niet te zien (`kivDukaWeg`, `kivToonbankDicht`). Dan is er ook geen geheim: niemand komt over de toonbank en niemand wordt betrapt (`winkelGeheimOm`, `winkelGeheimStap`), tot Duka terug is (`dukaFase` `'terug'`). Eerder liep zijn onzichtbare stand door: draaide hij zich af, dan kon je erachter springen, en een betrapping daarna bevroor de wereld voorgoed, omdat `kivDukaKomt` de animatie verving waar de regie op wachtte (27-11-2026).
 - De sfeer (`KIV.sfeer`, `kivSfeer`, blok "Kivuli: de sfeer"): zolang hij er is (`kivSfeerWil`) wordt de kamer donker (`kivDonkerNa`
   in `binnenNa`, een multiply met een lichtpoel rond de lantaarn, `donker` 100,92,124, in 1,7 s aan en 1,9 s uit), staat zijn
   lantaarn bij zijn voet (`kivLampPos`, `kivLampTeken` in `kivTeken`; loopt hij, dan draagt hij hem en zwaait hij) en speelt
