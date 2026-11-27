@@ -646,6 +646,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Tau, de leeuwenkop van de zonnestraal** (`karakters/amir/tau/`, uit de Grok-clip in `bron/`) → `tools/tau_leeuw.py`, daarna `gen-offline-manifest.py`; een ander aantal frames of een andere maat gaat in `TAU`
 - **Oude speer** (`design/speer/oud/`, uit de gewone speer) → `tools/oude_speer.py`, daarna `gen-offline-manifest.py`
 - **Ardhi-wapens** (`design/ardhi/`, `design/speer/ardhi/`, `bron/ar_<hoek>.png`, de winkelplaatjes) → `tools/ardhi_bak.py`, de stokken `tools/stok_variant.py --plaat design/ardhi/bron/stok_schoon.png --uit stokken_ardhi --rij 0` (kopieer de map naar `klein/karakters/amir/`), daarna `gen-offline-manifest.py`
+- **Graanschuren** (`design/savanne/graanschuren/`, uit de Grok-plaat in `bron/`) → `tools/graanschuur_knip.py`, daarna `gen-offline-manifest.py`
 - **Rotsen met richels** (`design/savanne/rotsen/`, uit de Grok-platen in `bron/`) → `tools/rotsrichel_knip.py`, daarna `gen-offline-manifest.py`
 - **Holle stam: kit en bastrand** (`design/regenwoud/holstam/kit/`, `rand.png`, uit de Grok-platen in `bron/`) → `tools/holstam_kit_knip.py`, daarna `gen-offline-manifest.py`
 - **Pathfinder Spear** (`design/speer/pathfinder/`, uit de Grok-platen in `bron/`) → `tools/pathfinder_speer.py` (zet de regel die het print in `PATHFINDER`), daarna de Pathfinder in Amirs hand (`karakters/amir/mkuki_spel/bron/pf_<hoek>.png`) met `pathfinder()` uit `tools/mkuki_spel_los.py`, en `gen-offline-manifest.py`
