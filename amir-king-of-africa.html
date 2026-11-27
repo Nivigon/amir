@@ -37213,7 +37213,7 @@ function binnenEBij(px = world){
     return { soort: 'kivuli', x: kiv.x, h: 0 };   // Kivuli: E bij hem
   if (hier.winkel && !(hier.winkel === kiv.w && kivToonbankDicht()) && world - hier.winkel.x < WINKEL.eBij && Math.abs(ph - binnenVloer(world, 0)) < 12)   // voor de toonbank: de winkel (zie "de winkel"); zolang Kivuli er is niet
     return { soort: 'winkel', x: hier.winkel.x + 40, h: 0 };
-  const wC = hier.winkel && !pvp.dw && mpcWs();         // de winkel van Co-op: E bij de deur naar de straat is Ready (WK_DEUR)
+  const wC = hier.winkel && !(pvp && pvp.dw) && mpcWs();         // de winkel van Co-op: E bij de deur naar de straat is Ready (WK_DEUR)
   if (wC && wC.inWinkel) for (const d of (hier.sierDeuren || []))
     if (Math.abs(world - d.x) < V && Math.abs(ph - binnenVloer(world, 0)) < 12) return { soort: 'klaar', x: d.x, h: 0 };
   for (const q of binnenDeuren(hier)){
@@ -37369,7 +37369,7 @@ function winkelGeheimLevel(){
   winkelGeheimZet(!!w, w && w.geheim.achterKans);
 }
 // kijkt de marktman niet (met zijn rug naar je toe: achterin, of even bij het schap)?
-function winkelGeheimOm(){ return winkelGeheim.aan && !dukaRegie && dukaRug(winkelMan); }
+function winkelGeheimOm(){ return winkelGeheim.aan && !dukaRegie && !kivToonbankDicht() && dukaRug(winkelMan); }   // zolang Kivuli er is (en Duka nog niet terug) is er geen geheim: Duka staat er niet, dus hij kan zich ook niet afdraaien
 // de linkergrens voor Amir in een huis: de toonbank, tenzij hij er net overheen springt terwijl de marktman niet kijkt, of er al achter staat
 function winkelGeheimLinks(b, halfW){
   const G = winkelGeheim, w = b.winkel;
@@ -37390,10 +37390,12 @@ function dukaLoop(M, d, fase){
 // de marktman loopt rond, doet af en toe iets, en in een winkel met een geheim loopt hij soms naar achteren
 function winkelManStap(dt, w){
   const M = winkelMan, K = WINKEL.man, G = winkelGeheim;
-  if (M.w !== w){ const o = winkelOpbouw(w); M.w = w; M.pos = M.doel = o.koopman / o.tbB; M.fase = 'rust'; M.klok = winkelRnd(K.rust[0], K.rust[1]); M.kijk = 1; M.flip = true; M.anim = 'idle'; M.t = Math.random() * 5; }
+  if (M.w !== w){ const o = winkelOpbouw(w); M.w = w; M.pos = M.doel = o.koopman / o.tbB; M.fase = 'rust'; M.klok = winkelRnd(K.rust[0], K.rust[1]); M.kijk = 1; M.flip = true; M.anim = 'idle'; M.t = Math.random() * 5;
+    if (dukaGast() && dukaNet && performance.now() - dukaNet.tm < 1500) dukaNetZet(M); }
   if (dukaRegie) return;                                // gesnapt: de regie speelt zijn animaties (dukaRegieStap)
   const o = winkelOpbouw(w);
   M.t += dt;
+  if (dukaGast()){ dukaGastStap(M, o, dt); return; }   // Co-op: de host beslist wat Duka doet (zie "Duka over de lijn")
   // naar achteren: links van het doek, met zijn rug naar de winkel
   const achterPos = Math.min(0.97, (o.tbB - o.deurX + WINKEL.geheim.achterNaast) / o.tbB);
   if (M.fase === 'actie'){ if (dukaKlaar(M)){ M.fase = 'rust'; dukaZet(M, 'idle'); M.klok = winkelRnd(K.rust[0], K.rust[1]); } return; }
@@ -37423,6 +37425,35 @@ function winkelManStap(dt, w){
     if (M.fase === 'naarAchter'){ M.fase = 'draai'; M.flip = false; dukaZet(M, 'draai'); }
     else { M.fase = 'rust'; M.flip = true; dukaZet(M, 'idle'); M.klok = winkelRnd(K.rust[0], K.rust[1]); }
   } else M.pos += Math.sign(rest) * stap;
+}
+// ---- Duka over de lijn ----
+// In Co-op is de host de baas over Duka: hij beslist waar Duka heen loopt en wanneer hij zich afdraait, en stuurt zijn
+// stand mee in elk standbericht ('v', als dk). Een gast laat hem alleen tussen twee berichten in verder lopen en spelen,
+// zodat iedereen dezelfde Duka ziet en ieder alleen achter de toonbank komt als die ene Duka zijn rug toekeert. Betrapt
+// de Duka van een gast hem, dan speelt die gast zijn eigen regie (dukaRegie) en luistert hij zolang niet naar de host.
+let dukaNet = null;                                   // de gast: de laatste stand van de host, met wanneer hij binnenkwam
+function dukaGast(){ return mpCoopAan() && !pvp.host; }
+function dukaNetUit(){                                // de host: Duka zoals hij nu is, kort
+  const M = winkelMan; if (!M.w) return null;
+  return [M.fase, M.anim, Math.round(M.t * 100) / 100, Math.round(M.pos * 1000) / 1000, Math.round(M.doel * 1000) / 1000, M.flip ? 1 : 0, M.kijk];
+}
+function dukaNetIn(a){
+  if (!Array.isArray(a) || !DUKA.anims[a[1]]) return;
+  dukaNet = { fase: a[0], anim: a[1], t: +a[2] || 0, pos: +a[3] || 0, doel: +a[4] || 0, flip: !!a[5], kijk: a[6], tm: performance.now() };
+  if (winkelMan.w && !dukaRegie) dukaNetZet(winkelMan);
+}
+function dukaNetZet(M){
+  const N = dukaNet; if (!N) return;
+  M.fase = N.fase; M.doel = N.doel; M.pos = N.pos; M.flip = N.flip; M.kijk = N.kijk;
+  // de animatie: alleen bijzetten als hij een andere is of te ver uit de pas loopt, anders hapert hij om de paar beelden
+  if (M.anim !== N.anim || Math.abs(M.t - N.t) > 0.25){ M.anim = N.anim; M.t = N.t; }
+}
+// de gast, elk beeld: geen eigen besluiten, alleen verder lopen naar het doel dat de host gaf
+function dukaGastStap(M, o, dt){
+  if (M.anim === 'loop2in' && dukaKlaar(M)) dukaZet(M, 'loop2');
+  if (M.anim !== 'loop' && M.anim !== 'loop2' && M.anim !== 'loop2in') return;
+  const stap = DUKA.v / o.tbB * dt, rest = M.doel - M.pos;
+  M.pos = Math.abs(rest) <= stap ? M.doel : M.pos + Math.sign(rest) * stap;
 }
 // de x van de marktman in de wereld
 function dukaX(w){ const o = winkelOpbouw(w); return w.x - (winkelMan.w === w ? winkelMan.pos : o.koopman / o.tbB) * o.tbB * CHAR_H; }
@@ -37506,10 +37537,23 @@ function dukaWolkTeken(groundY, scale, cx){
 // hij zich om terwijl je erachter staat, dan ben je gesnapt (dukaBetrap)
 function winkelGeheimStap(dt, kruipt, loopt){
   const G = winkelGeheim, K = WINKEL.geheim, b = binnenBij(world);
-  if (!b || !b.winkel || !winkelImgs || !winkelKlaar()){ if (G.achter && !b) G.achter = false; return; }
+  if (!b || !b.winkel || !winkelImgs || !winkelKlaar()){
+    if (G.achter && !b) G.achter = false;
+    // Co-op: de host is de baas over Duka (zie "Duka over de lijn"), dus Duka loopt bij hem door, ook als hij zelf in de
+    // achterkamer staat; anders zien de gasten hem stilstaan
+    if (mpCoopAan() && pvp.host && pvp.coop.inWinkel && winkelImgs && winkelKlaar() && !dukaRegie){
+      const w = binnenLijst().map(x => x.winkel).find(Boolean);
+      if (w) winkelManStap(dt, w);
+    }
+    return;
+  }
   winkelManStap(dt, b.winkel);
   kivStap(dt, b);                                     // Kivuli, de reizende handelaar
   if (!G.aan || !b.winkel.geheim || dukaRegie) return;
+  // Kivuli in de winkel: Duka is weg (of loopt nog terug), dus niemand komt achter de toonbank en niemand wordt betrapt; zijn
+  // onzichtbare stand liep door, en een betrapping daarop bevroor de wereld zonder einde (de regie wachtte op een animatie die
+  // kivDukaKomt al had vervangen). Stond Amir er toch achter, dan zet binnenKlem hem weer voor de toonbank
+  if (kivToonbankDicht()){ G.achter = false; G.betrap = 0; G.lawaai = 0; return; }
   if (G.uitzet){ if (!stadTrapFade || stadTrapFade.gewisseld){ G.achter = false; G.uitzet = false; } return; }
   // rechtop lopen achter de toonbank hoort hij (alleen op de grond, en pas na even: een landing en een halve stap rechtop
   // hoort hij nog niet)
@@ -77171,6 +77215,7 @@ function mpcStandZend(alles){
     else { if (leeg[lq.k] == null) leeg[lq.k] = q; if (alles || leeg[lq.k] > ak) l[lq.k] = rij; }   // leeg geworden: tot de gast het weet
   }
   const m = { t: 'v', q, tm: +pvpNu().toFixed(3), k: Math.round(bavKlok), l };
+  if (C.inWinkel){ const dk = dukaNetUit(); if (dk) m.dk = dk; }   // Duka over de lijn: elke keer helemaal, het is klein
   // het sleutelbericht (alles, elke MPC.sleutel seconde) is groot: over het snelle kanaal valt het in zijn geheel weg zodra
   // een van zijn stukjes zoekraakt, en dan wacht de gast een hele seconde op het volgende. Daarom over het betrouwbare kanaal.
   if (alles){ m.p = pvp.mij; for (const k in pvp.peers) pvpStuur(pvp.peers[k], m); }
@@ -77192,6 +77237,7 @@ function mpcVelden(o, alles, q, ak){
 const MPC_GAAP_TIJD = ['hangTot', 'actT0', 'coolTot', 'doodT0', 'wegTot', 'roarTot', 'loopTot', 'afzet'];
 function mpcStandLees(m){
   if (pvp.host) return;
+  if (m.dk) dukaNetIn(m.dk);                         // Duka over de lijn
   // de goudaapjes rekenen in bavKlok, en die van de host loopt anders dan de mijne: hun tijden schuiven mee. Mijn eigen
   // bavKlok blijft staan, want daar meet de speer ook een tik mee (thrRelease)
   const off = typeof m.k === 'number' ? bavKlok - m.k : 0;
