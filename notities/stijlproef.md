@@ -75,3 +75,18 @@ eruit gaan en er nog naar kunnen wijzen. Zodra die weg zijn:
 - Nog te beslissen: het kookafdak (`cooking_shelter`, 3/4, door geen level gebruikt) en de winterversies. Die laatste kunnen
   opnieuw uit de nieuwe hutten met `tools/sneeuw_dorp.py`, daarna kunnen de oude sneeuwplaten ook weg.
 - Daarna `python3 tools/gen-offline-manifest.py`.
+
+## De rotsen warmer (27-11)
+
+De kei (`boulder.png`), de platte rots (`flatrock.png`, `PLAT`) en de rotswand (`cliff.png`, `CLIFF`) waren koel grijs
+met een dikke zwarte omlijning en vielen daardoor uit de toon naast de hutten, de putten en Ishmul. Een nieuwe, gladde
+stijl uit Grok (zonder lijnen) is geprobeerd en afgekeurd: naast de huizen van Ishmul te glad en naast de oranje hutten
+te bleek, en de rotswand ging op in de witte stad. De textuur mag dus blijven, net als bij de huizen.
+
+Wat er nu is: dezelfde platen, alleen warmer grijsbruin en met warm donkerbruine lijnen in plaats van zwart (de
+buitenrand 1 pixel dunner). Vorm, textuur en maten zijn gelijk, dus geen getal in de code veranderd.
+
+- De originelen staan in `design/bron/rotsen_oud/` (en `klein/design/bron/rotsen_oud/`).
+- `python3 tools/rots_warm.py` maakt de speelversie opnieuw, daarna `tools/gen-offline-manifest.py`.
+- Nog niet gedaan: de winterversies (`boulder_sneeuw.png`, `flatrock_sneeuw.png`, `cliff_sneeuw.png`) en de andere
+  rotsplaten (`rotswand_kaal.png` van de muur, de runerotsen, `ROTS_FAM`). Kijk of die dezelfde behandeling nodig hebben.
