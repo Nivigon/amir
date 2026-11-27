@@ -1122,6 +1122,17 @@ async function elk(H, G){
     for (const r of ramen) meld(await tot(r.page, () => pvp.coop.inWinkel && binnenBij(world), null, 10000), r.wie + ': Start in the shop, ook ' + r.wie + ' staat in de winkel');
     // E bij de deur van de winkel (WK_DEUR): de eerste vraagt, de tweede is Ready, nog een keer Not ready
     await wacht(2500);
+    // Duka over de lijn: de host beslist, dus elke gast ziet dezelfde Duka (zelfde animatie, zelfde plek), op de speelbuffer na
+    {
+      let gelijk = 0, n = 0; const rij = [];
+      for (let i = 0; i < 12; i++){
+        const st = await Promise.all(ramen.map(r => r.page.evaluate(() => winkelMan.w ? [winkelMan.anim, +winkelMan.pos.toFixed(3)] : null)));
+        if (st.every(Boolean)){ n++; if (st.every(x => x[0] === st[0][0] && Math.abs(x[1] - st[0][1]) < 0.06)) gelijk++; }
+        rij.push(st.map(x => x && x.join('@')).join('/'));
+        await wacht(600);
+      }
+      meld(n >= 10 && gelijk >= n - 3, 'iedereen dezelfde Duka (' + gelijk + ' van ' + n + ' gelijk: ' + rij.slice(0, 4).join(' ') + ' ...)');
+    }
     const d = await ramen[1].page.evaluate(() => {
       const b = binnenBij(world), x = b.sierDeuren[0].x; world = x; ph = binnenVloer(x, 0);
       const a = binnenEBij(), uit = [a && a.soort];
@@ -1129,20 +1140,11 @@ async function elk(H, G){
       return uit;
     });
     meld(JSON.stringify(d) === '["klaar",false,true,false]', ramen[1].wie + ': E bij de deur van de winkel vraagt, dan Ready, dan Not ready (' + JSON.stringify(d) + ')');
-    // Duka is gedeeld (dukaHostZend): bij iedereen dezelfde fase en animatie, op dezelfde plek, en tegelijk met zijn rug naar je toe
-    let mis = 0, n = 0, rug = 0;
-    for (let i = 0; i < 20; i++){
-      await wacht(500);
-      const st = await Promise.all(ramen.map(r => r.page.evaluate(() => winkelMan.w ? [winkelMan.fase, winkelMan.anim, winkelMan.pos, dukaRug(winkelMan)] : null)));
-      if (!st[0]) continue;
-      n++; if (st[0][3]) rug++;
-      if (st.some(x => !x || x[0] !== st[0][0] || x[1] !== st[0][1] || Math.abs(x[2] - st[0][2]) > 0.05)) mis++;
-    }
+    // de rug is gedeeld: zet de host Duka bij het schap, dan staat hij bij iedereen met zijn rug naar je toe
     await ramen[0].page.evaluate(() => { const M = winkelMan; M.fase = 'actie'; dukaZet(M, 'schap'); M.t = 2.5; });   // de host: Duka bij het schap
     await wacht(400);
     const rugG = await Promise.all(ramen.map(r => r.page.evaluate(() => dukaRug(winkelMan))));
     meld(rugG.every(x => x), 'Duka staat bij iedereen tegelijk met zijn rug naar je toe (' + JSON.stringify(rugG) + ')');
-    meld(n > 10 && mis <= 3, 'Duka doet bij iedereen hetzelfde (' + (n - mis) + ' van de ' + n + ' gelijk, ' + rug + ' keer met zijn rug)');
     // elk bordje (ook Team) te klikken: niet onder het doek of een andere knop, waar Amir ook staat in de kamer
     for (const r of ramen){
       const terug = await r.page.evaluate(() => { const w = world; world = MPC_WINKEL_KAMER.toonbank + 40; onGround = true; jump = null; if (!winkelUIAan) winkelUIOpen(); return w; });

@@ -178,12 +178,25 @@ Losse stukken die een huis anders maken zonder nieuwe gevelplaat (D2 in `notitie
 - **Andere ramen** op het oude huis: zes stukken muur met een ander raam (spitsboog, doek over de vensterbank,
   dichtgemetseld, luiken half open, traliewerk, pot op de vensterbank), over het raam van `gevel.png` gelegd
   (`STAD_NACHT.ramen.gevel`). `tools/ramen_knip.py` zoekt per stuk het kozijn, laat een randje muur met een zachte rand staan
-  en kleurt die naar de leem rond het raam van het oude huis. Alleen met `stad.accenten`; `ramen: false` in een gevel zet
-  het daar uit. Een nis van een balkon vervangt het raam van die verdieping.
-- **Zelf kiezen** (`stad.accenten: true`, `stadAccenten`): per seed vast. Ongeveer een op de vier huizen krijgt een balkon
-  of een takel (`STAD_ACCENT`), hooguit een per huis en nooit twee huizen met een accent naast elkaar; een huis dat zelf
+  en kleurt die naar de leem rond het raam van het oude huis. Met `stad.accenten` alle zes (de luiken het vaakst,
+  `STAD_RAMEN.luiken`); `ramen: false` in een gevel zet het daar uit. Een nis van een balkon vervangt het raam van die verdieping.
+- **De losse luiken** (`STAD_RAMEN.los`, `stadLuikenLos`): op verzoek van de opdrachtgever krijgt ook zonder accenten, dus in
+  elk bestaand level, ongeveer 14 procent van de ramen van het oude huis de luiken, per seed vast. Alleen de luiken, puur
+  decor. Niet in een level met een `tint` (Ishmul): het randje muur rond het raam houdt zijn eigen kleur.
+- **Zelf kiezen** (`stad.accenten: true`, `stadAccenten`): per seed vast. Ongeveer een op de drie huizen krijgt een balkon,
+  een takel of een luifel (`STAD_ACCENT`), hooguit een per huis en nooit twee huizen met een accent naast elkaar; een huis dat zelf
   een balkon of takel heeft telt mee. Op het oude huis wordt ongeveer 40 procent van de ramen een ander raam. Geen
   bestaand level heeft het; een nieuw stadslevel mag het aanzetten.
+- **De losse zijluiken** (`STAD_ZIJLUIK`, `stadZijLuiken`, `stadZijLuikenTeken`, `stadLuikZij`): het luik van de strakke
+  luifel, maar zonder luifel: een open luik op de zijmuur van een huis, alsof daar een raampje openstaat. Puur decor, in elk
+  level (ook de bestaande, op verzoek van de opdrachtgever), per seed vast: 30 procent kans per etage per zijmuur (een huis van
+  2 hoog heeft vier plekken, dus meestal een of twee luiken), ook op de begane grond (behalve naast een kraam), alleen waar naast de muur plek is (geen buurhuis, galerij, buitentrap, takel, hoekbalkon
+  of luifel aan die kant), op elk scherm opnieuw gerekend.
+- **De luifel als accent** (`stadAccentLuifels`, `stadLuifelRuimte`): de strakke luifel met het luik eronder (zie "de strakke
+  luifel"), zonder ritme, aan een zijmuur boven het raam van een verdieping (huizen van 2 hoog en meer), indigo of soms oker.
+  `stadLees` zet hem in `stad.luifels` met `auto: true` (een tweede keer lezen zet ze opnieuw, niet dubbel). Hij is er alleen
+  als er naast het huis plek is: geen ander huis, galerij of buitentrap onder de doek, op elk scherm opnieuw gerekend
+  (`stadLuifelPlats` en `stadLuifelTeken` slaan hem anders over).
 - **Sandbox**: onder De stad de knop **Accenten**: een straat met de accenten aan, elke klik een andere seed, en twee vaste
   takels vooraan om de mand te zien slingeren.
 

@@ -34064,7 +34064,7 @@ function stadSoortLaad(st){
   const zet = (k, src) => { if (!stadImgs[k]) stadImgs[k] = zetBron(new Image(), STAD_DIR + src, () => console.warn('ontbreekt: stad ' + src)); };
   if (st && (st.accenten || (st.gevels || []).some(g => g.takel))){ zet('takelArm', STAD_TAKEL.arm.src); zet('takelMand', STAD_TAKEL.mand.src); }
   if (st && st.accenten) for (const n in STAD_RAMEN.soorten) zet('raam_' + n, 'raam_' + n + '.png');
-  if (st && (st.luifels || []).some(q => q.raam)) zet('raam_luiken', 'raam_luiken.png');   // het raam onder een strakke luifel
+  if (st && ((st.luifels || []).some(q => q.raam) || (st.gevels || []).length)) zet('raam_luiken', 'raam_luiken.png');   // het raam onder een strakke luifel, en de losse luiken
   if (((st && st.gevels) || []).some(g => STAD_BALKON.soorten.includes(g.balkon)) || (st && st.accenten)){   // de balustrades van een balkon
     if (!stadImgs.balkonVoor) stadImgs.balkonVoor = zetBron(new Image(), STAD_DIR + STAD_BALKON.voor.src, () => console.warn('ontbreekt: stad ' + STAD_BALKON.voor.src));
     if (!stadImgs.balkonZij) stadImgs.balkonZij = zetBron(new Image(), STAD_DIR + STAD_BALKON.zij.src, () => console.warn('ontbreekt: stad ' + STAD_BALKON.zij.src));
@@ -34072,6 +34072,11 @@ function stadSoortLaad(st){
   }
 }
 function stadLees(o){
+  const st = stadLeesBasis(o);
+  if (st.accenten) stadAccentLuifels(st);           // de luifels die de accenten kozen (zie "accenten")
+  return st;
+}
+function stadLeesBasis(o){
   const n = v => Number(v) || 0;
   return { paleis: o.paleis != null ? n(o.paleis) : null, seed: n(o.seed) || 1,
            gevels: (o.gevels || []).map(q => ({ x: n(q.x), hoog: Math.max(1, Math.min(4, Math.round(n(q.hoog) || 1))), f: q.f ? 1 : 0,
@@ -34099,7 +34104,7 @@ function stadLees(o){
            // of aan de muur van een huis (gevel, wand 'l' of 'r'): de paal tegen die muur, de doek steekt van het huis af de
            // straat in, h de hoogte van het lage eind en voet waar de paal ophoudt (sprite-eenheden boven de grond), maat de
            // grootte, kleur 'indigo', zak de doorzakking in Amir, worp de opsprong (zie "de springdoek")
-           luifels: (o.luifels || []).filter(q => q.kant === 'l' || q.kant === 'r' || q.gevel != null).map(q => q.gevel != null
+           luifels: (o.luifels || []).filter(q => !q.auto && (q.kant === 'l' || q.kant === 'r' || q.gevel != null)).map(q => q.gevel != null
              ? { gevel: Math.round(n(q.gevel)), wand: q.wand === 'l' ? 'l' : 'r', luifel: q.wand === 'l' ? 'r' : 'l',
                  h: n(q.h), voet: n(q.voet), maat: n(q.maat) || 1, zak: n(q.zak), worp: n(q.worp) || 0,
                  ...(q.kleur === 'indigo' || q.kleur === 'oker' ? { kleur: q.kleur } : {}), ...(q.ritme ? { ritme: true } : {}),
@@ -34442,12 +34447,18 @@ const STAD_RAMEN = {
     tralie:    { w: 292, h: 337, k: [45, 45, 248, 293] },
     pot:       { w: 317, h: 416, k: [49, 49, 269, 368] }
   },
-  kans: 0.4           // met accenten aan: zoveel van de ramen van een oud huis wordt een ander raam
+  kans: 0.4,          // met accenten aan: zoveel van de ramen van een oud huis wordt een ander raam
+  luiken: 0.35,       // en daarvan gaat zoveel eerst naar de luiken (de rest gelijk verdeeld over alle soorten)
+  los: 0.14           // zonder accenten (elk bestaand level): zoveel van de ramen van een oud huis krijgt alleen de luiken, als decor
 };
+// de losse luiken: in elk level met een oud huis, niet in een level met een tint (het stuk muur rond het raam houdt zijn kleur)
+const stadLuikenLos = st => !(level && level.tint) && (st.gevels || []).some(g => !g.soort && g.ramen !== false);
 // Met stad.accenten: true kiest het spel zelf: ongeveer een op de vier huizen krijgt een balkon of een takel, hooguit een
 // per huis en nooit twee huizen met een accent naast elkaar, en op het oude huis zijn sommige ramen anders. Wat een gevel
 // zelf zegt (balkon, takel, ramen: false) gaat voor. Per seed vast. Geen bestaand level heeft het.
-const STAD_ACCENT = { kans: 0.27, takel: 0.45 };   // kans op een accent per huis, en daarvan zoveel een takel (de rest een balkon)
+// Ook een luifel: de strakke luifel met het luik eronder aan de zijmuur, op een verdieping (stadAccentLuifels). Is er naast
+// het huis geen ruimte voor de doek (een buurhuis, een galerij, een trap aan die kant), dan blijft hij weg (stadLuifelRuimte).
+const STAD_ACCENT = { kans: 0.35, takel: 0.3, luifel: 0.35 };   // kans op een accent per huis, daarvan zoveel een takel, zoveel een luifel (de rest een balkon)
 function stadAccenten(st){
   if (st._acc && st._acc.n === (st.gevels || []).length) return st._acc.lijst;
   const lijst = (st.gevels || []).map(() => ({}));
@@ -34459,12 +34470,39 @@ function stadAccenten(st){
       if (stadGeenDak(g) || vorig || h(0) >= STAD_ACCENT.kans){ vorig = false; return; }
       vorig = true;
       if (h(1) < STAD_ACCENT.takel && g.soort !== 'toren') a.takel = h(2) < 0.5 ? 'l' : 'r';
+      else if (h(1) < STAD_ACCENT.takel + STAD_ACCENT.luifel && (g.hoog || 1) >= 2)
+        a.luifel = { wand: h(2) < 0.5 ? 'l' : 'r', raam: 1 + Math.floor(h(3) * ((g.hoog || 1) - 1)), kleur: h(4) < 0.3 ? 'oker' : null };
       else if ((g.hoog || 1) >= 2) a.balkon = h(2) < 0.5 ? 'nis' : (h(3) < 0.5 ? 'hoekL' : 'hoekR');
       else vorig = false;
     });
   }
   st._acc = { n: (st.gevels || []).length, lijst };
   return lijst;
+}
+// de luifels die de accenten kozen, achter de luifels van het level zelf (auto: ze tellen alleen als er ruimte is)
+function stadAccentLuifels(st){
+  const lijst = stadAccenten(st);
+  st.luifels = (st.luifels || []).filter(q => !q.auto);
+  lijst.forEach((a, gi) => { if (!a.luifel) return;
+    const L = a.luifel;
+    st.luifels.push({ gevel: gi, wand: L.wand, luifel: L.wand === 'l' ? 'r' : 'l', raam: L.raam, maat: 0.55, stijl: 'strak', auto: true,
+                      ...(L.kleur ? { kleur: L.kleur } : {}) });
+  });
+}
+// is er naast het huis plek voor een luifel van de accenten? Geen ander huis, galerij of buitentrap onder de doek, op elk scherm
+// opnieuw (een huis schaalt mee, zijn x ligt vast). Een luifel uit het level zelf staat altijd.
+function stadLuifelRuimte(p, scale){
+  if (!p.auto) return true;
+  const S = level && level.stad; if (!S) return false;
+  const lm = stadLuifelMaat(p, scale), marge = 0.25 * CHAR_H * scale, a = lm.left - marge, b = lm.right + marge;
+  const raak = (l, r) => r > a && l < b;
+  for (let j = 0; j < (S.gevels || []).length; j++){
+    if (j === p.gevel) continue;
+    const q = stadGevelMaat(S.gevels[j], scale); if (raak(q.left, q.right)) return false;
+  }
+  for (const gl of S.galerijen || []){ const q = stadGalerijMaat(gl, scale, S.gevels); if (q && raak(q.left, q.right)) return false; }
+  for (const t of S.trappen || []) if (t.gevel === p.gevel && (t.kant === 'l') === (p.wand === 'l')) return false;
+  return true;
 }
 // het balkon en de takel van gevel gi: wat hij zelf zegt, anders wat de accenten kozen
 const stadAccentVan = (st, gi) => {
@@ -34522,15 +34560,17 @@ function stadTakelRuimte(st, gi, m, kant, scale){
 // andere ramen: per raam van het oude huis (STAD_NACHT.ramen.gevel) een vaste keuze uit de seed, of het gewone raam
 function stadRamenTeken(gi, G, delen, hoog, y0, f, geenRaam){
   if ((G.img || 'gevel') !== 'gevel') return;
-  const st = level.stad, g = st.gevels[gi]; if (!st.accenten || g.ramen === false) return;
+  const st = level.stad, g = st.gevels[gi]; if (g.ramen === false) return;
+  const acc = !!st.accenten; if (!acc && !stadLuikenLos(st)) return;   // zonder accenten: alleen de losse luiken, als decor
   const R = STAD_NACHT.ramen.gevel, namen = Object.keys(STAD_RAMEN.soorten);
   let y = y0;
   delen.forEach((d, j) => {
     const v = j === delen.length - 1 ? 0 : hoog - j, dh = (d[1] - d[0]) * f;
     if (j > 0 && v > 0 && !(geenRaam && geenRaam.has(v))) R.forEach((q, ri) => {
       if (q[1] < d[0] || q[3] > d[1]) return;
-      if (gordijnHash(st.seed, gi, 60 + v * 7 + ri) >= STAD_RAMEN.kans) return;
-      const naam = namen[Math.floor(gordijnHash(st.seed, gi, 80 + v * 7 + ri) * namen.length)];
+      if (gordijnHash(st.seed, gi, 60 + v * 7 + ri) >= (acc ? STAD_RAMEN.kans : STAD_RAMEN.los)) return;
+      const kies = gordijnHash(st.seed, gi, 80 + v * 7 + ri);
+      const naam = !acc || kies < STAD_RAMEN.luiken ? 'luiken' : namen[Math.floor((kies - STAD_RAMEN.luiken) / (1 - STAD_RAMEN.luiken) * namen.length)];
       const im = stadImgs['raam_' + naam], S = STAD_RAMEN.soorten[naam]; if (!im || !imgReady(im)) return;
       const sx = (q[2] - q[0]) / (S.k[2] - S.k[0]), sy = (q[3] - q[1]) / (S.k[3] - S.k[1]);
       ctx.drawImage(im, (q[0] - S.k[0] * sx) * f, y + (q[1] - d[0] - S.k[1] * sy) * f, S.w * sx * f, S.h * sy * f);
@@ -35326,6 +35366,7 @@ function stadStalY(L, x, S){
   return S[S.length - 1][1];
 }
 function stadLuifelPlats(p, scale, out){
+  if (!stadLuifelRuimte(p, scale)) return;         // een luifel van de accenten zonder plek naast het huis
   if (p.stijl === 'strak' && p.gevel != null){     // de strakke luifel: een stuk, op de hoogte van de stallijn onder Amirs midden
     // (op de helling anders de hoogste plek onder zijn voeten, en dan stond hij op de bovenrand), iets lager: je staat in de kuil
     const lm = stadLuifelMaat(p, scale), L = lm.L, th = terrainH(lm.wand), S = L.stal, zak = L.kuil.amir * stadKuilDiep(p) * CHAR_H;
@@ -37213,7 +37254,7 @@ function binnenEBij(px = world){
     return { soort: 'kivuli', x: kiv.x, h: 0 };   // Kivuli: E bij hem
   if (hier.winkel && !(hier.winkel === kiv.w && kivToonbankDicht()) && world - hier.winkel.x < WINKEL.eBij && Math.abs(ph - binnenVloer(world, 0)) < 12)   // voor de toonbank: de winkel (zie "de winkel"); zolang Kivuli er is niet
     return { soort: 'winkel', x: hier.winkel.x + 40, h: 0 };
-  const wC = hier.winkel && !pvp.dw && mpcWs();         // de winkel van Co-op: E bij de deur naar de straat is Ready (WK_DEUR)
+  const wC = hier.winkel && !(pvp && pvp.dw) && mpcWs();         // de winkel van Co-op: E bij de deur naar de straat is Ready (WK_DEUR)
   if (wC && wC.inWinkel) for (const d of (hier.sierDeuren || []))
     if (Math.abs(world - d.x) < V && Math.abs(ph - binnenVloer(world, 0)) < 12) return { soort: 'klaar', x: d.x, h: 0 };
   for (const q of binnenDeuren(hier)){
@@ -37369,7 +37410,7 @@ function winkelGeheimLevel(){
   winkelGeheimZet(!!w, w && w.geheim.achterKans);
 }
 // kijkt de marktman niet (met zijn rug naar je toe: achterin, of even bij het schap)?
-function winkelGeheimOm(){ return winkelGeheim.aan && !dukaRegie && dukaRug(winkelMan); }
+function winkelGeheimOm(){ return winkelGeheim.aan && !dukaRegie && !kivToonbankDicht() && dukaRug(winkelMan); }   // zolang Kivuli er is (en Duka nog niet terug) is er geen geheim: Duka staat er niet, dus hij kan zich ook niet afdraaien
 // de linkergrens voor Amir in een huis: de toonbank, tenzij hij er net overheen springt terwijl de marktman niet kijkt, of er al achter staat
 function winkelGeheimLinks(b, halfW){
   const G = winkelGeheim, w = b.winkel;
@@ -37390,11 +37431,12 @@ function dukaLoop(M, d, fase){
 // de marktman loopt rond, doet af en toe iets, en in een winkel met een geheim loopt hij soms naar achteren
 function winkelManStap(dt, w){
   const M = winkelMan, K = WINKEL.man, G = winkelGeheim;
-  if (M.w !== w){ const o = winkelOpbouw(w); M.w = w; M.pos = M.doel = o.koopman / o.tbB; M.fase = 'rust'; M.klok = winkelRnd(K.rust[0], K.rust[1]); M.kijk = 1; M.flip = true; M.anim = 'idle'; M.t = Math.random() * 5; }
+  if (M.w !== w){ const o = winkelOpbouw(w); M.w = w; M.pos = M.doel = o.koopman / o.tbB; M.fase = 'rust'; M.klok = winkelRnd(K.rust[0], K.rust[1]); M.kijk = 1; M.flip = true; M.anim = 'idle'; M.t = Math.random() * 5;
+    if (dukaGast() && dukaNet && performance.now() - dukaNet.tm < 1500) dukaNetZet(M); }
   if (dukaRegie) return;                                // gesnapt: de regie speelt zijn animaties (dukaRegieStap)
-  if (dukaVanHost()){ dukaGastStap(dt, w); return; }   // Co-op: de host beslist wat Duka doet (dukaDeel)
   const o = winkelOpbouw(w);
   M.t += dt;
+  if (dukaGast()){ dukaGastStap(M, o, dt); return; }   // Co-op: de host beslist wat Duka doet (zie "Duka over de lijn")
   // naar achteren: links van het doek, met zijn rug naar de winkel
   const achterPos = Math.min(0.97, (o.tbB - o.deurX + WINKEL.geheim.achterNaast) / o.tbB);
   if (M.fase === 'actie'){ if (dukaKlaar(M)){ M.fase = 'rust'; dukaZet(M, 'idle'); M.klok = winkelRnd(K.rust[0], K.rust[1]); } return; }
@@ -37425,47 +37467,35 @@ function winkelManStap(dt, w){
     else { M.fase = 'rust'; M.flip = true; dukaZet(M, 'idle'); M.klok = winkelRnd(K.rust[0], K.rust[1]); }
   } else M.pos += Math.sign(rest) * stap;
 }
-// Co-op: de host beslist wat Duka doet en stuurt het rond (bericht duka), zodat iedereen dezelfde Duka ziet en hij voor
-// het hele team tegelijk met zijn rug naar de winkel staat (en je dus samen achter de toonbank kunt komen). Een gast doet
-// zelf geen keuzes: hij speelt de animatie af en loopt naar het doel tot het volgende bericht. Gesnapt worden blijft per
-// speler: een gast die betrapt wordt ziet zijn eigen regie en pakt daarna de stand van de host weer op (naRegie).
-const dukaDeel = { sleutel: '', zendT: 0, van: null, laatst: null, naRegie: false };
-function dukaHostZend(){
-  if (!mpCoopAan() || !pvp.host) return;
-  const M = winkelMan; if (!M.w) return;
-  const k = M.fase + '|' + M.anim + '|' + M.doel.toFixed(3) + '|' + M.flip, nu = performance.now();
-  if (k === dukaDeel.sleutel && nu - dukaDeel.zendT < 3000) return;   // alleen bij een keuze, en elke 3 s als vangnet
-  dukaDeel.sleutel = k; dukaDeel.zendT = nu;
-  pvpZend({ t: 'duka', s: [+M.pos.toFixed(4), +M.doel.toFixed(4), M.fase, M.anim, +M.t.toFixed(3), M.flip ? 1 : 0, M.kijk, +(M.klok || 0).toFixed(2)] });
+// ---- Duka over de lijn ----
+// In Co-op is de host de baas over Duka: hij beslist waar Duka heen loopt en wanneer hij zich afdraait, en stuurt zijn
+// stand mee in elk standbericht ('v', als dk). Een gast laat hem alleen tussen twee berichten in verder lopen en spelen,
+// zodat iedereen dezelfde Duka ziet en ieder alleen achter de toonbank komt als die ene Duka zijn rug toekeert. Betrapt
+// de Duka van een gast hem, dan speelt die gast zijn eigen regie (dukaRegie) en luistert hij zolang niet naar de host.
+let dukaNet = null;                                   // de gast: de laatste stand van de host, met wanneer hij binnenkwam
+function dukaGast(){ return mpCoopAan() && !pvp.host; }
+function dukaNetUit(){                                // de host: Duka zoals hij nu is, kort
+  const M = winkelMan; if (!M.w) return null;
+  return [M.fase, M.anim, Math.round(M.t * 100) / 100, Math.round(M.pos * 1000) / 1000, Math.round(M.doel * 1000) / 1000, M.flip ? 1 : 0, M.kijk];
 }
-function dukaGastStap(dt, w){
-  const M = winkelMan, o = winkelOpbouw(w);
-  if (dukaDeel.naRegie){                              // de rest van de klap na de eigen regie, dan weer de stand van de host
-    M.t += dt; if (!dukaKlaar(M)) return;
-    dukaDeel.naRegie = false; dukaDeel.van = dukaDeel.laatst;
-  }
-  const V = dukaDeel.van;
-  if (V){
-    dukaDeel.van = null; const s = V.s;
-    M.pos = s[0]; M.doel = s[1]; M.fase = s[2]; if (DUKA.anims[s[3]]) M.anim = s[3];
-    M.t = s[4] + Math.min(3, (performance.now() - V.ont) / 1000); M.flip = !!s[5]; M.kijk = s[6]; M.klok = s[7];
-    return;
-  }
-  M.t += dt;
-  if (M.fase === 'loop' || M.fase === 'naarAchter'){
-    if (M.anim === 'loop2in' && dukaKlaar(M)) dukaZet(M, 'loop2');
-    const stap = DUKA.v / o.tbB * dt, rest = M.doel - M.pos;
-    if (Math.abs(rest) <= stap) M.pos = M.doel; else M.pos += Math.sign(rest) * stap;
-  }
+function dukaNetIn(a){
+  if (!Array.isArray(a) || !DUKA.anims[a[1]]) return;
+  dukaNet = { fase: a[0], anim: a[1], t: +a[2] || 0, pos: +a[3] || 0, doel: +a[4] || 0, flip: !!a[5], kijk: a[6], tm: performance.now() };
+  if (winkelMan.w && !dukaRegie) dukaNetZet(winkelMan);
 }
-// een gast volgt de host zolang die Duka stuurt; staat de host niet in de winkel (een winkel in een level van de Co-op
-// episode), dan komt er niets en loopt Duka na 4 s weer zijn eigen rondje
-function dukaVanHost(){
-  const ok = mpcGast() && !!dukaDeel.laatst && performance.now() - dukaDeel.laatst.ont < 4000;
-  if (!ok) dukaDeel.naRegie = false;
-  return ok;
+function dukaNetZet(M){
+  const N = dukaNet; if (!N) return;
+  M.fase = N.fase; M.doel = N.doel; M.pos = N.pos; M.flip = N.flip; M.kijk = N.kijk;
+  // de animatie: alleen bijzetten als hij een andere is of te ver uit de pas loopt, anders hapert hij om de paar beelden
+  if (M.anim !== N.anim || Math.abs(M.t - N.t) > 0.25){ M.anim = N.anim; M.t = N.t; }
 }
-function dukaGastOntvang(s){ dukaDeel.van = dukaDeel.laatst = { s, ont: performance.now() }; }
+// de gast, elk beeld: geen eigen besluiten, alleen verder lopen naar het doel dat de host gaf
+function dukaGastStap(M, o, dt){
+  if (M.anim === 'loop2in' && dukaKlaar(M)) dukaZet(M, 'loop2');
+  if (M.anim !== 'loop' && M.anim !== 'loop2' && M.anim !== 'loop2in') return;
+  const stap = DUKA.v / o.tbB * dt, rest = M.doel - M.pos;
+  M.pos = Math.abs(rest) <= stap ? M.doel : M.pos + Math.sign(rest) * stap;
+}
 // de x van de marktman in de wereld
 function dukaX(w){ const o = winkelOpbouw(w); return w.x - (winkelMan.w === w ? winkelMan.pos : o.koopman / o.tbB) * o.tbB * CHAR_H; }
 // gesnapt (DUKA.regie): de wereld staat stil (dt 0, zie de lus), alleen Duka en het stofwolkje lopen door op echte tijd.
@@ -37508,10 +37538,8 @@ function dukaRegieStap(rdt){
       winkelGeheim.achter = false; winkelGeheim.betrap = 0; winkelGeheim.lawaai = 0;
       dukaWolkZet(x, ph + 0.4 * CHAR_H, 0.6);
       dukaRegie = null; M.fase = 'actie';               // de rest van de klap speelt gewoon af, dan weer rust
-      if (dukaVanHost()) dukaDeel.naRegie = true;           // Co-op: daarna weer de Duka van de host
     }
   }
-  dukaHostZend();
 }
 function dukaAmirWeg(){ return !!(dukaRegie && dukaRegie.weg); }
 function dukaWolkZet(x, h, k){
@@ -37550,11 +37578,23 @@ function dukaWolkTeken(groundY, scale, cx){
 // hij zich om terwijl je erachter staat, dan ben je gesnapt (dukaBetrap)
 function winkelGeheimStap(dt, kruipt, loopt){
   const G = winkelGeheim, K = WINKEL.geheim, b = binnenBij(world);
-  if (!b || !b.winkel || !winkelImgs || !winkelKlaar()){ if (G.achter && !b) G.achter = false; return; }
+  if (!b || !b.winkel || !winkelImgs || !winkelKlaar()){
+    if (G.achter && !b) G.achter = false;
+    // Co-op: de host is de baas over Duka (zie "Duka over de lijn"), dus Duka loopt bij hem door, ook als hij zelf in de
+    // achterkamer staat; anders zien de gasten hem stilstaan
+    if (mpCoopAan() && pvp.host && pvp.coop.inWinkel && winkelImgs && winkelKlaar() && !dukaRegie){
+      const w = binnenLijst().map(x => x.winkel).find(Boolean);
+      if (w) winkelManStap(dt, w);
+    }
+    return;
+  }
   winkelManStap(dt, b.winkel);
   kivStap(dt, b);                                     // Kivuli, de reizende handelaar
-  dukaHostZend();                                     // Co-op: de gasten zien dezelfde Duka
   if (!G.aan || !b.winkel.geheim || dukaRegie) return;
+  // Kivuli in de winkel: Duka is weg (of loopt nog terug), dus niemand komt achter de toonbank en niemand wordt betrapt; zijn
+  // onzichtbare stand liep door, en een betrapping daarop bevroor de wereld zonder einde (de regie wachtte op een animatie die
+  // kivDukaKomt al had vervangen). Stond Amir er toch achter, dan zet binnenKlem hem weer voor de toonbank
+  if (kivToonbankDicht()){ G.achter = false; G.betrap = 0; G.lawaai = 0; return; }
   if (G.uitzet){ if (!stadTrapFade || stadTrapFade.gewisseld){ G.achter = false; G.uitzet = false; } return; }
   // rechtop lopen achter de toonbank hoort hij (alleen op de grond, en pas na even: een landing en een halve stap rechtop
   // hoort hij nog niet)
@@ -41432,8 +41472,49 @@ function stadPleinPoortTeken(groundY, scale, cx, zicht){
   if (bij){ const A = CHAR_H * scale, m = stadPleinPoortMaat(bij, scale);
     straatBordje(cx + (bij.x - world), groundY - terrainH(bij.x) * scale - (m.R.h - m.R.boogTop) * m.f - A * 0.25, level.brutus ? 'Het plein verlaten?  E' : 'Door de poort?  E', true, A); }   // net boven de boog
 }
+// De losse zijluiken (STAD_ZIJLUIK): een open luik op de zijmuur van een huis, zonder luifel, puur decor; het ziet eruit
+// alsof daar een raampje openstaat. In elk level, per seed vast: per etage en per zijmuur een kans (een huis van 2 hoog heeft
+// dus vier plekken), alleen aan een kant waar plek is: geen buurhuis, galerij, buitentrap, takel, hoekbalkon of luifel
+const STAD_ZIJLUIK = { kans: 0.3, ruimte: 0.6 };   // kans per etage per zijmuur, en zoveel Amir vrij naast de muur
+function stadZijLuiken(S, scale){
+  const C = S._zijluik;
+  if (C && C.sc === scale && C.n === (S.gevels || []).length) return C.lijst;
+  const lijst = [], A = CHAR_H * scale, vrij = STAD_ZIJLUIK.ruimte * A;
+  const maten = (S.gevels || []).map(g => stadGevelMaat(g, scale));
+  const gal = (S.galerijen || []).map(gl => stadGalerijMaat(gl, scale, S.gevels)).filter(Boolean);
+  (S.gevels || []).forEach((g, gi) => {
+    if (stadGeenDak(g)) return;
+    const m = maten[gi], acc = stadAccentVan(S, gi);
+    for (const w of ['l', 'r']){
+      const h = n => gordijnHash(S.seed, gi, 120 + (w === 'l' ? 0 : 10) + n);
+      const wx = w === 'l' ? m.left : m.right, a = w === 'l' ? wx - vrij : wx, b = w === 'l' ? wx : wx + vrij;
+      const raak = (l, r) => r > a && l < b;
+      if (maten.some((q, j) => j !== gi && raak(q.left, q.right))) continue;
+      if (gal.some(q => raak(q.left, q.right))) continue;
+      if ((S.trappen || []).some(t => t.gevel === gi && (t.kant === 'l') === (w === 'l'))) continue;
+      if ((S.luifels || []).some(q => q.gevel === gi && q.wand === w)) continue;
+      if (acc.takel && ((acc.takel === 'r') !== !!g.f) === (w === 'r')) continue;   // de takel aan deze kant (gespiegeld met de gevel)
+      if (acc.balkon && acc.balkon.startsWith('hoek')) continue;                      // een hoekbalkon: liever geen luik ernaast
+      const kraam = (S.kramen || []).some(kr => { const q = stadKraamMaat(kr, scale); return raak(q.left, q.right); });   // de begane grond niet door een kraam
+      for (let k = kraam ? 1 : 0; k < (g.hoog || 1); k++) if (h(k) < STAD_ZIJLUIK.kans) lijst.push({ x: wx, dir: w === 'l' ? -1 : 1, k });
+    }
+  });
+  S._zijluik = { sc: scale, n: (S.gevels || []).length, lijst };
+  return lijst;
+}
+function stadZijLuikenTeken(S, groundY, scale, cx, zicht){
+  if (!stadKlaar('raam_luiken')) return;
+  const R = STAD.plein.luifelStrak.raamZij, A = CHAR_H * scale, hP = R.hoog * A;
+  for (const z of stadZijLuiken(S, scale)){
+    const wx = cx + (z.x - world);
+    if (!zicht(z.dir < 0 ? wx - hP : wx, hP)) continue;
+    const top = (z.k ? stadVerdieping(z.k) : 0) + (R.midden + R.hoog / 2) * CHAR_H;
+    stadLuikZij(wx, z.dir, groundY - (terrainH(z.x) + top) * scale, hP, false);
+  }
+}
 function stadPutTeken(groundY, scale, cx, zicht){
   const S = level.stad;
+  stadZijLuikenTeken(S, groundY, scale, cx, zicht);   // de losse zijluiken (zie "accenten")
   for (const p of (S.luifels || [])) stadLuifelTeken(p, groundY, scale, cx, zicht);   // de losse luifels, zonder put
   if (!(S.putten || []).length || !stadKlaar('put')) return;
   const im = stadImgs.put;
@@ -41626,17 +41707,25 @@ function stadRaamZijTeken(p, lm, groundY, scale, cx){
   if (!p.raam || !stadKlaar('raam_luiken')) return;
   const L = lm.L, R = L.raamZij, A = CHAR_H * scale, im = stadImgs.raam_luiken, q = stadQ(im, 1), th = terrainH(lm.wand);
   const topH = lm.bh(stadStalY(L, L.wand - 30, L.onder)) - R.onder * CHAR_H;   // net onder de doek bij de muur
-  const hP = (p.raamHoog || R.hoog) * A, wP = hP * R.luik[2] / R.luik[3], ty = groundY - (th + topH) * scale;   // raamHoog: een kleiner raam voor deze luifel
-  const wx = cx + (lm.wand - world), k = R.kozijn * A, dir = lm.dir;
+  const hP = (p.raamHoog || R.hoog) * A, ty = groundY - (th + topH) * scale;   // raamHoog: een kleiner raam voor deze luifel
+  stadLuikZij(cx + (lm.wand - world), lm.dir, ty, hP, true);
+}
+// het opengeklapte luik op een zijmuur: wx de muur op het scherm, dir -1 de linkermuur, ty de bovenkant, hP de hoogte;
+// schaduw: bovenin de schaduw van een luifel erboven
+function stadLuikZij(wx, dir, ty, hP, schaduw){
+  const R = STAD.plein.luifelStrak.raamZij, A = CHAR_H * nowScale(), im = stadImgs.raam_luiken, q = stadQ(im, 1);
+  const wP = hP * R.luik[2] / R.luik[3], k = R.kozijn * A;
   ctx.save();
   ctx.fillStyle = '#4a2e18'; ctx.fillRect(dir < 0 ? wx - k : wx, ty, k, hP);              // de kozijnrand langs de muur
   ctx.fillStyle = 'rgba(255, 220, 170, 0.18)'; ctx.fillRect(dir < 0 ? wx - k : wx + k * 0.6, ty, k * 0.4, hP);   // licht op de rand
   ctx.translate(dir < 0 ? wx - k : wx + k, ty);
   if (dir > 0) ctx.scale(-1, 1);                   // aan een rechtermuur zitten de scharnieren links
   ctx.drawImage(im, R.luik[0] * q, R.luik[1] * q, R.luik[2] * q, R.luik[3] * q, -wP, 0, wP, hP);
-  const gr = ctx.createLinearGradient(0, 0, 0, hP * 0.45);   // de schaduw van de luifel bovenin
-  gr.addColorStop(0, 'rgba(20, 12, 6, 0.45)'); gr.addColorStop(1, 'rgba(20, 12, 6, 0)');
-  ctx.fillStyle = gr; ctx.fillRect(-wP, 0, wP + k, hP * 0.45);
+  if (schaduw){
+    const gr = ctx.createLinearGradient(0, 0, 0, hP * 0.45);   // de schaduw van de luifel bovenin
+    gr.addColorStop(0, 'rgba(20, 12, 6, 0.45)'); gr.addColorStop(1, 'rgba(20, 12, 6, 0)');
+    ctx.fillStyle = gr; ctx.fillRect(-wP, 0, wP + k, hP * 0.45);
+  }
   ctx.restore();
   ctx.fillStyle = '#3d2614';                       // de vensterbank
   ctx.fillRect(dir < 0 ? wx - k - wP * 0.25 : wx, ty + hP - 0.03 * A, k + wP * 0.25, 0.03 * A);
@@ -41687,6 +41776,7 @@ function stadLuifelVoor(groundY, scale, cx){
 }
 // voor: alleen de doek zelf, met de kuil zoveel keer zo diep (de voorrand na Amir, zie stadLuifelVoor)
 function stadLuifelTeken(p, groundY, scale, cx, zicht, voor){
+  if (!stadLuifelRuimte(p, scale)) return;
   if (p.stijl === 'strak' && p.gevel != null){ stadLuifelStrakTeken(p, groundY, scale, cx, zicht); return; }
   if (!stadKlaar('luifel')) return;
   const lm = stadLuifelMaat(p, scale), L = lm.L, sx = cx + (lm.left - world);
@@ -72942,7 +73032,7 @@ function sbAccenten(){
   sbAccentSeed += 7;
   stadSoortLaad(level.stad);
   sbLagen = 'stad_dag'; lichtMengKey = null; sbLagenToon();
-  flashHint('Accenten: het spel kiest zelf balkons, takels en andere ramen (elke klik een andere straat)');
+  flashHint('Accenten: het spel kiest zelf balkons, takels, luifels en andere ramen (elke klik een andere straat)');
   cv.focus();
 }
 document.getElementById('sbaccenten').onclick = () => sbAccenten();
@@ -77216,6 +77306,7 @@ function mpcStandZend(alles){
     else { if (leeg[lq.k] == null) leeg[lq.k] = q; if (alles || leeg[lq.k] > ak) l[lq.k] = rij; }   // leeg geworden: tot de gast het weet
   }
   const m = { t: 'v', q, tm: +pvpNu().toFixed(3), k: Math.round(bavKlok), l };
+  if (C.inWinkel){ const dk = dukaNetUit(); if (dk) m.dk = dk; }   // Duka over de lijn: elke keer helemaal, het is klein
   // het sleutelbericht (alles, elke MPC.sleutel seconde) is groot: over het snelle kanaal valt het in zijn geheel weg zodra
   // een van zijn stukjes zoekraakt, en dan wacht de gast een hele seconde op het volgende. Daarom over het betrouwbare kanaal.
   if (alles){ m.p = pvp.mij; for (const k in pvp.peers) pvpStuur(pvp.peers[k], m); }
@@ -77237,6 +77328,7 @@ function mpcVelden(o, alles, q, ak){
 const MPC_GAAP_TIJD = ['hangTot', 'actT0', 'coolTot', 'doodT0', 'wegTot', 'roarTot', 'loopTot', 'afzet'];
 function mpcStandLees(m){
   if (pvp.host) return;
+  if (m.dk) dukaNetIn(m.dk);                         // Duka over de lijn
   // de goudaapjes rekenen in bavKlok, en die van de host loopt anders dan de mijne: hun tijden schuiven mee. Mijn eigen
   // bavKlok blijft staan, want daar meet de speer ook een tik mee (thrRelease)
   const off = typeof m.k === 'number' ? bavKlok - m.k : 0;
@@ -77930,7 +78022,6 @@ function mpCoopOntvang(m){
   if (m.t === 'kistNee'){ const k = kisten[m.i]; if (k){ k.mpWacht = false; if (!k.open) kistOpenBeeld(k); } flashHint('Too late: the chest is already open', 2500); return true; }
   if (m.t === 'geef'){ mpcGoudErbij(m.n, pvp.spelers.length > 2 ? 'from ' + mpSpelerNoem(m.p, true) : 'from your teammate'); return true; }
   if (m.t === 'winkel'){ if (!pvp.host){ C.winkelGeheim = !!m.g; C.winkelKiv = m.kv || null; if (laadWacht) C.winkelStraks = true; else mpcWinkelIn(m.g, m.kv); } return true; }
-  if (m.t === 'duka'){ if (!pvp.host && Array.isArray(m.s)) dukaGastOntvang(m.s); return true; }   // wat Duka doet (dukaHostZend)
   if (m.t === 'kivep'){ C.kivEp = { i: m.i, kv: m.kv }; return true; }   // Kivuli in een level: wat de host besliste (mpEpKivStart)
   if (m.t === 'kivin'){ if (!pvp.host) kivBinnen(); return true; }     // Kivuli komt binnen (versie 2)
   if (m.t === 'kivpraat'){ kivKlokStart(); return true; }           // iemand sprak Kivuli aan: de klok loopt
