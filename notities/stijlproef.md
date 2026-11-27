@@ -75,3 +75,25 @@ eruit gaan en er nog naar kunnen wijzen. Zodra die weg zijn:
 - Nog te beslissen: het kookafdak (`cooking_shelter`, 3/4, door geen level gebruikt) en de winterversies. Die laatste kunnen
   opnieuw uit de nieuwe hutten met `tools/sneeuw_dorp.py`, daarna kunnen de oude sneeuwplaten ook weg.
 - Daarna `python3 tools/gen-offline-manifest.py`.
+
+## De rotsen warmer (27-11)
+
+De kei (`boulder.png`), de platte rots (`flatrock.png`, `PLAT`) en de rotswand (`cliff.png`, `CLIFF`) waren koel grijs
+met een dikke zwarte omlijning en vielen daardoor uit de toon naast de hutten, de putten en Ishmul. Een nieuwe, gladde
+stijl uit Grok (zonder lijnen) is geprobeerd en afgekeurd: naast de huizen van Ishmul te glad en naast de oranje hutten
+te bleek, en de rotswand ging op in de witte stad. De textuur mag dus blijven, net als bij de huizen.
+
+Wat er nu is: dezelfde platen, alleen warmer grijsbruin en met warm donkerbruine lijnen in plaats van zwart (de
+buitenrand 1 pixel dunner). Vorm, textuur en maten zijn gelijk, dus geen getal in de code veranderd.
+
+Dezelfde behandeling hebben ook gekregen: de rotswand van de muur (`rotswand_kaal.png`), de runerotsen
+(`rotswand_spits/pieken/zuilen/boog/boog_scheef.jpg`, het wit blijft wit voor `witKnip`), de rots van een ravijn
+(`rotstextuur.png`), de grot (`design/grot/`: keien, hangblokken en de tegels, zonder de rand dunner te maken zodat ze
+naadloos blijven) en het rotsdecor (`design/rotsdecor/`, `ROTS_FAM`). Die waren al warmer en dunner omlijnd, dus daar is
+het verschil klein; het gaat erom dat alle rots uit dezelfde kleur komt.
+
+- De originelen staan in `design/bron/rotsen_oud/` (en `klein/design/bron/rotsen_oud/`), op hetzelfde pad als in het spel.
+- `python3 tools/rots_warm.py` maakt van alles daarin de speelversie opnieuw, daarna `tools/gen-offline-manifest.py`.
+- Maakt `tools/rotsdecor_knip.py` of `tools/rots_vulling.py` een plaat opnieuw, kopieer die dan eerst naar
+  `bron/rotsen_oud/` en draai `rots_warm.py` erna, anders is hij weer koel grijs.
+- Nog niet gedaan: de winterversies (`*_sneeuw.png`).
