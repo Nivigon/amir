@@ -52,6 +52,29 @@ zegt `design/tutorial/gids/gids.json` welk frame van de gids erbij hoort. Kop in
 - Nog niet gebruikt: `gahurk`, `hurk_en_omkijk`, `hurkenwenk` (voor de panter-sluiples) en `deelsbruikbaar_vertellen`.
 - Open: de speer los (nu omgekleurd in de frames), een klim voor de richel (hij springt nu), een rustig loopje.
 
+## De stem van de gids (27-11-2026)
+
+De gids praat: ingesproken regels uit ElevenLabs (stem "Guide": jonge Mkuki-krijger, zwaar Nigeriaans accent), in
+`design/tutorial/stem/`. Kop in de HTML: `// ---- de stem van de gids`, grep `GIDS_STEM`, `gidsStemSpeel`, `gidsStemStap`,
+`gidsStemBezig`, `mentorZegNu`, `mentorDelen`. Hij noemt Amir "little spear" (Amir begint als Mkuki zonder speer; de
+payoff komt als hij de speer krijgt). Alle teksten staan in het project: `claude/tutorial_stemteksten.md`.
+
+- Per station `stem` (de uitleg) en `okStem` (de lof). `zeg` mag een rij zijn: dan toont de wolk steeds het deel dat hij
+  nu zegt, met per deel een bestand in `stem` (station 0: twee regels).
+- De uitleg klinkt pas als de speler binnen `GIDS_STEM.bij` van hem is, een keer per station (na een val niet opnieuw).
+- Hij gaat pas verder (het "goed zo" en voordoen) als hij uitgepraat is, en zegt `nog` niet door zijn uitleg heen. Het
+  "goed zo" blijft minstens zo lang staan als `okStem` duurt.
+- Nooit twee regels tegelijk; bij pauze stil en daarna verder; buiten het level weg (`gidsStemStap`, elk beeld). De
+  regels tellen mee in `PRAAT_STEMMEN`, zodat Amir er niet doorheen roept.
+- Niet achter het laadscherm: zolang `laadWacht` loopt begint hij niet, en een regel die al klinkt pauzeert.
+- De wolk is de ondertitel (keuze 27-11-2026, uit de richtlijnen voor ondertitels in games): de tekst bij de spreker, in een
+  keer als blok (geen meeschrijvende letters bij ingesproken tekst), donkere ondergrond, het naambordje als wie-praat, en
+  buiten beeld aan de rand met een pijltje naar hem. Erbij: het spreekteken, drie golvende streepjes achter HUNTER
+  zolang zijn stem klinkt (in `mentorWolkTeken`).
+- Nu ingesproken: start (2 regels), kruipen en rollen (uitleg en lof). De andere stations hebben nog alleen tekst.
+- Nieuwe regel: mp3 in `design/tutorial/stem/` (stilte eraf, genormaliseerd), `stem`/`okStem` op het station, de `zeg`
+  gelijk aan wat hij zegt (zonder tags als [chuckles]), dan `tools/gen-offline-manifest.py`.
+
 ## Het spoor: opgenomen, niet nagebouwd
 
 De mentor heeft geen eigen natuurkunde. `tools/mentor_opname.js` speelt het level in Chromium met Amir (op vaste 60 fps,
@@ -105,7 +128,7 @@ op als de tekst wisselt. De grootte schaalt met de hoogte van het scherm. De bal
 ## Open
 
 - De panter aan het eind (de sluiples: hoog gras, omkijken met een tell, de speer van de mentor, steken): het volgende stuk.
-- De stem (ElevenLabs) per regel: de opdrachtgever voegt die zelf toe.
+- De stem voor de overige stations, de race en de vallen (zie "De stem van de gids").
 - Op een telefoon staan er nog toetsen in de wolk in plaats van de knoppen.
 - `offline-assets.json` kent het spoor nog niet: draai `tools/gen-offline-manifest.py` op een volledige checkout. Zonder het
   spoor is het level gewoon speelbaar, alleen zonder mentor.

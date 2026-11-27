@@ -2268,6 +2268,7 @@
         <label>Stof in de ogen</label>
         <button id="sbstof" title="Gebukt F vasthouden: Amir veegt stof op naar een vijand die hem aankijkt. Hij is even blind en de volgende treffer telt dubbel. Gebukt F tikken blijft de lage zwaai.">Stof: uit</button>
         <button id="sbcombo" title="Drie steken kort na elkaar: de derde is een draaislag. Standaard aan als terugslag. Rond: uit, terugslag (telt enkel, zet de vijand ver terug), schade (telt dubbel, met een flits op de treffer) beide (wat het talent Full Circle van Mkuki geeft) en knop (geen derde slag; X speelt de draaislag los af als duw, zonder schade, met 8 s afkoeling). Druk tijdens de tweede steek nog een keer en hij gaat er direct in over.">Combo: uit</button>
+        <button id="sbshove" class="on" title="De shove: aanvallen met de speer terwijl een mens-vijand te dichtbij staat en de steek niemand raakt: Amir duwt hem terug tot op steekafstand, zonder schade, met een korte wankel en 2 s afkoeling (SHOVE).">Shove: aan</button>
       </div>
       <div class="row">
         <label>Reserve op de rug</label>
@@ -2343,6 +2344,7 @@
         <button id="sbrennieuw" title="De nieuwe ren (standaard): licht voorover, lange passen, met de speer rechtop in de voorste hand. Uit geeft de oude ren. Zie REN_NIEUW"class="on">Nieuwe ren: aan</button>
         <button id="sbstapslag" class="on" title="Met de stokken: de eerste slag is de stapslag, een echte stap met de klap erin; uit is de gewone slag (STOK.stapslag)">Stapslag: aan</button>
         <button id="sbslag2" class="on" title="Met de stokken: een tweede slag vlak na de stapslag is slag 2, een doorstap met een zijwaartse hook met links; uit is de gewone slag (STOK.slag2)">Slag 2: aan</button>
+        <button id="sbkop" title="Met de stokken: doodt slag 2 een slang, dan slaat Amir 1 op 6 keer de kop eraf (KOP). Deze knop zet het op altijd, of altijd een versie: door de camera, rakelings langs, of klein (zoals in een druk gevecht)">Snake head: 1 in 6</button>
         <button id="sbstokheel" class="on" title="Met de stokken: de slag raakt over de hele stok, van Amir tot voorbij de punt, zodat je een vijand die tegen je aan staat ook raakt. Uit: alleen de punt, met een dode zone vlak voor je, zoals de speer (STOK.heel). H toont het raakvak">Hele stok: aan</button>
         <button id="sbstokstap" class="on" title="Met de stokken: Amir stapt bij elke slag naar voren (STOK.stap)">Stokstap: aan</button>
         <button id="sbgrondklap" title="Met de stokken: in de lucht omlaag plus aanval is de grondklap, de stokken in de grond en een golf naar voren (GK)">Grondklap: uit</button>
@@ -4381,6 +4383,126 @@ function stofEind(){                           // hij staat waar zijn lijf aan h
   }
   stofA = null;
   atkCooldown = Math.max(atkCooldown, 0.15);
+}
+// ---- de shove: een vijand die te dichtbij staat terugduwen naar steekafstand ----
+// Aanvallen met de speer terwijl er een vijand te dichtbij staat (binnen de punt van de steek) en de steek niemand zou
+// raken: Amir zakt even in, pakt de speer rechtop met twee handen en duwt hem met zijn hele lijf terug tot op
+// steekafstand. Geen schade, een korte wankel, en daarna een afkoeling. Zou de steek wel iemand raken (een ander
+// verderop), dan steekt hij gewoon, en de vijand vlak bij hem kan hem dan raken. Alleen mensen worden geduwd
+// (bandiet, schildbandiet, kruisboogbandiet, zweepman, kooiman); staat er een dier of baas het dichtst bij, dan steekt
+// hij gewoon. De frames komen uit Grok (Mkuki met een groene speer); de speer zit er los op via los.json (MK_LOS), op
+// het canvas van de steek (SPR_W, SPR_H, SPR_GROUND).
+const SHOVE = {
+  aan: true,
+  dir: 'aanval/shove/',
+  n: 13,                                  // shove_00 tot en met shove_12
+  // [frame, ticks van 1/24 s]: inzakken, de duw, vasthouden, terug naar de stand (samen zo'n 1,1 s)
+  reeks: [[1, 1], [2, 1], [3, 2], [5, 1], [6, 1], [7, 1], [8, 1], [9, 2], [10, 3], [11, 3], [7, 2], [5, 2], [3, 2], [1, 2], [0, 2]],
+  raakStap: 6,                            // bij deze stap van de reeks (frame 8, armen gestrekt) raakt de speer hem: 0,29 s na de druk
+  koel: 2,                                // afkoeling in seconden; zolang steekt hij gewoon, ook als er iemand te dichtbij staat
+  wankel: 0.4,                            // zo lang staat de vijand stil na de duw: tijd voor een steek, niet voor twee
+  doel: 270,                              // waar hij heen gaat: zijn midden op deze afstand voor Amir, waar de steek raakt (sprite-eenheden)
+  minDuw: 70,                             // en minstens zoveel terug (sprite-eenheden)
+  zwaar: 0.5,                             // de kooiman met zijn kooi schuift maar half zo ver en wankelt niet
+  raakVan: 206, raakTot: 333,             // de strook waar de punt van de gewone steek raakt (TIP_DX van ATK_ACTIVE, plus steekR)
+  hoog: 90                                // alleen wie op Amirs eigen hoogte staat (wereld-px)
+};
+let shoveA = null, shoveKoel = 0, shoveBank = null;   // shoveA: {i, acc, kant, doel}: de shove loopt
+function shoveLaad(){
+  if (shoveBank) return;
+  shoveBank = Array.from({ length: SHOVE.n }, (_, i) => loadQuiet(uniq([AMIR, AMIR_GROOT]).map(d => d + SHOVE.dir + 'shove_' + (i < 10 ? '0' : '') + i + '.png')));
+}
+function shoveKlaar(){ return !!shoveBank && shoveBank.every(i => i.complete && i.naturalWidth); }
+function shoveBeeld(){ return shoveA && shoveBank ? shoveBank[SHOVE.reeks[Math.min(shoveA.i, SHOVE.reeks.length - 1)][0]] : null; }
+// wie staat er voor Amir: per vijand zijn lijst, soort, halve lijfbreedte (wereld-px) en of hij te duwen is
+function shoveVijanden(){
+  const k = nowScale(), mens = 0.2 * CHAR_H * k, r = [];
+  const zet = (L, soort, half, duw) => { for (const s of L) r.push({ s, L, soort, half: typeof half === 'function' ? half(s) : half, duw }); };
+  zet(bandieten, 'bandiet', () => BAN_LIJF.half * banScale(), true);
+  zet(schildmannen, 'schildman', () => SCHB_LIJF.half * schbScale(), true);
+  zet(kruisbogen, 'kruisboog', mens, true);
+  zet(zweepmannen, 'zweepman', mens, true);
+  zet(kooimannen, 'kooiman', () => KOOI_LIJF.half * kooiScale() * 0.6, true);
+  zet(hyenas, 'hyena', mens * 1.4, false);
+  zet(snakes, 'slang', mens, false);
+  zet(scorps, 'schorpioen', mens, false);
+  zet(panthers, 'panter', mens * 1.5, false);
+  if (brutus) r.push({ s: brutus, L: null, soort: 'brutus', half: mens * 1.6, duw: false });
+  return r;
+}
+// Mag de aanval een shove zijn? Dan de vijand die geduwd wordt, anders null (en dan steekt hij gewoon)
+function shoveDoel(){
+  if (!SHOVE.aan || shoveA || shoveKoel > 0 || !spear || atkMes || stokAan() || !onGround || jump || fell) return null;
+  if (mpcGast()) return null;                     // Co-op bij een gast: de host denkt voor de vijanden, dus daar gewoon steken
+  const k = nowScale(), px = playerX(), kant = facing === 1 ? 1 : -1;
+  const van = SHOVE.raakVan * k, tot = SHOVE.raakTot * k;
+  let dicht = null;
+  for (const v of shoveVijanden()){
+    const s = v.s;
+    if (!sbLeeft(s) || s.air > 0 || s.dropping || Math.abs((s.base || 0) - ph) > SHOVE.hoog) continue;
+    const d = (s.x - px) * kant;                  // hoe ver voor Amir (negatief: achter hem)
+    if (d < -v.half * 0.5) continue;              // achter hem: daar duwt hij niet
+    if (d + v.half >= van && d - v.half <= tot) return null;   // de steek raakt iemand: gewoon steken
+    if (d + v.half < van && (!dicht || d < dicht.d)) dicht = { ...v, d };
+  }
+  if (!dicht || !dicht.duw) return null;          // niemand te dichtbij, of het dichtst bij staat een dier of baas
+  if (dicht.soort === 'bandiet' && razAan(dicht.s)) return null;          // razend: niets houdt hem tegen
+  if (dicht.soort === 'schildman' && (schbOnaantastbaar(dicht.s) || dicht.s.exe)) return null;
+  return dicht;
+}
+function shoveStart(doel){
+  shoveLaad();
+  if (!shoveKlaar()) return false;                // de frames zijn er nog niet: dan maar een gewone steek
+  shoveA = { i: 0, acc: 0, kant: facing === 1 ? 1 : -1, doel };
+  shoveKoel = SHOVE.koel; duckT = 0;
+  if (wantSound){ const t = document.getElementById('thrust'); t.currentTime = 0; t.volume = 0.7; t.playbackRate = 0.75; t.play().catch(() => {}); }
+  return true;
+}
+function shoveStap(dt){                          // elk beeld: de afkoeling, de frames, het duwmoment en het eind
+  if (shoveKoel > 0) shoveKoel = Math.max(0, shoveKoel - dt);
+  if (!shoveA) return;
+  if (dead || hurt > 0 || fell || jump || !onGround){ shoveA = null; return; }   // geraakt tijdens de shove: hij is kwetsbaar
+  facing = shoveA.kant;
+  shoveA.acc += dt * 24;
+  while (shoveA && shoveA.acc >= SHOVE.reeks[shoveA.i][1]){
+    shoveA.acc -= SHOVE.reeks[shoveA.i][1];
+    shoveA.i++;
+    if (shoveA.i === SHOVE.raakStap) shoveRaak();
+    if (shoveA.i >= SHOVE.reeks.length){ shoveA = null; atkCooldown = Math.max(atkCooldown, 0.1); }
+  }
+}
+// de speer raakt hem: terug tot op steekafstand, en even stil. Is hij intussen buiten bereik, dan duwt hij in de lucht
+function shoveRaak(){
+  const v = shoveA.doel, s = v.s, k = nowScale(), kant = shoveA.kant;
+  if (!sbLeeft(s) || s.air > 0) return;
+  const d = (s.x - playerX()) * kant;
+  if (d < -v.half || d - v.half > SHOVE.raakVan * k) return;
+  const zwaar = v.soort === 'kooiman' ? SHOVE.zwaar : 1;
+  const ver = Math.max(SHOVE.minDuw * k, SHOVE.doel * k - d) * zwaar;
+  const snel = kant * ver * 3.91;                 // een knock dooft uit met 0,02 per seconde: de afstand is snel / ln 50
+  if (v.soort === 'bandiet'){                      // zijn knock remt iets harder af (banMove): een vijfde erbij, dan komt hij ook op steekafstand
+    s.knock = snel * 1.2; s.counter = false; banSet(s, 'run');
+    s.rust = Math.max(s.rust || 0, SHOVE.wankel); s.traag = Math.max(s.traag || 0, SHOVE.wankel);
+  } else if (v.soort === 'schildman'){             // hij wankelt terug achter zijn schild; het schild houdt het (geen schildstuk eraf)
+    s.state = 'flinch'; s.frame = SCHB.flinchVan; s.acc = 0; s.knockV = snel; s.naTerug = true; s.inv = SCHB.invHit;
+  } else if (v.soort === 'kooiman'){
+    s.knock = snel;
+  } else {                                         // kruisboogbandiet en zweepman: zijn eigen glij en wankel (shoveGlij)
+    s.shoveV = snel; s.shoveRust = SHOVE.wankel;
+  }
+  lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);
+  puffWorld(s.x, 5, kant * 200, 1, s.base || 0);
+  shake = Math.max(shake, 0.12); hitstop = Math.max(hitstop, 0.06);
+}
+// de kruisboogbandiet en de zweepman hebben geen knock zoals de bandiet: hier schuiven ze terug (met hun eigen move,
+// dus niet over een kei of ravijn, regel 7) en staan ze even stil. true: hij wankelt nog, de rest van zijn update wacht
+function shoveGlij(s, dt, beweeg){
+  if (s.shoveV){
+    if (!beweeg(s.shoveV * dt)) s.shoveV = 0;
+    else { s.shoveV *= Math.pow(0.02, dt); if (Math.abs(s.shoveV) < 4) s.shoveV = 0; }
+  }
+  if (s.shoveRust > 0){ s.shoveRust = Math.max(0, s.shoveRust - dt); return true; }
+  return false;
 }
 const stofRnd = (a, b) => a + Math.random() * (b - a);
 function stofSneeuw(wx){ return winterOn() || sneeuwAt(wx) >= BAV_STOF.sneeuwVanaf; }
@@ -7274,14 +7396,18 @@ const TUT_1 = {
   mentor: {
     spoor: 'design/tutorial/mentor_spoor.json',
     finish: -9200, prijs: {x: -9300, h: 320},
-    win: 'Fast! Who taught you that?', verlies: 'Not bad, little one. Not bad.',
-    vallen: ['Again, little one.', 'The ground is down there. Try again.', 'Ha! Up you get.'],
+    win: 'Fast! Who taught you that?', verlies: 'Not bad, little spear. Not bad.',
+    vallen: ['Again, little spear.', 'The ground is down there. Try again.', 'Ha! Up you get.'],
+    // stem en okStem: de ingesproken regels van de gids (GIDS_STEM, design/tutorial/stem/); een zeg in delen loopt mee met de stem
     stations: [
-      { zeg: 'Morning, little one. Your first hunt! Come here. [LEFT]', seg: 0, ok: 'Good. Keep up!', kijk: false },
+      { zeg: ['Morning, little spear! A Mkuki with no spear...', 'Today, we fix that. Come. Follow me. [LEFT]'],
+        stem: ['guide_start_1.mp3', 'guide_start_2.mp3'], seg: 0, ok: 'Good. Keep up!', kijk: false },
       { zeg: 'Now you. Jump over the rock! [UP]', seg: 1, ok: 'Nice jump.', terug: -620 },
       { zeg: 'Up here! Jump onto the ledge, then to the top. [UP]', seg: 2, ok: 'Good eyes.', terug: -1300 },
-      { zeg: 'Too low to stand. Hold [DOWN] and crawl. [LEFT]', seg: 3, ok: 'Like a lion in the grass.', terug: -2700 },
-      { zeg: 'Roll! Press [V] while you run.', eis: 'rol', nog: 'Roll first! Press [V].', seg: 4, ok: 'Quick!', terug: -3700 },
+      { zeg: 'Get low, like a snake. Crawl through. [DOWN] [LEFT]', stem: 'guide_kruip.mp3', seg: 3,
+        ok: 'You fit! Being small is useful.', okStem: 'guide_kruip_ok.mp3', terug: -2700 },
+      { zeg: 'Now roll. Fast, low, and up again. [V]', stem: 'guide_rol.mp3', eis: 'rol', nog: 'Roll first! Press [V].', seg: 4,
+        ok: 'Smooth. Like water.', okStem: 'guide_rol_ok.mp3', terug: -3700 },
       { zeg: 'A small gap. Just jump! [UP]', seg: 5, ok: 'Easy, right?', terug: -4150 },
       { zeg: 'Now run fast. Hold [SHIFT] while you run.', eis: 'sprint', nog: 'Faster! Hold [SHIFT] while you run.', seg: 6, ok: 'Now you are fast.', terug: -4750, kijk: 'Watch closely.' },
       { zeg: 'Too wide to jump. Sprint with [SHIFT], then leap with [UP] at the edge!', ok: 'You flew!', okDuur: 1.6, terug: -5150 },
@@ -7508,7 +7634,31 @@ const TEST_92 = {
   ends: [ {x: -4500} ],
   tips: [ { x: -80, t: 'Test level: lion pelts. Every start you pick one of six outfits, trousers and pelt together. Fight, block, run and sneak, and look how it holds up' } ]
 };
-const STOK_LEVELS = [TEST_74, TEST_76, TEST_77, TEST_91, TEST_92];
+// Test 98 (op verzoek, regel 3): de slangenkop eraf (KOP). Met de stokken; hier gaat de kop er bij elke slang die slag 2
+// doodt af (slangKop: 1), en de rust beslist welke versie. Eerst drie slangen elk alleen (rustig: langs of door de camera),
+// dan twee slangen met een bandiet en hyena's erbij (druk: de kleine versie, de kop valt voor op de grond).
+const TEST_98 = {
+  name: 'Test 98: Snake heads',
+  lagen: 'tafelbergen',
+  view: 0.8, hpBalk: true, zicht: true, sneak: true, camera: true, rand: true, slangEenKlap: true, hyOmkeer: true,
+  geenSpeer: true, stokken: true, nieuweRen: true, onstKeuze: true,
+  slangKop: 1,                                     // elke kill met slag 2 slaat de kop eraf (anders 1 op 6)
+  spawns: [ {x: -1000, k: 'groen'},
+            {x: -2000, k: 'zwart'},
+            {x: -3000, k: 'knock'},
+            {x: -4200, k: 'groen'}, {x: -4500, k: 'bandiet'},
+            {x: -5600, k: 'zwart'}, {x: -5900, k: 'hyenas'} ],
+  gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], rocks: [],
+  props: [ {x: -400, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -1500, k: 'struik', s: 0.9, f: 1, v: 0},
+           {x: -2500, k: 'gras', s: 1.1, f: 1, v: 0}, {x: -3600, k: 'struik', s: 1.0, f: 0, v: 0},
+           {x: -5000, k: 'gras', s: 1.0, f: 1, v: 0} ],
+  hppotions: [ {x: -3600, y: null} ],
+  cliffs: [ {x: -7000} ],
+  ends: [ {x: -6500} ],
+  tips: [ { x: -80, t: 'Test level: snake heads. Strike twice quickly: the step strike, then the side hook. Kill a snake with the hook when it rears up to bite, and its head comes off' },
+          { x: -3900, t: 'Now with a bandit close by: the head comes off small and drops in front of you' } ]
+};
+const STOK_LEVELS = [TEST_74, TEST_76, TEST_77, TEST_91, TEST_92, TEST_98];
 // ---- Test levels rainforest: alle proefstukken in het regenwoud, in een eigen reeks (zoals Sticks, zonder tribekeuze) ----
 // Test 87: twee rivieren die naar je toe stromen (RIVIER_STROOM, `stroom: true`); de eerste is stil water (`stil: true`), op
 // verzoek van de opdrachtgever, omdat ook de rustige stroming te hard voelde. Op verzoek (regel 3), zelf ontworpen,
@@ -22881,12 +23031,18 @@ const SLANG_DOOD = {
   // het trefpunt per doodframe, in canvas-px: [x, y, dikte] op 30 en 50 procent van zijn lengte (voor de snee)
   punt: { 0.3: [[122,114,44],[122,114,44],[124,115,43],[128,115,43],[129,116,41],[129,116,40],[127,118,38],[126,118,38],[124,119,35],[122,120,34],[121,120,33],[121,120,32],[119,120,32],[114,121,31],[113,121,31],[114,121,31],[114,121,31]],
           0.5: [[172,111,35],[172,111,35],[175,114,35],[181,117,39],[185,118,38],[188,123,27],[187,124,26],[187,123,27],[188,122,28],[188,118,35],[188,116,38],[189,113,37],[189,111,35],[183,114,29],[182,114,28],[183,116,26],[184,122,26]] },
+  // de kop per doodframe, voor de onthoofding (KOP), in canvas-px: [kopx, kopy, stompx, stompy, hoek]; het gat is een
+  // cirkel van KOP.gat om de kop, de stomp ligt aan de lijfkant van die cirkel en de hoek wijst van de stomp naar de kop
+  kop: [[267,68,237,59,0.27],[267,69,240,61,0.28],[274,76,251,70,0.26],[286,89,260,78,0.41],[298,102,274,98,0.15],[307,114,278,106,0.28],
+        [309,118,280,109,0.29],[312,121,282,113,0.26],[318,122,287,116,0.22],[324,122,293,116,0.18],[328,122,296,117,0.15],[332,123,300,118,0.16],
+        [336,122,304,119,0.12],[329,120,300,120,0],[327,119,299,119,-0.02],[329,119,297,119,0.02],[330,119,298,119,0.02]],
   // per soort kill: welke set, welke snee (null: geen), op welk punt, en hoeveel druppels
   soort: { steek: { set: 'gewoon', snee: 'snee_recht', t: 0.5, rot: 0.2, k: 1.6, drup: 7 },
            laag:  { set: 'gewoon', snee: 'snee_dwars', t: 0.3, rot: -0.15, k: 2.2, drup: 5 },
            worp:  { set: 'snel', snee: null, t: 0.5, drup: 8 },
            klap:  { set: 'snel', snee: null, t: 0.5, drup: 2 },
            stok:  { set: 'gewoon', snee: null, t: 0.55, drup: 1 },
+           kop:   { set: 'gewoon', snee: null, t: 0.5, drup: 6 },   // de kop eraf met slag 2 (KOP): het gat en de stomp komen uit SLANG_DOOD.kop
            anders: { set: 'gewoon', snee: null, t: 0.5, drup: 3 } }
 };
 const SNAKE_DIRS = { groen: 'enemies/slang1_zand/', zwart: 'enemies/slang2_roet/', knock: 'enemies/slang1_knock/' };
@@ -25620,7 +25776,8 @@ function slangLaad(k){
   snk[k] = { idle: frameList(d,'idle').map(load),
              move: frameList(d,'move').map(load),
              atk:  frameList(d,'attack').map(load),
-             dood: Array.from({ length: SLANG_DOOD.n }, (_, i) => load(d + 'dood_' + String(i).padStart(2, '0') + '.png')) };
+             dood: Array.from({ length: SLANG_DOOD.n }, (_, i) => load(d + 'dood_' + String(i).padStart(2, '0') + '.png')),
+             kop: ['zij', 'schuin', 'voor', 'rug'].map(n => load('enemies/slang_kop/' + k + '/kop_' + n + '.png')) };   // de losse kop (KOP)
 }
 function slangLaadLevel(lv){
   if (!lv) return;
@@ -26431,7 +26588,7 @@ function speerNaam(blauw){ const s = SPEER_SOORTEN[speerSoortId(blauw) || 'stand
 function rugSort(){ rugSperen.sort((a, b) => speerRang(a.blauw) - speerRang(b.blauw)); }
 // mag de speer in de hand nu wisselen: hij moet er zijn, en Amir is niet bezig met een steek, worp, zwaai of trek
 function speerWisselMag(){
-  return spearFound && !dead && !thr && atkFrame < 0 && swFrame < 0 && rugTrekT <= 0 && !stofA;
+  return spearFound && !dead && !thr && atkFrame < 0 && swFrame < 0 && rugTrekT <= 0 && !stofA && !shoveA;
 }
 function speerSorteer(){
   if (!rugAan() || !rugSperen.length){ speerOrdeVuil = false; return; }
@@ -26646,7 +26803,7 @@ function thrDir(){ return facing === 1 ? 1 : -1; }
 // ---- spannen en werpen --------------------------------------------------
 function canThrow(){
   return spear && !dead && hurt <= 0 && onGround && !jump && !fell
-      && atkFrame < 0 && swFrame < 0 && swRecover <= 0 && duckT <= 0 && !stofA;
+      && atkFrame < 0 && swFrame < 0 && swRecover <= 0 && duckT <= 0 && !stofA && !shoveA;
 }
 function thrPress(){
   // op speltijd, niet op de wandklok: wie vasthoudt en pauzeert, hervat met dezelfde lading, en op een
@@ -28217,8 +28374,10 @@ const mentorSporen = {};                         // pad -> het geladen spoor (of
 function mentorAan(){ return !!(mentor && mentor.spoor && level && level.mentor && !sandbox); }
 function mentorReset(){
   mentor = null;
+  gidsStemStop();
   const M = level && level.mentor;
   if (!M || sandbox) return;
+  gidsStemLaad(M);
   mentor = { def: M, spoor: null, i: 0, fase: 'wacht', t: 0, seg: -1, f: 0, eis: {}, ok: '', okT: 0, val: 0, valT: 0,
              faal: '', faalT: 0, race: null, wolkT: 0, wolkTekst: '', beeld: null };
   gidsLaad();
@@ -28266,6 +28425,45 @@ function mentorCamKlem(d){
 }
 function mentorCamH(){ return mentorCamAan() && mentor.camH != null ? mentor.camH : null; }
 function mentorZeg(tekst, duur){ mentor.faal = tekst; mentor.faalT = duur || 2.2; }
+// ---- de stem van de gids: ingesproken regels per station (ElevenLabs, stem "Guide", zie notities/tutorial.md) ----
+// Een station met `stem` speelt zijn uitleg als de speler in de buurt is (GIDS_STEM.bij), een keer per station: na een
+// val niet opnieuw. Een `zeg` in delen (een rij) toont steeds het deel dat hij nu zegt, en hij gaat pas verder als hij
+// uitgepraat is. `okStem` klinkt bij het "goed zo", dat dan minstens zo lang blijft staan als de regel duurt.
+const GIDS_STEM = { map: 'design/tutorial/stem/', vol: 0.95, bij: 650, lees: 0.28, leesMin: 1.4 };
+const gidsStemPool = {};
+let gidsStemNu = null, gidsStemPauze = false;
+function gidsStemAudio(f){
+  let a = gidsStemPool[f];
+  if (!a){
+    a = geluidAan(new Audio()); a.preload = 'auto'; a.src = GIDS_STEM.map + f;
+    a.onerror = () => console.warn('ontbreekt: ' + GIDS_STEM.map + f);
+    gidsStemPool[f] = a; PRAAT_STEMMEN.push(a);              // Amir praat er niet doorheen
+  }
+  return a;
+}
+function gidsStemLaad(M){ for (const st of M.stations) for (const f of [].concat(st.stem || [], st.okStem || [])) gidsStemAudio(f); }
+function gidsStemStop(){ if (gidsStemNu){ gidsStemNu.pause(); gidsStemNu = null; } gidsStemPauze = false; }
+function gidsStemSpeel(f){
+  gidsStemStop();                                           // nooit twee regels tegelijk
+  if (!f || !wantSound) return;
+  const a = gidsStemAudio(f);
+  try { a.currentTime = 0; } catch (e) {}
+  a.volume = GIDS_STEM.vol;
+  a.play().catch(() => {});
+  gidsStemNu = a;
+}
+function gidsStemBezig(){ return !!(gidsStemNu && (gidsStemPauze || (!gidsStemNu.paused && !gidsStemNu.ended))); }
+function gidsStemDuur(f){ const a = f && gidsStemPool[f]; return a && isFinite(a.duration) ? a.duration : 0; }
+// elk beeld, ook als het spel stilstaat: bij pauze stil, daarna verder; buiten het level weg
+function gidsStemStap(){
+  if (!gidsStemNu) return;
+  if (!mentorAan() || !running || !wantSound){ gidsStemStop(); return; }
+  const stil = paused || laadWacht;
+  if (stil && !gidsStemNu.paused && !gidsStemNu.ended){ gidsStemNu.pause(); gidsStemPauze = true; }
+  else if (!stil && gidsStemPauze){ gidsStemPauze = false; gidsStemNu.play().catch(() => {}); }
+}
+function mentorDelen(st){ return st && st.zeg ? [].concat(st.zeg) : []; }
+function mentorZegNu(st){ const d = mentorDelen(st); return d[Math.min(d.length - 1, mentor.deel || 0)] || ''; }
 function mentorUpdate(dt){
   if (!mentorAan() || !running || paused) return;
   const m = mentor, st = mentorStation();
@@ -28335,8 +28533,25 @@ function mentorUpdate(dt){
   const gedaan = !st.eis || m.eis[st.eis];
   // stil: de speler staat (bijna) stil, pas dan zegt hij wat er nog mist
   m.stilT = Math.abs(world - (m.vorigeX == null ? world : m.vorigeX)) < 1 ? (m.stilT || 0) + dt : 0; m.vorigeX = world;
-  if (dicht && gedaan && m.t > 1 && (st.seg != null || st.ok)){ m.faalT = 0; m.ok = st.ok || ''; m.okT = m.ok ? (st.okDuur || MENTOR.okDuur) : 0.01; m.fase = 'ok'; }
-  else if (dicht && !gedaan && st.nog && m.faalT <= 0 && m.stilT > 0.4) mentorZeg(st.nog, 2.6);   // bij hem, maar het trucje nog niet gedaan
+  // de stem (GIDS_STEM): een nieuw station begint bij deel 0; het deel klinkt als de speler in de buurt is, en het
+  // volgende deel komt pas als hij uitgepraat is (zonder geluid na een leestijd)
+  if (m.stemI !== m.i){ m.stemI = m.i; m.deel = 0; m.stemDeel = -1; m.stemT = 0; }
+  const delen = mentorDelen(st), stem = [].concat(st.stem || []);
+  const deelTekst = delen[m.deel] || '';
+  if (m.stemDeel !== m.deel && !laadWacht && (Math.abs(world - mentorX()) < GIDS_STEM.bij || !stem[m.deel])){   // niet achter het laadscherm
+    m.stemDeel = m.deel; m.stemT = 0;
+    if (stem[m.deel]) gidsStemSpeel(stem[m.deel]);
+  }
+  if (m.stemDeel === m.deel) m.stemT += dt;
+  const deelKlaar = m.stemDeel === m.deel && !gidsStemBezig()
+    && m.stemT > (stem[m.deel] && wantSound ? 0.3 : Math.max(GIDS_STEM.leesMin, deelTekst.split(' ').length * GIDS_STEM.lees));
+  if (deelKlaar && m.deel < delen.length - 1){ m.deel++; }
+  const uitgepraat = m.deel >= delen.length - 1 && (!stem.length || deelKlaar);
+  if (dicht && gedaan && uitgepraat && m.t > 1 && (st.seg != null || st.ok)){
+    m.faalT = 0; m.ok = st.ok || ''; m.okT = m.ok ? (st.okDuur || MENTOR.okDuur) : 0.01; m.fase = 'ok';
+    if (st.okStem){ gidsStemSpeel(st.okStem); m.okT = Math.max(m.okT, gidsStemDuur(st.okStem) + 0.25); }
+  }
+  else if (dicht && !gedaan && uitgepraat && st.nog && m.faalT <= 0 && m.stilT > 0.4) mentorZeg(st.nog, 2.6);   // niet door zijn uitleg heen   // bij hem, maar het trucje nog niet gedaan
 }
 function mentorRaceUit(win){
   const d = mentor.def;
@@ -28518,7 +28733,7 @@ const MENTOR_TOETS = { LEFT: '←', RIGHT: '→', UP: '↑', DOWN: '↓', SHIFT:
 function mentorTekstNu(){
   const m = mentor, st = mentorStation();
   if (m.faalT > 0){                                         // de grap, en de uitleg blijft eronder staan
-    const zeg = m.fase === 'wacht' && st && st.zeg && m.faal !== st.nog ? ' ' + st.zeg : '';
+    const zeg = m.fase === 'wacht' && st && st.zeg && m.faal !== st.nog ? ' ' + mentorZegNu(st) : '';
     return m.faal + zeg;
   }
   if (m.uitslagT > 0) return m.uitslag;
@@ -28527,7 +28742,7 @@ function mentorTekstNu(){
   if (m.race && m.race.go > 0) return 'Go!';
   if (m.fase === 'demo') return m.t < MENTOR.kijkDuur && m.def.stations[m.i] && m.def.stations[m.i].kijk !== false ? (m.def.stations[m.i].kijk || 'Watch.') : '';
   if (m.fase === 'race') return '';
-  return st ? st.zeg : '';
+  return st ? mentorZegNu(st) : '';
 }
 // woorden en toetsen in regels, binnen de breedte
 function mentorWolkRegels(tekst, max, fs){
@@ -28598,6 +28813,15 @@ function mentorWolkTeken(){
   if (ctx.letterSpacing !== undefined) ctx.letterSpacing = (fs * 0.12) + 'px';
   ctx.fillText(C.naam, x + pad, y + pad * 0.75);
   if (ctx.letterSpacing !== undefined) ctx.letterSpacing = '0px';
+  // het spreekteken: drie golvende streepjes achter de naam zolang zijn stem klinkt (wie praat er, zie GIDS_STEM)
+  if (gidsStemBezig() && !gidsStemPauze){
+    const n0 = fs * 0.55, bx = x + pad + naamB + fs * 0.25, by = y + pad * 0.75 + n0 * 0.5, sw = Math.max(2, fs * 0.13);
+    ctx.fillStyle = C.rand;
+    for (let i = 0; i < 3; i++){
+      const hh = n0 * (0.35 + 0.65 * Math.abs(Math.sin(m.klok * (7 + i * 2.3) + i * 1.7)));
+      mentorRond(bx + i * sw * 1.9, by - hh / 2, sw, hh, sw / 2); ctx.fill();
+    }
+  }
   ctx.font = '700 ' + fs + 'px Archivo, "Helvetica Neue", Arial, sans-serif';
   ctx.textBaseline = 'middle';
   regels.forEach((rg, i) => {
@@ -30621,7 +30845,7 @@ function glijWolk(zij, k){
 let glij = 0, glijStof = 0;      // glijsnelheid in wereld-px/s (met teken), en de stoftimer
 function glijStart(){
   if (!RENSTOOT.aan || !spear || dead || hurt > 0 || jump || !onGround || fell) return;
-  if (atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || duckT > 0 || stofA || !keys['Shift']) return;
+  if (atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || duckT > 0 || stofA || shoveA || !keys['Shift']) return;
   const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
   const right = keys['ArrowRight'] || keys['d'] || keys['D'];
   if (left === right || waterDepthAt(world, ph) > 0.3) return;
@@ -30757,7 +30981,7 @@ function rolStart(tenue){
   if (rolW && rolW.los && rolW.naLos >= ROL_WORP.afbreek){ rolW = null; rolKoel = 0; }   // de nazwaai afbreken met een rol
   if (!ROL.aan || rol || rolKoel > 0) return;
   if (dead || hurt > 0 || schijnLigt() || amirVast() || jump || !onGround || fell || zhOntwaakT > 0) return;
-  if (atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || thr || glij !== 0 || stofA) return;
+  if (atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || thr || glij !== 0 || stofA || shoveA) return;
   if (waterDepthAt(world, ph) > 0.3) return;
   const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
   const right = keys['ArrowRight'] || keys['d'] || keys['D'];
@@ -31154,7 +31378,7 @@ function startAttack(){
   if (gkAan() && !onGround && downKey() && !gkKan() && !gkFase && (gkKoelT > 0 || straalMoe())) balkSchud('grondklap');   // nog aan het afkoelen: het vak schudt
   // de stoktribe: omlaag is ook mediteren (STRAAL). Slaan breekt de meditatie af (ook de trance), dan is het de lage slag
   if (stokAan() && straalTrance && !straalFase && onGround && !dead && hurt <= 0){ straalMediT = 0; straalNu = null; straalVrijZ = null; straalTrance = false; }
-  if (dead || hurt > 0 || schijnLigt() || jump || amirVast() || stofA) return;
+  if (dead || hurt > 0 || schijnLigt() || jump || amirVast() || stofA || shoveA) return;
   if (stokAan() && duckT > 0){ stokLaagSlag(); return; }   // gebukt met de stokken: de lage slag naar voren (STOK.laag), ook in Multiplayer
   if (stokAan()){ stokAanval(); return; }       // de stokken: de slag, of de counter na een blok (zie STOK)
   if (atkFrame >= 0){                            // already thrusting
@@ -31176,6 +31400,8 @@ function startAttack(){
     const m = fcModus();
     if (m && fcOpenDoel()){ comboStart(); fcSoort = m; return; }
   }
+  const shDoel = shoveDoel();                      // te dichtbij en de steek raakt niemand: de shove (zie SHOVE)
+  if (shDoel && shoveStart(shDoel)) return;
   if (comboKetenKan()){                            // de derde slag: tel de steken in de reeks (niet met de duw op X)
     comboTel = comboSinds <= COMBO.keten ? comboTel + 1 : 1;
     if (comboTel >= 3){ comboStart(); return; }
@@ -31305,7 +31531,7 @@ function startJump(){
   if (typeof tutEvent === 'function') tutEvent('jump');
   if (thr && thr.held && rigMik()) return;         // de mik-rig: pijl omhoog is mikken, geen sprong
   thrAfbreken();                                   // springen tijdens het spannen: de worp gaat niet door
-  if (dead || hurt > 0 || schijnLigt() || atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || thr || stofA) return;
+  if (dead || hurt > 0 || schijnLigt() || atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || thr || stofA || shoveA) return;
   if (stadAan() && stadSprong()) return;             // de stad: net na het opwippen van een doek alsnog de hoge sprong
   if (doorvalStart()) return;                        // omlaag + springen op een houten galerij: erdoorheen zakken (DOORVAL)
   if (!onGround && coyote > 0 && (!jump || jump.phase === 'air') && pvh <= 0){ takeOff(); return; }
@@ -46193,6 +46419,7 @@ function restart(){
   won = false; document.getElementById('win').classList.remove('on');
   critZak = []; critNu = false;                   // True Flight: een verse knikkerzak per level
   speerKansReset();                               // de knikkerzakken van de speersoorten (SPEER_KANS): ook vers
+  kopReset();                                     // de slangenkop (KOP): een verse knikkerzak, geen koppen meer
   ardhiZakken = {}; ardhiHeelNu = null; for (const k in ardhiHeelAnder) delete ardhiHeelAnder[k];          // de Ardhi-wapens: verse knikkerzakken, geen druppel meer
   for (const o of ardhiWortels) delete o.wortel; ardhiWortels.length = 0;
   lives = levensStart(); invuln = 0; invulnStil = 0; hurt = 0; knock = 0; shake = 0; hitstop = 0; dubbelTraagT = 0; kooiVries = 0; kooiVriesS = null; exeVries = null; bruVries = null; stadTrapFade = null; stadLuifelVx = 0; exeZoomNu = 1; exeSnijStop(); dead = false;
@@ -46247,7 +46474,7 @@ function restart(){
     SLANG_EEN_KLAP = !!(level && level.slangEenKlap);   // slangen (ook de fosforslang) in een klap dood, ook met de balk aan
   }
   if (!sandbox) ZICHT_AAN = !!(level && level.zicht);   // vijanden zien je alleen als er niets tussen zit (zie "zicht"); de sandbox met een knop
-  if (!sandbox){ STOF.aan = !!(level && level.stof) || stofVanTribe(); } stofA = null; stofKoel = 0; zwaaiHoud = null;
+  if (!sandbox){ STOF.aan = !!(level && level.stof) || stofVanTribe(); } stofA = null; stofKoel = 0; zwaaiHoud = null; shoveA = null; shoveKoel = 0; if (SHOVE.aan) shoveLaad();
   if (!sandbox) COMBO.aan = !!(level && level.combo);   // de derde slag (zie COMBO)
   atkCombo = false; comboBuf = false; comboTel = 0; comboSinds = 99; comboX = false; fcSoort = null; duwKoel = 0;
   if (!hintEl.classList.contains('gone')) hintEl.textContent = HINT_START.replace(', Q drinken', STOF.aan ? ', gebukt F vasthouden stof in de ogen, Q drinken' : ', Q drinken');   // stof in de ogen (zie STOF): X, met stof: true in het level of met Mkuki
@@ -51459,6 +51686,7 @@ function updateKruisboog(s, dt, plats, cliff){
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0)   s.inv   = Math.max(0, s.inv - dt);   // de korte onkwetsbaarheid na een treffer (hitKruisboog); zonder dit bleef hij na de eerste treffer voorgoed onraakbaar
   if (s.slag > 0)  s.slag  = Math.max(0, s.slag - dt * 3);
+  if (s.state !== 'dood' && shoveGlij(s, dt, st => krbMove(s, st, plats, cliff))) return;   // de shove van Amir (SHOVE)
   if (s.state === 'dood'){                          // het lijk blijft liggen
     s.doodT += dt;
     if (!s.klaar) krbAnim(s, dt);
@@ -56202,6 +56430,7 @@ function updateZweepman(s, dt, plats, cliff){
   s.t += dt;
   s.base = opstapVolg(s, vloerBij(s.x, s.base), dt);   // over een opstapje glijdend
   rijsDraagtMob(s, dt);                               // het dek draagt hem in elke stand, ook midden in een slag
+  if (s.state !== 'dood' && shoveGlij(s, dt, st => zwmMove(s, st, plats, cliff))) return;   // de shove van Amir (SHOVE)
   const zS = zwmScale();
   if (s.knockV !== 0){ zwmMove(s, s.knockV * dt, plats, cliff); s.knockV *= Math.pow(0.02, dt); if (Math.abs(s.knockV) < 12) s.knockV = 0; }
   if (s.state === 'dood' && s.dood){ if (s.arm) zwmArmStap(s, dt); zwmDruppelStap(s, dt); zwmDoodStap(s, dt); return; }   // fase 2: de Grok-val
@@ -59795,6 +60024,7 @@ function slangDoodStap(s, dt, plats, cliff){
     s.vx *= SLANG_DOOD.glij;
   }
   const d = s.dd;
+  if (s.kop) d.kopT = (d.kopT || 0) + dt;          // KOP: de klok van de spuit uit de nekstomp
   knockStep(s, dt, plats, cliff, SNK_W * snakeSScale() * 0.45, 60);
   if (d.i < d.set.f.length - 1){
     d.t += dt;
@@ -59862,11 +60092,230 @@ function slangDoodTeken(s, img, sx, sy, sS, sw, gy){
     g2.drawImage(si, -ww / 2, -hh / 2, ww, hh);
     g2.restore();
   }
+  const kp = s.kop && D.kop[f];
+  if (kp){                                         // KOP: de kop is eraf, een gat waar hij zat
+    const kx = (s.side === 1 ? D.W - kp[0] : kp[0]) * sS, ky = kp[1] * sS;
+    g2.save(); g2.globalCompositeOperation = 'destination-out'; g2.beginPath(); g2.arc(kx, ky, KOP.gat * sS, 0, Math.PI * 2); g2.fill(); g2.restore();
+  }
   ctx.save(); ctx.globalAlpha = a; ctx.drawImage(wd, links, sy); ctx.restore();
+  if (kp) kopStompTeken(s, kp, links, sy, sS, a);
   for (const p of d.drup){
     const x = naarScherm(p.x), y = gy - p.h;
     ctx.save(); ctx.globalAlpha = a; snkdDruppel(x, y, p.r, p.vx, -p.vh); ctx.restore();
   }
+}
+
+// ---- de slangenkop eraf (KOP) ----
+// Doodt slag 2 van de stokken (de zijwaartse hook) een slang, dan slaat Amir hem 1 op 6 keer (knikkerzak) de kop eraf.
+// Is het rustig (geen levende vijand binnen KOP.rust op zijn niveau en geen gif, bout of dolk in de lucht), dan de grote
+// versie: een hitstop, de wereld even in slowmotion, en de kop vliegt in perspectief op de camera af. Meestal rakelings
+// langs de rand het beeld uit (langs), soms (KOP.door, een eigen zak) recht door de camera heen (door): hij groeit, wordt
+// onscherp, vult het beeld en is voorbij, met een korte rode flits en bloed op de lens dat snel wegtrekt. Hij stopt nooit
+// op de lens (Tom: een kop die stilstaat op de lens ziet er slecht uit). Is het druk, dan de kleine versie (klein): een
+// korte hitstop en even traag, en de kop vliegt een klein stukje naar de camera toe, valt voor op de grond, stuitert een
+// keer en blijft liggen, zodat het zicht in een gevecht vrij blijft. Het lijk krijgt een gat waar de kop zat
+// (SLANG_DOOD.kop), een nekstomp en een spuit. De koppen (zij, schuin, voor, rug) komen uit een Grok-blad, per kleur
+// omgekleurd met tools/slang_kop.py. De zand-, zwarte en knockslang; de fosforslang niet. Niet in PvP en Co-op.
+const KOP = {
+  aan: true,
+  kans: [1, 6],                  // knikkerzak: zoveel raak op zoveel knikkers, per slang die slag 2 doodt
+  door: [1, 3],                  // de grote versie: zoveel op zoveel door de camera, de rest rakelings langs
+  rust: 600, laag: 140,          // rustig: geen levende vijand binnen zoveel wereld-px, met minder dan laag px hoogteverschil
+  gat: 30,                       // straal van het gat in het doodframe, in canvas-px van de slang
+  maat: 0.27,                    // de kop (Grok-blad) ten opzichte van de slang: zo is kop_zij zo groot als zijn kop
+  stomp: 13,                     // halve dikte van de nekstomp, in canvas-px van de slang
+  spuit: 125,                    // hoogte van de spuit uit de nekstomp, in canvas-px van de slang
+  hoofd: { bijt: [240, 34], anders: [200, 98] },   // waar de kop zit op het moment van de treffer, in canvas-px van de slang
+  groot: { stop: 0.09, traag: { duur: 0.6, ramp: 0.3, f: 0.35 } },
+  klein: { stop: 0.06, traag: { duur: 0.3, ramp: 0.15, f: 0.4 },
+           vlucht: 0.7, boog: 230, ver: 190, voor: 0.18, groei: 0.35, stuit: 0.3, stuitH: 28, rol: 35, lig: 3.8, vervaag: 0.8 },
+           // vlucht en stuit in s, boog/ver/stuitH/rol in wereld-px bij schaal 1, voor: zoveel Amir voor de grondlijn
+  langs: { duur: 0.4, dEind: 0.11, doel: [-0.33, 0.17] },   // doel: waar hij het beeld uit gaat, als deel van W en H
+  doorC: { duur: 0.42, dEind: 0.02, doel: [0.46, 0.53], weg: 2.6 },   // weg: zo hoog als zoveel keer het beeld, dan is hij voorbij
+  lens: { groot: { r: 58, dx: 0, dy: 0 }, klein: { n: 10, r: [7, 18], ver: [90, 300] }, in: 0.03, drup: [14, 46], drupT: 0.5, weg: [0.2, 0.6] },
+  rood: 0.35, roodT: 0.06,       // de rode flits als hij door de camera gaat: sterkte en duur
+  zoef: { van: 450, tot: 2800, vol: 0.55 }
+};
+const KOP_SB = [0, 1, 'door', 'langs', 'klein'];   // de sandboxknop: knikkerzak, altijd (de rust beslist), of altijd die versie
+let kopZakken = {}, kopLijst = [], kopTraagT = 0, kopTraag = null, kopSb = 0, kopAltijd = 0;
+const kopLensSpat = { lijst: null, t: 0, x: 0, y: 0 };
+function kopKnikker(naam, raak, n){
+  let z = kopZakken[naam];
+  if (!z || !z.length){
+    z = kopZakken[naam] = [];
+    for (let i = 0; i < n; i++) z.push(i < raak);
+    for (let i = n - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [z[i], z[j]] = [z[j], z[i]]; }
+  }
+  return z.pop();
+}
+// een verse zak per level; Test 98 (slangKop) of de sandboxknop zet hem op altijd
+function kopReset(){
+  kopZakken = {}; kopLijst = []; kopLensSpat.lijst = null; kopTraagT = 0; kopTraag = null;
+  kopAltijd = (level && level.slangKop) || (sandbox ? KOP_SB[kopSb] : 0);
+}
+// is het rustig om Amir heen?
+function kopRustig(nietDeze){
+  const px = playerX();
+  for (const lijst of [snakes, scorps, panthers, hyenas, bandieten, schildmannen, kooimannen, kruisbogen, fosforSlangen, zweepmannen])
+    for (const o of lijst)
+      if (o !== nietDeze && camLeeft(o) && o.state !== 'dying' && Math.abs(o.x - px) < KOP.rust && Math.abs((o.base || 0) - ph) < KOP.laag) return false;
+  if (brutus) return false;
+  if (venom.length || krbPijlen.length || banDolken.length) return false;
+  return true;
+}
+// mag deze kill de kop eraf slaan? (slag 2, een gewone slang, de koppen geladen, en de zak zegt ja)
+function kopMag(s){
+  if (!KOP.aan || atkStok !== 'slag2' || !SNAKE_DIRS[s.kind] || pvp) return false;
+  const set = snk[s.kind]; if (!set || !set.kop || !set.kop.every(imgReady)) return false;
+  return kopAltijd ? true : kopKnikker('kop', KOP.kans[0], KOP.kans[1]);
+}
+// de kop eraf: (sx, sy) de linkerbovenhoek van de slang op het scherm (wereldlaag), sS zijn schaal
+function kopStart(s, sx, sy, sS, cx, groundY, scale){
+  const H0 = s.state === 'bite' ? KOP.hoofd.bijt : KOP.hoofd.anders;
+  const hx = sx + (s.side === 1 ? SNK_W - H0[0] : H0[0]) * sS, hy = sy + H0[1] * sS;
+  let soort = kopRustig(s) ? (kopKnikker('door', KOP.door[0], KOP.door[1]) ? 'door' : 'langs') : 'klein';
+  if (typeof kopAltijd === 'string') soort = kopAltijd;
+  const G = soort === 'klein' ? KOP.klein : KOP.groot;
+  hitstop = Math.max(hitstop, G.stop); kopTraag = G.traag; kopTraagT = G.traag.duur + G.traag.ramp;
+  s.kop = true; s.ddSoort = 'kop';
+  bloedLaadSpuit('donker');
+  const k = { soort, kind: s.kind, t: 0, weg: s.x < playerX() ? -1 : 1, sS };
+  if (soort === 'klein') Object.assign(k, { wx: world + (hx - cx), h: (groundY - hy) / scale, base: s.base || 0, sc0: scale });
+  else {
+    const m = ctx.getTransform(), q = m.transformPoint({ x: hx, y: hy });
+    Object.assign(k, { x0: q.x / DPR, y0: q.y / DPR, s0: sS * KOP.maat * Math.hypot(m.a, m.b) / DPR });
+    kopZoef(soort === 'door' ? KOP.doorC.duur : KOP.langs.duur);
+  }
+  kopLijst.push(k);
+  slangBloedSpeel(true, 'steek');
+}
+// de wereld even trager na de klap (zoals dubbelTraagNu), op echte tijd
+function kopTraagNu(realDt){
+  if (kopTraagT <= 0 || !kopTraag) return 1;
+  kopTraagT = Math.max(0, kopTraagT - realDt);
+  const T = kopTraag; if (kopTraagT > T.ramp) return T.f;
+  const v = 1 - kopTraagT / T.ramp; return T.f + (1 - T.f) * v * v * (3 - 2 * v);
+}
+// de koppen vliegen op echte tijd (niet mee in de slowmotion), maar staan stil in de hitstop
+function kopStap(realDt){
+  if (kopLensSpat.lijst){ kopLensSpat.t += realDt; if (kopLensSpat.t > KOP.lens.weg[1]) kopLensSpat.lijst = null; }
+  if (!kopLijst.length || hitstop > 0) return;
+  for (const k of kopLijst) k.t += realDt;
+  kopLijst = kopLijst.filter(k => k.soort === 'klein' ? k.t < KOP.klein.lig + KOP.klein.vervaag : !k.voorbij);
+}
+// waar een vliegende kop op het scherm staat (css-px): een plek in het beeldvlak en een diepte d, zoals tonLensPos
+function kopLensPos(k){
+  const C = k.soort === 'door' ? KOP.doorC : KOP.langs, u = Math.min(1, k.t / C.duur);
+  const d = k.soort === 'door' ? Math.pow(C.dEind, Math.pow(u, 1.25)) : 1 - Math.pow(u, 1.7) * (1 - C.dEind);
+  const e = (1 - d) / (1 - C.dEind);
+  const tx = W * (k.weg < 0 ? C.doel[0] : 1 - C.doel[0]), ty = H * C.doel[1];
+  const px = W / 2 + (tx - W / 2) * C.dEind, py = H / 2 + (ty - H / 2) * C.dEind;   // de plek in het beeldvlak die daar uitkomt
+  const X = k.x0 + (px - k.x0) * e, Y = k.y0 + (py - k.y0) * e - 60 * (H / 720) * Math.sin(Math.PI * Math.min(1, u * 1.2)) * (1 - e);
+  return { x: W / 2 + (X - W / 2) / d, y: H / 2 + (Y - H / 2) / d, k: 1 / d, u, d };
+}
+function kopBeeld(im, x, y, s, hoek, spiegel, alfa, blur){
+  const w = im.naturalWidth * s, h = im.naturalHeight * s;
+  ctx.save(); ctx.globalAlpha = alfa;
+  if (blur > 0.3) ctx.filter = 'blur(' + blur.toFixed(1) + 'px)';
+  ctx.translate(x, y); if (spiegel) ctx.scale(-1, 1); ctx.rotate(hoek);
+  ctx.drawImage(im, -w / 2, -h / 2, w, h);
+  ctx.restore();
+}
+// door de camera: het bloed op de lens en de rode flits
+function kopDoorLens(k){
+  kopLensSpat.lijst = lensSpatMaak(KOP.lens); kopLensSpat.t = 0;
+  kopLensSpat.x = W * (k.weg < 0 ? KOP.doorC.doel[0] : 1 - KOP.doorC.doel[0]); kopLensSpat.y = H * KOP.doorC.doel[1];
+  shake = Math.max(shake, 0.3);
+  slangBloedSpeel(true, 'worp');
+}
+// over alles heen, in schermcoordinaten (na tonLensTeken): de koppen die langs of door de camera vliegen, en de lens
+function kopLensTeken(){
+  if (kopLijst.some(k => k.soort !== 'klein')){
+    ctx.save(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    for (const k of kopLijst){
+      if (k.soort === 'klein' || k.voorbij) continue;
+      const set = snk[k.kind]; if (!set || !set.kop) continue;
+      const p = kopLensPos(k);
+      let view, hoek;
+      if (k.soort === 'door'){ view = p.u < 0.35 ? 0 : p.u < 0.62 ? 1 : 2; hoek = Math.PI * 2 * (1 - Math.pow(1 - p.u, 2.2)) - Math.PI * 2; if (view === 2) hoek *= 0.6; }
+      else { view = Math.floor(p.u * 7) % 4; hoek = 10.8 * Math.pow(p.u, 1.1); }
+      const im = set.kop[view], s = k.s0 * p.k;
+      if (k.soort === 'door' && (im.naturalHeight * s > H * KOP.doorC.weg || p.u >= 1)){ k.voorbij = true; kopDoorLens(k); continue; }
+      if (k.soort === 'langs' && p.u >= 1){ k.voorbij = true; continue; }
+      const blur = ((p.d < 0.5 ? (0.5 - p.d) * 6 : 0) + (k.soort === 'door' ? Math.min(14, Math.max(0, (p.k - 2) * 0.35)) : 0)) * H / 720;
+      if (k.vorig && im.naturalHeight * s < H) for (let i = 0; i < k.vorig.length; i++){ const v = k.vorig[i]; kopBeeld(set.kop[v.view], v.x, v.y, v.s, v.hoek, k.weg > 0, [0.3, 0.18, 0.09][i], v.blur); }
+      kopBeeld(im, p.x, p.y, s, hoek, k.weg > 0, 1, blur);
+      if (hitstop <= 0){ k.vorig = [{ view, x: p.x, y: p.y, s, hoek, blur }].concat(k.vorig || []).slice(0, 3); }
+    }
+    ctx.restore();
+  }
+  if (kopLensSpat.lijst){
+    const t = kopLensSpat.t;
+    if (t < KOP.roodT){ ctx.save(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = 'rgba(150,0,0,' + (KOP.rood * (1 - t / KOP.roodT)).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+    lensSpatTeken(kopLensSpat.lijst, KOP.lens, t, kopLensSpat);
+  }
+}
+// de kleine versie, in de wereldlaag (voor de slangen): een korte boog naar de camera toe, voor op de grond, stuiteren, liggen
+function kopWereldTeken(cx, groundY, scale){
+  for (const k of kopLijst){
+    if (k.soort !== 'klein') continue;
+    const set = snk[k.kind]; if (!set || !set.kop) continue;
+    const K = KOP.klein, s0 = scale / k.sc0, hl = -K.voor * CHAR_H, lx = k.wx + k.weg * K.ver;
+    let x, hh, groei, hoek, view;
+    if (k.t < K.vlucht){
+      const u = k.t / K.vlucht;
+      x = k.wx + k.weg * K.ver * u; hh = k.h + (hl - k.h) * u + K.boog * Math.sin(Math.PI * u) * (1 - 0.3 * u);
+      groei = 1 + K.groei * Math.sin(Math.PI * Math.min(1, u * 0.8));
+      hoek = 6.42 * (1 - Math.pow(1 - u, 1.6)); view = [0, 1, 3, 0][Math.min(3, Math.floor(u * 4))];
+    } else {
+      const v = Math.min(1, (k.t - K.vlucht) / K.stuit);
+      x = lx + k.weg * K.rol * v; hh = hl + (v < 1 ? K.stuitH * Math.sin(Math.PI * v) : 0);
+      groei = 1 + K.groei * Math.sin(Math.PI * 0.8); hoek = 6.42 - 0.17 * v; view = 0;
+    }
+    const alfa = k.t > K.lig ? Math.max(0, 1 - (k.t - K.lig) / K.vervaag) : 1;
+    const im = set.kop[view]; if (!imgReady(im)) continue;
+    kopBeeld(im, cx + (x - world), groundY - (k.base + hh) * scale, k.sS * s0 * KOP.maat * groei, hoek, k.weg > 0, alfa, 0);
+  }
+}
+// de nekstomp en de spuit op het lijk (vanuit slangDoodTeken), op het scherm
+function kopStompTeken(s, kp, links, sy, sS, a){
+  const sp = s.side === 1, x = links + (sp ? SLANG_DOOD.W - kp[2] : kp[2]) * sS, y = sy + kp[3] * sS;
+  const hoek = sp ? Math.PI - kp[4] : kp[4], r = KOP.stomp * sS;
+  ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y); ctx.rotate(hoek);
+  ctx.fillStyle = '#7a0d12'; ctx.strokeStyle = '#1d0b08'; ctx.lineWidth = Math.max(1, 1.6 * sS);
+  ctx.beginPath(); ctx.ellipse(0, 0, r * 0.42, r, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#b3242a'; ctx.beginPath(); ctx.ellipse(r * 0.06, 0, r * 0.22, r * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+  const set = bloedSpuitCache.donker, t = (s.dd && s.dd.kopT) || 0;
+  if (set){                                        // de spuit uit de stomp, van het lijf af (BLOED.ticks, BLOED.snel)
+    let acc = t * 24 * BLOED.snel, i = 0;
+    while (i < BLOED.frames - 1 && acc >= BLOED.ticks[i]){ acc -= BLOED.ticks[i]; i++; }
+    const im = set[i];
+    if (i < BLOED.frames - 1 && imgReady(im)){
+      const h = KOP.spuit * sS, w = h * im.naturalWidth / im.naturalHeight;
+      ctx.rotate(Math.PI / 2 - 0.35 * (sp ? -1 : 1)); ctx.drawImage(im, -w / 2, -h, w, h);
+    }
+  }
+  ctx.restore();
+}
+// de zoef van de kop die naar de camera vliegt (zoals bavZoef: ruis door een bandfilter dat oploopt)
+function kopZoef(duur){
+  if (!wantSound) return;
+  const ac = acLoopt(); if (!ac) return;
+  try {
+    const Z = KOP.zoef, t = ac.currentTime, lang = duur + 0.3;
+    const buf = ac.createBuffer(1, Math.ceil(ac.sampleRate * lang), ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = ac.createBufferSource(); src.buffer = buf;
+    const bf = ac.createBiquadFilter(); bf.type = 'bandpass'; bf.Q.value = 1.4;
+    bf.frequency.setValueAtTime(Z.van, t); bf.frequency.exponentialRampToValueAtTime(Z.tot, t + duur);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Z.vol * 0.2, t + duur * 0.5);
+    g.gain.exponentialRampToValueAtTime(Z.vol, t + duur * 0.95);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + lang);
+    src.connect(bf); bf.connect(g); g.connect(ac.destination);
+    src.start(t); src.stop(t + lang);
+  } catch (e) {}
 }
 
 function snakeImg(s){
@@ -61542,6 +61991,8 @@ function loop(now){
   if (waterRuis && (paused || won || !running || !waterenLijst().length)) waterGeluid(0);   // het geruis van stromend water stil buiten het spel
   dt *= zwmTraagNu();             // testoptie: de wereld vertraagd zolang een zweepman slaat (Zweepman: test)
   dt *= dubbelTraagNu(realDt);    // even vertraagd na een perfecte tweede speer (DUBBEL)
+  dt *= kopTraagNu(realDt);       // even vertraagd na de kop eraf (KOP)
+  if (running && !paused && !won) kopStap(realDt);   // de slangenkop vliegt op echte tijd (KOP)
   if (hitstop > 0){ hitstop -= dt; dt = 0; }     // een korte freeze op een klap (nu de parry): alles staat heel even stil, de shake schudt door
   // de deur-freeze: op de klap van de open deur staat het beeld even stil. De wereld bevriest (dt 0), maar de
   // bandiet komt wel op uit het donker (vFade op echte tijd) en de shake zakt weg, zodat de klap narommelt.
@@ -61701,7 +62152,7 @@ function loop(now){
   stokBlokStap(dt);                              // de stokken: het blok op C (zie STOK)
   if (stokBlokNu()) dir = 0;                     // blokken doe je stilstaand
   for (const b of bandieten) if (b.stokStun > 0) b.stokStun = Math.max(0, b.stokStun - dt);   // ook als de host zelf de speer heeft: in Co-op stunt een gast met stokken, en anders bleef de bandiet voor altijd staan
-  schildStap(dt, attacking || throwing || swFrame >= 0 || swRecover > 0 || !!stofA);   // het schild: op met C, weg zolang hij steekt of werpt
+  schildStap(dt, attacking || throwing || swFrame >= 0 || swRecover > 0 || !!stofA || !!shoveA);   // het schild: op met C, weg zolang hij steekt of werpt
   if (swFrame >= 0){
     swAcc += dt * SWEEP_FPS;
     while (swAcc >= 1){ swFrame++; swAcc -= 1; }
@@ -61710,7 +62161,8 @@ function loop(now){
   } else if (swRecover > 0) swRecover = Math.max(0, swRecover - dt);
   sweepLaden(dt);                                // de ladingen van de lage zwaai komen terug
   stofStap(dt);                                  // stof in de ogen: de frames, het geluid en het werpmoment (zie STOF)
-  if (stofA) dir = 0;                            // tijdens de veeg staat hij (de pas zit in de animatie)
+  shoveStap(dt);                                 // de shove: de frames, het duwmoment en de afkoeling (zie SHOVE)
+  if (stofA || shoveA) dir = 0;                  // tijdens de veeg en de shove staat hij (de pas zit in de animatie)
   if (swFrame >= SWEEP_FROM && swFrame <= SWEEP_TO && onGround && ph < 5
       && waterDepthAt(world, ph) < 0.2){
     spawnSweepSand(dt);                                  // alleen op het zand, niet op rots of in water
@@ -61727,7 +62179,7 @@ function loop(now){
     // ook zonder pijl omlaag: anders stond hij daar gebukt stil. Overal elders blijft het: geen pijl omlaag, geen sluipen.
     const dakNu = zweefDakBoven(halfWNow);
     const laagDak = onGround && dakNu - ph < CHAR_H && dir !== 0;
-    const canDuck = (downHeld || laagDak) && onGround && !jump && !dead && hurt <= 0 && !schijnLigt() && !attacking && !throwing && !fell && !amirVast() && !schildOp() && !stofA || (straalTrance || straalMediT > 0) && onGround || zhNeerT > 0 && onGround && !dead;   // in de trance (STRAAL) blijft hij geknield; Silver Pride: even bukken om het hart neer te leggen
+    const canDuck = (downHeld || laagDak) && onGround && !jump && !dead && hurt <= 0 && !schijnLigt() && !attacking && !throwing && !fell && !amirVast() && !schildOp() && !stofA && !shoveA || (straalTrance || straalMediT > 0) && onGround || zhNeerT > 0 && onGround && !dead;   // in de trance (STRAAL) blijft hij geknield; Silver Pride: even bukken om het hart neer te leggen
     if (canDuck) duckT = Math.min(1, duckT + dt / DUCK_IN_T);
     else duckT = Math.max(0, duckT - dt / DUCK_OUT_T);
     if (duckT >= 1) duckHoldAcc += dt * DUCK_HOLD_FPS; else duckHoldAcc = 0;
@@ -61826,7 +62278,7 @@ function loop(now){
   }
   if (sweepBuf > 0){
     sweepBuf = Math.max(0, sweepBuf - dt);
-    if (onGround && !fell && swFrame < 0 && swRecover <= 0 && atkFrame < 0 && !stofA && spear && !dead && hurt <= 0 && sweepReady()
+    if (onGround && !fell && swFrame < 0 && swRecover <= 0 && atkFrame < 0 && !stofA && !shoveA && spear && !dead && hurt <= 0 && sweepReady()
         && swLading >= 1 && !amirVast() && (!jump || jump.phase === 'land')){
       jump = null; duckT = 1; duckHoldAcc = 0; sweepBuf = 0;   // meteen vanuit de landing de zwaai in
       startSweep();
@@ -62065,6 +62517,8 @@ function loop(now){
     const useSneak = !!(snkImg && snkImg.complete && snkImg.naturalWidth);
     const stofImg = stofA && stofBank ? stofBank[Math.min(STOFA.ticks.length - 1, stofA.f)] : null;   // stof in de ogen (zie STOF)
     const useStof = !useSneak && !!(stofImg && stofImg.complete && stofImg.naturalWidth);
+    const shoveImg = shoveBeeld();                   // de shove (zie SHOVE): op het canvas van de steek, dus de gewone maat hieronder
+    const useShove = !useSneak && !useStof && !!(shoveImg && shoveImg.complete && shoveImg.naturalWidth);
     const comboImg = attacking && atkCombo && comboBank ? comboBank[Math.min(COMBO.ticks.length - 1, atkFrame)] : null;   // de derde slag (COMBO)
     const useCombo = !useSneak && !useStof && !!(comboImg && comboImg.complete && comboImg.naturalWidth);
     const stokImg = ((atkStok === 'grondklap' || atkStok === 'laag') && attacking) || (!useSneak && !useStof && !useRolW && !useRol && !useThrow && !useJump && !useSweep && !useCrawl && !useDuck) ? stokBeeld(attacking, moving, frame)
@@ -62074,7 +62528,7 @@ function loop(now){
     // stil op de rand van een trede, met de speer: de trappose (AMIR_TRAP)
     const trapNu = (!moving && !attacking && onGround && set === sets.sp && !mesInHand() && amirSteen <= 0 && !dead)
       ? amirTrapPose(scaleNow, autoFlip && facing === 1, pWorld) : null;
-    const img = useSneak ? snkImg : useStof ? stofImg : useRolW ? rwImg : useRol ? rolImg
+    const img = useSneak ? snkImg : useStof ? stofImg : useShove ? shoveImg : useRolW ? rwImg : useRol ? rolImg
               : useThrow ? thrImg
               : useJump ? jimg
               : useSweep ? swImg
@@ -62087,7 +62541,7 @@ function loop(now){
     // het mes in zijn hand: bij een steek, stilstaand of lopend (in een sprong, gebukt of kruipend zit het weg)
     const mesHand = !mesInHand() || amirSteen > 0 || useStok ? null
                   : attacking && atkMes ? mesSteekHand(Math.min(atkFrame, MES.steek.length - 1))
-                  : (useStof || useRol || useThrow || useJump || useSweep || useCrawl || useDuck || attacking) ? null
+                  : (useStof || useShove || useRol || useThrow || useJump || useSweep || useCrawl || useDuck || attacking) ? null
                   : moving ? MES.hand.loop[frame % MES.hand.loop.length] : houding.aan ? MES.hand.dreig : MES.hand.stil;
     if (mesHand) mesLaad();
     if (img && img.complete){
@@ -62727,6 +63181,7 @@ function loop(now){
     }
     if (pvp) pvpTeken(groundY, scale, cx, pbox, hitBy);   // PvP: de andere Amir, en of hij mij raakt
 
+    kopWereldTeken(cx, groundY, scale);              // de kleine versie van de slangenkop (KOP): voor op de grond
     for (const s of snakes){
       if (achterMasker(s.x, s.base)) continue;      // nog achter een niet-onthuld masker: niet tekenen (en niet raakbaar)
       const sx = cx + (s.x - world) - sw / 2;
@@ -62815,7 +63270,10 @@ function loop(now){
           if (!atkStok && (dood || s.hp < hp0)) slangBloedSpeel(dood, 'steek');   // het bloedgeluid bij de steek, harder als hij doodt (SLANG_BLOED)
           if (dood){
           hits++; hitsEl.textContent = hits;
-          s.state = 'dying'; s.flash = 0.25; s.ddSoort = atkStok ? 'stok' : 'steek';
+          const kopEraf = atkStok && kopMag(s);     // slag 2: de kop eraf (KOP), voor de staat 'dying' wordt
+          s.ddSoort = atkStok ? 'stok' : 'steek';
+          if (kopEraf) kopStart(s, sx, sy, sScale, cx, groundY, scale);
+          s.state = 'dying'; s.flash = 0.25;
           s.vx = (facing === 1 ? 420 : -420);
           vijandDood(false, s);
           s.frame = 0; s.acc = 0;
@@ -64097,6 +64555,7 @@ function loop(now){
     bruIntroTeken();                                // de opening van het plein: zwarte balken en de naam
     murcIntroTeken();                               // de opening van Murghtaan 3: balken en de naam
     tonLensTeken();                                 // en de stukken ton die daar tegen de lens vliegen, over de balken heen
+    kopLensTeken();                                 // en de slangenkop die langs of door de camera vliegt, met het bloed op de lens (KOP)
     holstamLensTeken();                             // en de scherven van de holle stam die langs de camera vliegen
     holstamFadeTeken();                             // en de fade naar het hol van een holle stam en terug
     bruLensTeken();                                 // het bloed op de lens als Nyundo in zijn knots valt
@@ -64220,6 +64679,7 @@ function safeLoop(now){
     lusVraag();
   }
   try { amirRenGeluid(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis met de voetstappen: ' + foutKort(err), err); }
+  try { gidsStemStap(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis met de stem van de gids: ' + foutKort(err), err); }
   try { gidsRenGeluid(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis met de voetstappen van de gids: ' + foutKort(err), err); }
   try { drawTouch(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis bij het tekenen: ' + foutKort(err), err); }
   if (meterAan) try { meterStap(now, performance.now() - meterT0); } catch (err) {}
@@ -65654,6 +66114,7 @@ function readLevel(txt){
            wateren: Array.isArray(o.wateren) ? o.wateren.filter(w => w && WATER.soort[w.k] && Number.isFinite(Number(w.x)))
                                                        .map(w => Object.assign({}, w, { x: Number(w.x) })) : [],   // het water van WATER
            stijlproef: !!o.stijlproef,                  // het proefpaneel voor nieuwe assets (STIJLPROEF, Test 97)
+           slangKop: o.slangKop || 0,                   // de slangenkop eraf bij elke kill met slag 2 (KOP, Test 98)
            vredig: !!o.vredig,                          // geen vijanden, ook geen vrije slangen of kalebassen (Test 67)
            luifelAfstel: !!o.luifelAfstel,              // de schuifjes voor de strakke luifel in beeld (Stad 11, sbLuifelPaneel)
            voorgrond: leesVoorgrond(o.voorgrond),       // gras en keien vlak voor de camera, zie "voorgrond"
@@ -67190,6 +67651,7 @@ const SUBS = {
   'Test 72: Aim rig': 'Climb the steps and try the new aiming: up and down, from every height',
   'Test 73: Trousers': 'Pick a colour for your trousers and fight three different enemies',
   'Test 92: Lion pelts': 'Pick one of six Bhubesi outfits (trousers and lion pelt), then fight',
+  'Test 98: Snake heads': 'The side hook takes a snake\'s head off, toward the camera',
   'Test 74: Sticks': 'Two sticks instead of the spear: strike, block and counter three elite bandits',
   'Test 75: New run': 'The new sprint: lean forward, long strides, then into a fight',
   'Test 78: Small steps': 'Low steps you walk up and down, and so do the bandits',
@@ -75100,6 +75562,10 @@ document.getElementById('sbcombo').onclick = () => {
   else COMBO.aan = false;
   comboKnopToon(); cv.focus();
 };
+document.getElementById('sbshove').onclick = e => {   // de shove aan of uit (SHOVE)
+  SHOVE.aan = !SHOVE.aan; if (SHOVE.aan) shoveLaad(); shoveA = null;
+  e.currentTarget.textContent = 'Shove: ' + (SHOVE.aan ? 'aan' : 'uit'); e.currentTarget.classList.toggle('on', SHOVE.aan); cv.focus();
+};
 document.getElementById('sbworp').onclick = e => {
   sbWorpSchaal = !sbWorpSchaal;
   e.currentTarget.textContent = sbWorpSchaal ? 'Worp: schaal' : 'Worp: twee trappen';
@@ -75200,6 +75666,11 @@ document.getElementById('sbgrondklap').onclick = e => {
   e.currentTarget.textContent = 'Grondklap: ' + (sbGrondklap ? 'aan' : 'uit');
   e.currentTarget.classList.toggle('on', sbGrondklap);
   cv.focus();
+};
+document.getElementById('sbkop').onclick = e => {
+  kopSb = (kopSb + 1) % KOP_SB.length; kopAltijd = KOP_SB[kopSb];
+  e.currentTarget.textContent = 'Snake head: ' + ['1 in 6', 'always', 'through camera', 'past camera', 'small'][kopSb];
+  e.currentTarget.classList.toggle('on', kopSb > 0);
 };
 document.getElementById('sbslag2').onclick = e => {
   STOK.slag2.aan = !STOK.slag2.aan;
