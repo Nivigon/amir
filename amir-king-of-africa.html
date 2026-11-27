@@ -39882,6 +39882,7 @@ function kivKlokToon(){
 }
 // tekenen: na winkelVoor (dus na het schemer, net als Duka), voor de spelers
 function kivTeken(groundY, scale, cx){
+  kiv.masker = null;                                                    // waar hij dit beeld staat, voor de lichtvlekjes (kivDonkerNa)
   if (!kiv.aan || !kiv.w) return;
   const b = binnenBij(world); if (!b || b.winkel !== kiv.w) return;
   const A = CHAR_H * scale, voet = groundY + 0.04 * A;
@@ -39894,7 +39895,7 @@ function kivTeken(groundY, scale, cx){
       kiv.sx = wkkScherm(nx, voet, 1, 1).x; kiv.ax = wkkScherm(cx, voet, 1, 1).x;   // waar hij en Amir op het scherm staan (voor de kant van zijn mantel)
       kivLampTeken(groundY, scale, cx);                                   // zijn lantaarn bij zijn voet, voor hem
       ctx.save(); ctx.translate(nx, voet - KIV.ground * k); if (kiv.flip) ctx.scale(-1, 1); if (kiv.inT != null) ctx.globalAlpha *= kiv.inT;
-      ctx.drawImage(fr, -KIV.ax * k, 0, KIV.w * k, h); ctx.restore();
+      ctx.drawImage(fr, -KIV.ax * k, 0, KIV.w * k, h); kiv.masker = { fr, T: ctx.getTransform(), x: -KIV.ax * k, w: KIV.w * k, h }; ctx.restore();
       if (kiv.zeg && kiv.zegT > 0 && kiv.zegWie === 'kiv') kivWolk(nx, voet - A * KIV.tall - 14, kiv.zeg, kiv.zegT);
     }
   }
@@ -40101,7 +40102,7 @@ function kivLampTeken(groundY, scale, cx){
   ctx.restore();
 }
 // de donkere kamer met de lichtpoel, de lichtvlekjes en de stofjes (in binnenNa, voor wkkNaTeken; buiten het schemer van de kamer)
-let kivDoek = null;
+let kivDoek = null, kivVlekDoek = null;
 function kivDonkerNa(G, groundY, scale, cx){
   const S = kivSfeer; kivSfeerTik();
   if (S.donker < 0.01 && S.licht < 0.01) return;
@@ -40128,12 +40129,23 @@ function kivDonkerNa(G, groundY, scale, cx){
     const Rg = 1.5 * A * (0.3 + 0.7 * e), gw = ctx.createRadialGradient(P.x, P.vy, 0, P.x, P.vy, Rg);
     gw.addColorStop(0, 'rgba(255,140,50,' + (0.28 * e).toFixed(3) + ')'); gw.addColorStop(1, 'rgba(255,120,40,0)');
     ctx.fillStyle = gw; ctx.fillRect(P.x - Rg, P.vy - Rg, Rg * 2, Rg * 2);
-    // de lichtvlekjes van de doorboorde lantaarn op de muur: draaien en dansen met de vlam
+    // de lichtvlekjes van de doorboorde lantaarn op de muur: draaien en dansen met de vlam. Ze vallen op de muur, niet op
+    // Kivuli: op een eigen doek, waar zijn silhouet (kiv.masker uit kivTeken) uitgeknipt wordt, anders lagen er lichte
+    // stipjes op zijn donkere mantel (Tom, 27-11-2026). De stofjes hieronder zweven wel voor hem langs.
+    if (!kivVlekDoek) kivVlekDoek = document.createElement('canvas');
+    if (kivVlekDoek.width !== cw || kivVlekDoek.height !== ch){ kivVlekDoek.width = cw; kivVlekDoek.height = ch; }
+    const v = kivVlekDoek.getContext('2d'); let vlek = false;
+    v.setTransform(1, 0, 0, 1, 0, 0); v.globalCompositeOperation = 'source-over'; v.clearRect(0, 0, cw, ch); v.setTransform(T);
     for (const q of S.vlekjes){
       const a = q.a + Math.sin(nu * 0.7 + q.p) * 0.05 + P.zwaai * 4, rr = q.r * A * (1 + (e - 1) * 0.3);
       const al = 0.17 * S.licht * (1 - rr / (1.45 * A)) * (0.9 + 0.1 * Math.sin(nu * 1.5 + q.p)); if (al <= 0.01) continue;
-      ctx.fillStyle = 'rgba(255,175,85,' + al.toFixed(3) + ')'; ctx.beginPath();
-      ctx.ellipse(P.x + Math.cos(a) * rr, P.vy + Math.sin(a) * rr * 0.8, q.s * A, q.s * A * q.q, a, 0, 6.3); ctx.fill();
+      v.fillStyle = 'rgba(255,175,85,' + al.toFixed(3) + ')'; v.beginPath();
+      v.ellipse(P.x + Math.cos(a) * rr, P.vy + Math.sin(a) * rr * 0.8, q.s * A, q.s * A * q.q, a, 0, 6.3); v.fill(); vlek = true;
+    }
+    if (vlek){
+      const M = kiv.masker;
+      if (M && imgReady(M.fr)){ v.setTransform(M.T); v.globalCompositeOperation = 'destination-out'; v.drawImage(M.fr, M.x, 0, M.w, M.h); }
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(kivVlekDoek, 0, 0); ctx.setTransform(T);
     }
     // stofjes die oplichten als ze door de lichtcirkel drijven
     const dt = 1 / 60;
