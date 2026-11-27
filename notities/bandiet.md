@@ -47,8 +47,11 @@ erop staat houdt `s.gjOpRiet` zijn vloer vast (geen `vloerBij`, geen `rijsDraagt
 hij toch door. Valt de landingsplek op een andere kraam (de doek, of riet op de verkeerde hoogte), dan landt hij ernaast
 in plaats van erdoorheen. Proef op The Dye Yard: van de lage galerij over de kraam links naar de straat.
 
-In de lucht (`s.air > 0`) is hij niet te raken (`hitBandiet`) en doet hij geen schade (de tekenlus slaat hem over, zoals bij
-`neer`). De schaduw is de kleine ellips van het neerkomen. Een treffer aan de rand (een worp) breekt de sprong af.
+In de lucht is hij wel te raken (op verzoek van de opdrachtgever, `banGjLucht`): zijn raakvak gaat met hem mee omhoog,
+zodat je hem vanaf een rieten dak, een galerij of met een worp in zijn sprong treft. Een treffer kost een leven maar breekt
+de vlucht niet af (geen terugslag, geen andere staat); wordt hij in de lucht gedood, dan valt hij zijn baan uit en speelt
+de doodanimatie al onderweg (`s.gjVal`, `banGjVal`), met een stofwolk bij het neerkomen. Schade doet hij in de lucht niet.
+De vault en de val van boven de arena in (`s.dropping`) blijven onraakbaar. De schaduw is de kleine ellips van het neerkomen. Een treffer aan de rand (een worp) breekt de sprong af.
 
 De sets staan alleen in `enemies/bandiet_as/`: `afzet` (29), `zweef` (1), `landing` (14), `opkijk` (18), op een eigen canvas
 (`BAN_GJ_GEO`, 471x563, voetlijn 555, anker 229: de idle-set ligt er 30 px in), met `sprites_galerij.json` en
