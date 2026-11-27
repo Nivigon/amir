@@ -24,6 +24,9 @@ Alleen in een level met `stijlproef: true` (via `readLevel`). `stijlproefZet` ui
 Recht van voren; even rustige vlakken als de stadsmuur; kleur binnen de familie; schaal klopt met Amir; geen lijnen die
 de stad niet heeft; en niet te veel lijken op een ander landschap.
 
-## Hutten
+## Hutten en putten
 `design/savanne/hutten/`: Grok eebf2583 (hut_rond) en 2fa55f54 (de twee koepels). Zie de projectnotitie
 savanne_hutten_2d.md.
+
+Putten: `design/savanne/putten/` (put_leem, put_steen, put_shaduf), Grok 2b165ff8. Ze staan in Test 97 na de hutten.
+In de sandbox onder Decor, rij **Savannedorp**: een knop per hut en put (`data-sdorp`).
