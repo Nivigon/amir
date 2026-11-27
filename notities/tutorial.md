@@ -82,6 +82,27 @@ payoff komt als hij de speer krijgt). Alle teksten staan in het project: `claude
 - Nieuwe regel: mp3 in `design/tutorial/stem/` (stilte eraf, genormaliseerd), `stem`/`okStem` op het station, de `zeg`
   gelijk aan wat hij zegt (zonder tags als [chuckles]), dan `tools/gen-offline-manifest.py`.
 
+## De gids beweegt glad (27-11-2026)
+
+De opdrachtgever vond de gids naast Amir slecht bewegen. Gemeten (niet geschat) wat er mis was, en rechtgezet:
+
+- **Hij hing aan Amirs anker.** `gidsTeken` zette hem per beeld op het anker van Amirs plaatje van dat moment. In Amirs
+  renlus komen zijn voeten los: de gids huppelde 30 tot 36 eenheden op en neer en schoof 4 tot 20 opzij, op Amirs ritme in
+  plaats van dat van zijn eigen benen. Nu staan zijn voeten op zijn eigen plek: de x van het spoor en `voet` (zijn hoogte).
+- **Zijn anker was het midden van het hele plaatje,** speer en wapperende sjaal erbij: bij elke wissel van animatie sprong
+  hij opzij, en in de renlus schoof zijn hoofd 23 eenheden heen en weer. `tools/gids_glad.py` zet het anker op het
+  zwaartepunt van zijn silhouet; in de renlus nog 8.
+- **De renlus hakkelde.** Het vel heeft 24 frames, maar het zijn 12 houdingen die elk twee keer staan, en het spoor gaf 24
+  frames over 30 beelden: om en om 2 en 3 beelden per houding. Nu loopt hij op afgelegde afstand (`gidsRenFrame`,
+  `GIDS.pas` 344: Amirs lus is 287, de gids is 1,2 keer zo groot), met de 12 oneven frames.
+- **De sprong hing en jaagde.** Tien beelden dezelfde stijgende houding, dan frame 26 tot 62 in vier beelden. `gids_glad.py`
+  verdeelt elk luchtstuk (sprong, groot) gelijkmatig over de tijd in de lucht.
+- **De grootte klopte wel.** Gemeten op zijn haarknot (rond, dus vanuit elke hoek even groot): 17 tot 19 eenheden in idle,
+  ren, buk, sluip en groot. Lichaamshoogte zegt hier niets (een ren is lager), en een hoofd als maat ook niet (breder of
+  smaller per kijkhoek). De les: meet schaal op iets ronds of iets dat in elke houding gelijk blijft.
+
+Draai `tools/gids_glad.py` na `tools/gids_bouw.py` (en dus ook na een nieuwe opname van het spoor).
+
 ## Het spoor: opgenomen, niet nagebouwd
 
 **Les (27-11-2026): interpoleer het spoor.** Het spoor heeft 30 beelden per seconde, het spel tekent er 60. Zonder

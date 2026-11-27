@@ -645,7 +645,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Holle stam: kit en bastrand** (`design/regenwoud/holstam/kit/`, `rand.png`, uit de Grok-platen in `bron/`) → `tools/holstam_kit_knip.py`, daarna `gen-offline-manifest.py`
 - **Pathfinder Spear** (`design/speer/pathfinder/`, uit de Grok-platen in `bron/`) → `tools/pathfinder_speer.py` (zet de regel die het print in `PATHFINDER`), daarna de Pathfinder in Amirs hand (`karakters/amir/mkuki_spel/bron/pf_<hoek>.png`) met `pathfinder()` uit `tools/mkuki_spel_los.py`, en `gen-offline-manifest.py`
 - **Shield Piercer** (`design/speer/piercer/jav.png` en de speer in Amirs hand, `karakters/amir/mkuki_spel/bron/sp_<hoek>.png`, uit `bron/speer.png`) → `tools/piercer_speer.py`, daarna `gen-offline-manifest.py`
-- **De gids van The First Hunt** (`design/tutorial/gids/`, uit de Grok-clips in `bron/`, ook na een nieuwe opname van het spoor) → `tools/gids_bouw.py`, daarna `gen-offline-manifest.py`
+- **De gids van The First Hunt** (`design/tutorial/gids/`, uit de Grok-clips in `bron/`, ook na een nieuwe opname van het spoor) → `tools/gids_bouw.py`, dan `tools/gids_glad.py` (anker op het zwaartepunt, de sprong gelijkmatig), daarna `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`
 - **Winterversies** → `tools/sneeuw.py`, `sneeuw_bg.py`, `sneeuw_dorp.py`, `winter_art.py`
 
