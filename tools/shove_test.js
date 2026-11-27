@@ -62,6 +62,36 @@ const srv = http.createServer((q, r) => {
   await proef('zweepman', [{ x: -900, k: 'zweepman' }], 'zweepmannen', [110], 'shove');
   await proef('kooiman', [{ x: -900, k: 'kooiman', duel: false }], 'kooimannen', [110], 'shove');
   await proef('hyena', [{ x: -900, k: 'hyenas' }], 'hyenas', [100], 'steek');
+  // de meting: na de shove doet Amir niets. Hoe lang na het einde van de shove begint de vijand zijn aanval (uithaal, sprong)
+  // en wanneer raakt hij Amir? Zo lang heeft Amir om rustig een steek te zetten (de steek raakt zo'n 0,2 s na de druk)
+  const meet = async (naam, spawns, L, aanval) => {
+    await start(spawns);
+    await zet(L, [110]);
+    await page.evaluate(([L, aanval]) => {
+      const s = eval(L)[0], M = window.__m = { eind: null, uithaal: null, raak: null, t0: performance.now() };
+      const oh = hurtPlayer;
+      window.__hurtOrig = window.__hurtOrig || oh;
+      hurtPlayer = function(){ if (M.raak == null) M.raak = performance.now(); return window.__hurtOrig.apply(this, arguments); };
+      const kijk = () => {
+        const nu = performance.now();
+        if (M.eind == null && M.gestart && !shoveA) M.eind = nu;
+        if (shoveA) M.gestart = true;
+        if (M.eind != null && M.uithaal == null && aanval.includes(s.state)) M.uithaal = nu;
+        if (nu - M.t0 < 6000) requestAnimationFrame(kijk);
+      };
+      requestAnimationFrame(kijk);
+      invuln = 0; hurt = 0;
+    }, [L, aanval]);
+    await page.keyboard.press('f');
+    await page.waitForTimeout(5000);
+    const m = await page.evaluate(() => window.__m);
+    const t = v => v == null || m.eind == null ? 'nooit' : ((v - m.eind) / 1000).toFixed(2) + ' s';
+    return `${naam}: na het einde van de shove: aanval begint na ${t(m.uithaal)}, raakt Amir na ${t(m.raak)}`;
+  };
+  uit.push('', 'meting (tijd tussen het einde van de shove en de eerste slag):');
+  uit.push(await meet('bandiet', [{ x: -900, k: 'bandiet' }], 'bandieten', ['slag']));
+  uit.push(await meet('schildman', [{ x: -900, k: 'schildman' }], 'schildmannen', ['strike']));
+  uit.push(await meet('zweepman', [{ x: -900, k: 'zweepman' }], 'zweepmannen', ['slag']));
   console.log(uit.join('\n'));
   console.log(fouten.size ? [...fouten].join('\n') : 'geen fouten in de console');
   await browser.close(); srv.close();

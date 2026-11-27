@@ -30,6 +30,8 @@
 //                                        startbudget, kopen, Ready, de ronde; de aankopen mee naar ronde 2 met goud erbij;
 //                                        het stof verblindt de ander zonder schade, de grondklap van de ander raakt
 //   node tools/mptest.js --zilverhart --stokken host   Silver Pride: de gast valt, de host legt het hart neer, de gast komt eruit
+//   node tools/mptest.js --shove --spelers 2 --soorten bandiet   de shove van een gast: hij speelt hem zelf, de host duwt de
+//                                        bandiet terug, en de anderen zien de shove-frames (ook andersom, de host duwt)
 //   node tools/mptest.js --sperenzien --spelers 2      de speren van een ander: zijn soort in de hand, de soorten op zijn rug
 //                                        en zijn gif, ook op een geworpen speer (--shots map: een schermafdruk van wat de host ziet)
 //   node tools/mptest.js --islotzien            de spullen van Kivuli bij een ander: de gast gebruikt ze een voor een, de host en
@@ -37,6 +39,8 @@
 //   node tools/mptest.js --ardhizien             de druppel van Ardhi bij een ander: de gast krijgt een leven terug, de host en
 //                                        de tweede gast zien de animatie naar zijn Amir (--shots map: schermafdrukken onderweg)
 //   node tools/mptest.js --tonproef --spelers 2        de gast breekt een ton: de stukken komen tot rust, het houtgeluid houdt op
+//   node tools/mptest.js --neer --stokken host --spelers 2   de val (NEER): de gast valt als Mkuki, de host als de stokken-Amir,
+//                                        de ander ziet dezelfde frames, en het hart en de veren brengen ze terug
 //   node tools/mptest.js --bennu --spelers 2           de veren van de speerspeler, de bol als schild, en de zelf-revive met hart en veren
 //   node tools/mptest.js --stokken gast  deze spelers kiezen in de lobby de stokken (ook host, gast2, of host,gast): kijkt na
 //                                        dat iedereen het weet, dat hun potje met stokken start zonder speer, en hun winkel;
@@ -177,6 +181,48 @@ async function zhProef(R){
   meld(ow === 0 || await tot(G.page, () => zhOntwaakT === 0, null, 3000), 'na 3 s mag hij weer alles (na 3,5 s nog ' + ow.toFixed(2) + ' s)');
   for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
 }
+// --neer: de val (NEER). De gast (met de speer) gaat neer: hij speelt de val van Mkuki en blijft in de laatste pose liggen,
+// en de host ziet precies die frames (het pad gaat mee), zonder het oude omkantelen. Dan de host (met de stokken, start met
+// --stokken host) neer: de gast ziet de val van de stokken-Amir. Beiden komen terug met het hart en de veren.
+// node tools/mptest.js --neer --stokken host --spelers 2 [--shots map]
+async function neerProef(R){
+  const [H, G] = R;
+  for (const r of R) await r.page.evaluate(() => { godMode = true; MPC.reviveNa = 999; });
+  await H.page.evaluate(() => { world = -1500; ph = 0; facing = -1; });
+  await G.page.evaluate(() => { world = -1800; ph = 0; facing = -1; });
+  await wacht(800);
+  meld(await H.page.evaluate(() => !!neerBank.mk && !!neerBank.stok), 'de host heeft beide sets geladen');
+  meld(await G.page.evaluate(() => neerSetNu() === 'mk') && await H.page.evaluate(() => neerSetNu() === 'stok'), 'de gast (speer) valt als Mkuki, de host (stokken) als de stokken-Amir');
+  const val = async (wie, ander, set, n, item) => {
+    await wie.page.evaluate(() => { godMode = false; invuln = 0; lives = 1; hurtPlayer(true); });
+    meld(await wie.page.evaluate(s => dead && neer && neer.set === s, set), wie.wie + ' is neer en de val (' + set + ') loopt');
+    meld(!await wie.page.evaluate(() => deadEl.classList.contains('on')), wie.wie + ': geen doodscherm in Co-op');
+    const gezien = new Set();
+    const t0 = Date.now();
+    while (Date.now() - t0 < 4200){
+      const im = await ander.page.evaluate(() => { const p = pvpAnderen().find(q => pvp.anders[q].g && pvp.anders[q].g.d); return p == null ? null : pvp.anders[p].g.im; });
+      const m = im && /neer\/neer_(\d+)\.png$/.exec(im); if (m) gezien.add(+m[1]);
+      if (shots && [600, 1400, 3800].some(t => Math.abs(Date.now() - t0 - t) < 60)){ fs.mkdirSync(shots, { recursive: true }); await ander.page.screenshot({ path: path.join(shots, 'neer_' + set + '_' + (Date.now() - t0) + '.png') }); }
+      await wacht(40);
+    }
+    const lijst = [...gezien].sort((a, b) => a - b);
+    meld(lijst.length >= 10 && lijst[lijst.length - 1] === n - 1, ander.wie + ' ziet de val van ' + wie.wie + ' (' + lijst.length + ' frames, laatste ' + lijst[lijst.length - 1] + ')');
+    meld(await ander.page.evaluate(s => { const p = pvpAnderen().find(q => pvp.anders[q].g && pvp.anders[q].g.d); const g = p != null && pvp.anders[p].g; return !!g && neerIs(g.im) && g.im.indexOf(s === 'mk' ? 'mkuki_spel' : 'karakters/amir/beweging') >= 0; }, set), ander.wie + ' ziet de juiste set');
+    meld(await wie.page.evaluate(n => neer && neer.i === n - 1, n), wie.wie + ' ligt in de laatste pose');
+    if (item === 'bn') await tot(ander.page, () => { bnLaad(); return bnKlaar(); }, null, 10000);
+    await ander.page.evaluate(it => { cv.focus(); if (it === 'zh'){ zhCarry = 1; zhGebruik(); } else { bnCarry = 1; bnLaad(); bnGebruik(); } }, item);
+    if (item === 'bn') meld(await ander.page.evaluate(() => !!bnNu && bnNu.voor !== 'dummy'), ander.wie + ': het ritueel van de veren loopt');
+    meld(await tot(wie.page, () => !dead && neer === null, null, 15000), wie.wie + ' komt terug uit de neer-pose (' + (item === 'zh' ? 'Silver Pride' : 'de veren') + ')');
+    await wie.page.evaluate(() => { godMode = true; });
+    await wacht(3500);
+  };
+  await val(G, H, 'mk', 46, 'zh');
+  await H.page.evaluate(() => { world = -2200; ph = 0; facing = -1; });   // de veren: zoals in --bennu ligt de dode links, een stuk verder
+  await G.page.evaluate(() => { world = -1500; ph = 0; facing = -1; });
+  await wacht(600);
+  await val(H, G, 'stok', 57, 'bn');
+  for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
+}
 // --ardhizien: de gast trekt een leven terug met zijn Ardhi-speer; de anderen zien de druppel naar zijn Amir vliegen,
 // en alleen hij krijgt het leven
 async function ardhiZienProef(R){
@@ -220,6 +266,51 @@ async function islotZienProef(R){
     if (shots){ fs.mkdirSync(shots, { recursive: true }); for (const r of R) await r.page.screenshot({ path: path.join(shots, 'islot_' + k + '_' + r.wie + '.png') }); }
     await wacht(1500);
   }
+  for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
+}
+// --shove: de gast staat te dicht op een bandiet en valt aan: hij speelt de shove zelf, de host duwt de bandiet terug (en
+// de gast ziet hem dan ook terug schuiven), en de host ziet de shove-frames van de gast in de Mkuki-skin. Daarna andersom:
+// de host duwt, de gast ziet zijn frames. node tools/mptest.js --shove --spelers 2 --soorten bandiet
+async function shoveProef(R){
+  const [H, G] = R;
+  for (const r of R) await r.page.evaluate(() => { godMode = true; MPC.reviveNa = 999; MPC_LEIBAND.max = 1e9; shoveLaad(); });
+  meld(await tot(H.page, () => bandieten.some(b => mpcLeeft(b) && b.mpId != null), null, 60000), 'er loopt een bandiet bij de host');
+  for (const r of R) meld(await tot(r.page, () => shoveKlaar() && running && !laadWacht, null, 30000), r.wie + ': de shove-frames zijn binnen');
+  const duw = async (wie, A, B) => {                   // A duwt, B kijkt; de bandiet staat 110 sprite-eenheden voor A
+    const id = await H.page.evaluate(() => { const b = bandieten.find(b => mpcLeeft(b) && b.mpId != null); return b ? b.mpId : null; });
+    for (const r of R) await r.page.evaluate(() => { world = -900; ph = 0; facing = 1; });
+    await H.page.evaluate(id => { for (let i = bandieten.length - 1; i >= 0; i--) if (bandieten[i].mpId !== id) bandieten.splice(i, 1); }, id);   // alleen deze bandiet: een tweede in de strook maakt er terecht een steek van
+    await H.page.evaluate(id => { const b = bandieten.find(b => b.mpId === id); b.x = -2000; b.base = 0; b.knock = 0; b.rust = 3; b.traag = 0; }, id);
+    await A.page.evaluate(() => { world = -2000 + 110 * nowScale(); ph = 0; facing = -1; shoveKoel = 0; atkCooldown = 0; hurt = 0; invuln = 3; });
+    await wacht(900);                                  // de bandiet en A staan bij iedereen op hun plek
+    if (A === H) await H.page.evaluate(id => { for (let i = bandieten.length - 1; i >= 0; i--) if (bandieten[i].mpId !== id) bandieten.splice(i, 1); const b = bandieten.find(b => b.mpId === id); b.x = -2000; b.knock = 0; b.rust = 3; }, id);   // de host denkt zelf: hij mag intussen niet weglopen
+    const voor = await H.page.evaluate(id => bandieten.find(b => b.mpId === id).x, id);
+    const gzVoor = await G.page.evaluate(id => { const b = bandieten.find(b => b.mpId === id); return b ? b.x : null; }, id);
+    const doel = await A.page.evaluate(() => { const d = shoveDoel(); return d ? d.soort : null; });
+    meld(doel === 'bandiet', wie + ': shoveDoel kiest de bandiet (' + doel + ')');
+    if (doel !== 'bandiet') console.log('  waarom:', await A.page.evaluate(() => JSON.stringify({ koel: shoveKoel, shoveA: !!shoveA, spear, onGround, jump, fell, x: Math.round(world), ph,
+      vij: shoveVijanden().filter(v => sbLeeft(v.s)).map(v => v.soort + '@' + Math.round((v.s.x - world) * facing / nowScale()) + ' h' + Math.round(v.s.base || 0) + (v.s.air > 0 ? ' lucht' : '')) })));
+    await B.page.evaluate(() => { window.__klap = 0; if (!window.__klapO){ window.__klapO = shoveKlap; shoveKlap = function(){ window.__klap++; return window.__klapO.apply(this, arguments); }; } });
+    await A.page.evaluate(() => { cv.focus(); startAttack(); });
+    meld(await A.page.evaluate(() => !!shoveA), wie + ': de shove loopt bij hem zelf');
+    const B_slot = await A.page.evaluate(() => pvp.mij);
+    meld(await tot(B.page, p => { const g = pvpAnderNu(p); return g && typeof g.im === 'string' && g.im.includes('aanval/shove/'); }, B_slot, 1500),
+      B.wie + ' ziet de shove-frames van ' + wie + ' (' + await B.page.evaluate(p => { const g = pvpAnderNu(p); return g && g.im; }, B_slot) + ')');
+    if (shots){ fs.mkdirSync(shots, { recursive: true }); await wacht(150); await B.page.screenshot({ path: path.join(shots, 'shove_' + wie + '_gezien_door_' + B.wie + '.png') }); }
+    const mk = await B.page.evaluate(p => { const g = pvpAnderNu(p), im = g && pvpBeeld(g.im); return !!(im && mkSkinVan(im, 'mkuki')); }, B_slot);
+    meld(mk, B.wie + ': het frame heeft een Mkuki-skin (de losse speer uit los.json)');
+    await wacht(1200);
+    const na = await H.page.evaluate(id => bandieten.find(b => b.mpId === id).x, id);
+    meld(await B.page.evaluate(() => window.__klap > 0), B.wie + ' hoort en ziet de duw van ' + wie + ' (geluid en stofwolkjes, shvK)');
+    meld(voor - na > 60, 'de host duwt de bandiet terug: ' + Math.round(voor) + ' naar ' + Math.round(na) + ' (' + Math.round(voor - na) + ' px)');
+    const gzNa = await G.page.evaluate(id => { const b = bandieten.find(b => b.mpId === id); return b ? b.x : null; }, id);
+    meld(gzVoor != null && gzVoor - gzNa > 60, 'de gast ziet hem terug schuiven: ' + Math.round(gzVoor) + ' naar ' + Math.round(gzNa));
+    const af = await A.page.evaluate(id => { const b = bandieten.find(b => b.mpId === id); return Math.round((world - b.x) / nowScale()); }, id);
+    meld(af > 200 && af < 360, wie + ': de bandiet staat daarna op steekafstand (' + af + ' sprite-eenheden, de steek raakt van 206 tot 333)');
+  };
+  await duw('gast', G, H);
+  await wacht(2500);
+  await duw('host', H, G);
   for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
 }
 // --sperenzien: de gast draagt een Pathfinder in de hand, een Shield Piercer en Ardhi's Reach op de rug, met gif; de host
@@ -1038,7 +1129,7 @@ async function elk(H, G){
     });
     meld(JSON.stringify(d) === '["klaar",false,true,false]', ramen[1].wie + ': E bij de deur van de winkel vraagt, dan Ready, dan Not ready (' + JSON.stringify(d) + ')');
   }
-  if (stokken.length){
+  if (stokken.length && !args.includes('--neer')){   // --neer: alleen de val, niet de hele stokkenproef
     await wacht(1500);
     for (const r of ramen){
       const st = await r.page.evaluate(() => ({ aan: stokAan(), spear, rug: RUG_MAX,
@@ -1257,9 +1348,11 @@ async function elk(H, G){
   if (args.includes('--hl')){ await hlProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--islotzien')){ await islotZienProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--ardhizien')){ await ardhiZienProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
+  if (args.includes('--shove')){ await shoveProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--sperenzien')){ await sperenZienProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--tonproef')){ await tonProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--bennu')){ await bnProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
+  if (args.includes('--neer')){ await neerProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--zilverhart')){ await zhProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--ep')){ await epProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--elk')){ await elk(H, G); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
