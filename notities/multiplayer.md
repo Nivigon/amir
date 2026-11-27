@@ -325,7 +325,8 @@ en dan bleef een bandiet van een gast voor altijd staan. Een nieuw veld begint n
   (`ton`). Een treffer van de gast gaat naar de host (`tonH`, de omwikkelde `tonRaak`), de host telt en stuurt elke treffer
   terug voor het beeld (`tonR`). Breekt hij, dan krijgt wie brak een knikker uit de zak (`mpcKnikker`, `buit`). De kalebas
   gaat in je zak (Q), het goud in `pvp.coop.goud` (ieder zijn eigen, in de HUD).
-- **Dood en revive:** wie dood is ligt (`mpcLig`, het plaatje plat om zijn voeten, want het spel heeft geen doodspose), het
+- **Dood en revive:** wie dood is ligt (`mpcLig`, het plaatje plat om zijn voeten, want het spel heeft geen doodspose; op een
+  galerij, dak of trapbalkon ligt hij `MPC_LIG_TIL` hoger, op de vloer in plaats van half door de planken, `mpcLigHoog`), het
   dood-scherm komt niet, en de camera volgt de ander (`mpCoopCam`, in de hoofdlus de eerste keus van de camera, met `camVast`
   uit: anders zette de meekijkende camera hem elk beeld terug op het lijk en schudde het beeld). Pijl links en rechts (ook de
   stick op een telefoon) wisselen tussen je eigen lichaam en elke levende teamgenoot (`mpcKijkStap`, `mpcKijkNu`,

@@ -210,6 +210,8 @@ tot aan zijn knie.
   staken anders buiten de strook voor de kartels langs.
 - Een dode ligt languit: om hem heen is de strook breder (`STAD.kanteelLijk`, 1,6 Amir), anders steken zijn voeten
   links of rechts onder de tanden uit.
+  Dat geldt ook voor Amir zelf als hij in Co-op dood op het dak ligt (en voor een dode teamgenoot), en daar loopt de muur
+  nog `STAD.kanteelLijkOnder` (0,12 Amir) onder de dakrand door, over een hangende arm en zijn schaduw.
   De kruisboogbandiet ligt als lijk bijna 4 Amir lang en zakt 50 bronpixels onder zijn grondlijn, dus onder de
   dakrand: hij krijgt een eigen vak om zijn hele laatste frame (`KRB.lijk`, `krbLijkVak`), en daar tekent
   `stadKanteelVoor` ook het stukje muur onder de dakrand opnieuw. Sterft hij vlak bij de rand van een huis, dan schuift hij tijdens
