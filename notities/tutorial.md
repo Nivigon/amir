@@ -37,7 +37,14 @@ zegt `design/tutorial/gids/gids.json` welk frame van de gids erbij hoort. Kop in
 
 - Bouwen: `python3 tools/gids_bouw.py` (leest de mp4's van Tom uit `design/tutorial/gids/bron/`, keyt ze, kleurt de groene
   speer om, maakt per animatie een blad en koppelt het spoor). **Neem je het spoor opnieuw op (`tools/mentor_opname.js`),
-  draai dit daarna ook**, anders klopt de koppeling niet meer.
+  draai dit daarna ook**, anders klopt de koppeling niet meer. Daarna `gen-offline-manifest.py`.
+- Resolutie en geheugen (27-11-2026): de vellen staan op de resolutie van Amirs sprites. Amir staand is 276 px
+  (`idle_ns.png`), de gids in zijn vellen 1,15 keer zo hoog (318 px; `AMIR_H`, `GIDS_KEER`). In de wereld blijft hij
+  `LENGTE` (1,2 keer Amir); `px` in gids.json zegt hoeveel wereld-eenheden een pixel van het vel is. Elk frame staat strak
+  ingepakt met een eigen rechthoek (`f`: x, y, breed, hoog, ankerX, ankerY) in vellen van hooguit 4096 breed. Het script
+  maakt ook de halve set in `klein/design/tutorial/gids/` (Beeld: Licht); `gen-klein.py` laat die staan (`EIGEN`).
+  Uitgepakt: 134,5 MiB voor de verkleining, nu 103,4 MiB, en 25,9 MiB met Licht. Moet het nog lichter, dan houdt `STAP`
+  per animatie alleen elk zoveelste frame (bijvoorbeeld `{'idle': 2, 'verteller': 2, 'sprong': 2}`, rond 70 MiB).
 - Animaties: idle (heen en terug), verteller (een keer als hij wacht en iets uitlegt: alleen handgebaren, mond dicht, kijkt
   niet naar de camera), ren (lus van 24 op afstand, sprinten gaat sneller door de lus), sprong (de hoge korte sprong;
   uit de ren zonder het rechtop staan), groot (de sprintsprong, boven 380 px/s: station 8 en de race; opspringen is de

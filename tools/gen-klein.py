@@ -85,6 +85,8 @@ DOELEN = [
                                         # hoog en wordt op ongeveer Amir zijn hoogte getekend
     ('enemies/vogel', 400),             # de secretarisvogel uit de kooi: 50 frames op 536x405,
                                         # klein getekend (ongeveer Amir-grootte met wings)
+    ('design/tutorial/gids', 0),        # de gids van The First Hunt: de halve set bouwt tools/gids_bouw.py zelf
+                                        # (voorvermenigvuldigde alfa, schone randen); hier alleen laten staan (EIGEN)
     ('enemies/baviaan', 400),           # 2,5x in het gevecht, 2,25x in de afzet, val en landing (daar maakt
                                         # BAV_GROEI hem 1,12 keer groter), 4,0x aan de rotswand (hang_idle).
                                         # 385 frames op canvassen van 493x592 tot 900x800; bron/ blijft erbuiten.
@@ -192,9 +194,17 @@ def bestanden(pad):
             yield rel, False
 
 
+# Doelen waarvan een eigen script de kleine set maakt: die blijft staan zoals hij is (niet opnieuw verkleind, niet weg).
+EIGEN = ('design/tutorial/gids/',)
+
+
 def verwerk(rel, drempel, factor=FACTOR):
     src = os.path.join(ROOT, rel)
     dst = os.path.join(ROOT, OUT, rel)
+    if rel.startswith(EIGEN):
+        if not os.path.isfile(dst):
+            print('LET OP: geen kleine versie van', rel, '(draai het script dat hem bouwt)')
+        return False
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     im = Image.open(src)
     if im.height <= drempel:
@@ -224,7 +234,8 @@ def main():
             else:
                 kopie += 1
             bytes_in += os.path.getsize(os.path.join(ROOT, rel))
-            bytes_uit += os.path.getsize(os.path.join(ROOT, OUT, rel))
+            uit = os.path.join(ROOT, OUT, rel)
+            bytes_uit += os.path.getsize(uit) if os.path.isfile(uit) else 0
 
     # Plaatjes die er eerder in stonden en nu niet meer bij een doel horen: weg,
     # anders blijft het spel een verouderde kleine versie laden.
