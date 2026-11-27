@@ -60461,7 +60461,8 @@ const KOP = {
   doorC: { duur: 0.42, dEind: 0.02, doel: [0.46, 0.53], weg: 2.6 },   // weg: zo hoog als zoveel keer het beeld, dan is hij voorbij
   lens: { groot: { r: 58, dx: 0, dy: 0 }, klein: { n: 10, r: [7, 18], ver: [90, 300] }, in: 0.03, drup: [14, 46], drupT: 0.5, weg: [0.2, 0.6] },
   rood: 0.35, roodT: 0.06,       // de rode flits als hij door de camera gaat: sterkte en duur
-  zoef: { van: 450, tot: 2800, vol: 0.55 }
+  zoef: { van: 450, tot: 2800, vol: 0.55 },
+  geluid: { bats: 1, batsKlein: 0.6, zoef: 0.9 }   // de bats (sounds/houtraak.mp3, de klap van hout) en de zoef (sounds/kop_zoef.mp3, ElevenLabs, de kop die naar de camera tolt)
 };
 const KOP_SB = [0, 1, 'door', 'langs', 'klein'];   // de sandboxknop: knikkerzak, altijd (de rust beslist), of altijd die versie
 let kopZakken = {}, kopLijst = [], kopTraagT = 0, kopTraag = null, kopSb = 0, kopAltijd = 0;
@@ -60479,6 +60480,7 @@ function kopKnikker(naam, raak, n){
 function kopReset(){
   kopZakken = {}; kopLijst = []; kopLensSpat.lijst = null; kopTraagT = 0; kopTraag = null;
   kopAltijd = (level && level.slangKop) || (sandbox ? KOP_SB[kopSb] : 0);
+  if (sandbox || !level || !(level.spawns || []).length || level.spawns.some(sp => SNAKE_DIRS[sp.k])) kopLaadGeluid();   // de bats en de zoef alleen waar slangen kunnen komen
 }
 // is het rustig om Amir heen?
 function kopRustig(nietDeze){
@@ -60494,13 +60496,14 @@ function kopRustig(nietDeze){
 function kopMag(s){
   if (!KOP.aan || atkStok !== 'slag2' || !SNAKE_DIRS[s.kind] || pvp) return false;
   const set = snk[s.kind]; if (!set || !set.kop || !set.kop.every(imgReady)) return false;
-  return kopAltijd ? true : kopKnikker('kop', KOP.kans[0], KOP.kans[1]);
+  if (kopAltijd) return true;
+  return kopRustig(s) || kopKnikker('kop', KOP.kans[0], KOP.kans[1]);   // rustig: altijd de grote; druk: 1 op 6 de kleine
 }
 // de kop eraf: (sx, sy) de linkerbovenhoek van de slang op het scherm (wereldlaag), sS zijn schaal
 function kopStart(s, sx, sy, sS, cx, groundY, scale){
   const H0 = s.state === 'bite' ? KOP.hoofd.bijt : KOP.hoofd.anders;
   const hx = sx + (s.side === 1 ? SNK_W - H0[0] : H0[0]) * sS, hy = sy + H0[1] * sS;
-  let soort = kopRustig(s) ? (kopKnikker('door', KOP.door[0], KOP.door[1]) ? 'door' : 'langs') : 'klein';
+  let soort = kopRustig(s) ? 'door' : 'klein';                       // de grote vliegt altijd door de camera ('langs' alleen nog in de sandbox)
   if (typeof kopAltijd === 'string') soort = kopAltijd;
   const G = soort === 'klein' ? KOP.klein : KOP.groot;
   hitstop = Math.max(hitstop, G.stop); kopTraag = G.traag; kopTraagT = G.traag.duur + G.traag.ramp;
@@ -60513,6 +60516,7 @@ function kopStart(s, sx, sy, sS, cx, groundY, scale){
     Object.assign(k, { x0: q.x / DPR, y0: q.y / DPR, s0: sS * KOP.maat * Math.hypot(m.a, m.b) / DPR });
     kopZoef(soort === 'door' ? KOP.doorC.duur : KOP.langs.duur);
   }
+  kopLaadGeluid(); kopBats(soort === 'klein' ? KOP.geluid.batsKlein : KOP.geluid.bats);
   kopLijst.push(k);
   slangBloedSpeel(true, 'steek');
 }
@@ -60624,9 +60628,17 @@ function kopStompTeken(s, kp, links, sy, sS, a){
   }
   ctx.restore();
 }
-// de zoef van de kop die naar de camera vliegt (zoals bavZoef: ruis door een bandfilter dat oploopt)
+// de geluiden van de kop: lui geladen met de slangenkoppen (in slangLaad)
+let kopSnd = null;
+function kopLaadGeluid(){
+  if (kopSnd) return;
+  kopSnd = { bats: banStemmen('sounds/houtraak.mp3', 2), zoef: banStemmen('sounds/kop_zoef.mp3', 2) };
+}
+function kopBats(vol){ if (kopSnd) banStemSpeel(kopSnd.bats, vol); }
+// de zoef van de kop die naar de camera vliegt: kop_zoef.mp3; is die er niet, dan de oude ruis (zoals bavZoef)
 function kopZoef(duur){
   if (!wantSound) return;
+  if (kopSnd && kopSnd.zoef.pool[0].readyState >= 2){ banStemSpeel(kopSnd.zoef, KOP.geluid.zoef); return; }
   const ac = acLoopt(); if (!ac) return;
   try {
     const Z = KOP.zoef, t = ac.currentTime, lang = duur + 0.3;

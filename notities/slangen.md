@@ -41,22 +41,24 @@ steek laat hem wegebben (0,65 s), de lage zwaai zit ertussen. Een plof van het l
 `kopStompTeken`, `kopZoef`, `kopReset`. Ontwerp van Tom; zie ook het projectdocument `claude/slang_onthoofding.md`.
 
 - **Wanneer**: alleen een kill met slag 2 van de stokken (`atkStok === 'slag2'`, de zijwaartse hook) op een zand-, zwarte of
-  knockslang (`SNAKE_DIRS`; de fosforslang heeft een eigen update en doet niet mee), niet in PvP. Uit een knikkerzak:
-  `KOP.kans` 1 op 6 (regel 16). De stapslag (de eerste slag) doodt een slang die opkomt om te bijten al in een klap; Tom
+  knockslang (`SNAKE_DIRS`; de fosforslang heeft een eigen update en doet niet mee), niet in PvP. Is het rustig, dan gaat de
+  kop er altijd af (de grote versie, Tom 27-11); is het druk, dan uit een knikkerzak `KOP.kans` 1 op 6 de kleine (regel 16). De stapslag (de eerste slag) doodt een slang die opkomt om te bijten al in een klap; Tom
   koos (27-11) om het toch alleen bij slag 2 te houden. Slag 2 stapt een eind door, dus een slang net buiten het bereik van
   de stapslag is de kans.
 - **Rustig of druk** (`kopRustig`): rustig is geen levende vijand binnen `KOP.rust` (600) wereld-px op Amirs niveau
   (`KOP.laag`), geen Nyundo, en geen gif, bout of dolk in de lucht (`venom`, `krbPijlen`, `banDolken`).
   - Rustig, de grote versie: hitstop 0,09 s en de wereld 0,6 s op 0,35 met een korte ramp terug (`kopTraagNu`, in `loop`
     naast `dubbelTraagNu`). De kop vliegt op echte tijd (`kopStap`), in schermcoordinaten zoals `TON.lens` (plek in het
-    beeldvlak plus diepte d, op het scherm 1/d groter), getekend na `tonLensTeken`. Uit een tweede zak (`KOP.door`, 1 op 3)
-    recht door de camera (`door`: d = 0,02^(u^1,25), zodat er genoeg beelden zijn waarin hij het beeld vult; onscherp; voorbij
-    als hij 2,6x de beeldhoogte is), anders rakelings langs (`langs`, het beeld uit linksboven, of rechtsboven als hij
-    naar rechts wegvliegt). Hij stopt nooit op de lens (Tom). Door de camera: een rode flits van 0,06 s en spatten op de
+    beeldvlak plus diepte d, op het scherm 1/d groter), getekend na `tonLensTeken`. Altijd recht door de camera (`door`: d = 0,02^(u^1,25), zodat er genoeg beelden zijn waarin hij het beeld vult; onscherp; voorbij
+    als hij 2,6x de beeldhoogte is). De versie rakelings langs (`langs`) zit alleen nog in de sandbox (Tom: de kop vliegt
+    altijd naar de camera). Hij stopt nooit op de lens (Tom). Door de camera: een rode flits van 0,06 s en spatten op de
     lens (`lensSpatMaak`/`lensSpatTeken` met `KOP.lens`) die in 0,6 s weg zijn, een schok en het bloedgeluid.
   - Druk, de kleine versie (`klein`): hitstop 0,06 s en 0,3 s traag, de kop in de wereldlaag (`kopWereldTeken`, voor de
     slangen): een boog van 0,7 s een stukje naar de camera (1,3x groter, landt `KOP.klein.voor` Amir voor de grondlijn),
     een keer stuiteren en liggen tot het lijk vervaagt.
+- **Geluid** (`KOP.geluid`, `kopLaadGeluid`, lui in `kopReset` als het level slangen kan hebben): bij de klap de bats
+  (`sounds/houtraak.mp3`, bij de kleine zachter), bij de grote de zoef `sounds/kop_zoef.mp3` (ElevenLabs, "Airy rushing
+  whoosh of an object tumbling through the air toward the listener..."); is die er niet, dan de oude ruis (`kopZoef`).
 - **De kop**: vier aanzichten (zij, schuin, voor met open bek, rug), `enemies/slang_kop/<groen|zwart|knock>/kop_*.png`,
   geladen met de slang (`slangLaad`, `snk[k].kop`). Bron: een Grok-blad (post 422e6582-...), gekeyd naar
   `enemies/slang_kop/bron/`, met een fel groene nekstomp (om de moderatie); `tools/slang_kop.py` maakt de stomp vlees en
