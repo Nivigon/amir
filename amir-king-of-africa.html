@@ -20780,6 +20780,47 @@ const GRASS_TUFTS = [{ at: -0.02, h: 0.95, flip: false },
                      { at:  0.30, h: 0.52, flip: false }];
 const hutImg = new Image();
 zetBron(hutImg, HUT.src, () => console.warn('ontbreekt: ' + HUT.src));   // idem: de hoogte komt uit HUT.h
+// gras aan de voet van de rotswand: de plaat zelf is kaal (cliff.png sinds 27-11-2026), dit zijn losse plukken
+// droog gras die meewaaien. Een rij kleine pollen langs de hele voet (om de `stap` Amir, met wat speling, hier
+// en daar een gat), een paar ervoor op de open grond, en `rots`: een paar pollen op een richel in de wand
+// (u, v: plek in de plaat, 0 = de kant van de voet; h: hoogte in Amir). De plek komt uit een vaste hash, dus
+// elk beeld hetzelfde. Niet in de sneeuw, de stad en het regenwoud.
+const KLIF_GRAS = { stap: 0.5, speling: 0.3, gat: 0.08, pol: [2, 4], spreid: 0.2, h: [0.18, 0.38], voor: [-0.5, -0.2],
+                    rots: [{ u: 0.50, v: 0.295, h: 0.22 }, { u: 0.25, v: 0.6, h: 0.2 }] };
+const klifGrasR = { p: {} };                              // de pollen van de rechterwand (hun wind-toestand)
+function klifGrasAan(){ return !winterOn() && !(level && level.stad) && sceneCfg().biome !== 'regenwoud'; }
+function klifHash(i, s){ const x = Math.sin(i * 12.9898 + s * 78.233) * 43758.5453; return x - Math.floor(x); }
+// voetX: de voet van de wand (kolom 0 van de plaat) in schermpx; kant +1: de rots ligt rechts van de voet, -1: links
+// (gespiegeld); cyp en hPx/wPx: waar en hoe groot de plaat getekend is; staat: de wind-toestand per pol
+function klifGrasTeken(voetX, kant, cyp, wPx, hPx, groundY, scale, cx, staat, seed){
+  if (!grassImg.complete || !grassImg.naturalWidth) return;
+  const K = KLIF_GRAS, A = CHAR_H * scale, rechts = W / viewZoom() + W;
+  const pol = (key, x, y, h, f) => {
+    if (x < -A || x > rechts) return;
+    const o = staat.p[key] || (staat.p[key] = {});
+    const gh = A * h;
+    drawVeg('gras', grassImg, x, y + gh * GRASS.sink, gh, f, o, world + (x - cx), false);
+  };
+  const hoog = r => K.h[0] + (K.h[1] - K.h[0]) * r;
+  for (let i = 0; i < K.rots.length; i++){                // op een richel in de wand
+    const r = K.rots[i];
+    pol('r' + i, voetX + kant * r.u * wPx, cyp + r.v * hPx, r.h, klifHash(i, seed + 5) < 0.5);
+  }
+  for (let i = 0; i < K.voor.length; i++)                  // een paar ervoor op de open grond
+    pol('v' + i, voetX + kant * K.voor[i] * A, groundY, hoog(0.4 * klifHash(i, seed + 9)), klifHash(i, seed + 3) < 0.5);
+  // langs de hele voet: groepjes van een paar pollen door elkaar, op een onregelmatige afstand, hier en daar een gat
+  const n = Math.min(80, Math.ceil(((kant < 0 ? voetX + A : rechts - voetX) / (K.stap * A))) + 1);
+  for (let i = 0; i < n; i++){
+    if (i > 0 && klifHash(i, seed + 1) < K.gat) continue;
+    const mid = (i + (klifHash(i, seed + 2) - 0.5) * 2 * K.speling) * K.stap;
+    const m = K.pol[0] + Math.floor(klifHash(i, seed + 7) * (K.pol[1] - K.pol[0] + 1));
+    for (let j = 0; j < m; j++){
+      const q = i * 7 + j;
+      const d = mid + (klifHash(q, seed + 8) - 0.5) * 2 * K.spreid;
+      pol('f' + q, voetX + kant * d * A, groundY, hoog(klifHash(q, seed + 4)) * (j === 0 ? 1 : 0.8), klifHash(q, seed + 6) < 0.5);
+    }
+  }
+}
 const cliffImg = new Image();
 cliffImg.onerror = () => console.warn('ontbreekt: ' + CLIFF.src);
 cliffImg.src = CLIFF.src;
@@ -61145,6 +61186,7 @@ function loop(now){
           ctx.drawImage(cliffImgNow, cliffImgNow.naturalWidth - sw, 0, sw, cliffImgNow.naturalHeight,
                         cxp + c.wPx - 1, cyp, W - (cxp + c.wPx) + 2, c.hPx);
         }
+        if (klifGrasAan()) klifGrasTeken(cxp, 1, cyp, c.wPx, c.hPx, groundY, scale, cx, klifGrasR, 1);   // gras aan de voet, achter de hut
         if (hutImg.complete && hutImg.naturalWidth && !winterOn()){   // hoog in de sneeuw staat geen hut
           const hh = CHAR_H * scale * HUT.h;
           const hw = hutImg.naturalWidth / hutImg.naturalHeight * hh;
@@ -61192,6 +61234,10 @@ function loop(now){
                         c.wPx - 1, 0, left + W + 2, c.hPx);
         }
         ctx.restore();
+        if (klifGrasAan() && !k.voor && !k.s){           // gras aan de voet (niet bij een wand met eigen decor of een grote wand)
+          if (!k._gras) k._gras = { p: {} };
+          klifGrasTeken(right, -1, cyp, c.wPx, c.hPx, groundY, scale, cx, k._gras, Math.abs(k.x) % 97);
+        }
         if (k.voor){                                     // een wand met decor aan zijn voet: een zachte schaduw over de straat eronder
           const A = CHAR_H * scale;
           stadZachteSchaduw(wallX - A * 0.6, wallX + (k.voor + 0.5) * A, groundY, A * 1.6);
