@@ -111,7 +111,7 @@ function beeldPak(){
     await page.waitForTimeout(2500);
     const echt = await page.evaluate(d => {
       let lijst = null, i = 0;
-      for (const l of [KLEI_LEVELS, TEST_LEVELS, STOK_LEVELS, RW_LEVELS, TUT_LEVELS, BAB_LEVELS, MUR_LEVELS, STAD_LEVELS, COOPEP_LEVELS])
+      for (const l of [KLEI_LEVELS, TEST_LEVELS, STOK_LEVELS, RW_LEVELS, TUT_LEVELS, BAB_LEVELS, MUR_LEVELS, REI_LEVELS, STAD_LEVELS, COOPEP_LEVELS])
         l.forEach((def, j) => { if (!lijst && def.name.toLowerCase().includes(d.toLowerCase())){ lijst = l; i = j; } });
       if (!lijst) return null;
       setLevel(i, lijst); beginPlay('medium'); return level.name;

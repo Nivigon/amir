@@ -12,7 +12,7 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 **1. Levels van een echte episode blijven met rust.** Nu is er geen bevroren episode meer: De Valse Koning,
 Oaktown, De Belegerde Stad, De Gouden Poort, De Rivierstad en The Roofs of Kumbasa zijn op verzoek weggehaald, en
 The Clay City (`KLEI_1` tot en met `KLEI_7`) staat tussenin (geen proefstuk, wel aanpassen als de opdracht erom vraagt). Wijst de opdrachtgever
-weer een episode als bevroren aan, dan geldt het volgende daarvoor. De Episode Test levels (`TEST_1` en verder) de episode Baboon tests (`BAB_1` en verder), de episode Murghtaan (`MUR_1` en verder) en de episode Test levels stad (`STAD_1` en verder) vallen niet onder deze regel: ze zijn er
+weer een episode als bevroren aan, dan geldt het volgende daarvoor. De Episode Test levels (`TEST_1` en verder) de episode Baboon tests (`BAB_1` en verder), de episode Murghtaan (`MUR_1` en verder), de Elite tests (`REI_1` en verder) en de episode Test levels stad (`STAD_1` en verder) vallen niet onder deze regel: ze zijn er
 juist om aan te rommelen. De leveldefinities van een echte episode zijn bevroren: er komt geen nieuwe vijand, prop, tip, potion of aangepast
 getal in, ook niet even om iets te laten zien. Alleen als de opdracht een level bij naam noemt
 ("zet dit in level 6") mag dat ene level veranderen. Twijfel je of iets eronder valt, dan valt
@@ -228,6 +228,8 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | Episode The Clay City: zeven stadslevels als solo Co-op episode (reeks `c`): geen tribe en geen talents, de kit, het goud en de winkel van Co-op (in level 2, 4, 6 en 7); bij Play kies je wapen en moeilijkheid (Young Whelp, Lion, Hunter XL), spawns, kalebassen en tonnen met `van`/`tot` | `KLEI`, `KLEI_1`, `KLEI_LEVELS`, `kleiZwaar`, `kleiSpeel`, `kleiCoopStart`, `kleiCoopStop`, `pvp.klei`, `MPC_EPS`, `menuKlei`, `dkzwaar` | notities/episodes.md |
 | Episode Test levels | `TEST_1`, `TEST_51`, `KAART_BLAD` | notities/episodes.md |
 | Episode Baboon tests | `BAB_1`, `BAB_4`, `BAB_LEVELS` | notities/episodes.md |
+| Elite tests: het Test Lab-scherm met een map per elite-vijand of baas (Reinier, Baboon tests, Murghtaan), `menuElite`, Back-knop klasse `menuelite` | `menuElite`, `menuRei`, `REI_LEVELS`, `REI_1` | notities/reinier.md |
+| Reinier (codenaam), de bijlveteraan: elite-vijand (geen baas, regel 12), uitvalskap, schijnkap, draaizwaai, strafvenster, wankel, dood; sprites uit de Grok-proef | `REI`, `REI_DATA`, `reinieren`, `makeReinier`, `updateReinier`, `hitReinier`, `reiTeken`, `reiOpen` | notities/reinier.md |
 | Episode Murghtaan: de hyena-baas (baas, regel 12), de roedel, de reveal en de kevers | `MUR_1`, `MUR`, `makeMurg`, `updateMurg`, `hitMurg`, `murKevers`, `murKlem` | notities/episodes.md |
 | Murghtaan 2: de charge van het nieuwe ontwerp (brul, aanzet, galop, slip met stof, draai; vijf treffers) | `MUR_2`, `MURC`, `murcStap`, `murcRaak`, `murcTeken`, `murcZeg` | notities/episodes.md |
 | de pin van Murghtaan 2: schouderblik in de slip (tell), sprong, alleen de rol ontwijkt; happen in het ritme 1, 1, 2, steken op de hap pareert; startkeuze levens/onaantastbaar en extra hyena's; afstellen onder Instellingen | `MURC.pin`, `murcPinStap`, `murcPinHap`, `murcPinAmir`, `MURC_PIN_SCHUIF`, `murcKeuze` | notities/episodes.md |
@@ -559,8 +561,9 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 ### Een episode toevoegen
 
 Die vijf stappen, plus: een knop in `menuEpisodes` (het scherm Campaign, onder Single Player in `menuChoose`;
-een nieuwe testreeks die geen echte episode is, zoals Baboon tests, krijgt juist een knop in het Test Lab, `menuLab`,
-met een Back-knop met de klasse `menulab`), een eigen `menuXxx`-blok in de
+een nieuwe testreeks die geen echte episode is krijgt juist een knop in het Test Lab, `menuLab`,
+met een Back-knop met de klasse `menulab`; een reeks voor een elite-vijand of baas, zoals Reinier, Baboon tests en Murghtaan, krijgt
+zijn knop in Elite tests, `menuElite`, met een Back-knop met de klasse `menuelite`), een eigen `menuXxx`-blok in de
 HTML naar het voorbeeld van `menuTest`, en die aanmelden in `buildCards`,
 `markCards` en `showMenu` (die kiezen nu tussen `cardsKlei`/`menuKlei`, `cardsBab`/`menuBab`,
 `cardsStad`/`menuStad` en `cardsTest`/`menuTest`, en `toMenu` ook), en de reeks in `tools/speelrobot.js`,
