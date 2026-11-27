@@ -15305,6 +15305,7 @@ const HOLSTAM = {
   vaag: 1,                  // zoveel vervaagt de voorkant als Amir erin staat: helemaal, alleen de rand boven en de lip over zijn voeten blijven
   vaagV: 5,                 // hoe snel (per s)
   kop: 0.07,                // pas zoveel van de lengte voorbij een opening telt als binnen
+  open: 390,                // bronpixels vanaf elk eind: de opening (binnenwand en rand) ligt achter de personages, pas daarna de zijwand ervoor
   licht: 0.22,              // het daglicht bij de openingen, over de binnenkant
   vlieg: { n: 12, r: 2.4, kleur: [255, 225, 110], schrikR: 400, schrikMax: 4, terugNa: [4, 6.5],
            v0: [500, 650], demp: 4.5, zig: [0.05, 0.09], uit: 170, op: 190, opzij: 235 },
@@ -15702,11 +15703,24 @@ function holstamSchaduw(S){                            // een zachte donkere sch
   gr.addColorStop(0, 'rgba(14,10,6,0)'); gr.addColorStop(0.7, 'rgba(14,10,6,0.78)'); gr.addColorStop(1, 'rgba(14,10,6,0)');
   ctx.save(); ctx.fillStyle = gr; ctx.fillRect(S.x + 0.03 * S.w, S.knip - hgt * 2, S.w * 0.94, hgt * 2.6); ctx.restore();
 }
-function holstamSchil(q, b, S){
+// deel: 'kop' alleen de twee uiteinden (de opening, achter de personages), 'romp' alleen het stuk ertussen (de zijwand,
+// ervoor), anders alles. Zo loopt wie de stam in gaat voor de rand van de opening langs en verdwijnt hij pas achter de
+// zijwand, ook de gids (die laat de voorkant niet vervagen) en Amir in een kleine stam (die vervaagt pas binnen).
+function holstamKlem(q, S, deel){
+  if (!deel) return;
+  const o = Math.min(S.w / 2, HOLSTAM.open * S.w / holstamBronB(q)), top = S.y - 50, h = S.knip - S.y + 100;
+  ctx.beginPath();
+  if (deel === 'romp') ctx.rect(S.x + o, top, S.w - 2 * o, h);
+  else { ctx.rect(S.x - 50, top, o + 50, h); ctx.rect(S.x + S.w - o, top, o + 50, h); }
+  ctx.clip();
+}
+function holstamSchil(q, b, S, deel){
   const v = q.vaag || 0;
+  ctx.save(); holstamKlem(q, S, deel);
   holstamPlaat(b.schil, S, 1 - v);
   if (v > 0.001) holstamPlaat(b.rand, S, v / HOLSTAM.vaag);
   holstamSchaduw(S);
+  ctx.restore();
 }
 // de boma: een wal van doorntakken bovenop de stam, onderaan in de stam gezakt (de schil ligt eroverheen), met een
 // donkere, iets kleinere laag erachter voor diepte. Zo breed als het beeld, maar hooguit de stam (dan iets samengedrukt).
@@ -15735,7 +15749,7 @@ function holstamAchter(groundY, scale, cx){
     else holstamPlaat(b.binnen, S, 1);
     holstamGatenTeken(q, M, S, scale);
     q._achter = holstamBoven(q, M);
-    if (q._achter) holstamSchil(q, b, S);
+    holstamSchil(q, b, S, q._achter ? null : 'kop');
   }
 }
 // voor de personages: de schil (vervaagd als Amir erin staat) en de vuurvliegjes
@@ -15744,8 +15758,8 @@ function holstamVoor(groundY, scale, cx){
     const b = holstamBak(q); if (!b) continue;
     const M = holstamMaat(q), S = holstamScherm(q, M, groundY, scale, cx); if (!holstamZichtbaar(S)) continue;
     if (!q._achter){
-      holstamSchil(q, b, S);
-      if (b.lip && q.vaag > 0.001){ ctx.save(); ctx.globalAlpha *= Math.min(1, q.vaag / HOLSTAM.vaag); ctx.drawImage(b.lip, S.x, S.y, S.w, HOLSTAM.bron.h * S.kk); ctx.restore(); }   // de bastrand over Amirs voeten
+      holstamSchil(q, b, S, 'romp');
+      if (b.lip && q.vaag > 0.001){ ctx.save(); holstamKlem(q, S, 'romp'); ctx.globalAlpha *= Math.min(1, q.vaag / HOLSTAM.vaag); ctx.drawImage(b.lip, S.x, S.y, S.w, HOLSTAM.bron.h * S.kk); ctx.restore(); }   // de bastrand over Amirs voeten
     }
     holstamVoetTeken(q, M, S, scale);
     holstamKruisTeken(q, M, S, scale);
