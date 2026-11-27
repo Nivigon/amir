@@ -122,6 +122,12 @@ In Test 74 (`stokken: true`), de sandboxknop **Stokken**, en in Multiplayer als 
   te ver van de rand gebeurt er niets bijzonders. Alleen de bandiet: de stun-counter stunt alleen hem. Een uitzondering op
   regel 7. Nagemeten in de sandbox met een gat in `level.gaps`: 30 en 100 px van de rand valt hij erin, zonder stun of 300 px
   ervandaan niet.
+- **Ook van een galerij of dak** (op verzoek, 27 november 2026): staat de gestunde bandiet in de stad op een galerij of dak en
+  ligt de rand (`dropAhead`) binnen hetzelfde bereik, dan zet de slag `s.fcVal` in plaats van `randVal`, en de val van Full
+  Circle doet de rest (`fcValLanding`, `fcValStart`, zie `notities/combo.md`): hij slaat eraf naar de straat, landt met stof,
+  ligt `FC_VAL.rust` stil en leeft nog. Alleen als hij beneden veilig neerkomt, anders blijft hij aan de rand staan. Gemeten
+  in Stad 1 op de galerij van de toren (hoogte 870): gestund valt hij naar de straat en houdt zijn levens, niet gestund blijft
+  hij boven.
 
 ## De punt zakt mee (18-11-2026)
 
