@@ -201,6 +201,10 @@ lessen en alle afgekeurde versies staan in de projectnotitie `claude/holle_stam_
   tot Amir erin loopt. Loopt Amir erin (`holstamBinnen`, in de eerste 7% vanaf een opening loopt het op), dan vervaagt de
   voorkant helemaal en blijft de rand boven dicht; de onderrand begint onder de looplijn (`bron.lip` -6), zodat je voeten
   altijd te zien zijn.
+  De uiteinden (`HOLSTAM.open`, 390 bronpixels vanaf elk eind: de opening met de binnenwand en de rand) tekent
+  `holstamAchter` achter de personages, alleen de romp ertussen (de zijwand) tekent `holstamVoor` ervoor
+  (`holstamKlem`). Anders lag de rand van de opening over wie erin liep, alsof hij van achter de stam kwam (Tom, 28-11:
+  Amir in de kleine stam van The First Hunt, die pas binnen vervaagt, en de gids, die niets laat vervagen).
 - **Vuurvliegjes** (`vlieg: true`): binnen 0,5 donker in plaats van 0,3, en twaalf stipjes (`holstamVliegStap`) die
   zweven en knipperen. Een steek (`holstamUpdate`, op atkFrame), de lage zwaai (`holstamZwaai`, een keer per sweepId) of
   een vijand die sterft (`vijandDood`) roept `holstamSchrik` aan: hooguit vier in de buurt flitsen op, schieten weg met
