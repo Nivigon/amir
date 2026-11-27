@@ -2429,6 +2429,18 @@
         <button data-rots="hang" title="hangt in de sandbox net boven Amir; in een level aan het plafond">Hangrots</button>
       </div>
       <div class="row">
+        <label title="hutten en putten van het savannedorp, recht van voren in de stijl van Ishmul (zie de stijlsheet)">Savannedorp</label>
+        <button data-sdorp="hut_rond">Hut rond</button>
+        <button data-sdorp="hut_koepel_groot">Koepel</button>
+        <button data-sdorp="hut_koepel_hoog">Koepel hoog</button>
+        <button data-sdorp="put_leem">Put leem</button>
+        <button data-sdorp="put_steen">Put steen</button>
+        <button data-sdorp="put_shaduf">Shaduf</button>
+        <button id="sbloopput" title="de loopput van de savanne: een verweerde stenen put om op te staan; houdt vijanden tegen als een kei (LOOPPUT)">Loopput</button>
+        <button id="sbloopputstad" title="de loopput van de stad: de leemput met een houten deksel (LOOPPUT, soort stad)">Loopput stad</button>
+        <button id="sbloopputweg">Weg</button>
+      </div>
+      <div class="row">
         <label title="de barsten en het puin van het plein van Nyundo, als los decor; elke klik een ander stuk">Kapotte vloer</label>
         <button data-vloer="barst">Barst</button>
         <button data-vloer="puin">Puin</button>
@@ -7614,11 +7626,13 @@ const TEST_97 = {
     gevels: [ {x: -3240, hoog: 2}, {x: -4000, hoog: 3, aan: 1.0} ],
     voet: [ {x: -3390, stuk: 'stenen'} ]
   },
-  grondSoort: [ {van: -4040, tot: -7000, soort: 'savanne'} ],
+  grondSoort: [ {van: -4040, tot: -8500, soort: 'savanne'} ],
   spawns: [], rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
   props: [ {x: -4180, k: 'hut_rond'}, {x: -4620, k: 'hut_koepel_groot'}, {x: -5130, k: 'hut_koepel_hoog'},
-           {x: -5420, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -5560, k: 'tree', s: 1.1, f: 1, v: 0} ],
-  cliffs: [ {x: -5800, s: 1.6} ],
+           {x: -5700, k: 'put_leem'}, {x: -6150, k: 'put_steen'}, {x: -6620, k: 'put_shaduf'},
+           {x: -7500, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -7650, k: 'tree', s: 1.1, f: 1, v: 0} ],
+  loopPutten: [ {x: -7150} ],                      // de loopput van de savanne: erop springen, staan en eraf (LOOPPUT)
+  cliffs: [ {x: -7950, s: 1.6} ],
   ends: [],
   tips: [ { x: -2980, t: 'Stijlproef: load a PNG in the panel (top left), it lands next to Amir. Check it against the city house and the huts' } ]
 };
@@ -11539,6 +11553,46 @@ function kruipstamTeken(groundY, scale, cx){
     ctx.drawImage(im, sx, groundY - K.grond * k, w, h);
   }
 }
+// ---- de loopput: een lage put om op te staan en overheen te springen (level.loopPutten) ----
+// Grok-platen in design/savanne/putten/, wit weggeknipt. Het bovenvlak is van schuin boven te zien, zoals de galerij, zodat
+// Amir erin staat en niet op een streep. Het frame (twee palen, de balk met het touw) staat op de achterrand en de emmer of
+// kalebas op de grond ernaast: de hele plaat ligt achter de personages, dus Amir en zijn speer staan altijd voor het hout.
+// De palen zijn bij het knippen verlengd, zodat de balk boven Amirs hoofd uitkomt. Twee soorten (regel 9 van de stijlsheet,
+// elk landschap een eigen gezicht): savanne (de standaard, Grok 48c99908) is een verweerde put van gestapelde veldsteen met
+// een deksel van takken, acaciatakken en een kalebas, voor een arm of verlaten dorp; stad (Grok fee91518) is de gepleisterde
+// leemput met een houten deksel en een kuipemmer, voor Ishmul. Botsing zoals bij de kruipstam: readLevel zet er een
+// onzichtbare zwevende laag (look 'geen') op, van de grond tot het bovenvlak. Die houdt vijanden tegen als een kei (regel 7:
+// geen slang, schorpioen of panter komt erover), Amir springt erop. Maten in pixels van de plaat; k maakt de looplijn 160.
+const LOOPPUT = {
+  savanne: { src: 'design/savanne/putten/put_loop_savanne.png', w: 1219, h: 1508,
+             grond: 1420, top: 1005,           // de grondlijn (de voet van de muur) en de looplijn (midden in het bovenvlak)
+             links: 150, rechts: 150,          // zoveel px van de randen begint en eindigt het loopvlak (stenen, kalebas)
+             k: 0.386 },
+  stad:    { src: 'design/savanne/putten/put_loop_stad.png', w: 1119, h: 1326,
+             grond: 1299, top: 904, links: 51, rechts: 70, k: 0.405 }
+};
+function loopputSoort(q){ return LOOPPUT[q && q.soort] || LOOPPUT.savanne; }
+const loopputImgs = {};
+function loopputPic(K){ K = K || LOOPPUT.savanne; if (!loopputImgs[K.src]){ const im = new Image(); im.src = K.src; loopputImgs[K.src] = im; } return loopputImgs[K.src]; }
+function loopputDak(q){
+  const K = loopputSoort(q), k = K.k * (Number(q.s) || 1), x = Number(q.x);
+  const l = q.f ? K.rechts : K.links, r = q.f ? K.links : K.rechts;   // gespiegeld wisselen de randen
+  return { r: x + (K.w / 2 - r) * k, l: x - (K.w / 2 - l) * k, h: (K.grond - K.top) * k, onder: 0, look: 'geen' };
+}
+function loopputTeken(groundY, scale, cx){
+  const L = level && level.loopPutten;
+  if (!L || !L.length) return;
+  for (const q of L){
+    const K = loopputSoort(q), im = loopputPic(K); if (!imgReady(im)) continue;
+    const k = K.k * (q.s || 1) * scale, w = K.w * k, h = K.h * k;
+    const sx = cx + (q.x - world) - w / 2;
+    if (sx > W / viewZoom() + W || sx + w < -W) continue;
+    ctx.save();
+    if (q.f){ ctx.translate(2 * sx + w, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(im, sx, groundY - K.grond * k, w, h);
+    ctx.restore();
+  }
+}
 function drawLedge(o, groundY, scale, cx, binnen){
   const za = binnen ? 1 : maskerZicht(o.x, o.h);    // binnen een masker dat er nog ligt: niet te zien (hij draagt wel, wie erop landt onthult het)
   if (za <= 0) return;
@@ -11589,6 +11643,7 @@ function drawClimb(groundY, scale, cx, onder){
     }
   }
   if (!onder) kruipstamTeken(groundY, scale, cx);   // de kruipstam: een omgevallen stam op twee keien (KRUIPSTAM)
+  if (!onder) loopputTeken(groundY, scale, cx);    // de loopput: een lage put om op te staan (LOOPPUT)
   // zwevende savannelagen: hetzelfde dikke blok, maar afgesneden op de onderkant met lucht eronder
   for (const z of zweefList().filter(z => hier(z.h) && z.look !== 'geen').sort((a, b) => a.h - b.h)){   // geen: onzichtbaar (het plafond van de kelderzaal)
     const floorY = groundY - z.onder * scale;        // de onderkant van het blok op het scherm
@@ -23118,6 +23173,10 @@ const PROPS = {
   hut_rond:         { src: 'design/savanne/hutten/hut_rond.png',         h: 2.6, sink: 0.02, placeOnly: true, lui: true, r: 1.16, naam: 'Hut rond' },
   hut_koepel_groot: { src: 'design/savanne/hutten/hut_koepel_groot.png', h: 2.9, sink: 0.02, placeOnly: true, lui: true, r: 1.28, naam: 'Hut koepel groot' },
   hut_koepel_hoog:  { src: 'design/savanne/hutten/hut_koepel_hoog.png',  h: 4.0, sink: 0.02, placeOnly: true, lui: true, r: 0.93, naam: 'Hut koepel hoog' },
+  // de putten van het savannedorp, ook recht van voren (Grok 2b165ff8): de putmuur tot Amirs heup, het frame net boven zijn hoofd
+  put_leem:         { src: 'design/savanne/putten/put_leem.png',         h: 1.5, sink: 0.02, placeOnly: true, lui: true, r: 1.15, naam: 'Put leem' },
+  put_steen:        { src: 'design/savanne/putten/put_steen.png',        h: 1.5, sink: 0.02, placeOnly: true, lui: true, r: 1.09, naam: 'Put steen' },
+  put_shaduf:       { src: 'design/savanne/putten/put_shaduf.png',       h: 1.3, sink: 0.02, placeOnly: true, lui: true, r: 1.44, naam: 'Put shaduf' },
   rw_kei_1: { src: 'design/regenwoud/decor/kei_1.png', h: 1.05, sink: 0.06, placeOnly: true, lui: true, r: 1.08, rw: 'kei', naam: 'Mosrots rond' },
   rw_kei_2: { src: 'design/regenwoud/decor/kei_2.png', h: 1.3, sink: 0.06, placeOnly: true, lui: true, r: 0.8, rw: 'kei', naam: 'Mosrots scheef' },
   rw_kei_3: { src: 'design/regenwoud/decor/kei_3.png', h: 0.55, sink: 0.06, placeOnly: true, lui: true, r: 1.94, rw: 'kei', naam: 'Steenkom' },
@@ -65921,11 +65980,12 @@ function readLevel(txt){
                                                     zwart: (q.zwart === 'savanne' || q.zwart === 'vulling') ? q.zwart : undefined })),   // zwarte terrein-variant, zie de tekenlagen
            // zwevende savannelagen: een dik savanneblok in de lucht, zie "zwevende savannelaag"
            kruipstammen: Array.isArray(o.kruipstammen) ? o.kruipstammen.map(q => ({ x: Number(q.x), s: Number(q.s) || 1 })) : undefined,
+           loopPutten: Array.isArray(o.loopPutten) ? o.loopPutten.map(q => ({ x: Number(q.x), s: Number(q.s) || 1, f: !!q.f, soort: q.soort === 'stad' ? 'stad' : undefined })) : undefined,   // de loopput (LOOPPUT)
            zwammen: Array.isArray(o.zwammen) ? o.zwammen.map(q => ({ x: Number(q.x), k: q.k === 'gloei' ? 'gloei' : 'paddo', v: q.v ? 1 : 0, s: Number(q.s) || 1, f: !!q.f })) : undefined,   // losse paddenstoeltjes (HOLSTAM.zwam)
            holstammen: Array.isArray(o.holstammen) ? o.holstammen.map(q => ({ x: Number(q.x), s: Number(q.s) || 1, n: q.n != null ? Number(q.n) : undefined, vlieg: q.vlieg === true, anker: q.anker === 'r' ? 'r' : undefined, boma: q.boma === true || undefined,
                                                                        hol: q.hol ? { dx: Number(q.hol.dx) || 0, inhoud: ['goud', 'ruimte', 'uitzicht', 'ingang'].includes(q.hol.inhoud) ? q.hol.inhoud : 'kalebas', vondst: q.hol.vondst === 'kist' ? 'kist' : 'kalebas', goud: q.hol.goud != null ? Number(q.hol.goud) : undefined, f: !!q.hol.f, kruis: q.hol.kruis === true, h: q.hol.h != null ? Number(q.hol.h) : undefined } : undefined })) : undefined,   // de holle stam (HOLSTAM)
            holstamSoort: o.holstamSoort ? String(o.holstamSoort) : undefined,   // het hout van de holle stam (HOLSTAM_SOORT): savanne
-           zwevers: (o.zwevers || []).concat((o.kruipstammen || []).map(kruipstamDak)).concat((o.schachtbomen || []).map(q => schachtMuur({ x: Number(q.x), s: Number(q.s) || 1 }))).concat((o.holstammen || []).map(q => holstamDak({ x: Number(q.x), s: Number(q.s) || 1, n: q.n, anker: q.anker, boma: q.boma }))).map(q => {
+           zwevers: (o.zwevers || []).concat((o.kruipstammen || []).map(kruipstamDak)).concat((o.loopPutten || []).map(q => loopputDak({ x: q.x, s: q.s, f: !!q.f, soort: q.soort }))).concat((o.schachtbomen || []).map(q => schachtMuur({ x: Number(q.x), s: Number(q.s) || 1 }))).concat((o.holstammen || []).map(q => holstamDak({ x: Number(q.x), s: Number(q.s) || 1, n: q.n, anker: q.anker, boma: q.boma }))).map(q => {
              const h = Number(q.h) || 0;
              let onder = q.onder != null ? Number(q.onder) : h - ZWEEF.dik;
              if (onder >= h) onder = h - ZWEEF.dik;          // de onderkant ligt altijd onder de looplijn
@@ -66128,6 +66188,7 @@ function laadLevel(lv){
   kelderLaadLevel(lv);                             // het kelderluik (level.kelder)
   kzaalLaadLevel(lv);                              // de kelderzaal (level.kelderZaal)
   if (lv.kruipstammen && lv.kruipstammen.length) kruipstamPic();   // de kruipstam (KRUIPSTAM)
+  if (lv.loopPutten) lv.loopPutten.forEach(q => loopputPic(loopputSoort(q)));   // de loopput (LOOPPUT)
   comboLaadLevel(lv);                              // de derde slag (level.combo)
   stokLaadLevel(lv);                               // de stokken (level.stokken, zie STOK)
   renNieuwLaadLevel(lv);                           // de nieuwe ren (level.nieuweRen, zie REN_NIEUW)
@@ -74166,6 +74227,8 @@ function sbRots(fam, vloer){
 }
 sandboxEl.querySelectorAll('button[data-rots]').forEach(b => b.onclick = () => sbRots(b.dataset.rots));
 sandboxEl.querySelectorAll('button[data-vloer]').forEach(b => b.onclick = () => sbRots(b.dataset.vloer, true));
+// het savannedorp: een hut of put op dezelfde plek als een schild, lui geladen
+sandboxEl.querySelectorAll('button[data-sdorp]').forEach(b => b.onclick = () => { propLaad(b.dataset.sdorp); sbSchild(b.dataset.sdorp); });
 sandboxEl.querySelectorAll('button[data-windvlaag]').forEach(b => b.onclick = () => {
   startGust(Number(b.dataset.windvlaag));
   gustTimer = 9 + Math.random() * 10;             // de volgende vanzelf pas weer over een tijdje
@@ -75175,6 +75238,21 @@ function sbHolstam(extra){
   cv.focus();
 }
 document.getElementById('sbholstam').onclick = () => sbHolstam();
+// Een loopput voor je uit (LOOPPUT): elke klik zet er een bij, iets verder dan de vorige, met zijn loopvlak erbij
+function sbLoopput(soort){
+  const K = loopputSoort({ soort }); loopputPic(K);
+  if (!level.loopPutten) level.loopPutten = [];
+  if (!level.zwevers) level.zwevers = [];
+  const halfVan = o => { const L = loopputSoort(o); return L.w / 2 * L.k; };
+  const verst = level.loopPutten.reduce((m, o) => Math.min(m, o.x - halfVan(o)), world - 150);
+  const q = { x: verst - 250 - K.w / 2 * K.k, s: 1, f: false, soort };
+  level.loopPutten.push(q);
+  level.zwevers.push(Object.assign(loopputDak(q), { loopput: true }));
+  cv.focus();
+}
+document.getElementById('sbloopput').onclick = () => sbLoopput();
+document.getElementById('sbloopputstad').onclick = () => sbLoopput('stad');
+document.getElementById('sbloopputweg').onclick = () => { if (level.loopPutten) level.loopPutten.length = 0; if (level.zwevers) level.zwevers = level.zwevers.filter(z => !z.loopput); cv.focus(); };
 document.getElementById('sbholstamlang').onclick = () => sbHolstam({ n: 3 });
 document.getElementById('sbholstamklein').onclick = () => sbHolstam({ s: 0.58, n: 0.3 });
 document.getElementById('sbholstamvlieg').onclick = () => sbHolstam({ n: 1, vlieg: true });
