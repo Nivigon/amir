@@ -32,6 +32,8 @@
 //   node tools/mptest.js --zilverhart --stokken host   Silver Pride: de gast valt, de host legt het hart neer, de gast komt eruit
 //   node tools/mptest.js --sperenzien --spelers 2      de speren van een ander: zijn soort in de hand, de soorten op zijn rug
 //                                        en zijn gif, ook op een geworpen speer (--shots map: een schermafdruk van wat de host ziet)
+//   node tools/mptest.js --islotzien            de spullen van Kivuli bij een ander: de gast gebruikt ze een voor een, de host en
+//                                        de tweede gast moeten het effect ook zien (--shots map: per ding een schermafdruk)
 //   node tools/mptest.js --ardhizien             de druppel van Ardhi bij een ander: de gast krijgt een leven terug, de host en
 //                                        de tweede gast zien de animatie naar zijn Amir (--shots map: schermafdrukken onderweg)
 //   node tools/mptest.js --tonproef --spelers 2        de gast breekt een ton: de stukken komen tot rust, het houtgeluid houdt op
@@ -193,6 +195,31 @@ async function ardhiZienProef(R){
   meld(await G.page.evaluate(() => lives) === lv0 + 1, 'de gast heeft er een leven bij');
   meld(await H.page.evaluate(() => lives) === hl, 'de host krijgt geen leven');
   for (const r of R) if (r !== G) meld(await r.page.evaluate(() => Object.keys(ardhiHeelAnder).length === 0), r.wie + ': de druppel is weer weg');
+  for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
+}
+// --islotzien: de gast gebruikt elk ding van Kivuli; de host en de tweede gast moeten het effect ook krijgen en tekenen
+async function islotZienProef(R){
+  const [H, G] = R;
+  for (const r of R) await r.page.evaluate(() => { godMode = true; MPC.reviveNa = 999; islotLaad(); });
+  await H.page.evaluate(() => { world = -1500; ph = 0; facing = -1; });
+  for (const r of R.slice(2)) await r.page.evaluate(() => { world = -1550; ph = 0; });
+  for (const k of ['bones', 'fangs', 'ants', 'mirrors', 'klei']){
+    for (const r of R) await r.page.evaluate(() => { islotFx.length = 0; for (const p in islotMir) delete islotMir[p]; });
+    await G.page.evaluate(k => { world = -1650; ph = 0; facing = -1; islotTas[k] = 1; islot[0] = k; islotToets(0); }, k);
+    await wacht(700);
+    for (const r of R){
+      if (r === G && k === 'klei') continue;
+      const z = await r.page.evaluate(k => k === 'mirrors' ? Object.keys(islotMir).length : k === 'klei' ? Object.keys(islotKleiAnder).length : islotFx.filter(e => e.k === k).length, k);
+      meld(z > 0, r.wie + ' heeft het effect van ' + k);
+    }
+    if (k === 'klei'){                                  // de gast loopt: de anderen zien klonten bij zijn voeten
+      for (const r of R) await r.page.evaluate(() => { islotKlonten.length = 0; });
+      for (let i = 0; i < 12; i++){ await G.page.evaluate(() => { world -= 25; }); await wacht(80); }
+      for (const r of R) if (r !== G) meld(await r.page.evaluate(() => islotKlonten.length) > 0, r.wie + ' ziet klei van de voeten van de gast vallen');
+    }
+    if (shots){ fs.mkdirSync(shots, { recursive: true }); for (const r of R) await r.page.screenshot({ path: path.join(shots, 'islot_' + k + '_' + r.wie + '.png') }); }
+    await wacht(1500);
+  }
   for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
 }
 // --sperenzien: de gast draagt een Pathfinder in de hand, een Shield Piercer en Ardhi's Reach op de rug, met gif; de host
@@ -1228,6 +1255,7 @@ async function elk(H, G){
   }
   if (args.includes('--winkel')){ await winkelProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--hl')){ await hlProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
+  if (args.includes('--islotzien')){ await islotZienProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--ardhizien')){ await ardhiZienProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--sperenzien')){ await sperenZienProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--tonproef')){ await tonProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }

@@ -60,7 +60,8 @@ Wat er in de inventory zit en hoeveel gif de speren nog hebben, gaat mee naar he
   vak flitsen. Op de telefoon is er geen actiebalk; daar blijft de groene rand om het tasje.
 
 - `gifSpat` en `gifFxTeken`: druppels rood en groen, bij elke treffer en elke tik (getekend na Amir, naast de crit-ster).
-- `gifVijandTeken` (vanuit `vijandHpBalk`, dus bij elke vijand na zijn sprite): een groene waas en vier belletjes.
+- `gifVijandTeken` (vanuit `vijandHpBalk`, dus bij elke vijand na zijn sprite): een groene waas en vier belletjes. Op
+  verzoek 10% duidelijker (27-11-2026): `GIF.zie` (1,1) vermenigvuldigt de waas, de doorzichtigheid en de grootte van de belletjes.
 - `gifBalkAf` in `vijandHpBalk`: de balk loopt langzaam leeg naar de volgende tik, het stuk dat het gif al opat ademt
   groen, en de rand is groen.
 - Op de rug (`rugSpeerTeken`) is het staal van de speer zuurgroen, net als in de hand: `javTeken` krijgt `gifSterkte()`
@@ -71,7 +72,15 @@ Wat er in de inventory zit en hoeveel gif de speren nog hebben, gaat mee naar he
   paar spatjes, een zacht gesis (ruis door een hoog filter) en een wolkje bleekgroene damp dat opstijgt en oplost. De
   speren melden elk beeld waar hun staal zit (`gifBron`: `mkGifPunten` per plaatje, `gifPuntenOp`, voor de hand via
   `mkGifPunt` in framepixels).
-- `gifPuntTeken`: een groene punt op de geworpen speer (`javSchacht`), minder groen naarmate de treffers opraken.
+- **Elke speersoort, ook een toekomstige, krijgt de groene punt** (27-11-2026, op verzoek: de Shield Piercer en Ardhi's
+  Reach hadden hem niet). `mkGifBeeld` zoekt de punt nu op de vorm: de lange as van de speer (de spreiding van zijn
+  pixels), het smalste eind is de punt, en dan het grootste stuk staal waarvan het midden in het laatste stuk zit
+  (`GIF_PUNT.zone`, 0,82 van de lengte). Is dat er niet of te klein (`minStaal`), zoals bij de zwarte naald van de Shield
+  Piercer, dan wordt het laatste stuk van de lengte groen (`GIF_PUNT.lengte`, 13%), wat lichter getint zodat het groen op
+  een donkere punt te zien is. Een nieuwe speer hoeft dus niets te doen: zijn plaatje gaat vanzelf door `mkGifBeeld`.
+- De geworpen speer (`javSchacht`) krijgt dezelfde groene punt via `javTeken` (met `gifSterkte()`); de druppelpunten die
+  dat oplevert gaan er weer af, want de druppel komt alleen van de speren die Amir draagt. `gifPuntTeken` (een groene vorm
+  over de punt) is er alleen nog voor de draaiende speer in de vlucht en als het plaatje er nog niet is.
 - `gifHandTeken`: de speer in de hand zit in de sprite van Amir, dus daar weet het spel alleen bij de steek en het
   spannen waar de punt is; dan een groene gloed en een druppel.
 - De speer in de hand van Mkuki (de losse speer, `MK_LOS`) is groenig zolang er gif op zit, ook rechtop bij stilstaan en
