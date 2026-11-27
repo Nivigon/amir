@@ -264,17 +264,35 @@ steekafstand (`shoveDoel`, `shoveStart`, `shoveStap`, `shoveRaak`). Op verzoek v
   sprite-eenheden: `TIP_DX` van `ATK_ACTIVE` plus `steekR`), dan is het een gewone steek. Anders de dichtstbijzijnde vijand
   die met zijn lijf voor die strook staat; is dat een mens (bandiet, schildbandiet, kruisboogbandiet, zweepman, kooiman),
   dan de shove, is het een dier of baas, dan gewoon steken. Niet bij een razende bandiet, een springende schildbandiet,
-  een Co-op-gast (de host denkt voor de vijanden) of met de stokken.
+  of met de stokken. In Co-op kiest en speelt een gast de shove zelf, op zijn kopie van de vijanden.
+- **Co-op**: op `raakStap` stuurt een gast `shvR` (`a`, `id`, `kant`) naar de host, zoals `mh` bij een treffer
+  (`mpcHitDoor`); de host duwt met de stand van die gast (`mpcShoveVanGast`, `mpcWisselIn`, met wat speling voor de
+  vertraging) via `shoveDuw`, en houdt zijn eigen schok en hitstop. De gast tekent alleen stof en schok. De frames gaan
+  als elk beeld van Amir mee met `pvpVang` (het pad, `im`), en de ontvanger kleedt ze in de Mkuki-skin met de losse
+  speer uit `los.json` (`broekBeeld`, `mkSkinVan`). Proef: `node tools/mptest.js --shove --spelers 2 --soorten bandiet`
+  (de gast duwt, de host schuift de bandiet terug en de gast ziet het, en andersom).
 - **Het duwen** op stap `raakStap` van de reeks (frame 8, 0,29 s na de druk): `ver` = tot zijn midden op `doel` (270) staat,
   minstens `minDuw`, als knock (snelheid = afstand maal ln 50). Bandiet: `s.knock` (maal 1,2, zijn knock remt harder),
-  `rust` en `traag` op `wankel`; schildbandiet: `flinch` met `knockV`, het schild blijft heel; kooiman: half zo ver
+  `rust` en `traag` op `wankel` (0,7 s); schildbandiet: `flinch` met `knockV`, het schild blijft heel; kooiman: half zo ver
   (`zwaar`), geen wankel; kruisboogbandiet en zweepman hebben geen knock: `shoveGlij` in hun update schuift ze met hun
   eigen move (regel 7) en houdt ze `wankel` stil. Geen schade, wel `lawaaiPuls`, stof, een kleine schok en hitstop.
+- **De aanvalsklok** (`shoveKlok`): de rest van de shove na het duwmoment (0,79 s) plus `na` (0,45 s). Zolang slaat de
+  bandiet niet (`slagKlok`, binnen bereik staat hij stil), springt de schildbandiet niet en slaat de zweepman niet (hun
+  `cool`). Een lopende zweepslag breekt af, en de schildbandiet krijgt na een shove geen gepantserd antwoord (`geenWraak`,
+  geen `wraak`), en staat na zijn flinch niet nog eens stil (`naTerugRust`). Gemeten met `tools/shove_test.js` (de meting
+  onderaan): de uithaal begint bij alle drie 0,43 s na het einde van de shove; de bandiet raakt na 1,07 s (eerst 0,41 s,
+  met een wankel van 0,4 s die al om was voor de shove klaar was), de zweepman na 1,45 s (eerst 0,26 s: zijn slag liep
+  door), de schildbandiet na 1,67 s (eerst 2,05 s, met een gepantserde sprong). Een steek die Amir meteen zet raakt na
+  zo'n 0,3 s.
 - **Afkoeling** `koel` (2 s): zolang is een aanval een gewone steek. Geraakt tijdens de shove breekt hem af.
 - **De frames**: `karakters/amir/aanval/shove/shove_00..12.png` (594x301, het canvas van de steek, grondlijn 297), gebakken
   met de gewone speer; de Mkuki-skin heeft ze in `mkuki_spel/aanval/shove/` met `_lijf`, `_zones`, `_lijf_zones` en de
   speer los in `los.json` (`proj`, achter het lijf, `b: 1`). Uit een Grok-clip van Mkuki met een groene speer: de
   groene pixels gemeten (punt en voet, voor `los.json`) en weggehaald. De zonekaarten zijn op kleur geraden (een
-  histogram van de bestaande Mkuki-kaarten): broek, schort, kralen en armbanden; riem en schuine band blijven bruin.
+  histogram van de bestaande Mkuki-kaarten): broek, schort, kralen en armbanden. Riem (zone 3) en schuine band (zone 4)
+  zet `tools/shove_zones.py` erbij: de riem uit het donkere leer boven op de schort (ook de wikkel in de duwframes), de
+  band langs een middellijn per frame waar de borst vrij is (0 tot 2, `BAND`). `tools/mkuki_spel_zones.py` kan het niet:
+  dat bakt de kaarten van de frames uit de animeer tool, en de shove komt uit Grok. Nakijken:
+  `node tools/outfittest.js map --frames aanval/shove/shove_00.png,aanval/shove/shove_09.png`.
 - **Sandbox**: de knop **Shove** naast Combo. Proefrit: `node tools/shove_test.js [map]` (bandiet, twee bandieten, vrij,
   schildbandiet, kruisboogbandiet, zweepman, kooiman, hyena).

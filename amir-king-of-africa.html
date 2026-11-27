@@ -4401,7 +4401,10 @@ const SHOVE = {
   reeks: [[1, 1], [2, 1], [3, 2], [5, 1], [6, 1], [7, 1], [8, 1], [9, 2], [10, 3], [11, 3], [7, 2], [5, 2], [3, 2], [1, 2], [0, 2]],
   raakStap: 6,                            // bij deze stap van de reeks (frame 8, armen gestrekt) raakt de speer hem: 0,29 s na de druk
   koel: 2,                                // afkoeling in seconden; zolang steekt hij gewoon, ook als er iemand te dichtbij staat
-  wankel: 0.4,                            // zo lang staat de vijand stil na de duw: tijd voor een steek, niet voor twee
+  wankel: 0.7,                            // zo lang staat de vijand stil na de duw (vanaf het duwmoment)
+  na: 0.45,                               // de aanvalsklok: pas zo lang na het einde van de shove mag hij weer uithalen (bandiet,
+                                          // schildbandiet, zweepman). Dan haalt de bandiet zo'n 0,85 s na het einde uit, ruim na
+                                          // een steek die Amir meteen zet (die raakt na zo'n 0,3 s), maar niet ruim genoeg voor twee
   doel: 270,                              // waar hij heen gaat: zijn midden op deze afstand voor Amir, waar de steek raakt (sprite-eenheden)
   minDuw: 70,                             // en minstens zoveel terug (sprite-eenheden)
   zwaar: 0.5,                             // de kooiman met zijn kooi schuift maar half zo ver en wankelt niet
@@ -4413,6 +4416,8 @@ function shoveLaad(){
   if (shoveBank) return;
   shoveBank = Array.from({ length: SHOVE.n }, (_, i) => loadQuiet(uniq([AMIR, AMIR_GROOT]).map(d => d + SHOVE.dir + 'shove_' + (i < 10 ? '0' : '') + i + '.png')));
 }
+// de aanvalsklok bij het duwmoment: de rest van de shove (na raakStap) plus SHOVE.na, in seconden
+function shoveKlok(){ let t = 0; for (let i = SHOVE.raakStap; i < SHOVE.reeks.length; i++) t += SHOVE.reeks[i][1]; return t / 24 + SHOVE.na; }
 function shoveKlaar(){ return !!shoveBank && shoveBank.every(i => i.complete && i.naturalWidth); }
 function shoveBeeld(){ return shoveA && shoveBank ? shoveBank[SHOVE.reeks[Math.min(shoveA.i, SHOVE.reeks.length - 1)][0]] : null; }
 // wie staat er voor Amir: per vijand zijn lijst, soort, halve lijfbreedte (wereld-px) en of hij te duwen is
@@ -4434,7 +4439,7 @@ function shoveVijanden(){
 // Mag de aanval een shove zijn? Dan de vijand die geduwd wordt, anders null (en dan steekt hij gewoon)
 function shoveDoel(){
   if (!SHOVE.aan || shoveA || shoveKoel > 0 || !spear || atkMes || stokAan() || !onGround || jump || fell) return null;
-  if (mpcGast()) return null;                     // Co-op bij een gast: de host denkt voor de vijanden, dus daar gewoon steken
+  // Co-op bij een gast: hij kiest en speelt de shove zelf (op zijn kopie van de vijanden), de duw zelf doet de host (shoveRaak)
   const k = nowScale(), px = playerX(), kant = facing === 1 ? 1 : -1;
   const van = SHOVE.raakVan * k, tot = SHOVE.raakTot * k;
   let dicht = null;
@@ -4473,23 +4478,45 @@ function shoveStap(dt){                          // elk beeld: de afkoeling, de 
   }
 }
 // de speer raakt hem: terug tot op steekafstand, en even stil. Is hij intussen buiten bereik, dan duwt hij in de lucht
+// Co-op bij een gast: de host denkt voor de vijanden, dus de duw gaat als bericht naar de host (shvR), net als een treffer
+// (mpcHitDoor); die duwt hem met de stand van de gast (mpcShoveVanGast). Hier alleen het stof en de schok
 function shoveRaak(){
   const v = shoveA.doel, s = v.s, k = nowScale(), kant = shoveA.kant;
   if (!sbLeeft(s) || s.air > 0) return;
   const d = (s.x - playerX()) * kant;
   if (d < -v.half || d - v.half > SHOVE.raakVan * k) return;
+  if (mpcGast() && s.mpId != null){
+    const a = mpcVind(s);
+    if (a) pvpZendAan(0, { t: 'shvR', a, id: s.mpId, kant });
+    puffWorld(s.x, 5, kant * 200, 1, s.base || 0);
+    shake = Math.max(shake, 0.12); hitstop = Math.max(hitstop, 0.06);
+    return;
+  }
+  shoveDuw(v, kant, d);
+}
+// de duw zelf: bij de host (ook voor een gast, met zijn stand) of zonder Co-op. d: hoe ver de vijand voor Amir staat
+function shoveDuw(v, kant, d){
+  const s = v.s, k = nowScale();
   const zwaar = v.soort === 'kooiman' ? SHOVE.zwaar : 1;
   const ver = Math.max(SHOVE.minDuw * k, SHOVE.doel * k - d) * zwaar;
   const snel = kant * ver * 3.91;                 // een knock dooft uit met 0,02 per seconde: de afstand is snel / ln 50
   if (v.soort === 'bandiet'){                      // zijn knock remt iets harder af (banMove): een vijfde erbij, dan komt hij ook op steekafstand
     s.knock = snel * 1.2; s.counter = false; banSet(s, 'run');
     s.rust = Math.max(s.rust || 0, SHOVE.wankel); s.traag = Math.max(s.traag || 0, SHOVE.wankel);
+    s.slagKlok = Math.max(s.slagKlok || 0, shoveKlok());   // de aanvalsklok: daarna pas een nieuwe slag (banSlagKlok)
   } else if (v.soort === 'schildman'){             // hij wankelt terug achter zijn schild; het schild houdt het (geen schildstuk eraf)
-    s.state = 'flinch'; s.frame = SCHB.flinchVan; s.acc = 0; s.knockV = snel; s.naTerug = true; s.inv = SCHB.invHit;
+    // zijn flinch duurt al 0,85 s (de wankel); daarna meteen weer lopen (naTerugRust), maar zijn aanvalsklok (cool) loopt
+    // tot SHOVE.na na het einde. Geen gepantserd antwoord (wraak): een duw is geen treffer (geenWraak)
+    s.state = 'flinch'; s.frame = SCHB.flinchVan; s.acc = 0; s.knockV = snel; s.naTerug = true; s.naTerugRust = 0.01; s.inv = SCHB.invHit;
+    s.cool = Math.max(s.cool || 0, shoveKlok()); s.geenWraak = true;
   } else if (v.soort === 'kooiman'){
     s.knock = snel;
   } else {                                         // kruisboogbandiet en zweepman: zijn eigen glij en wankel (shoveGlij)
     s.shoveV = snel; s.shoveRust = SHOVE.wankel;
+    if (v.soort === 'zweepman'){                   // een slag die al liep breekt af; zijn aanvalsklok (cool) tot SHOVE.na na het einde
+      if (s.state === 'slag'){ zwmSet(s, 'idle'); s.touw = null; }
+      s.cool = Math.max(s.cool || 0, shoveKlok());
+    }
   }
   lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);
   puffWorld(s.x, 5, kant * 200, 1, s.base || 0);
@@ -52864,6 +52891,7 @@ function updateBandiet(s, dt, plats, cliff){
   if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
   if (s.rust > 0) s.rust = Math.max(0, s.rust - dt);
   else if (s.traag > 0) s.traag = Math.max(0, s.traag - dt);   // na de terugslag: eerst stil (rust), dan traag op gang
+  if (s.slagKlok > 0) s.slagKlok = Math.max(0, s.slagKlok - dt);   // de aanvalsklok na een shove (SHOVE.na)
   s.t += dt;
   if (!(s.air > 0) && !s.gjOpRiet) s.base = opstapVolg(s, vloerBij(s.x, s.base), dt);   // over een opstapje glijdend (in de galerijsprong heeft hij zijn landingsvloer al)
   if (!s.dropping && !(s.air > 0) && !s.gjOpRiet) rijsDraagtMob(s, dt);   // mee omhoog en omlaag met een lift of rijzend blok
@@ -53101,12 +53129,12 @@ function updateBandiet(s, dt, plats, cliff){
   if (s.rust <= 0 && banTicketWacht(s, dt, gap, naarJe, slagBinnen, plats, cliff)) return;
   if (s.tkSchuifel){ s.tkSchuifel = false; banSet(s, 'run'); }
   banAnim(s, dt * tempo);
-  if (slagBinnen && s.rust <= 0 && !mpRustAan(s) && ticketMag(s, 'slag')){
+  if (slagBinnen && s.rust <= 0 && !(s.slagKlok > 0) && !mpRustAan(s) && ticketMag(s, 'slag')){
     banSet(s, 'slag'); s.lunge = BAN_LUNGE_IN * s.face; s.dustT = 0;   // de opzwaai begint: hij glijdt nog in op zijn aanlooprest
     banStofWolk(s.x - s.face * 20, s.base || 0, 8, s.face * 40, 1.5);  // een wolkje bij de afzet; de grote komt bij de klap (de doorschuif)
     return;
   }
-  if (s.rust > 0) return;                            // even na-hijgen: hij staat stil op het eerste renframe
+  if (s.rust > 0 || slagBinnen && s.slagKlok > 0) return;   // even na-hijgen, of binnen bereik terwijl de aanvalsklok na een shove nog loopt: stil
   if (!s.geroepen){ s.geroepen = true; banRoep(); }  // zijn strijdkreet, één keer, zodra hij echt op Amir af rent
   // een kei houdt hem tegen (regel 7), maar een vault-bandiet springt er bij de kei overheen zodra Amir
   // aan de overkant staat (of erop), zodat de kei voor hem geen schuilplek meer is
@@ -57515,7 +57543,8 @@ function updateSchildman(s, dt, plats, cliff){
     if (s.frame >= SCHB.flinchN - 1 && s.acc >= (SCHB.flinchDur[SCHB.flinchN - 1] || 0)){
       schbSet(s, 'loop'); s.cool = Math.max(s.cool, SCHB.flinchCool);
       if (s.naTerug){ const r = s.naTerugRust || COMBO.terug.schbRust; s.naTerug = false; s.stil = r; s.cool = Math.max(s.cool, r); }   // na de terugslag even bijkomen
-      s.wraak = schbN(s, 'wraakT');                               // zijn antwoord: de volgende sprong begint gepantserd
+      s.wraak = s.geenWraak ? 0 : schbN(s, 'wraakT');           // zijn antwoord: de volgende sprong begint gepantserd (niet na een shove)
+      s.geenWraak = false;
     }
     return;
   }
@@ -78874,6 +78903,22 @@ function mpcPareerVanGast(m){
   mpcWisselIn(m.p);
   try { banPareer(o, m.vx, m.vy); } finally { hitstop = hs; shake = sh; mpcWisselUit(); }
 }
+// de host: gast m.p duwde een vijand met de shove (SHOVE, shoveRaak). Met de stand van die gast, zodat hij van hem weg
+// schuift; de schok en hitstop waren bij de gast. Wat bij de gast nog net in bereik stond, mag hier door de vertraging iets
+// verder staan: een halve lijfbreedte en een vijfde van de strook speling
+function mpcShoveVanGast(m){
+  const q = mpcLijst(m.a); if (!q) return;
+  const o = q.l().find(v => v.mpId === m.id); if (!o || !mpcLeeft(o) || o.air > 0 || !pvpAnderNu(m.p)) return;
+  const v = shoveVijanden().find(e => e.s === o); if (!v || !v.duw) return;
+  if (v.soort === 'bandiet' && razAan(o)) return;
+  if (v.soort === 'schildman' && (schbOnaantastbaar(o) || o.exe)) return;
+  const kant = m.kant === 1 ? 1 : -1, hs = hitstop, sh = shake;
+  mpcWisselIn(m.p);
+  try {
+    const k = nowScale(), d = (o.x - playerX()) * kant;
+    if (d >= -v.half * 1.5 && d - v.half <= SHOVE.raakVan * k * 1.2) shoveDuw(v, kant, d);
+  } finally { hitstop = hs; shake = sh; mpcWisselUit(); }
+}
 // de tonnen: een treffer van de gast gaat naar de host, die telt; de host stuurt elke treffer terug, voor het beeld
 const mpcTonRaakOrig = tonRaak;
 tonRaak = function(t, from, amir){
@@ -79592,6 +79637,7 @@ function mpCoopOntvang(m){
   if (m.t === 'blokG'){ const o = pvp.host && bandieten.find(v => v.mpId === m.id);   // een gast ving zijn klap op het stokblok
     if (o && mpcLeeft(o) && pvpAnderNu(m.p)){ mpcWisselIn(m.p); try { stokBlokGestuit(o); } finally { mpcWisselUit(); } } return true; }
   if (m.t === 'banP'){ if (pvp.host) mpcPareerVanGast(m); return true; }   // een bandiet pareerde de steek van een gast
+  if (m.t === 'shvR'){ if (pvp.host) mpcShoveVanGast(m); return true; }   // de shove van een gast duwt een vijand (SHOVE)
   if (m.t === 'crit'){ if (!pvp.host && !laadWacht) critFx(m.x, m.h, true); return true; }
   if (m.t === 'blokK'){ if (!laadWacht){ houtRaak(STOK.toon.blok, 0.6); puffWorld(m.x, 4, 0, 0.8, m.h); } return true; }   // het stokblok van een ander
   if (m.t === 'gifOp'){ if (gifHits > 0){ gifHits--; invHud(); } return true; }   // de host zette mijn gif op een vijand: een treffer minder

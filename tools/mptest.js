@@ -30,6 +30,8 @@
 //                                        startbudget, kopen, Ready, de ronde; de aankopen mee naar ronde 2 met goud erbij;
 //                                        het stof verblindt de ander zonder schade, de grondklap van de ander raakt
 //   node tools/mptest.js --zilverhart --stokken host   Silver Pride: de gast valt, de host legt het hart neer, de gast komt eruit
+//   node tools/mptest.js --shove --spelers 2 --soorten bandiet   de shove van een gast: hij speelt hem zelf, de host duwt de
+//                                        bandiet terug, en de anderen zien de shove-frames (ook andersom, de host duwt)
 //   node tools/mptest.js --sperenzien --spelers 2      de speren van een ander: zijn soort in de hand, de soorten op zijn rug
 //                                        en zijn gif, ook op een geworpen speer (--shots map: een schermafdruk van wat de host ziet)
 //   node tools/mptest.js --islotzien            de spullen van Kivuli bij een ander: de gast gebruikt ze een voor een, de host en
@@ -220,6 +222,46 @@ async function islotZienProef(R){
     if (shots){ fs.mkdirSync(shots, { recursive: true }); for (const r of R) await r.page.screenshot({ path: path.join(shots, 'islot_' + k + '_' + r.wie + '.png') }); }
     await wacht(1500);
   }
+  for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
+}
+// --shove: de gast staat te dicht op een bandiet en valt aan: hij speelt de shove zelf, de host duwt de bandiet terug (en
+// de gast ziet hem dan ook terug schuiven), en de host ziet de shove-frames van de gast in de Mkuki-skin. Daarna andersom:
+// de host duwt, de gast ziet zijn frames. node tools/mptest.js --shove --spelers 2 --soorten bandiet
+async function shoveProef(R){
+  const [H, G] = R;
+  for (const r of R) await r.page.evaluate(() => { godMode = true; MPC.reviveNa = 999; MPC_LEIBAND.max = 1e9; shoveLaad(); });
+  meld(await tot(H.page, () => bandieten.some(b => mpcLeeft(b) && b.mpId != null), null, 60000), 'er loopt een bandiet bij de host');
+  for (const r of R) meld(await tot(r.page, () => shoveKlaar() && running && !laadWacht, null, 30000), r.wie + ': de shove-frames zijn binnen');
+  const duw = async (wie, A, B) => {                   // A duwt, B kijkt; de bandiet staat 110 sprite-eenheden voor A
+    const id = await H.page.evaluate(() => { const b = bandieten.find(b => mpcLeeft(b) && b.mpId != null); return b ? b.mpId : null; });
+    for (const r of R) await r.page.evaluate(() => { world = -900; ph = 0; facing = 1; });
+    await H.page.evaluate(id => { const b = bandieten.find(b => b.mpId === id); b.x = -2000; b.base = 0; b.knock = 0; b.rust = 3; b.traag = 0; }, id);
+    await A.page.evaluate(() => { world = -2000 + 110 * nowScale(); ph = 0; facing = -1; shoveKoel = 0; atkCooldown = 0; hurt = 0; invuln = 3; });
+    await wacht(900);                                  // de bandiet en A staan bij iedereen op hun plek
+    if (A === H) await H.page.evaluate(id => { const b = bandieten.find(b => b.mpId === id); b.x = -2000; b.knock = 0; b.rust = 3; }, id);   // de host denkt zelf: hij mag intussen niet weglopen
+    const voor = await H.page.evaluate(id => bandieten.find(b => b.mpId === id).x, id);
+    const gzVoor = await G.page.evaluate(id => { const b = bandieten.find(b => b.mpId === id); return b ? b.x : null; }, id);
+    const doel = await A.page.evaluate(() => { const d = shoveDoel(); return d ? d.soort : null; });
+    meld(doel === 'bandiet', wie + ': shoveDoel kiest de bandiet (' + doel + ')');
+    await A.page.evaluate(() => { cv.focus(); startAttack(); });
+    meld(await A.page.evaluate(() => !!shoveA), wie + ': de shove loopt bij hem zelf');
+    const B_slot = await A.page.evaluate(() => pvp.mij);
+    meld(await tot(B.page, p => { const g = pvpAnderNu(p); return g && typeof g.im === 'string' && g.im.includes('aanval/shove/'); }, B_slot, 1500),
+      B.wie + ' ziet de shove-frames van ' + wie + ' (' + await B.page.evaluate(p => { const g = pvpAnderNu(p); return g && g.im; }, B_slot) + ')');
+    if (shots){ fs.mkdirSync(shots, { recursive: true }); await wacht(150); await B.page.screenshot({ path: path.join(shots, 'shove_' + wie + '_gezien_door_' + B.wie + '.png') }); }
+    const mk = await B.page.evaluate(p => { const g = pvpAnderNu(p), im = g && pvpBeeld(g.im); return !!(im && mkSkinVan(im, 'mkuki')); }, B_slot);
+    meld(mk, B.wie + ': het frame heeft een Mkuki-skin (de losse speer uit los.json)');
+    await wacht(1200);
+    const na = await H.page.evaluate(id => bandieten.find(b => b.mpId === id).x, id);
+    meld(voor - na > 60, 'de host duwt de bandiet terug: ' + Math.round(voor) + ' naar ' + Math.round(na) + ' (' + Math.round(voor - na) + ' px)');
+    const gzNa = await G.page.evaluate(id => { const b = bandieten.find(b => b.mpId === id); return b ? b.x : null; }, id);
+    meld(gzVoor != null && gzVoor - gzNa > 60, 'de gast ziet hem terug schuiven: ' + Math.round(gzVoor) + ' naar ' + Math.round(gzNa));
+    const af = await A.page.evaluate(id => { const b = bandieten.find(b => b.mpId === id); return Math.round((world - b.x) / nowScale()); }, id);
+    meld(af > 200 && af < 360, wie + ': de bandiet staat daarna op steekafstand (' + af + ' sprite-eenheden, de steek raakt van 206 tot 333)');
+  };
+  await duw('gast', G, H);
+  await wacht(2500);
+  await duw('host', H, G);
   for (const r of R) console.log(r.wie, r.fouten.size ? [...r.fouten].join(' | ') : 'geen fouten');
 }
 // --sperenzien: de gast draagt een Pathfinder in de hand, een Shield Piercer en Ardhi's Reach op de rug, met gif; de host
@@ -1257,6 +1299,7 @@ async function elk(H, G){
   if (args.includes('--hl')){ await hlProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--islotzien')){ await islotZienProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--ardhizien')){ await ardhiZienProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
+  if (args.includes('--shove')){ await shoveProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--sperenzien')){ await sperenZienProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--tonproef')){ await tonProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--bennu')){ await bnProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
