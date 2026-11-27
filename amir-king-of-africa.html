@@ -2337,6 +2337,8 @@
         <button data-ability="feign_death">Feign Death: uit</button>
         <button id="sbmes">Mes in de hand</button>
         <button id="sbschijn">Speel dood</button>
+        <button id="sbneermk" title="De val van Amir (NEER) met de set van Mkuki (de speer): zo gaat hij in Co-op neer en sterft hij in single player. Daarna ligt hij even in de neer-pose en staat hij weer op">Fall: Mkuki</button>
+        <button id="sbneerstok" title="De val van Amir (NEER) met de set van de stokken-Amir (klassiek tenue, leeuwenvacht): zo gaat hij in Co-op neer en sterft hij in single player. Daarna ligt hij even in de neer-pose en staat hij weer op">Fall: sticks</button>
         <span class="hint">E wisselt: speer, mes, niets</span>
       </div>
       <div class="row">
@@ -25127,7 +25129,8 @@ function bnZelfTeken(b, groundY, scale, cx){
   const Z = BN.zelf, T = bnZT(), z = b.z, A = CHAR_H * scale, ms = z * 1000;
   const blur = Math.hypot(ctx.getTransform().a, ctx.getTransform().b);
   bnCur = b;
-  const lijkX = cx + (b.x - world) + (b.f === 1 ? -1 : 1) * 0.4 * A, lijkY = groundY - b.h * scale - 0.12 * A;
+  // het midden van zijn lijf in de neer-pose (NEER): het hoofd ligt voor zijn voeten, het lijf dus iets naar voren
+  const lijkX = cx + (b.x - world) + (b.f === 1 ? 1 : -1) * 0.1 * A, lijkY = groundY - b.h * scale - 0.12 * A;
   const doelX = cx + (b.tx - world), doelY = groundY - b.th * scale - 0.55 * A;
   const hoogY = Math.min(lijkY, doelY) - Z.hoog * A + 0.4 * A;
   ctx.save();
@@ -30584,7 +30587,9 @@ function amirVormBeeld(img){
 }
 function broekBeeld(basis, img, kl = broekNu(), cv = null, speer = null){
   if (!kl || !img || !(img instanceof HTMLImageElement)) return basis;
-  if (kl.skin){                                         // een outfit van Mkuki (MK_OUTFIT): het frame uit de skin
+  if (kl.skin && neerMk(img)){                          // de val van Mkuki (NEER): zijn eigen frame, geen skin ervoor
+    if (!kl.zones) return basis;                        // Outfit 1 is Mkuki zelf
+  } else if (kl.skin){                                  // een outfit van Mkuki (MK_OUTFIT): het frame uit de skin
     const mk = mkSkinVan(img, kl.skin);
     if (!mk) return basis;                              // niet in de skin (of nog niet geladen): het oude tenue
     // de losse speer (MK_LOS): de soort in zijn hand en de wind voor het vaantje (speer: mkSpeerNu, of van een teamgenoot)
@@ -44380,6 +44385,83 @@ function ravijnGrasTeken(fx, groundY, op){
   ctx.drawImage(grasLaag, bx0, by0, bw, bh);
   ctx.restore();
 }
+// ---- neer: de val van Amir (Co-op: neer en wachten op de revive; single player: sterven) ----
+// Amir grijpt naar zijn zij, zakt door zijn knieen, leunt op een onderarm en glijdt neer op zijn zij; het laatste frame is
+// de neer-pose en blijft staan (notities/neer.md). Twee sets met elk een eigen beweging en een eigen aantal frames (eigen
+// Grok-clips), dus NIET via mkSkinVan als skin van elkaar: Mkuki (de speer, `mk`) en de stokken-Amir in het klassieke tenue
+// (`stok`). Welke set: een outfit van Mkuki (MK_OUTFIT, skin) is `mk`, de rest (de stoktribe, de oude broeken) `stok`.
+// Omkleuren: `mk` met de zonekaarten ernaast (<frame>_zones.png, tools/neer_zones.py) via mkLap, `stok` met de maskers van
+// tools/vacht_bak.js (karakters/amir_vacht/beweging/neer/) via broekLap. Over het netwerk gaat het beeld zelf mee (pvpVang:
+// het pad van het frame), dus een teamgenoot ziet dezelfde val op hetzelfde moment, in zijn eigen kleuren.
+const NEER = {
+  sets: {
+    mk:   { map: 'karakters/amir/mkuki_spel/beweging/neer/', n: 46, ms: i => i <= 20 ? 42 : 63 },
+    stok: { map: 'karakters/amir/beweging/neer/',            n: 57, ms: i => i <= 21 ? 42 : 50 } },
+  scherm: 0.35,     // single player: zo lang (s) na het laatste frame komt het doodscherm
+  sbLig: 1.6        // de sandbox (Fall: Mkuki, Fall: sticks): zo lang (s) blijft hij liggen voor hij weer opstaat
+};
+const neerBank = {};                                // set -> [Image]
+let neer = null;                                     // { set, t, i, scherm }: de val die nu loopt (alleen als dead)
+function neerLaad(set){
+  if (!NEER.sets[set] || neerBank[set]) return;
+  const S = NEER.sets[set];
+  neerBank[set] = Array.from({ length: S.n }, (_, i) => loadQuiet(uniq([KLEIN + S.map, S.map]).map(d => d + 'neer_' + (i < 10 ? '0' : '') + i + '.png')));
+}
+function neerLaadLevel(){ if (pvp) { neerLaad('mk'); neerLaad('stok'); } else neerLaad(neerSetNu()); }
+function neerSetVan(kl){ return kl && kl.skin ? 'mk' : 'stok'; }
+function neerSetNu(){ return neerSetVan(broekNu()); }
+function neerDuur(set){ const S = NEER.sets[set]; let t = 0; for (let i = 0; i < S.n; i++) t += S.ms(i); return t / 1000; }
+// het frame bij de tijd t (s): de ms per frame verschillen per stuk (eerst snel, dan rustiger neerglijden)
+function neerFrame(set, t){
+  const S = NEER.sets[set]; let ms = t * 1000;
+  for (let i = 0; i < S.n; i++){ ms -= S.ms(i); if (ms < 0) return i; }
+  return S.n - 1;
+}
+// Amir gaat neer: dead, en de val begint. lig: meteen de neer-pose, zonder val (in een ravijn gestort). In single player
+// komt het doodscherm pas na de val (neerStap); ontbreken de frames nog, dan meteen, zoals vroeger
+function amirSterf(lig){
+  dead = true;
+  const set = neerSetNu(); neerLaad(set);
+  const B = neerBank[set];
+  neer = B && imgReady(B[0]) && imgReady(B[B.length - 1]) ? { set, t: lig ? neerDuur(set) : 0, i: lig ? NEER.sets[set].n - 1 : 0, scherm: false } : null;
+  if (pvp) return;                                   // Co-op en Duel: geen doodscherm (pvpStap)
+  if (!neer || lig){ deadEl.classList.add('on'); if (neer) neer.scherm = true; }
+}
+function neerStap(dt){
+  if (!dead){ neer = null; if (!sandbox && running) neerLaad(neerSetNu()); return; }   // de set van nu klaar hebben (de wapenkeuze kan wisselen)
+  if (!neer) return;
+  neer.t += dt;
+  neer.i = neerFrame(neer.set, neer.t);
+  if (neer.sb && neer.t >= neerDuur(neer.set) + NEER.sbLig){ dead = false; neer = null; return; }   // de sandbox: weer opstaan
+  if (!pvp && !neer.scherm && neer.t >= neerDuur(neer.set) + NEER.scherm){ neer.scherm = true; deadEl.classList.add('on'); }
+}
+// de sandboxknoppen: de val met een gekozen set, zonder doodscherm, en daarna weer opstaan
+function neerSandbox(set){
+  if (!sandbox || dead) return;
+  neerLaad(set);
+  dead = true; hurt = 0; atkFrame = -1; thr = null;
+  neer = { set, t: 0, i: 0, scherm: true, sb: true };
+}
+// het beeld van de val voor Amir zelf, of null (niet neer, of nog niet geladen: dan het oude beeld)
+function neerBeeld(){
+  if (!dead || !neer) return null;
+  const B = neerBank[neer.set]; if (!B) return null;
+  for (let i = neer.i; i >= 0; i--) if (imgReady(B[i])) return B[i];   // een frame dat nog laadt: het vorige
+  return null;
+}
+// een frame uit de val (ook dat van een teamgenoot, op zijn pad): dan ligt hij al, en draait mpcLig hem niet om
+function neerIs(im){
+  const s = typeof im === 'string' ? im : im && im.src;
+  return typeof s === 'string' && /beweging\/neer\/neer_\d+\.png$/.test(s);
+}
+// een frame van Mkuki zelf (niet via de skin): het eigen frame kleurt om met zijn zonekaart (broekBeeld)
+const neerMkCache = new WeakMap();
+function neerMk(im){
+  if (!(im instanceof HTMLImageElement)) return false;
+  let v = neerMkCache.get(im);
+  if (v === undefined){ v = /mkuki_spel\/beweging\/neer\/neer_\d+\.png$/.test(SKIN_SRC.get.call(im) || ''); neerMkCache.set(im, v); }
+  return v;
+}
 function fallDeath(){
   if (dead) return;
   if (mentorVal()) return;                         // de tutorial: terug naar het begin van het station
@@ -44390,7 +44472,7 @@ function fallDeath(){
   }
   tlogBron('val');
   lives = 0; drawLives();
-  dead = true; deadEl.classList.add('on'); shake = 0.3;
+  amirSterf(true); shake = 0.3;                   // in het ravijn: meteen de neer-pose, geen val (NEER)
 }
 
 function supportHeight(plats, halfW){          // waar je voeten steun vinden
@@ -46095,7 +46177,7 @@ function valLand(diep){
   if (schijnDoodVang(n)) return;                    // Feign Death vangt ook een dodelijke val
   if (dodelijk){ fallDeath(); return; }             // alle levens weg, ongeacht hoeveel je er had
   lives = Math.max(0, lives - n); drawLives();
-  if (lives <= 0){ dead = true; deadEl.classList.add('on'); }
+  if (lives <= 0) amirSterf();                   // de val (NEER), daarna het doodscherm
 }
 
 // ---- Amir zegt er iets van als hij geraakt wordt --------------------------
@@ -46216,7 +46298,7 @@ function hurtPlayer(fromLeft, schade = 1){           // schade: hoeveel levens d
   if (!onsterfelijk() && schijnDoodVang(schade)){ hurt = 0.38; shake = 0.28; return; }   // Feign Death
   if (!onsterfelijk()){ lives = Math.max(0, lives - schade); drawLives(); if (trance) straalTranceSchade += schade; }   // een level kan je onsterfelijk maken om iets te proberen
   invuln = 1.3; hurt = 0.38; shake = 0.28;
-  if (lives <= 0){ dead = true; deadEl.classList.add('on'); }
+  if (lives <= 0) amirSterf();                   // de val (NEER), daarna het doodscherm
 }
 // ---- warming-up: vooraf bakken tegen schokken ----------------------------
 // Veel sprites worden pas bij hun eerste aanblik gebakken (onscherp gemaakt, omgekleurd, de omtrek
@@ -59766,7 +59848,7 @@ function fosforBijt(s){
   tlogBron('fosforBijt');
   if ((!sandbox || sbArena) && !onsterfelijk() && !schijnDoodVang(FOSFOR.schade)){   // Feign Death vangt de laatste beet; in de arena-modus kost de beet ook een leven
     lives = Math.max(0, lives - FOSFOR.schade); drawLives();
-    if (lives <= 0){ dead = true; deadEl.classList.add('on'); }
+    if (lives <= 0) amirSterf();                   // de val (NEER), daarna het doodscherm
   }
   fosforVersteen(s, FOSFOR.steenNaBeet);
   if (s.groep) for (const o of s.groep.leden)
@@ -62193,6 +62275,7 @@ function loop(now){
   zhStap(dt);                                       // Silver Pride: het hart, de uitbarsting en Tau (ZH)
   islotStap(dt);                                    // de spullen van Kivuli: wolk, slang, mieren, spiegels, klei (ISLOT)
   reviveZelfStap(dt);                               // Co-op: dood met een hart of de veren in de tas, die brengen je terug
+  neerStap(dt);                                     // de val van Amir: neer (Co-op) of sterven (NEER)
   if (atkFrame >= 0 && atkStok) stokStap(dt);                       // de stokken lopen op hun eigen ms per beeld (STOK)
   else if (atkFrame >= 0 && atkCombo) comboStap(dt);               // de derde slag loopt op zijn eigen ticks
   else if (atkFrame >= 0){
@@ -62592,7 +62675,8 @@ function loop(now){
     // stil op de rand van een trede, met de speer: de trappose (AMIR_TRAP)
     const trapNu = (!moving && !attacking && onGround && set === sets.sp && !mesInHand() && amirSteen <= 0 && !dead)
       ? amirTrapPose(scaleNow, autoFlip && facing === 1, pWorld) : null;
-    const img = useSneak ? snkImg : useStof ? stofImg : useShove ? shoveImg : useRolW ? rwImg : useRol ? rolImg
+    const neerImg = neerBeeld(), useNeer = !!neerImg;   // neer (Co-op) of gestorven: de val en de neer-pose (NEER)
+    const img = useNeer ? neerImg : useSneak ? snkImg : useStof ? stofImg : useShove ? shoveImg : useRolW ? rwImg : useRol ? rolImg
               : useThrow ? thrImg
               : useJump ? jimg
               : useSweep ? swImg
@@ -62603,7 +62687,7 @@ function loop(now){
               : (attacking ? (atkMes ? sets.ns.idle : atkImgs[atkFrame])   // het mes: stilstaand, het mes doet de steek
                            : (moving ? set.run[frame] : (trapNu ? trapNu.img : idleTenue(set))));
     // het mes in zijn hand: bij een steek, stilstaand of lopend (in een sprong, gebukt of kruipend zit het weg)
-    const mesHand = !mesInHand() || amirSteen > 0 || useStok ? null
+    const mesHand = !mesInHand() || amirSteen > 0 || useStok || useNeer ? null
                   : attacking && atkMes ? mesSteekHand(Math.min(atkFrame, MES.steek.length - 1))
                   : (useStof || useShove || useRol || useThrow || useJump || useSweep || useCrawl || useDuck || attacking) ? null
                   : moving ? MES.hand.loop[frame % MES.hand.loop.length] : houding.aan ? MES.hand.dreig : MES.hand.stil;
@@ -62618,7 +62702,11 @@ function loop(now){
                : -ph * scale + sinkPx;            // hoogte boven de grond
     gkGrondTeken(cx, scale, groundY);                      // de grondklap: de bult in de vloer, voor Amir (GK)
     let w, h, x, y;
-    if (useSneak){
+    if (useNeer){
+      // de val: het canvas van de idle (594x301), de voeten op dezelfde plek (NEER)
+      w = SPR_W * scale; h = SPR_H * scale;
+      x = pcx - w / 2; y = groundY - SPR_GROUND * scale + lift;
+    } else if (useSneak){
       // de sluipaanval: het canvas uit metadata.json op de schaal van de bukkenspeer, met het lijfmidden op pcx; gespiegeld
       // wordt om het hele canvas gespiegeld, dus dan ligt het lijfmidden aan de andere kant
       const js = JMP_S * scale;
@@ -63118,8 +63206,8 @@ function loop(now){
     if (pvp) pvpVang(img, x, y, w, h, useThrow ? thrFlip() : (autoFlip && facing === 1), pcx, groundY + lift, scale);   // PvP: dit beeld gaat naar de ander
     if (!moving && !attacking && onGround && !useDuck && !useCrawl && !dead && zhEigenK >= 1 && !bnActief()) zhVang(img, x, y, w, h, false, pcx, groundY + lift, scale);   // Test 91: zo staat de oefenteamgenoot
     if (mentorOpname) mentorOpname(img, x, y, w, h, useThrow ? thrFlip() : (autoFlip && facing === 1), pcx, groundY + lift, scale);   // de opname van de mentor (tools/mentor_opname.js)
-    if (pvp && pvp.coop && dead) mpcLig(w, h, groundY + lift - y, onGround && mpcLigHoog(playerX(), ph));   // Co-op: wie dood is ligt, tot de revive
-    if (useStok){ stokSlipStap(x, y, w, h, autoFlip && facing === 1); stokSlipTeken(true, w, h, autoFlip && facing === 1); }   // de slippen van een stok achter hem
+    if (pvp && pvp.coop && dead && !useNeer) mpcLig(w, h, groundY + lift - y, onGround && mpcLigHoog(playerX(), ph));   // Co-op: wie dood is ligt, tot de revive (de val van NEER ligt al zelf)
+    if (useStok && !useNeer){ stokSlipStap(x, y, w, h, autoFlip && facing === 1); stokSlipTeken(true, w, h, autoFlip && facing === 1); }   // de slippen van een stok achter hem
     const amirNu = hurt > 0 && amirSteen <= 0 ? amirRood(amirBeeld, Math.min(0.75, hurt * 2)) : amirBeeld;
     ctx.drawImage(amirNu, 0, 0, w, h);
     if (gifHits > 0 && mkGifPunt && mkGifPunt.cv === amirBeeld && !amirWeg){   // de speer in zijn hand: van framepixels naar het scherm (gifDrup)
@@ -63127,7 +63215,7 @@ function loop(now){
       gifBron.lijst.push(mkGifPunt.pts.map(p => T.transformPoint(new DOMPoint(p.x * w / W0, p.y * h / H0))));
     }
     if (beetKnipX === null) amirHerZet(amirNu, ctx.globalAlpha, w, h, groundY, scale, cx); else amirHer = null;   // voor lijkAchterAmir, op een eigen doek
-    if (useStok) stokSlipTeken(false, w, h, autoFlip && facing === 1);   // en die van een stok ervoor
+    if (useStok && !useNeer) stokSlipTeken(false, w, h, autoFlip && facing === 1);   // en die van een stok ervoor
     if (gloed > 0){ ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; }
     if (mesHand) mesTeken(mesHand, scale);            // het mes, over zijn hand heen (gespiegeld mee)
     ctx.restore();
@@ -66209,6 +66297,7 @@ function laadLevel(lv){
   slangLaadLevel(lv); scpLaadLevel(lv); hyLaadLevel(lv); panLaadLevel(lv);
   rolTenueLaadLevel(lv);                           // de rol in een ander tenue (Test 85)
   skinZet(lv.skin);                                // Amir het hele level in een ander tenue (SKIN, Test 88)
+  neerLaadLevel();                                 // de val van Amir, voor als hij neergaat (NEER)
   npcLaadLevel(lv); dorpLaadLevel(lv);
   banLaadLevel(lv);                                // de bandiet-frames als dit level ze gebruikt
   kooiLaadLevel(lv);                               // de kooiman-frames als dit level hem gebruikt
@@ -72660,6 +72749,7 @@ function startSandbox(arena, gates){
   sbArena = arena === true;                             // Arena modus: golven vijanden, met levens
   straalLijst = []; straalWis();                            // geen zonnestralen uit een vorig potje (de knop Zonnestraal zet er een)
   if (sbRenNieuw) renNieuwLaad();                       // de nieuwe ren (standaard, zie REN_NIEUW)
+  neerLaad('mk'); neerLaad('stok');                    // de val van Amir: de knoppen Fall en de arena-modus (NEER)
   sbGates = sbArena && gates === true;                  // Arena gates: dezelfde modus, maar het veld met de drie poorten en de rondes (zie 'arena gates')
   barEl.classList.add('hide'); barPijlToon();           // de testbalk begint ingeklapt; het pijltje onderin klapt hem uit
   barPijlEl.classList.add('on');
@@ -75732,6 +75822,8 @@ document.getElementById('sbgrondklap').onclick = e => {
   e.currentTarget.classList.toggle('on', sbGrondklap);
   cv.focus();
 };
+document.getElementById('sbneermk').onclick = () => { neerSandbox('mk'); cv.focus(); };
+document.getElementById('sbneerstok').onclick = () => { neerSandbox('stok'); cv.focus(); };
 document.getElementById('sbkop').onclick = e => {
   kopSb = (kopSb + 1) % KOP_SB.length; kopAltijd = KOP_SB[kopSb];
   e.currentTarget.textContent = 'Snake head: ' + ['1 in 6', 'always', 'through camera', 'past camera', 'small'][kopSb];
@@ -78174,7 +78266,7 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
     if (zk < 1){ ctx.translate(sx, voet); ctx.scale(zk, zk); ctx.translate(-sx, -voet); }
     ctx.translate(sx + g.dx * scale, voet + g.dy * scale);
     if (g.fl){ ctx.translate(w, 0); ctx.scale(-1, 1); }
-    if (pvp.coop && g.d) mpcLig(w, h, -g.dy * scale, mpcLigHoog(g.x, g.h || 0));  // Co-op: mijn teamgenoot ligt dood
+    if (pvp.coop && g.d && !neerIs(g.im)) mpcLig(w, h, -g.dy * scale, mpcLigHoog(g.x, g.h || 0));  // Co-op: mijn teamgenoot ligt dood (in zijn val van NEER ligt hij al zelf)
     // zijn broekkleur uit de lobby, op een eigen doek per slot: het gedeelde doek van broekBeeld is ook het beeld van mijn
     // Amir (amirHer), en lijkAchterAmir tekende dat later opnieuw, dus dan stond zijn beeld in zijn kleur op mijn plek
     // zijn speersoort, het vaantje en zijn gif (MK_LOS); mkGifPunt is de druppel van mijn eigen speer, die blijft van mij
