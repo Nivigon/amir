@@ -297,7 +297,12 @@ en dan bleef een bandiet van een gast voor altijd staan. Een nieuw veld begint n
   relais) is "bevestigd" gewoon het vorige bericht. Elke `MPC.sleutel` seconde alles. Een veld is een getal op twee decimalen,
   een tekst, of een object dat JSON wil (een kring zoals `groep` van de fosfor, een plaatje of een groot brok gaat niet mee,
   `mpcWaarde`). De gast zet elk bericht in de speelbuffer (`pvpNetIn`) en bouwt zijn lijsten op als het aan de beurt
-  is (`mpcStandLees`, vanuit `mpcVolgStap`); daarna staat elke vijand tussen dat bericht en het volgende in (`mpX0`). Kogels, dolken en gif (`los` in `MPC_LIJSTEN`) komen een keer over en vliegen daarna bij de gast
+  is (`mpcStandLees`, vanuit `mpcVolgStap`); daarna staat elke vijand tussen dat bericht en het volgende in (`mpX0`). Naast `x` schuift
+  hij ook de hoogte ertussen (`MPC_TUSSEN`: `base`, `air`, `fall`, in `mpV0`), anders liep een sprong of lift in stappen van 20 Hz.
+  Het zendtempo loopt door (`zendT += 1/hz`) in plaats van terug te springen, zodat een host op 25 fps toch 20 Hz haalt
+  in plaats van 12,5 (27-11-2026). Geprobeerd en weer weggehaald: de buffer de echte gaten tussen berichten laten meetellen.
+  Dat maakte het beeld 40 tot 50 ms later en `tools/mptest.js --hostfps 25,30` toonde geen winst (de afwijking schommelt per
+  run van 0,5 tot 5 px, ook in de oude code). Kogels, dolken en gif (`los` in `MPC_LIJSTEN`) komen een keer over en vliegen daarna bij de gast
   zelf, zodat ze hem ook raken; komt er een bij hem neer, dan komt hij niet terug (`losWeg`). De goudaapjes rekenen in
   `bavKlok`: hun tijden schuiven bij de gast mee met het verschil tussen de klokken (`MPC_GAAP_TIJD`), want zijn eigen
   `bavKlok` meet ook de tik van zijn speer.
@@ -307,6 +312,12 @@ en dan bleef een bandiet van een gast voor altijd staan. Een nieuw veld begint n
   keer per `MPC.dubbel`. Zelf doen ze alleen wat de gast meteen moet voelen (`pvpRaakLokaal`): een witte flits, het geluid
   van een speer in vlees en een korte hitstop; de schade komt van de host. De host roept de echte functie aan met de stand van de gast in de globalen
   (`mpcTrefferVanGast`), voor een slang of schorpioen de uitgeschreven dood uit het tekenblok (`mpcInlineDood`).
+  Bij de schildbandiet voorspelt de gast het uit de stand die hij al heeft (`schbRaakLokaal`): de houtklap per stand lager,
+  de breuk, splinters, stof, schok, afketsen op zijn dekking en de Shield Piercer; zonder schild het vleesgeluid.
+- **Het stokblok van een gast.** De gast stuurt in zijn `s` mee of zijn blok op staat (`bk`). Slaat een bandiet naar hem,
+  dan beslist de host bij de klap zelf (`mpcBlokGastVangt`): geen doorschuif, hij kaatst terug (tegen zijn looprichting in) en
+  de gast krijgt `blokH` voor het gevoel en de counter, als hij het niet al zelf ving. Vroeger wachtte de host op `blokG`, en
+  dat kwam pas als de bandiet al door de gast heen geschoven was.
 - **Elkaar niet raken:** `pvpTeken` tekent in Co-op alleen de ander (met een groen pijltje) en stopt voor zijn speer en de
   treffers.
 - **Samen beginnen** (`mpLaadVast`, `mpLaadLos`, `mpLaadReset`): een potje (Co-op, de Co-op episode, elk level daarvan,

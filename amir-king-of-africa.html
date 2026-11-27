@@ -23375,10 +23375,23 @@ function stokBlokVang(fromLeft){
   return true;
 }
 // een bandiet wiens klap op het blok landde: geen doorschuif door Amir heen, hij kaatst terug
+// Co-op, bij de host: de bandiet slaat nu naar een gast (mpcWissel) die zijn stokblok op heeft en naar hem kijkt, binnen
+// het bereik van zijn kling en op zijn hoogte. Dan vangt het blok hem al hier; anders kwam het bericht van de gast (blokG)
+// pas aan als hij al door die gast heen geschoven was (de speelbuffer plus heen en terug)
+function mpcBlokGastVangt(s){
+  if (typeof mpcWissel === 'undefined' || !mpcWissel) return false;
+  const g = pvpAnderNu(mpcWissel.p);
+  if (!g || !g.bk || g.d) return false;
+  const px = playerX(), vanLinks = s.x < px;
+  if (!(vanLinks ? facing === -1 : facing === 1)) return false;   // van achteren dekt het niet (zoals stokBlokVang)
+  return Math.abs(s.x - px) <= banReik() * 1.15 && banZelfdeHoogte(s);
+}
 function stokBlokGestuit(s){
-  if (mpcGast() && s.mpId != null) pvpZendAan(0, { t: 'blokG', id: s.mpId });   // Co-op: de host kaatst hem ook terug (mpCoopOntvang)
+  if (mpcGast() && s.mpId != null){ s.mpBlokT = pvpNu(); pvpZendAan(0, { t: 'blokG', id: s.mpId }); }   // Co-op: de host kaatst hem ook terug (mpCoopOntvang)
   s.lunge = 0; s.drive = true;
-  s.knock = (s.x < playerX() ? -1 : 1) * STOK.blokTerug;
+  // terug naar waar hij vandaan kwam (tegen zijn looprichting in), niet weg van waar Amir nu staat: kwam het bericht van
+  // een gast te laat en was hij bij de host al voorbij, dan duwde dit hem nog verder door Amir heen
+  s.knock = (s.face ? -s.face : (s.x < playerX() ? -1 : 1)) * STOK.blokTerug;
   banStofWolk(s.x, s.base || 0, 8, 0, 1.4);
 }
 // het beeld met de stokken, of null als een andere pose voorgaat
@@ -51440,7 +51453,8 @@ function updateBandiet(s, dt, plats, cliff){
                if (s.dustT >= 0.03){ s.dustT = 0; banGlijStof(s); } }
       }
     } else if (s.frame <= BAN_LUNGE_TOT){              // de haal: schiet door Amir heen, dan remmend een stukje door
-      if (!s.drive){                                  // de doorschuif begint bij de klap, met een opstuivende wolk
+      if (!s.drive && mpcBlokGastVangt(s)){ stokBlokGestuit(s); s.hitUsed = true; if (s.mpId != null) pvpZendAan(mpcWissel.p, { t: 'blokH', id: s.mpId }); }   // Co-op: een gast met het stokblok op, de host beslist (geen wachten op blokG)
+      else if (!s.drive){                             // de doorschuif begint bij de klap, met een opstuivende wolk
         s.drive = true; s.lunge = BAN_SLIDE_IN * s.face;
         banStofWolk(s.x - s.face * 20, s.base || 0, 12, s.face * 55, 1.7);
       }
@@ -75315,6 +75329,33 @@ function pvpPingToon(){
 }
 // Co-op: de gast raakt een vijand. De host beslist en stuurt het gevolg terug, maar de gast voelt het meteen: een witte
 // flits, het geluid van een speer in vlees en een korte hitstop, net als in het Duel (pvpRaakFx)
+// de schildbandiet bij de gast: wat hitSchildman bij de host aan beeld en geluid doet, voorspeld uit de stand die de gast
+// al van hem heeft (schild, dekking). De schade en de staat komen zoals altijd van de host; dit is alleen het gevoel:
+// de houtklap per stand lager, de breuk, de splinters, het stof, de schok, en afketsen op zijn dekking
+function schbRaakLokaal(s, door){
+  if (s.state === 'weg' || s.exe || s.inv > 0 || s.air > 0 || schbOnaantastbaar(s)) return;   // daar doet de host ook niets
+  if (door){                                             // de Shield Piercer: dwars door het schild
+    schbSplinters(s, SCHB.perBreuk); houtBreek(); critFx(s.x, (s.base || 0) + CHAR_H * 0.6);
+    hitstop = Math.max(hitstop, SCHB.breekStop); shake = Math.max(shake, 0.25); s.flash = 0.3;
+    return;
+  }
+  if (s.state === 'flinch' && s.frame >= SCHB.dekVan && s.metSchild && !(s.open > 0) && !(s.verblind > 0)){   // hij dekt: afketsen
+    s.flash = Math.max(s.flash || 0, 0.12); houtRaak(HOUT.kets.toon, HOUT.kets.vol); schbSplinters(s, 2);
+    return;
+  }
+  if (!(s.schild > 0)){ pvpRaakLokaal(s); return; }      // geen schild meer: de klap in vlees
+  const rest = s.schild - 1;                             // zoveel blijft er naar verwachting over
+  s.flash = 0.3;
+  houtDuik();
+  if (rest === 0) houtBreek(); else houtRaak(HOUT.toon[rest] ?? 1);
+  schbSplinters(s, SCHB.perTreffer);
+  if (rest === 0) schbSplinters(s, SCHB.perBreuk);
+  hitstop = Math.max(hitstop, rest === 0 ? SCHB.breekStop : SCHB.raakStop);
+  shake = Math.max(shake, rest === 0 ? 0.22 : 0.12);
+  const zS = schbScale();
+  steenStof(s.x - 70 * zS, s.x + 70 * zS, s.base || 0, 1.0, (s.base || 0) + 60);
+  puffWorld(s.x, 6, 0, 0.9, s.base || 0);
+}
 function pvpRaakLokaal(o){
   if (o) o.flash = Math.max(o.flash || 0, 0.18);
   if (!pvpRaakSnd) pvpRaakSnd = banStemmen(PVP.raak.src, 2);
@@ -76348,11 +76389,11 @@ function pvpStap(rdt){
   pvpLosZend(rdt);                                   // mijn losse speren op de grond, voor het beeld van de anderen
   pvp.zendT -= rdt;
   if (pvp.zendT <= 0 && pvp.mijn){
-    pvp.zendT = 1 / (pvpRelay() ? PVP_RELAY.hz : PVP.hz);
+    pvp.zendT = Math.max(0, pvp.zendT + 1 / (pvpRelay() ? PVP_RELAY.hz : PVP.hz));   // doorlopen, niet terugzetten: zo haalt een host op 25 fps toch 20 Hz (anders eens per twee beelden)
     const j = jav && jav.state !== 'weg' ? { x: Math.round(jav.x), h: Math.round(jav.h), sa: +jav.sa.toFixed(3), dir: jav.dir, st: jav.state, t: +(jav.t || 0).toFixed(2), b: jav.blauw || 0, n: pvp.jn } : null;
     pvpZendSnel(Object.assign({ t: 's', q: ++pvp.qs, tm: +pvpNu().toFixed(3), ak: pvp.coop && !pvp.host && pvp.nets[0] ? pvp.nets[0].v.q : undefined, x: Math.round(playerX()), h: Math.round(ph), f: facing, hu: +hurt.toFixed(2),
       sf: atkFrame, ss: atkStok || undefined, sl: steekLive() && !atkMes ? 1 : 0, sn: pvp.sn, sw: swFrame, wn: pvp.wn, j, l: lives, d: dead ? 1 : 0, rz: pvp.coop && reviveZelfKan() ? 1 : undefined,
-      iv: invuln > 0 ? 1 : 0, du: +duckT.toFixed(2), ds: +duckShare.toFixed(2), ...mkSpeerZend(),
+      iv: invuln > 0 ? 1 : 0, bk: pvp.coop && stokBlokOp() ? 1 : undefined, du: +duckT.toFixed(2), ds: +duckShare.toFixed(2), ...mkSpeerZend(),
       bl: pvpBlindT > 0 ? 1 : undefined, lm: pvp.dw ? pvp.levens : undefined, ...pvpSperenZend() }, pvp.mijn));   // het Duel: blind van het stof, en mijn hartjes (Extra life)   // iv, du en ds: de stand voor de vijanden van Co-op (mpcGastStand)
   }
   if (pvp.coop) mpcVriesWacht(rdt);                 // Co-op: een freeze die niet afloopt laat Amir niet voorgoed staan
@@ -77141,7 +77182,9 @@ function mpcHitDoor(naam){
     const k = mpcVind(o), nu = performance.now() / 1000;
     if (k && !(o.mpGemeld > nu - MPC.dubbel)){
       o.mpGemeld = nu;
-      pvpRaakLokaal(o);                                 // de gast voelt het meteen; de host stuurt de schade terug
+      const schb = naam === 'hitSchildman' || k === 'schildmannen';
+      const dp = schb && o.schild > 0 && piercerDoor() ? 1 : undefined;   // een keer trekken (een knikkerzak): voor het beeld hier en voor de host
+      if (schb) schbRaakLokaal(o, dp); else pvpRaakLokaal(o);   // de gast voelt het meteen; de host stuurt de schade terug
       ardhiTreffer(o);                                  // zijn Ardhi-wapen: het leven krijgt hij zelf, bij zich (ARDHI)
       tlogRaak(o);                                      // de tester-logging: zijn treffer, per wapen (TLOG)
       pvpZendAan(0, { t: 'mh', a: k, id: o.mpId, f: naam, g: a.map(v => (v == null || typeof v === 'object') ? null : v),
@@ -77150,7 +77193,7 @@ function mpcHitDoor(naam){
                       gi: gifHits > 0 ? 1 : undefined,             // zijn speren zijn vergiftigd (gifGast)
                       x2: islotDubbelNu() ? 1 : undefined,   // Ketemba Clay of de eerste slag uit Oil of Mirrors: dubbel (ISLOT)
                       pf: pfMarkeert() ? 1 : undefined,   // zijn Pathfinder markeert (de worp altijd, de steek en de zwaai uit zijn knikkerzak): de host maakt hem prooi
-                      dp: (naam === 'hitSchildman' || k === 'schildmannen') && o.schild > 0 && piercerDoor() ? 1 : undefined,   // zijn Shield Piercer gaat door het schild (doorGast)
+                      dp,   // zijn Shield Piercer gaat door het schild (doorGast)
                       ar: (worpTref && jav && jav.blauw === 'ardhi' && ardhiRoots()) ? 1 : undefined,   // zijn Ardhi-worp met Roots: de host zet de wortels
                       gk: gkRaak ? [Math.round(gkRaak.x0), Math.round(gkRaak.onderTot), gkRaak.dir, gkRaak.schade, gkRaak.knock, gkRaak.traagK] : undefined });   // de golf van zijn grondklap   // zijn slag: de host rekent met zijn stand, niet met die van zichzelf
     }
@@ -77344,10 +77387,11 @@ function mpcStandLees(m){
         if (!d) continue;                               // nog niets van hem binnen: wacht op de volgende keer
         if (q.los && pvp.coop.losWeg.has(id)) continue; // een kogel die bij mij al neerkwam
         o = Object.assign({ mpId: id }, d);
-        o.mpX0 = o.x;
+        o.mpX0 = o.x; mpcV0Zet(o, d);
       } else if (d && !q.los){
         Object.assign(o, d);
         if (d.x != null) o.mpX0 = d.x;                  // zijn plek op het moment van dit bericht; mpcVolgStap schuift naar het volgende
+        mpcV0Zet(o, d);
       }
       nieuw.push(o);
     }
@@ -77357,21 +77401,34 @@ function mpcStandLees(m){
     mpcZet(q, nieuw);
   }
 }
+// naast x schuift de gast ook de hoogte tussen twee berichten in (de vloer, van boven neerkomen, vallen), anders liep een
+// sprong of een lift in stappen van 20 Hz
+const MPC_TUSSEN = ['base', 'air', 'fall'];
+function mpcV0Zet(o, d){
+  for (const k of MPC_TUSSEN) if (typeof d[k] === 'number'){ (o.mpV0 || (o.mpV0 = {}))[k] = d[k]; }
+}
 function mpcVolgStap(rdt){
   // de vijandstand uit de speelbuffer afspelen, en elke vijand tussen dit bericht en het volgende in zetten
   const s = pvpNetSpeel(pvp.nets[0], 'v', mpcStandLees);
   if (!s) for (const q of MPC_LIJSTEN){                 // niets om tussen te schuiven: op de plek van het laatste bericht
     if (q.los) continue;
-    for (const o of q.l()) if (o.mpX0 != null) o.x = o.mpX0;
+    for (const o of q.l()){ if (o.mpX0 != null) o.x = o.mpX0; if (o.mpV0) for (const k in o.mpV0) o[k] = o.mpV0[k]; }
   } else for (const q of MPC_LIJSTEN){
     if (q.los) continue;
     const kaarten = s.b._kaart || (s.b._kaart = {});
     let kaart = kaarten[q.k];
     if (!kaart){ kaart = kaarten[q.k] = new Map(); for (const r of (s.b.l[q.k] || [])) if (r[1] && r[1].x != null) kaart.set(r[0], r[1].x); }
+    const vkaarten = s.b._vkaart || (s.b._vkaart = {});
+    let vkaart = vkaarten[q.k];
+    if (!vkaart){ vkaart = vkaarten[q.k] = new Map(); for (const r of (s.b.l[q.k] || [])) if (r[1]) vkaart.set(r[0], r[1]); }
     for (const o of q.l()){
       if (o.mpX0 == null) continue;
       const nx = kaart.get(o.mpId);
       o.x = nx == null ? o.mpX0 : pvpTussen(o.mpX0, nx, s.k);
+      if (o.mpV0){                                      // de hoogte: naar wat het volgende bericht zegt, of blijven
+        const d = vkaart.get(o.mpId);
+        for (const k in o.mpV0){ const v0 = o.mpV0[k], v1 = d && typeof d[k] === 'number' ? d[k] : v0; o[k] = pvpTussen(v0, v1, s.k); }
+      }
     }
   }
   // een kogel die bij de gast uit zijn lijst ging (neergekomen of raak), komt niet terug
@@ -77848,7 +77905,7 @@ function mpCoopStap(rdt, dt){
     mpcHostStap(dt);
     C.zendT -= rdt; C.sleutelT -= rdt;
     if (C.zendT <= 0){
-      C.zendT = 1 / (pvpRelay() ? PVP_RELAY.hz : MPC.hz);
+      C.zendT = Math.max(0, C.zendT + 1 / (pvpRelay() ? PVP_RELAY.hz : MPC.hz));   // doorlopen, zoals de 's' hierboven
       const alles = C.sleutelT <= 0; if (alles) C.sleutelT = MPC.sleutel;
       mpcStandZend(alles);
       if (alles) pvpZend({ t: 'cs', r: C.ronde, s: C.score, k: C.kills, f: C.fase, v: mpcVersieNu });
@@ -77970,6 +78027,14 @@ function mpCoopOntvang(m){
   if (m.t === 'hb') return true;
   if (m.t === 'mh'){ if (pvp.host) mpcTrefferVanGast(m); return true; }
   if (m.t === 'stofR'){ if (pvp.host) mpcStofVanGast(m); return true; }
+  if (m.t === 'blokH'){ const o = !pvp.host && bandieten.find(v => v.mpId === m.id);   // de host ving zijn klap al op mijn blok
+    if (o && !(o.mpBlokT > pvpNu() - 0.6) && stokAan()){   // nog niet zelf gevangen: het gevoel van het blok alsnog, en de counter open
+      o.mpBlokT = pvpNu(); o.hitUsed = true;
+      houtRaak(STOK.toon.blok, 1); hitstop = Math.max(hitstop, 0.06); shake = Math.max(shake, 0.12);
+      stokBlok.venster = STOK.venster; stokBlok.vang++;
+      pvpZend({ t: 'blokK', x: Math.round(playerX()), h: Math.round(ph) });
+    }
+    return true; }
   if (m.t === 'blokG'){ const o = pvp.host && bandieten.find(v => v.mpId === m.id);   // een gast ving zijn klap op het stokblok
     if (o && mpcLeeft(o) && pvpAnderNu(m.p)){ mpcWisselIn(m.p); try { stokBlokGestuit(o); } finally { mpcWisselUit(); } } return true; }
   if (m.t === 'banP'){ if (pvp.host) mpcPareerVanGast(m); return true; }   // een bandiet pareerde de steek van een gast
