@@ -20780,6 +20780,24 @@ const GRASS_TUFTS = [{ at: -0.02, h: 0.95, flip: false },
                      { at:  0.30, h: 0.52, flip: false }];
 const hutImg = new Image();
 zetBron(hutImg, HUT.src, () => console.warn('ontbreekt: ' + HUT.src));   // idem: de hoogte komt uit HUT.h
+// gras aan de voet van de rotswand: de plaat zelf is kaal (cliff.png sinds 27-11-2026), dit zijn losse plukken
+// droog gras die meewaaien. d: hoe ver van de voet van de wand, in Amir (positief: tegen de rots, negatief: ervoor
+// op de open grond), h: hoogte in Amir, f: spiegelen. Niet in de sneeuw, de stad en het regenwoud.
+const KLIF_GRAS = [{ d: -0.32, h: 0.42, f: false }, { d: -0.08, h: 0.68, f: true }, { d: 0.12, h: 0.55, f: false },
+                   { d: 0.38, h: 0.78, f: true }, { d: 0.72, h: 0.5, f: false }, { d: 1.15, h: 0.62, f: true },
+                   { d: 1.7, h: 0.46, f: false }];
+const klifGrasR = KLIF_GRAS.map(t => ({ ...t }));        // de pollen van de rechterwand (hun wind-toestand)
+function klifGrasAan(){ return !winterOn() && !(level && level.stad) && sceneCfg().biome !== 'regenwoud'; }
+// voetX: de voet van de wand in schermpx; kant +1: de rots ligt rechts van de voet, -1: links (gespiegeld)
+function klifGrasTeken(voetX, kant, groundY, scale, cx, pollen){
+  if (!grassImg.complete || !grassImg.naturalWidth) return;
+  const A = CHAR_H * scale;
+  for (const t of pollen){
+    const gh = A * t.h, gx = voetX + kant * t.d * A;
+    if (gx < -A || gx > W / viewZoom() + W) continue;
+    drawVeg('gras', grassImg, gx, groundY + gh * GRASS.sink, gh, t.f, t, world + (gx - cx), false);
+  }
+}
 const cliffImg = new Image();
 cliffImg.onerror = () => console.warn('ontbreekt: ' + CLIFF.src);
 cliffImg.src = CLIFF.src;
@@ -61131,6 +61149,7 @@ function loop(now){
           ctx.drawImage(cliffImgNow, cliffImgNow.naturalWidth - sw, 0, sw, cliffImgNow.naturalHeight,
                         cxp + c.wPx - 1, cyp, W - (cxp + c.wPx) + 2, c.hPx);
         }
+        if (klifGrasAan()) klifGrasTeken(cxp, 1, groundY, scale, cx, klifGrasR);   // gras aan de voet, achter de hut
         if (hutImg.complete && hutImg.naturalWidth && !winterOn()){   // hoog in de sneeuw staat geen hut
           const hh = CHAR_H * scale * HUT.h;
           const hw = hutImg.naturalWidth / hutImg.naturalHeight * hh;
@@ -61178,6 +61197,10 @@ function loop(now){
                         c.wPx - 1, 0, left + W + 2, c.hPx);
         }
         ctx.restore();
+        if (klifGrasAan() && !k.voor && !k.s){           // gras aan de voet (niet bij een wand met eigen decor of een grote wand)
+          if (!k._gras) k._gras = KLIF_GRAS.map(t => ({ ...t }));
+          klifGrasTeken(right, -1, groundY, scale, cx, k._gras);
+        }
         if (k.voor){                                     // een wand met decor aan zijn voet: een zachte schaduw over de straat eronder
           const A = CHAR_H * scale;
           stadZachteSchaduw(wallX - A * 0.6, wallX + (k.voor + 0.5) * A, groundY, A * 1.6);
