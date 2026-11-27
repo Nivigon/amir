@@ -343,6 +343,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille` | notities/slangen.md |
 | bloed op hout: bloed op een galerij, trapbalkon of brug loopt naar de plankrand en druppelt naar beneden (sluipdood bandiet, executie schildbandiet, zweepman; hooguit twee plekken per vijand) | `BLOED_RAND`, `bloedRandMeld`, `bloedRandStap`, `bloedRandTeken`, `bloedHoutBij` | notities/bloed-rand.md |
 | de dood van de slang: een doodsanimatie (gewoon of snel), snee en druppels per soort kill, het lijk vervaagt na 3 s | `SLANG_DOOD`, `slangDoodStap`, `slangDoodTeken` | notities/slangen.md |
+| de slangenkop eraf: slag 2 van de stokken doodt een slang, 1 op 6 vliegt de kop naar de camera (rustig: langs of door de camera met bloed op de lens; druk: klein, valt voor op de grond); Test 98 en de sandboxknop Snake head | `KOP`, `kopMag`, `kopStart`, `kopRustig`, `kopLensTeken`, `kopWereldTeken`, `kopStompTeken` | notities/slangen.md |
 | zwarte panter, de witte panter (baas, regel 12), de hyena | de grote vijanden: `boss`, `arena`, `hitPanther` |  |
 | de bandiet: een rover met een kromzwaard | `BAN`, `banLaad`, `makeBandiet` | notities/bandiet.md |
 | de kruisboogbandiet: herlaadt (de tell), volgt Amir over twintig hoeken, blinkt en schiet; drie doden, de speer in zijn borst | `KRB`, `krbDoelHoek`, `krbSpeerVolg`, `hitKruisboog(s, soort)`; de hoorn (ontwijkt de worp, rolt, blaast twee hyena's erbij): `KRB_HOORN`, `krbWerpGezien`, `krbHoornStap` |  |
@@ -622,6 +623,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Winkelspullen, het derde vel** (`design/stad/binnen/spul_*.png`, uit `bron/spullen_vel3.png`) → `tools/spul_knip.py`, daarna `gen-offline-manifest.py`
 - **Winkelinrichting** (`design/stad/binnen/toonbank_leem.png`, `plank_pin.png`, `wand_*.png`, `kruik_groot.png`, `zak_*.png`, `manden.png`, uit `bron/winkel_b.jpg`) → `tools/winkel_b_knip.py`, daarna `gen-offline-manifest.py`
 - **Kivuli** (`karakters/kivuli/`, uit de Grok-clips van Tom) → `tools/kivuli_knip.py <map met de mp4's>` (frames komen half getemperd uit `DIM`; de lantaarn: `tools/kivuli_lantaarn.py`), daarna `gen-offline-manifest.py`
+- **De slangenkop** (`enemies/slang_kop/<kleur>/`, uit de Grok-koppen in `bron/`) → `tools/slang_kop.py`, daarna `gen-offline-manifest.py`
 - **De slang van Sack o' Fangs** (`enemies/slang_kivuli/`, zwart met gouden banden, uit `enemies/slang2/`) → `tools/slang_kivuli.py`, daarna `gen-offline-manifest.py`
 - **Wapenrek** (`design/stad/wapenrek/`, uit de Grok-plaat in `bron/`) → `tools/wapenrek_knip.py`, daarna `gen-offline-manifest.py`
 - **Deurgordijnen** (`design/stad/gordijn/`, uit de Grok-platen in `bron/`) → `tools/gordijn_knip.py`, daarna `gen-klein.py` en `gen-offline-manifest.py` (de gordijnmap staat niet in de lijst van `gen-klein.py`, dus het spel laadt de grote versie, net als bij de tonnen)
