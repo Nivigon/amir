@@ -4,9 +4,13 @@
 // van MK_OUTFIT in een rij (idle, ren, stoot), zoals de lobby en de team-kaartjes dat doen. Schrijft per stap een plaatje.
 //
 //   node tools/outfittest.js [map]       standaard /tmp/outfittest
+//   node tools/outfittest.js [map] --frames aanval/shove/shove_00.png,aanval/shove/shove_09.png
+//                                        de rij outfits met deze frames (onder karakters/amir/) in plaats van idle, ren en stoot
 const fs = require('fs'), path = require('path'), http = require('http');
 const { chromium } = require('playwright');
-const ROOT = path.dirname(__dirname), UIT = process.argv[2] || '/tmp/outfittest';
+const ARGS = process.argv.slice(2), FI = ARGS.indexOf('--frames');
+const EIGEN = FI >= 0 ? ARGS[FI + 1].split(',').map(r => 'karakters/amir/' + r) : null;
+const ROOT = path.dirname(__dirname), UIT = ARGS.filter((a, i) => !a.startsWith('--') && i !== FI + 1)[0] || '/tmp/outfittest';
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.mp3': 'audio/mpeg' };
 const wacht = ms => new Promise(ok => setTimeout(ok, ms));
 async function tot(page, f, max = 30000){ const t = Date.now(); while (Date.now() - t < max){ if (await page.evaluate(f).catch(() => false)) return true; await wacht(200); } return false; }
@@ -25,7 +29,7 @@ async function tot(page, f, max = 30000){ const t = Date.now(); while (Date.now(
   // de rij outfits: idle, ren en stoot per outfit, plus het oude tenue
   await page.evaluate(() => { skinZet(null); skinLijstLaad('mkuki'); mkSkinVoorladen(); });   // het menu staat soms in een level met een eigen skin
   await tot(page, () => SKIN.lijst.mkuki && SKIN.lijst.mkuki.size > 100);
-  const frames = ['karakters/amir/idle/idle_sp/idle_sp_00.png', 'karakters/amir/beweging/run/nieuw/ren_sp_4.png', 'karakters/amir/aanval/speerstrike/attack_sp_5.png'];
+  const frames = EIGEN || ['karakters/amir/idle/idle_sp/idle_sp_00.png', 'karakters/amir/beweging/run/nieuw/ren_sp_4.png', 'karakters/amir/aanval/speerstrike/attack_sp_5.png'];
   await page.evaluate(fr => { window._fr = fr.map(p => { const im = new Image(); im.src = p; return im; }); }, frames);
   await wacht(3000);
   const data = await page.evaluate(async () => {
