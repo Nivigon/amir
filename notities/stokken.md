@@ -113,6 +113,21 @@ In Test 74 (`stokken: true`), de sandboxknop **Stokken**, en in Multiplayer als 
   Boven zijn health-balk staat dan STUNNED in geel, dat zacht naklopt en in de laatste 0,3 s vervaagt, en eronder een geel
   balkje dat in de duur van de stun leegloopt (`stunLabelTeken`, in `vijandHpBalk`).
 - Een spawn met `hp` (zonder aanvoerder) geeft een bandiet zoveel levens; Test 74 gebruikt de elite-garde met 5, zoals Co-op.
+- **Van de rand geslagen** (op verzoek van de opdrachtgever, 27 november 2026): blok, stun-counter, slag. Krijgt een bandiet
+  die nog gestund is (`stokStun`) een gewone slag of stapslag, en ligt er binnen `STOK_RAND.bereik` (110) achter zijn hielen
+  een ravijn of put (`gatOp`), dan krijgt hij genoeg terugstoot om de rand te halen (`stokRandDuw`, minstens `v` maal de
+  afstand, en `rust` zodat hij niet meteen terugrent). Stuit hij op de rand (`banMove`), dan schuift hij erover, wipt even en
+  valt erin (`banRandVal`, met `ravijnValt` en `s.ravijnVal.b0`); hij vervaagt over `vervaag` diepte en telt als kill
+  (`banDoodTel`, dezelfde tellers als `hitBandiet`). Een muur, kei of takelbrug ertussen houdt hem tegen, zonder stun of
+  te ver van de rand gebeurt er niets bijzonders. Alleen de bandiet: de stun-counter stunt alleen hem. Een uitzondering op
+  regel 7. Nagemeten in de sandbox met een gat in `level.gaps`: 30 en 100 px van de rand valt hij erin, zonder stun of 300 px
+  ervandaan niet.
+- **Ook van een galerij of dak** (op verzoek, 27 november 2026): staat de gestunde bandiet in de stad op een galerij of dak en
+  ligt de rand (`dropAhead`) binnen hetzelfde bereik, dan zet de slag `s.fcVal` in plaats van `randVal`, en de val van Full
+  Circle doet de rest (`fcValLanding`, `fcValStart`, zie `notities/combo.md`): hij slaat eraf naar de straat, landt met stof,
+  ligt `FC_VAL.rust` stil en leeft nog. Alleen als hij beneden veilig neerkomt, anders blijft hij aan de rand staan. Gemeten
+  in Stad 1 op de galerij van de toren (hoogte 870): gestund valt hij naar de straat en houdt zijn levens, niet gestund blijft
+  hij boven.
 
 ## De punt zakt mee (18-11-2026)
 

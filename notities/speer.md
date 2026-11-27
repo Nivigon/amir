@@ -284,6 +284,10 @@ steekafstand (`shoveDoel`, `shoveStart`, `shoveStap`, `shoveRaak`). Op verzoek v
   met een wankel van 0,4 s die al om was voor de shove klaar was), de zweepman na 1,45 s (eerst 0,26 s: zijn slag liep
   door), de schildbandiet na 1,67 s (eerst 2,05 s, met een gepantserde sprong). Een steek die Amir meteen zet raakt na
   zo'n 0,3 s.
+- **Geluid en stof** (`shoveKlap`): op het duwmoment `sounds/shove_duw.mp3` (ElevenLabs, de schacht tegen een borst; de
+  klap zit 0,18 s in het bestand, `geluid.start` 0,15) en mini-stofwolkjes en korrels bij de voeten van de vijand die met
+  de duw meedrijven, plus een wolkje bij de voorste voet van Amir. In Co-op stuurt wie duwt `shvK` (in `MP_DOOR`), zodat
+  een teamgenoot het ook hoort (zachter op afstand, stil vanaf `geluid.ver`) en ziet.
 - **Afkoeling** `koel` (2 s): zolang is een aanval een gewone steek. Geraakt tijdens de shove breekt hem af.
 - **De frames**: `karakters/amir/aanval/shove/shove_00..12.png` (594x301, het canvas van de steek, grondlijn 297), gebakken
   met de gewone speer; de Mkuki-skin heeft ze in `mkuki_spel/aanval/shove/` met `_lijf`, `_zones`, `_lijf_zones` en de

@@ -373,11 +373,21 @@
   #kivklok i{width:26px;height:26px;border-radius:50%;box-shadow:inset 0 0 0 2px #3a2414}
   #kivklok.kort span{color:#ffb08a}
   #mpkijk{font-size:18px;font-weight:600;opacity:.9}
+  #mphs{display:none;max-width:640px;margin:8px auto 0;background:rgba(20,12,6,.7);border:1px solid #8a6a3a;border-radius:10px;padding:10px 14px;max-height:46vh;overflow:auto}
+  #mphs.on{display:block}
+  #mphs table{width:100%;border-collapse:collapse;font-size:14px}
+  #mphs th,#mphs td{padding:3px 6px;text-align:left;border-bottom:1px solid rgba(138,106,58,.35)}
+  #mphs tr.ik td{color:#ffe28a}
+  #mphs .mphsk{font-weight:700;margin:0 0 6px}
+  #mphs .mphsper{font-size:13px;opacity:.85;margin:8px 0 0}
   #mpeind{display:none;margin-top:40px;background:rgba(20,12,6,.86);border:1px solid #8a6a3a;border-radius:12px;padding:18px 30px;text-align:center;font-size:19px}
   #mpeind.on{display:block}
   #mpeind p{margin:6px 0}
   #mpeind .kop{font-size:34px;font-weight:700}
+  #mpeind .score{font-size:24px;font-weight:700}
   #mpeind .best{color:#ffe28a}
+  #mpeind .rec{font-size:15px;opacity:.85}
+  #mpeind .best.nieuw{font-size:24px;font-weight:700;text-shadow:0 0 12px rgba(255,200,80,.6)}
   #mpeind .klein{font-size:15px;opacity:.8;margin-top:14px}
   .bigbtn{position:relative;min-width:210px;padding:16px 26px!important;font-size:20px!important;font-weight:700;
     letter-spacing:.05em;text-transform:uppercase;border:1px solid rgba(231,173,82,.4);border-radius:11px;
@@ -1624,6 +1634,8 @@
           <input id="pvpcode" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false">
           <button id="pvpjoin" class="bigbtn">Join<small>Type the code of the host</small></button>
         </div>
+        <div class="row"><button id="mphsknop" type="button">High scores</button></div>
+        <div id="mphs"></div>
       </div>
       <div id="mplobby">
         <p id="mpwie"></p>
@@ -2337,6 +2349,8 @@
         <button data-ability="feign_death">Feign Death: uit</button>
         <button id="sbmes">Mes in de hand</button>
         <button id="sbschijn">Speel dood</button>
+        <button id="sbneermk" title="De val van Amir (NEER) met de set van Mkuki (de speer): zo gaat hij in Co-op neer en sterft hij in single player. Daarna ligt hij even in de neer-pose en staat hij weer op">Fall: Mkuki</button>
+        <button id="sbneerstok" title="De val van Amir (NEER) met de set van de stokken-Amir (klassiek tenue, leeuwenvacht): zo gaat hij in Co-op neer en sterft hij in single player. Daarna ligt hij even in de neer-pose en staat hij weer op">Fall: sticks</button>
         <span class="hint">E wisselt: speer, mes, niets</span>
       </div>
       <div class="row">
@@ -4001,6 +4015,7 @@ const KLEIN_FAM = [
   'enemies/schildbandiet/',
   'enemies/kooiman/',
   'enemies/vogel/',
+  'design/tutorial/gids/',                        // de gids van The First Hunt (gebouwd door tools/gids_bouw.py, niet door gen-klein.py)
   'enemies/blackpanther/',
   'enemies/panter_wit/',
   'enemies/schorpioen1/',
@@ -4409,15 +4424,36 @@ const SHOVE = {
   minDuw: 70,                             // en minstens zoveel terug (sprite-eenheden)
   zwaar: 0.5,                             // de kooiman met zijn kooi schuift maar half zo ver en wankelt niet
   raakVan: 206, raakTot: 333,             // de strook waar de punt van de gewone steek raakt (TIP_DX van ATK_ACTIVE, plus steekR)
-  hoog: 90                                // alleen wie op Amirs eigen hoogte staat (wereld-px)
+  hoog: 90,                               // alleen wie op Amirs eigen hoogte staat (wereld-px)
+  // het geluid van de duw (ElevenLabs: de schacht tegen een borst). De klap zit 0,18 s in het bestand: vanaf start
+  // speelt hij, zodat de klap op het duwmoment valt. Ver weg (een teamgenoot in Co-op) zachter, tot stil op `ver` px
+  geluid: { src: 'sounds/shove_duw.mp3', start: 0.15, vol: 0.85, stemmen: 3, ver: 1400 }
 };
-let shoveA = null, shoveKoel = 0, shoveBank = null;   // shoveA: {i, acc, kant, doel}: de shove loopt
+let shoveA = null, shoveKoel = 0, shoveBank = null, shoveSnd = null;   // shoveA: {i, acc, kant, doel}: de shove loopt
 function shoveLaad(){
+  if (!shoveSnd) shoveSnd = banStemmen(SHOVE.geluid.src, SHOVE.geluid.stemmen);
   if (shoveBank) return;
   shoveBank = Array.from({ length: SHOVE.n }, (_, i) => loadQuiet(uniq([AMIR, AMIR_GROOT]).map(d => d + SHOVE.dir + 'shove_' + (i < 10 ? '0' : '') + i + '.png')));
 }
 // de aanvalsklok bij het duwmoment: de rest van de shove (na raakStap) plus SHOVE.na, in seconden
 function shoveKlok(){ let t = 0; for (let i = SHOVE.raakStap; i < SHOVE.reeks.length; i++) t += SHOVE.reeks[i][1]; return t / 24 + SHOVE.na; }
+// de duw klinkt en stuift: het geluid (vol: 1 dichtbij) en mini-stofwolkjes bij de voeten van de vijand, die met de
+// duw meedrijven, plus een wolkje bij de voorste voet van Amir. Ook bij een teamgenoot (shvK, in Co-op)
+function shoveKlap(vx, vbase, kant, ax, abase, vol){
+  shoveLaad();
+  if (wantSound && vol > 0.02){
+    const G = SHOVE.geluid, a = shoveSnd.pool[shoveSnd.beurt++ % shoveSnd.pool.length];
+    try { a.currentTime = G.start; } catch (e) {}
+    a.volume = Math.min(1, G.vol * vol);
+    a.play().catch(() => {});
+  }
+  if (inGap(vx) || waterDepthAt(vx, vbase) > 0.2) return;
+  for (let i = 0; i < 4; i++)
+    stofWolk(vx - kant * 12 + (Math.random() - 0.5) * 34, 1 + Math.random() * 6, vbase, kant * (70 + Math.random() * 90), 6 + Math.random() * 5, 0.45 + Math.random() * 0.3, 0.55);
+  for (let i = 0; i < 6; i++) stofKorrel(vx + (Math.random() - 0.5) * 30, vbase, kant * (40 + Math.random() * 120), 60 + Math.random() * 90);
+  if (ax != null && !inGap(ax)) stofWolk(ax + kant * 28, 1, abase, kant * 25, 6, 0.4, 0.45);
+}
+function shoveKlapVol(x){ return Math.max(0, 1 - Math.abs(x - playerX()) / SHOVE.geluid.ver); }
 function shoveKlaar(){ return !!shoveBank && shoveBank.every(i => i.complete && i.naturalWidth); }
 function shoveBeeld(){ return shoveA && shoveBank ? shoveBank[SHOVE.reeks[Math.min(shoveA.i, SHOVE.reeks.length - 1)][0]] : null; }
 // wie staat er voor Amir: per vijand zijn lijst, soort, halve lijfbreedte (wereld-px) en of hij te duwen is
@@ -4489,10 +4525,18 @@ function shoveRaak(){
     const a = mpcVind(s);
     if (a) pvpZendAan(0, { t: 'shvR', a, id: s.mpId, kant });
     puffWorld(s.x, 5, kant * 200, 1, s.base || 0);
+    shoveKlap(s.x, s.base || 0, kant, playerX(), ph, 1);
+    shoveKlapZend(s.x, s.base || 0, kant);
     shake = Math.max(shake, 0.12); hitstop = Math.max(hitstop, 0.06);
     return;
   }
   shoveDuw(v, kant, d);
+  shoveKlap(s.x, s.base || 0, kant, playerX(), ph, 1);
+  shoveKlapZend(s.x, s.base || 0, kant);
+}
+// in Co-op hoort en ziet een teamgenoot de duw ook (shvK, de host stuurt hem door naar de andere gast)
+function shoveKlapZend(x, base, kant){
+  if (typeof pvp !== 'undefined' && pvp && pvp.coop) pvpZend({ t: 'shvK', x: Math.round(x), b: Math.round(base), k: kant, ax: Math.round(playerX()), ah: Math.round(ph) });
 }
 // de duw zelf: bij de host (ook voor een gast, met zijn stand) of zonder Co-op. d: hoe ver de vijand voor Amir staat
 function shoveDuw(v, kant, d){
@@ -7431,14 +7475,17 @@ const TUT_1 = {
       { zeg: ['Morning, little spear! A Mkuki with no spear...', 'Today, we fix that. Come. Follow me. [LEFT]'],
         stem: ['guide_start_1.mp3', 'guide_start_2.mp3'], seg: 0, ok: 'Good. Keep up!', kijk: false },
       { zeg: 'Now you. Jump over the rock! [UP]', seg: 1, ok: 'Nice jump.', terug: -620 },
-      { zeg: 'Up here! Jump onto the ledge, then to the top. [UP]', seg: 2, ok: 'Good eyes.', terug: -1300 },
+      { zeg: 'Up here! Jump onto the ledge, then to the top. [UP]', seg: 2, ok: 'Good. Light feet.', okStem: 'guide_richel_ok.mp3', terug: -1300 },
       { zeg: 'Get low, like a snake. Crawl through. [DOWN] [LEFT]', stem: 'guide_kruip.mp3', seg: 3,
         ok: 'You fit! Being small is useful.', okStem: 'guide_kruip_ok.mp3', terug: -2700 },
       { zeg: 'Now roll. Fast, low, and up again. [V]', stem: 'guide_rol.mp3', eis: 'rol', nog: 'Roll first! Press [V].', seg: 4,
         ok: 'Smooth. Like water.', okStem: 'guide_rol_ok.mp3', terug: -3700 },
-      { zeg: 'A small gap. Just jump! [UP]', seg: 5, ok: 'Easy, right?', terug: -4150 },
-      { zeg: 'Now run fast. Hold [SHIFT] while you run.', eis: 'sprint', nog: 'Faster! Hold [SHIFT] while you run.', seg: 6, ok: 'Now you are fast.', terug: -4750, kijk: 'Watch closely.' },
-      { zeg: 'Too wide to jump. Sprint with [SHIFT], then leap with [UP] at the edge!', ok: 'You flew!', okDuur: 1.6, terug: -5150 },
+      { zeg: 'A small gap. Do not look down. Just jump. [UP]', stem: 'guide_gat.mp3', seg: 5,
+        ok: 'See? Nothing.', okStem: 'guide_gat_ok.mp3', terug: -4150 },
+      { zeg: 'Now run. Like the wind is chasing you. [SHIFT]', stem: 'guide_sprint.mp3', eis: 'sprint', nog: 'Faster! Hold [SHIFT] while you run.', seg: 6,
+        ok: 'Yes! You feel that?', okStem: 'guide_sprint_ok.mp3', terug: -4750, kijk: 'Watch closely.' },
+      { zeg: 'This one is big. Run hard... then fly. [SHIFT] [UP]', stem: 'guide_sprong.mp3',
+        ok: 'You flew! The birds are jealous.', okStem: 'guide_sprong_ok.mp3', okDuur: 1.6, terug: -5150 },
       { zeg: 'One last thing.', race: true, seg: 7, ok: 'A race to the top! First one at the torches wins. Ready?', okDuur: 3, terug: -6300 },
       { zeg: 'Rest now. Tomorrow we hunt for real. The torches are yours.' }
     ]
@@ -13326,7 +13373,15 @@ function deurDemp(lang = SFX_DEUR.duur + SFX_DEUR.uit, tot = SFX_DEUR.demp){
   const vol = MUZIEK[muziekNu].vol;
   clearTimeout(bg.dempT);
   sndRamp(bg, vol * tot, 0.25, false);
-  bg.dempT = setTimeout(() => sndRamp(bg, MUZIEK[muziekNu].vol, SFX_DEUR.terug, false), lang * 1000);
+  // na afloop dempT weer leeg, anders laat kivMuzStap de muziek niet meer zakken onder Kivuli; terug naar het volume
+  // dat nu hoort (met Kivuli erbij zachter)
+  bg.dempT = setTimeout(() => { bg.dempT = 0; sndRamp(bg, muzDoelVol(), SFX_DEUR.terug, false); }, lang * 1000);
+}
+// het volume van de gewone muziek zoals het nu hoort: vol, of gedempt zolang Kivuli's muziek speelt
+function muzDoelVol(){
+  const M = MUZIEK[muziekNu]; if (!M) return bg.volume;
+  if (typeof kivSfeer === 'undefined' || !kivSfeer.m || M.stil) return M.vol;
+  return M.vol * (1 - (1 - KIV.sfeer.muz.dempt) * kivSm(kivSfeer.m));
 }
 // De aardbeving van een ravijn dat openscheurt: hetzelfde gerommel als de rotswand, maar vanaf
 // het eerste trillen (onTremorStart) in plaats van pas op de klap, en tot het ravijn open ligt.
@@ -13441,8 +13496,8 @@ function stopDeur(){
   a.pause();
   try { a.currentTime = 0; } catch (e) {}
   if (bg.dempT){
-    clearTimeout(bg.dempT); bg.dempT = 0; clearInterval(bg.fadeT);
-    bg.volume = MUZIEK[muziekNu].vol;
+    clearTimeout(bg.dempT); bg.dempT = 0; clearInterval(bg.fadeT); bg.fadeT = 0;
+    bg.volume = muzDoelVol();
   }
 }
 
@@ -17400,8 +17455,12 @@ function holstamAankleed(q, schil){
 }
 // licht: de zon staat achter de stam: een warme rand langs de bovenkant, de voorkant naar onder toe donkerder, de rafelrand bij de openingen gedimd
 function holstamLicht(c){
-  const g = c.getContext('2d'), w = c.width, h = c.height, B = HOLSTAM.bron, L = HOLSTAM.randLicht, d = g.getImageData(0, 0, w, h).data;
-  g.save(); g.globalCompositeOperation = 'source-atop';
+  const doel = c.getContext('2d'), w = c.width, h = c.height, B = HOLSTAM.bron, L = HOLSTAM.randLicht, d = doel.getImageData(0, 0, w, h).data;
+  // alles op een losse laag zonder filter, en die in een keer (source-atop, met het filter dat nog op de schil staat) erop:
+  // het schilfilter bleef op de doek staan, en anderhalfduizend streepjes randlicht elk door dat filter kostten
+  // zo'n 6 s per stam (The First Hunt bleef hangen bij het laden). Zelfde beeld: atop na elkaar is atop van de laag.
+  const laag = document.createElement('canvas'); laag.width = w; laag.height = h; const g = laag.getContext('2d');
+  g.save();
   const gv = g.createLinearGradient(0, B.top, 0, B.knip);
   gv.addColorStop(0, 'rgba(10,8,14,0)'); gv.addColorStop(0.45, 'rgba(10,8,14,0.12)'); gv.addColorStop(1, 'rgba(10,8,14,' + HOLSTAM.voetDonker + ')');
   g.fillStyle = gv; g.fillRect(0, 0, w, h);
@@ -17414,6 +17473,7 @@ function holstamLicht(c){
   g.fillStyle = gr;
   for (let x = 0; x < w; x++){ let t = -1; for (let y = 0; y < h; y++) if (d[(y * w + x) * 4 + 3] > 80){ t = y; break; } if (t < 0) continue; g.setTransform(1, 0, 0, 1, 0, t); g.fillRect(x, 0, 1, L.dik); }
   g.restore();
+  doel.save(); doel.globalCompositeOperation = 'source-atop'; doel.drawImage(laag, 0, 0); doel.restore();
 }
 // binnen: zachte bundels die schuin door de openingen vallen
 function holstamBundels(g, w){
@@ -19006,7 +19066,7 @@ function losBij(){
   const scale = nowScale(), reik = javReach() * 1.3;
   let best = null, bestD = Infinity;
   for (const sp of losseSperen){
-    if (ph < sp.h - 30 || ph > sp.h + CHAR_H * 0.5) continue;
+    if (sp.h > ph + CHAR_H * SPEER_GREEP.boven || sp.h < ph - CHAR_H * SPEER_GREEP.onder) continue;
     const half = sp.soort === 'skelet' ? LOS_LEN / 2 * skK(scale) : javLen(scale) * 0.4;
     const d = Math.abs(world - (sp.x + sp.zij * half));
     if (d < reik + half && d < bestD){ best = sp; bestD = d; }
@@ -25098,7 +25158,8 @@ function bnZelfTeken(b, groundY, scale, cx){
   const Z = BN.zelf, T = bnZT(), z = b.z, A = CHAR_H * scale, ms = z * 1000;
   const blur = Math.hypot(ctx.getTransform().a, ctx.getTransform().b);
   bnCur = b;
-  const lijkX = cx + (b.x - world) + (b.f === 1 ? -1 : 1) * 0.4 * A, lijkY = groundY - b.h * scale - 0.12 * A;
+  // het midden van zijn lijf in de neer-pose (NEER): het hoofd ligt voor zijn voeten, het lijf dus iets naar voren
+  const lijkX = cx + (b.x - world) + (b.f === 1 ? 1 : -1) * 0.1 * A, lijkY = groundY - b.h * scale - 0.12 * A;
   const doelX = cx + (b.tx - world), doelY = groundY - b.th * scale - 0.55 * A;
   const hoogY = Math.min(lijkY, doelY) - Z.hoog * A + 0.4 * A;
   ctx.save();
@@ -25483,8 +25544,51 @@ function stokTreffer(s, wx, h, sx, deel){
       if (s.stokReeks < R.n){ s.inv = 0; s.rust = R.rust; s.knock *= R.knock; }
       if (atkStok === 'stapslag') s.knock = (s.x < playerX() ? -1 : 1) * STOK.stapslag.knock;   // de stap duwt hem terug, net genoeg dat de tweede slag hem nog raakt
       else { s.stokReeks = 0; s.rust = R.naRust; }   // de laatste van de reeks: de gewone dekking die hitBandiet zette
+      if (s.stokStun > 0) stokRandDuw(s);            // blok, counter (stun), slag: aan de rand van een ravijn slaat hij erin (STOK_RAND)
     }
   }
+}
+// ---- van de rand geslagen: blok, stun-counter, slag ----
+// Op verzoek van de opdrachtgever (27 november 2026): een bandiet die gestund is door de counter van de stokken (stokStun)
+// en dan een slag krijgt terwijl hij aan de rand van een ravijn staat, slaat erin en is dood. Een uitzondering op regel 7
+// (vijanden komen niet over een ravijn), alleen door deze slag. Ligt er binnen `bereik` achter zijn hielen een ravijn of
+// put (gatOp), dan krijgt hij minstens zoveel terugstoot dat hij de rand haalt (`v` maal de afstand); stuit hij daar
+// (banMove), dan begint de val (banRandVal, met ravijnValt, en hij vervaagt over `vervaag` diepte). Een muur, een kei of
+// een takelbrug ertussen houdt hem gewoon tegen.
+// Op een galerij of dak in de stad (base boven de straat, dropAhead) slaat dezelfde slag hem eraf naar de straat, met de val
+// van Full Circle (s.fcVal, fcValLanding): hij landt, ligt even stil en leeft nog. Alleen als hij beneden veilig neerkomt.
+const STOK_RAND = { bereik: 110, v: 4.4, rust: 0.7, vervaag: CHAR_H * 1.6 };
+function stokRandDuw(s){
+  const d = Math.sign(s.knock) || (s.x < playerX() ? -1 : 1), base = s.base || 0;
+  const halfL = BAN_LIJF.half * banScale();
+  for (let a = 0; a <= STOK_RAND.bereik; a += 6){
+    const x = s.x + d * (halfL + a);
+    if (takelDraagt(x, base)) return;
+    const gat = gatOp(x, base);
+    const galerij = !gat && base > 1 && stadAan() && dropAhead(x, base);   // de rand van een galerij of dak
+    if (!gat && !galerij) continue;
+    s.knock = d * Math.max(Math.abs(s.knock), (a + 24) * STOK_RAND.v);
+    s.rust = Math.max(s.rust, STOK_RAND.rust);      // hij glijdt weerloos naar de rand, en rent niet meteen terug
+    if (gat) s.randVal = true;                      // het ravijn in (banRandVal)
+    else s.fcVal = true;                            // van de galerij naar de straat, als hij daar veilig neerkomt (FC_VAL)
+    return;
+  }
+}
+// de val zelf: hij stuit op de rand (banMove), staat het ravijn daar echt, dan schuift hij erover en valt
+function banRandVal(s, d){
+  const base = s.base || 0, halfL = BAN_LIJF.half * banScale();
+  const voet = s.x + d * (halfL + 8);
+  const g = gatOp(voet, base);
+  if (!g || takelDraagt(voet, base)) return false;
+  const gl = g.x - g.w / 2, gr = g.x + g.w / 2;
+  s.x = Math.max(gl + 4, Math.min(gr - 4, s.x + d * halfL * 1.3));   // boven het gat, niet voorbij de overkant
+  s.ravijnVal = { v: -120, b0: base };            // een klein wipje, dan omlaag
+  s.knock = 0; s.randVal = false; s.fcVal = false; s.stokStun = 0; s.stokStunIdle = false;
+  s.hp = 0; s.flash = 0.3; s.inv = 99;
+  banSterf();
+  puffWorld(s.x, 6, 0, 0.9, base);
+  banDoodTel(s);
+  return true;
 }
 // de stokken raken een andere vijand dan de bandiet (slang, schorpioen, fosforslang, hyena, kooiman,
 // kruisboogbandiet, zweepman): dezelfde houtklap als de gewone slag op een bandiet (stokTreffer), zonder de reeks of de stun.
@@ -26502,6 +26606,7 @@ const JAV = {
   tiles: 14,          // zoveel tegels per seconde, horizontaal
   gDeel: 1 / 3,       // zwaartekracht: een derde van die op Amir, dus duidelijk maar niet sloom
   inTile: 10,         // zo ver steekt de punt de tegel in na de inslag
+  kiepV: 90,         // zo snel glijdt een speer opzij als hij over de rand van een galerij of dak kiept
   inBos: 0.42,        // in een struweel zakt hij dieper weg: dit deel van zijn eigen lengte
   bosZak: 14,         // en het uiteinde hangt zo veel graden door, dus lager dan Amirs hoofd
   wobT: 4 / THR_FPS,  // natrillen na de inslag: vier frames lang
@@ -26591,6 +26696,9 @@ function rugTrekKlaar(){
   // een al neergekomen gegooide speer wordt nu een losse speer: je hand is weer vol, dus je raapt hem
   // straks op de rug op (en hij blijft niet als spearX geclaimd, zie javStick)
   if (jav && jav.lijk) jav.rug = true;            // in een lijk (de kruisboogbandiet): hij blijft zitten, E zet hem op de rug
+  // in een wand (een huis in de stad, een rots): hij blijft steken (en blijft een opstapje), E zet hem op de rug.
+  // Zonder dit bleef hij "de" speer terwijl je hand al vol was, en negeerde spearGreep hem: niet te pakken
+  else if (jav && jav.state === 'muur') jav.rug = true;
   else if (jav && (jav.state === 'grond' || jav.state === 'bos')){
     eigenSpeerLos(jav.x, jav.dir, jav.blauw, jav.h); jav = null; javLost = 0; spearX = null; spearH = null;
   }
@@ -27246,6 +27354,19 @@ function javStick(x, h, soort, scale){
     const b = Math.max(0, javDirHoek());
     jav.sa = jav.dir === 1 ? 0 : Math.PI;
     if (b > 0.02){ jav.kantel = jav.kantel0 = b; jav.kantelT = 0; jav.wob = 0; }
+    // Op een galerij of dak in de stad: komt alleen de punt op de planken en ligt het midden van de schacht
+    // er al naast, dan kiept hij over de rand en valt verder (naar de straat). Anders bleef hij liggen met
+    // bijna de hele schacht in de lucht, een zwevende speer (Ishmul: van de brug op een vijand aan de rand)
+    const vl = stadAan() ? stadPlats(scale).find(q => q.thin && q.stad && x > q.left && x < q.right && Math.abs(q.topH - h) < 1) : null;
+    if (vl){
+      const L = javLen(scale), mid = jav.x - Math.cos(jav.sa) * L / 2, marge = L * 0.1;   // het midden ruim op de planken
+      if (mid < vl.left + marge || mid > vl.right - marge){
+        jav.state = 'val'; jav.h = h - 2;                // net onder de planken: javFloor telt de galerij dan niet meer
+        jav.vx = (mid < vl.left ? -1 : 1) * JAV.kiepV; jav.vh = 0; jav.t = 0;
+        jav.kantel = 0; jav.wob = 0;
+        return;
+      }
+    }
   }
   if (spearFound && rugAan()){
     // je hand is al weer gevuld (van de rug getrokken): deze gegooide speer wordt een losse speer,
@@ -28437,8 +28558,17 @@ function mentorPos(){
   return [mentor.rust + 1, sg.lus + Math.floor(mentor.t * MENTOR.fps) % Math.max(1, lus)];
 }
 function mentorFrame(){
-  const [s, i] = mentorPos(), S = mentor.spoor;
-  return (s === 0 ? S.start : S.segs[s - 1]).f[i];
+  const [s, i] = mentorPos(), S = mentor.spoor, rij = (s === 0 ? S.start : S.segs[s - 1]).f, f = rij[i];
+  // Het spoor heeft 30 beelden per seconde, het spel tekent er 60: zonder tussenstap bleef hij elk tweede beeld staan
+  // en sprong hij dan 11 px (schokkerig naast Amir). Tijdens het voordoen en de race schuiven x en h daarom mee tussen
+  // dit beeld en het volgende; het plaatje en zijn verschuiving (dx, dy) blijven die van dit beeld.
+  if (!f || mentor.seg < 0 || !rij[i + 1]) return f;
+  const t = mentor.f - Math.floor(mentor.f);
+  if (t <= 0) return f;
+  const g = rij[i + 1], uit = f.slice();
+  uit[0] = f[0] + (g[0] - f[0]) * t;
+  uit[1] = f[1] + (g[1] - f[1]) * t;
+  return uit;
 }
 function mentorX(){ const f = mentorFrame(); return f ? f[0] : 0; }
 function mentorSpeel(seg, tempo){ mentor.seg = seg; mentor.f = 0; mentor.tempo = tempo || 1; mentor.fase = 'demo'; mentor.t = 0; }
@@ -28646,16 +28776,54 @@ function mentorKleur(im){
 // wacht en iets uitlegt eerst een keer de vertel-clip (handgebaren, mond dicht), daarna de idle heen en terug.
 // Stof en geluid zoals bij Amir: de renlus (amirren.mp3) zachter naarmate hij verder van je af is, stof bij de afzet
 // en de landing, en bij de rol het rolgeluid en het stof van ROL_STOF. Zonder gids.json tekent hij de omgekleurde Amir.
-const GIDS = { src: 'design/tutorial/gids/gids.json', fps: { idle: 12, verteller: 12 }, kop: 1.02,
+const GIDS = { src: 'design/tutorial/gids/gids.json', fps: { idle: 12, verteller: 12 }, pas: 344,   // pas: een renlus in wereld-eenheden (Amir 287, de gids 1,2 keer zo groot)
+  vMax: 30,                                                        // hoogte per spoorbeeld bij de afzet (vol omhoog)
+  lucht: { sprong: [[0, 16], [0.2, 21], [0.42, 26], [0.58, 40], [0.72, 66], [1, 76]],   // strekken, kort intrekken op de top, benen omlaag
+           groot: [[0, 2], [0.45, 12], [0.7, 24], [1, 36]] },                           // de sprintsprong: gestrekt, dan intrekken voor de landing
+  kop: 1.02,
                geluid: { ver: 1100, ren: 0.45, rol: 0.7, sprint: 420 } };
 let gids = null;                                 // gids.json als hij binnen is, 'laden' onderweg
 function gidsLaad(){
   if (gids) return;
   gids = 'laden';
   fetch(GIDS.src).then(r => r.json()).then(j => {
-    for (const a of Object.values(j.anims)) mentorPlaat(a.src);
+    for (const a of Object.values(j.anims)) gidsPlaat(a.src);
     gids = j;
   }).catch(() => { gids = null; });
+}
+// de vellen gaan via zetBron: met Beeld: Licht de halve set uit klein/ (im._bron is dan 2, zie gidsTeken)
+const gidsBeelden = {};
+function gidsPlaat(src){
+  let im = gidsBeelden[src];
+  if (!im){ im = new Image(); zetBron(im, src); gidsBeelden[src] = im; }
+  return imgReady(im) ? im : null;
+}
+// De renlus loopt op afgelegde afstand: elke GIDS.pas wereld-eenheden een hele lus, zodat zijn voeten niet glijden en elke
+// houding even lang staat. Het vel heeft 24 frames, maar de clip is 12 houdingen die elk twee keer staan (paren 1-2, 3-4,
+// ..., 23-0): we nemen de oneven frames. Vroeger kwam het frame uit het spoor (24 frames over 30 beelden): om en om 2 en
+// 3 beelden per houding, hakkelig.
+function gidsRenFrame(){
+  const u = ((mentor.renD || 0) / GIDS.pas) % 1;
+  return 2 * Math.floor(u * 12) + 1;
+}
+// De sprong in de lucht: de houding volgt zijn verticale snelheid, zoals Amir (afzet, stijgen, top, vallen), niet de tijd.
+// De clip van de gids zit van frame 24 tot 68 in dezelfde houding (knieen op, kleed uit): als film afgespeeld hing hij zo
+// de hele sprong in de lucht als een mediterende monnik. Nu: fase 0 is vol omhoog (GIDS.vMax), 0,5 de top, 1 vol omlaag,
+// en GIDS.lucht zet per soort sprong fase om in een frame (punten [fase, frame], ertussen lineair).
+function gidsLuchtFrame(anim, s, i){
+  const S = mentor.spoor, rij = (s === 0 ? S.start : S.segs[s - 1]).f, f = rij[i];
+  if (!f || f[8]) return null;                                    // op de grond: afzet en landing zoals het spoor ze geeft
+  const a = rij[Math.max(0, i - 1)], b = rij[Math.min(rij.length - 1, i + 1)];
+  const vy = (b[1] - a[1]) / Math.max(1, Math.min(rij.length - 1, i + 1) - Math.max(0, i - 1));
+  const fase = Math.max(0, Math.min(1, 0.5 - 0.5 * vy / GIDS.vMax));
+  const pt = GIDS.lucht[anim];
+  for (let k = 1; k < pt.length; k++){
+    if (fase <= pt[k][0] || k === pt.length - 1){
+      const [f0, a0] = pt[k - 1], [f1, a1] = pt[k], t = Math.max(0, Math.min(1, (fase - f0) / Math.max(1e-6, f1 - f0)));
+      return Math.round(a0 + (a1 - a0) * t);
+    }
+  }
+  return null;
 }
 function gidsKlaar(){ return gids && gids !== 'laden' && mentor && mentor.spoor; }
 // het frame van de gids nu: [anim, index]
@@ -28663,6 +28831,11 @@ function gidsNu(){
   const [s, i] = mentorPos();
   const rij = gids.spoor.segs[s];
   let [anim, af] = rij && rij[i] ? rij[i] : ['idle', -1];
+  if (anim === 'ren') return ['ren', gidsRenFrame()];
+  if (GIDS.lucht[anim] && i < rij.length){                       // in de lucht: de houding volgt zijn snelheid, zoals bij Amir
+    const lf = gidsLuchtFrame(anim, s, i);
+    if (lf != null) return [anim, lf];
+  }
   if (anim === 'idle'){
     const m = mentor, st = mentorStation(), V = gids.anims.verteller;
     if (m.fase === 'wacht' && st && st.zeg && m.t * GIDS.fps.verteller < V.n) return ['verteller', Math.floor(m.t * GIDS.fps.verteller)];
@@ -28679,6 +28852,7 @@ function gidsFx(dt){
   const m = mentor, f = mentorFrame(), [anim] = gidsNu();
   const v = m.fxVorig, x = f[0], h = f[1], grond = !!f[8], dir = f[7] ? 1 : -1;
   m.fxVorig = { anim, grond, x, bi: f[2] };
+  if (v) m.renD = (m.renD || 0) + Math.abs(x - v.x);             // afgelegde afstand, voor de renlus (gidsRenFrame)
   m.gidsRen = anim === 'ren' && grond ? (v && Math.abs(x - v.x) / Math.max(dt, 1e-3) > GIDS.geluid.sprint ? 2 : 1) : 0;
   if (!v) return;
   if (v.grond && !grond) puffWorld(x, 4, 0, 0.8, h);                                   // de afzet
@@ -28720,16 +28894,19 @@ function gidsRenGeluid(){
 function gidsTeken(f, sx, voet, scale){
   if (!gidsKlaar()) return false;
   const [anim, af] = gidsNu(), A = gids.anims[anim];
-  const im = A && mentorPlaat(A.src);
+  const im = A && gidsPlaat(A.src);
   if (!im) return false;
-  const [x, h, bi, dx, dy, dw, dh, fl] = f;
-  const [acx, aby, aw, ah] = gids.spoor.amir[bi];
-  const px = sx + (dx + (fl ? aw - acx : acx) * dw / aw) * scale, py = voet + (dy + aby * dh / ah) * scale;
-  const i = Math.max(0, Math.min(A.n - 1, af)), [gx, gy] = A.anker[i];
+  // Zijn voeten op zijn eigen plek: de x van het spoor en de hoogte waarop hij staat (voet), zijn anker het zwaartepunt
+  // van zijn silhouet (tools/gids_glad.py). Vroeger hing hij aan het anker van Amirs plaatje van dat moment: dan huppelde
+  // hij 30 tot 36 eenheden op en neer en schoof hij heen en weer op Amirs renritme, niet op dat van zijn eigen benen.
+  const fl = f[7], px = sx, py = voet;
+  // elk frame zijn eigen rechthoek in het vel (strak ingepakt): x, y, breed, hoog en het anker, in pixels van het grote vel;
+  // gids.px is hoeveel wereld-eenheden een pixel van het vel is, k hoeveel keer kleiner het geladen vel is (klein/: 2)
+  const i = Math.max(0, Math.min(A.n - 1, af)), [fx, fy, fw, fh, gx, gy] = A.f[i], k = im._bron || 1, u = (gids.px || 1) * scale;
   ctx.save();
   ctx.translate(px, py);
   if (fl) ctx.scale(-1, 1);
-  ctx.drawImage(im, (i % A.cols) * A.cw, Math.floor(i / A.cols) * A.ch, A.cw, A.ch, -gx * scale, -gy * scale, A.cw * scale, A.ch * scale);
+  ctx.drawImage(im, fx / k, fy / k, fw / k, fh / k, -gx * u, -gy * u, fw * u, fh * u);
   ctx.restore();
   return true;
 }
@@ -30555,7 +30732,9 @@ function amirVormBeeld(img){
 }
 function broekBeeld(basis, img, kl = broekNu(), cv = null, speer = null){
   if (!kl || !img || !(img instanceof HTMLImageElement)) return basis;
-  if (kl.skin){                                         // een outfit van Mkuki (MK_OUTFIT): het frame uit de skin
+  if (kl.skin && neerMk(img)){                          // de val van Mkuki (NEER): zijn eigen frame, geen skin ervoor
+    if (!kl.zones) return basis;                        // Outfit 1 is Mkuki zelf
+  } else if (kl.skin){                                  // een outfit van Mkuki (MK_OUTFIT): het frame uit de skin
     const mk = mkSkinVan(img, kl.skin);
     if (!mk) return basis;                              // niet in de skin (of nog niet geladen): het oude tenue
     // de losse speer (MK_LOS): de soort in zijn hand en de wind voor het vaantje (speer: mkSpeerNu, of van een teamgenoot)
@@ -30691,9 +30870,12 @@ function speerVooraf(soortId){
 // een doornbos. Je loopt tegen de schacht aan, dus we zoeken het dichtstbijzijnde stuk schacht
 // dat binnen bereik ligt en op jouw hoogte zit. Dat is meestal het stompe uiteinde.
 // In de hoogte geldt hetzelfde als eerst: van onderaf, of vanaf het platform waar hij zelf op staat.
+const SPEER_GREEP = { reik: 1.3, onder: 0.45, boven: 1.1 };   // het venster om een speer op te pakken (spearGreep, losBij)
 function spearGreep(){
   if ((spearFound && !(jav && jav.rug)) || spearX === null) return null;
-  const reik = javReach(), laag = ph - 30, hoog = ph + CHAR_H * 0.95;
+  // ruim genoeg dat je niet op de pixel hoeft te staan: opzij iets verder dan je lijf, in de hoogte een halve Amir
+  // onder je voeten (van een kraamdak naar de galerij ernaast) tot je hand boven je hoofd (SPEER_GREEP)
+  const reik = javReach() * SPEER_GREEP.reik, laag = ph - CHAR_H * SPEER_GREEP.onder, hoog = ph + CHAR_H * SPEER_GREEP.boven;
   if (!jav || javLost > 0){                     // de speer die in de grond staat: één punt, zoals eerst
     const h = spearRestH();
     return (Math.abs(world - spearX) < reik && h > laag && h < hoog) ? { x: spearX, h } : null;
@@ -40681,8 +40863,9 @@ function kivMuzStap(){
     if (a.paused){ try { const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
     a.volume = Math.max(0, Math.min(1, K.vol * kivSm(S.m)));
   } else if (!a.paused){ a.pause(); try { a.currentTime = 0; } catch (e) {} }
-  if (!bg.dempT && MUZIEK[muziekNu] && !MUZIEK[muziekNu].stil){                // de gewone muziek zakt zolang hij er is
-    const v = MUZIEK[muziekNu].vol * (1 - (1 - K.dempt) * kivSm(S.m)); if (Math.abs(bg.volume - v) > 0.002) bg.volume = Math.max(0, Math.min(1, v));
+  // de gewone muziek zakt zolang hij er is (niet tijdens een deurdemp of een lopende fade, die gaan zelf naar muzDoelVol)
+  if (!bg.dempT && !bg.fadeT && MUZIEK[muziekNu] && !MUZIEK[muziekNu].stil){
+    const v = muzDoelVol(); if (Math.abs(bg.volume - v) > 0.002) bg.volume = Math.max(0, Math.min(1, v));
   }
 }
 // voor (na de personages van het level, voor Amir): de marktman en de toonbank ervoor
@@ -41363,8 +41546,10 @@ const ISLOT = {
     mirrors: { naam: 'Oil of Mirrors',   img: 'items/kivuli/oil_of_mirrors.png' },
     klei:    { naam: 'Ketemba Clay',     img: 'items/kivuli/ketemba_clay.png' }
   },
-  // de wolk: blijft liggen waar je hem gooit; breed en hoog in Amir; een vijand die erin loopt is zoveel s blind (een keer per wolk)
-  bones: { duur: 6, blind: 2.5, breed: 1.15, hoog: 1.1, wolkPerS: 9, burst: 12, kleur: [250, 249, 245], rand: [205, 203, 198], a: 0.4 },
+  // de wolk: blijft liggen waar je hem gooit; breed en hoog in Amir. Hij verblindt geen vijanden meer.
+  // Een speler in de wolk (Amir of een teamgenoot) is voor schutters niet goed te zien: elk projectiel mist hem (islotInWolk).
+  // De wolk is anderhalf keer zo groot als eerst (1,15 en 1,1), met meer en grotere plukken (deelR) zodat hij net zo dicht oogt
+  bones: { duur: 6, breed: 1.725, hoog: 1.65, wolkPerS: 14, burst: 18, deelR: 1.25, kleur: [250, 249, 245], rand: [205, 203, 198], a: 0.4 },
   // de slang: zoveel beten en dan weg; snelheid in Amir per s, het bereik van een beet en hoe lang een beet duurt
   fangs: { beten: 5, v: 1.25, reik: 0.55, beetT: 0.62, beetFrame: 5, zoek: 6, maxT: 20, zak: 0.32 },
   // de mieren: een muur van zoveel Amir aan elke kant van de kalebas; vijanden gaan er niet overheen, wie erin staat deinst terug
@@ -41380,7 +41565,7 @@ const ISLOT = {
 };
 // de teksten in de winkel en de inventory (de uitleg en het citaat koos de opdrachtgever)
 const MPC_WINKEL_KIV = {
-  bones:   { uitleg: 'Throw it down. A cloud of stinking bone dust surrounds you. Enemies that walk in are blinded.', sfeer: 'Crushed bones from... oh boy.' },
+  bones:   { uitleg: 'Throw it down. A cloud of stinking bone dust surrounds you. Nothing enemies throw or shoot can find you or your teammates inside.', sfeer: 'Crushed bones from... oh boy.' },
   fangs:   { uitleg: 'Set the sack down. A snake slithers out and strikes the nearest enemy. It leaves after five bites.', sfeer: "Don't open it near your feet." },
   ants:    { uitleg: "Set the jar down. Fire ants swarm the ground. Enemies won't cross them, and those caught inside fall back. Arrows and spears fly over.", sfeer: 'An ant bites. A fire ant burns.' },
   mirrors: { uitleg: "Drink it and vanish from your enemies' eyes. They roam around searching for you and do not strike. Attacking breaks the spell.", sfeer: 'Liquid glass from the Temple of Kemara.' },
@@ -41413,6 +41598,14 @@ function islotGeluid(k, vol){
   const a = bron.cloneNode(); geluidAan(a); a.volume = Math.max(0, Math.min(1, vol)); a.play().catch(() => {});
 }
 const islotA = () => CHAR_H * nowScale();           // een Amir in wereld-x
+// staat iemand op (x, h) in een wolk van Sack o' Bones? Dan mist elk projectiel hem (bout, dolk, gif, vogel). De wolken
+// liggen bij iedereen (islotStart), en elke speler beslist zelf of een projectiel hem raakt, dus dit geldt ook voor een teamgenoot
+function islotInWolk(x, h){
+  if (!islotFx.length) return false;
+  const B = ISLOT.bones, R = B.breed * islotA();
+  for (const e of islotFx) if (e.k === 'bones' && e.t < B.duur && Math.abs(x - e.x) < R && Math.abs((h || 0) - e.h) < CHAR_H * B.hoog) return true;
+  return false;
+}
 function islotMij(){ return pvp ? pvp.mij : 0; }
 function islotGezag(){ return !(pvp && pvp.coop) || !!pvp.host; }
 function islotIets(){ return ISLOT.dingen.some(k => islotTas[k] > 0) || islot[0] || islot[1]; }
@@ -41586,15 +41779,9 @@ function islotStap(dt){
         const n = e.t < 0.4 ? B.burst * dt / 0.4 : B.wolkPerS * dt;
         e.acc += n;
         while (e.acc >= 1){ e.acc--; const a = Math.PI + Math.random() * Math.PI, r = Math.random() * R, vers = e.t < 0.4;
-          e.deel.push({ x: e.x + Math.cos(a) * r, hh: Math.abs(Math.sin(a)) * r / nowScale() * 0.7 + 4, r: 16 + Math.random() * 16,
+          e.deel.push({ x: e.x + Math.cos(a) * r, hh: Math.abs(Math.sin(a)) * r / nowScale() * 0.7 + 4, r: (16 + Math.random() * 16) * B.deelR,
                         vx: (Math.random() - 0.5) * 24 + (vers ? Math.cos(a) * 120 : 0), vh: 2 + Math.random() * 12, t: 0, leven: 1.6 + Math.random() * 1.0 }); }
-        if (gezag) for (const S of STOF_SOORTEN) for (const s of S.lijst()){
-          if (e.geraakt.has(s) || !S.mag(s)) continue;
-          if (Math.abs(s.x - e.x) > R || Math.abs((s.base || 0) - e.h) > CHAR_H * B.hoog) continue;
-          e.geraakt.add(s);
-          if (s.verblind > 0) continue;                         // al blind: niet opnieuw en niet langer
-          stofRaak(s, S); s.verblind = B.blind;
-        }
+        // de wolk verblindt niet meer (op verzoek): hij laat alleen de projectielen missen (islotInWolk)
       }
       for (let j = e.deel.length - 1; j >= 0; j--){ const d = e.deel[j]; d.t += dt; d.x += d.vx * dt; d.vx *= 0.97; d.hh += d.vh * dt; if (d.t > d.leven) e.deel.splice(j, 1); }
       if (e.t > B.duur && !e.deel.length) islotFx.splice(i, 1);
@@ -44351,6 +44538,83 @@ function ravijnGrasTeken(fx, groundY, op){
   ctx.drawImage(grasLaag, bx0, by0, bw, bh);
   ctx.restore();
 }
+// ---- neer: de val van Amir (Co-op: neer en wachten op de revive; single player: sterven) ----
+// Amir grijpt naar zijn zij, zakt door zijn knieen, leunt op een onderarm en glijdt neer op zijn zij; het laatste frame is
+// de neer-pose en blijft staan (notities/neer.md). Twee sets met elk een eigen beweging en een eigen aantal frames (eigen
+// Grok-clips), dus NIET via mkSkinVan als skin van elkaar: Mkuki (de speer, `mk`) en de stokken-Amir in het klassieke tenue
+// (`stok`). Welke set: een outfit van Mkuki (MK_OUTFIT, skin) is `mk`, de rest (de stoktribe, de oude broeken) `stok`.
+// Omkleuren: `mk` met de zonekaarten ernaast (<frame>_zones.png, tools/neer_zones.py) via mkLap, `stok` met de maskers van
+// tools/vacht_bak.js (karakters/amir_vacht/beweging/neer/) via broekLap. Over het netwerk gaat het beeld zelf mee (pvpVang:
+// het pad van het frame), dus een teamgenoot ziet dezelfde val op hetzelfde moment, in zijn eigen kleuren.
+const NEER = {
+  sets: {
+    mk:   { map: 'karakters/amir/mkuki_spel/beweging/neer/', n: 46, ms: i => i <= 20 ? 42 : 63 },
+    stok: { map: 'karakters/amir/beweging/neer/',            n: 57, ms: i => i <= 21 ? 42 : 50 } },
+  scherm: 0.35,     // single player: zo lang (s) na het laatste frame komt het doodscherm
+  sbLig: 1.6        // de sandbox (Fall: Mkuki, Fall: sticks): zo lang (s) blijft hij liggen voor hij weer opstaat
+};
+const neerBank = {};                                // set -> [Image]
+let neer = null;                                     // { set, t, i, scherm }: de val die nu loopt (alleen als dead)
+function neerLaad(set){
+  if (!NEER.sets[set] || neerBank[set]) return;
+  const S = NEER.sets[set];
+  neerBank[set] = Array.from({ length: S.n }, (_, i) => loadQuiet(uniq([KLEIN + S.map, S.map]).map(d => d + 'neer_' + (i < 10 ? '0' : '') + i + '.png')));
+}
+function neerLaadLevel(){ if (pvp) { neerLaad('mk'); neerLaad('stok'); } else neerLaad(neerSetNu()); }
+function neerSetVan(kl){ return kl && kl.skin ? 'mk' : 'stok'; }
+function neerSetNu(){ return neerSetVan(broekNu()); }
+function neerDuur(set){ const S = NEER.sets[set]; let t = 0; for (let i = 0; i < S.n; i++) t += S.ms(i); return t / 1000; }
+// het frame bij de tijd t (s): de ms per frame verschillen per stuk (eerst snel, dan rustiger neerglijden)
+function neerFrame(set, t){
+  const S = NEER.sets[set]; let ms = t * 1000;
+  for (let i = 0; i < S.n; i++){ ms -= S.ms(i); if (ms < 0) return i; }
+  return S.n - 1;
+}
+// Amir gaat neer: dead, en de val begint. lig: meteen de neer-pose, zonder val (in een ravijn gestort). In single player
+// komt het doodscherm pas na de val (neerStap); ontbreken de frames nog, dan meteen, zoals vroeger
+function amirSterf(lig){
+  dead = true;
+  const set = neerSetNu(); neerLaad(set);
+  const B = neerBank[set];
+  neer = B && imgReady(B[0]) && imgReady(B[B.length - 1]) ? { set, t: lig ? neerDuur(set) : 0, i: lig ? NEER.sets[set].n - 1 : 0, scherm: false } : null;
+  if (pvp) return;                                   // Co-op en Duel: geen doodscherm (pvpStap)
+  if (!neer || lig){ deadEl.classList.add('on'); if (neer) neer.scherm = true; }
+}
+function neerStap(dt){
+  if (!dead){ neer = null; if (!sandbox && running) neerLaad(neerSetNu()); return; }   // de set van nu klaar hebben (de wapenkeuze kan wisselen)
+  if (!neer) return;
+  neer.t += dt;
+  neer.i = neerFrame(neer.set, neer.t);
+  if (neer.sb && neer.t >= neerDuur(neer.set) + NEER.sbLig){ dead = false; neer = null; return; }   // de sandbox: weer opstaan
+  if (!pvp && !neer.scherm && neer.t >= neerDuur(neer.set) + NEER.scherm){ neer.scherm = true; deadEl.classList.add('on'); }
+}
+// de sandboxknoppen: de val met een gekozen set, zonder doodscherm, en daarna weer opstaan
+function neerSandbox(set){
+  if (!sandbox || dead) return;
+  neerLaad(set);
+  dead = true; hurt = 0; atkFrame = -1; thr = null;
+  neer = { set, t: 0, i: 0, scherm: true, sb: true };
+}
+// het beeld van de val voor Amir zelf, of null (niet neer, of nog niet geladen: dan het oude beeld)
+function neerBeeld(){
+  if (!dead || !neer) return null;
+  const B = neerBank[neer.set]; if (!B) return null;
+  for (let i = neer.i; i >= 0; i--) if (imgReady(B[i])) return B[i];   // een frame dat nog laadt: het vorige
+  return null;
+}
+// een frame uit de val (ook dat van een teamgenoot, op zijn pad): dan ligt hij al, en draait mpcLig hem niet om
+function neerIs(im){
+  const s = typeof im === 'string' ? im : im && im.src;
+  return typeof s === 'string' && /beweging\/neer\/neer_\d+\.png$/.test(s);
+}
+// een frame van Mkuki zelf (niet via de skin): het eigen frame kleurt om met zijn zonekaart (broekBeeld)
+const neerMkCache = new WeakMap();
+function neerMk(im){
+  if (!(im instanceof HTMLImageElement)) return false;
+  let v = neerMkCache.get(im);
+  if (v === undefined){ v = /mkuki_spel\/beweging\/neer\/neer_\d+\.png$/.test(SKIN_SRC.get.call(im) || ''); neerMkCache.set(im, v); }
+  return v;
+}
 function fallDeath(){
   if (dead) return;
   if (mentorVal()) return;                         // de tutorial: terug naar het begin van het station
@@ -44361,7 +44625,7 @@ function fallDeath(){
   }
   tlogBron('val');
   lives = 0; drawLives();
-  dead = true; deadEl.classList.add('on'); shake = 0.3;
+  amirSterf(true); shake = 0.3;                   // in het ravijn: meteen de neer-pose, geen val (NEER)
 }
 
 function supportHeight(plats, halfW){          // waar je voeten steun vinden
@@ -46066,7 +46330,7 @@ function valLand(diep){
   if (schijnDoodVang(n)) return;                    // Feign Death vangt ook een dodelijke val
   if (dodelijk){ fallDeath(); return; }             // alle levens weg, ongeacht hoeveel je er had
   lives = Math.max(0, lives - n); drawLives();
-  if (lives <= 0){ dead = true; deadEl.classList.add('on'); }
+  if (lives <= 0) amirSterf();                   // de val (NEER), daarna het doodscherm
 }
 
 // ---- Amir zegt er iets van als hij geraakt wordt --------------------------
@@ -46187,7 +46451,7 @@ function hurtPlayer(fromLeft, schade = 1){           // schade: hoeveel levens d
   if (!onsterfelijk() && schijnDoodVang(schade)){ hurt = 0.38; shake = 0.28; return; }   // Feign Death
   if (!onsterfelijk()){ lives = Math.max(0, lives - schade); drawLives(); if (trance) straalTranceSchade += schade; }   // een level kan je onsterfelijk maken om iets te proberen
   invuln = 1.3; hurt = 0.38; shake = 0.28;
-  if (lives <= 0){ dead = true; deadEl.classList.add('on'); }
+  if (lives <= 0) amirSterf();                   // de val (NEER), daarna het doodscherm
 }
 // ---- warming-up: vooraf bakken tegen schokken ----------------------------
 // Veel sprites worden pas bij hun eerste aanblik gebakken (onscherp gemaakt, omgekleurd, de omtrek
@@ -46993,7 +47257,7 @@ function updateVenom(dt, scale){
     const px = cxWorld() + (v.x - world);
     const hitBody = Math.abs(v.x - world) < PLAYER_HALF_W * CHAR_H * scale + 10 * scale
                  && v.h > ph && v.h < ph + CHAR_H * duckShare;
-    if (hitBody && invuln <= 0 && !dead){
+    if (hitBody && invuln <= 0 && !dead && !islotInWolk(world, ph)){   // in de wolk van Sack o' Bones mist het gif
       if (v.knock) knockVenomRaak(v.x < world);    // de knockslang: geen schade, wel terugstoot
       else hurtPlayer(v.x < world);
       makeSplat(v.x, v.h, v.knock); venom.splice(i, 1); continue;
@@ -51330,7 +51594,7 @@ function updateVogels(dt){
       vogelAnim(v, dt);
       // raakt hij Amir, dan een leven eraf en weg; raakt hij de grond of duurt het te lang, dan kapot
       const hx = VOGEL_RAAK / vz + 32, hh = VOGEL_RAAK / (sc * vz);
-      if (!dead && invuln <= 0 && !godMode && !woedeAan()
+      if (!dead && invuln <= 0 && !godMode && !woedeAan() && !islotInWolk(playerX(), ph)
           && Math.abs(v.x - playerX()) < hx && v.h + hh > ph && v.h - hh < ph + CHAR_H){
         hurtPlayer(v.vx > 0, v.duel ? 0.5 : 1); v.weg = true;    // de duel-vogel doet een half leven
       } else if (v.h <= vloerBij(v.x, v.h)){ v.h = vloerBij(v.x, v.h); vogelKapot(v); }   // de grond, of een dak of galerij van de stad
@@ -52885,7 +53149,10 @@ function banScheidHouding(s){
 }
 function updateBandiet(s, dt, plats, cliff){
   if (achterMasker(s.x, s.base) || s.sneakVast) return;                     // bevroren achter een masker dat er nog ligt
-  if (ravijnValt(s, dt, 'weg')) return;              // in het open ravijn gevallen
+  if (ravijnValt(s, dt, 'weg')){                     // in het open ravijn gevallen
+    if (s.ravijnVal && s.ravijnVal.b0 != null) s.alpha = Math.max(0, 1 + (s.base - s.ravijnVal.b0) / STOK_RAND.vervaag);   // van de rand geslagen (STOK_RAND): hij vervaagt in de diepte
+    return;
+  }
   if (s.vFade != null && s.vFade < 1) s.vFade = Math.min(1, s.vFade + dt / DEUR.verschijn);   // uit de deuropening: faadt uit het donker op
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
@@ -52963,12 +53230,13 @@ function updateBandiet(s, dt, plats, cliff){
   // de terugstoot van een treffer dooft uit
   if (s.knock !== 0){
     if (!banMove(s, s.knock * dt, plats, cliff)){
+      if (s.randVal && banRandVal(s, Math.sign(s.knock))) return;   // gestund en geraakt aan de rand van een ravijn: hij slaat erin (STOK_RAND)
       // de draaislag aan de rand van een galerij of dak: hij slaat eraf, als hij beneden veilig neerkomt (FC_VAL)
       const L = s.fcVal ? fcValLanding(s, Math.sign(s.knock), BAN_LIJF.half * banScale(), plats, cliff) : null;
       s.knock = 0; s.fcVal = false;
       if (L){ fcValStart(s, L); return; }
     }
-    else { s.knock *= Math.pow(0.02, dt); if (Math.abs(s.knock) < 4){ s.knock = 0; s.fcVal = false; } }
+    else { s.knock *= Math.pow(0.02, dt); if (Math.abs(s.knock) < 4){ s.knock = 0; s.fcVal = false; s.randVal = false; } }
   }
 
   // de galerijsprong van de chaser (zie BAN_GJ): aan de rand hurken, afzetten, vallen, landen, opkijken
@@ -53205,7 +53473,7 @@ function banPareer(s, vonkWx, vonkY){
 function hitBandiet(s){
   const doorDekking = (atkCombo || stokDoor()) && atkFrame >= 0 && steekLive();   // de derde slag (COMBO) en de counter met de stokken slaan door zijn dekking heen
   const gjLucht = banGjLucht(s);                   // in de galerijsprong van de chaser: wel te raken (op verzoek van de opdrachtgever)
-  if ((s.inv > 0 && !doorDekking) || s.state === 'dood' || s.state === 'vault' || (s.air > 0 && !gjLucht)) return false;   // in de lucht (de vault, van boven neerkomend) is hij niet te raken
+  if (s.ravijnVal || (s.inv > 0 && !doorDekking) || s.state === 'dood' || s.state === 'vault' || (s.air > 0 && !gjLucht)) return false;   // in de lucht (de vault, van boven neerkomend) is hij niet te raken
   if (razAan(s) && !gifTikNu) return false;          // razend (zie RAZ): niets komt erdoor, ook de derde slag en de tweede speer niet
   if (comboX){                                     // de duw (DUW): geen schade, alleen ver terug en even stil
     if (s.duwId === duwId) return false;            // een keer per duw
@@ -53234,11 +53502,15 @@ function hitBandiet(s){
   if (s.bloed) s.bloedWacht = true;                   // bloed: de val loopt op tot het reel-frame, dan spuit het bloed uit zijn borst
   banSterf();                                         // zijn doodskreet
   puffWorld(s.x, 6, 0, 0.9, s.base || 0);
+  banDoodTel(s);
+  return true;
+}
+// een bandiet is dood: de tellers (golf, arena, kill, aanvoerder). Ook voor wie in een ravijn geslagen is (banRandVal)
+function banDoodTel(s){
   if (level && level.bandietGolf) golfKill();
   if (arenaAap && arenaAap.ban) arenaAap.kills++;              // de teller van de bandiet-arena (ook de takel-passagiers)
   vijandDood(false, s);
   if (s.aanvoerder) aanvoerderDood(s);               // de aanvoerder: het level is uit of de eindpoort gaat open
-  return true;
 }
 
 // ---- de razernij van de aanvoerder: een meter die oploopt, dan even razend, dan uitgeput ----
@@ -59737,7 +60009,7 @@ function fosforBijt(s){
   tlogBron('fosforBijt');
   if ((!sandbox || sbArena) && !onsterfelijk() && !schijnDoodVang(FOSFOR.schade)){   // Feign Death vangt de laatste beet; in de arena-modus kost de beet ook een leven
     lives = Math.max(0, lives - FOSFOR.schade); drawLives();
-    if (lives <= 0){ dead = true; deadEl.classList.add('on'); }
+    if (lives <= 0) amirSterf();                   // de val (NEER), daarna het doodscherm
   }
   fosforVersteen(s, FOSFOR.steenNaBeet);
   if (s.groep) for (const o of s.groep.leden)
@@ -62164,6 +62436,7 @@ function loop(now){
   zhStap(dt);                                       // Silver Pride: het hart, de uitbarsting en Tau (ZH)
   islotStap(dt);                                    // de spullen van Kivuli: wolk, slang, mieren, spiegels, klei (ISLOT)
   reviveZelfStap(dt);                               // Co-op: dood met een hart of de veren in de tas, die brengen je terug
+  neerStap(dt);                                     // de val van Amir: neer (Co-op) of sterven (NEER)
   if (atkFrame >= 0 && atkStok) stokStap(dt);                       // de stokken lopen op hun eigen ms per beeld (STOK)
   else if (atkFrame >= 0 && atkCombo) comboStap(dt);               // de derde slag loopt op zijn eigen ticks
   else if (atkFrame >= 0){
@@ -62563,7 +62836,8 @@ function loop(now){
     // stil op de rand van een trede, met de speer: de trappose (AMIR_TRAP)
     const trapNu = (!moving && !attacking && onGround && set === sets.sp && !mesInHand() && amirSteen <= 0 && !dead)
       ? amirTrapPose(scaleNow, autoFlip && facing === 1, pWorld) : null;
-    const img = useSneak ? snkImg : useStof ? stofImg : useShove ? shoveImg : useRolW ? rwImg : useRol ? rolImg
+    const neerImg = neerBeeld(), useNeer = !!neerImg;   // neer (Co-op) of gestorven: de val en de neer-pose (NEER)
+    const img = useNeer ? neerImg : useSneak ? snkImg : useStof ? stofImg : useShove ? shoveImg : useRolW ? rwImg : useRol ? rolImg
               : useThrow ? thrImg
               : useJump ? jimg
               : useSweep ? swImg
@@ -62574,7 +62848,7 @@ function loop(now){
               : (attacking ? (atkMes ? sets.ns.idle : atkImgs[atkFrame])   // het mes: stilstaand, het mes doet de steek
                            : (moving ? set.run[frame] : (trapNu ? trapNu.img : idleTenue(set))));
     // het mes in zijn hand: bij een steek, stilstaand of lopend (in een sprong, gebukt of kruipend zit het weg)
-    const mesHand = !mesInHand() || amirSteen > 0 || useStok ? null
+    const mesHand = !mesInHand() || amirSteen > 0 || useStok || useNeer ? null
                   : attacking && atkMes ? mesSteekHand(Math.min(atkFrame, MES.steek.length - 1))
                   : (useStof || useShove || useRol || useThrow || useJump || useSweep || useCrawl || useDuck || attacking) ? null
                   : moving ? MES.hand.loop[frame % MES.hand.loop.length] : houding.aan ? MES.hand.dreig : MES.hand.stil;
@@ -62589,7 +62863,11 @@ function loop(now){
                : -ph * scale + sinkPx;            // hoogte boven de grond
     gkGrondTeken(cx, scale, groundY);                      // de grondklap: de bult in de vloer, voor Amir (GK)
     let w, h, x, y;
-    if (useSneak){
+    if (useNeer){
+      // de val: het canvas van de idle (594x301), de voeten op dezelfde plek (NEER)
+      w = SPR_W * scale; h = SPR_H * scale;
+      x = pcx - w / 2; y = groundY - SPR_GROUND * scale + lift;
+    } else if (useSneak){
       // de sluipaanval: het canvas uit metadata.json op de schaal van de bukkenspeer, met het lijfmidden op pcx; gespiegeld
       // wordt om het hele canvas gespiegeld, dus dan ligt het lijfmidden aan de andere kant
       const js = JMP_S * scale;
@@ -63089,8 +63367,8 @@ function loop(now){
     if (pvp) pvpVang(img, x, y, w, h, useThrow ? thrFlip() : (autoFlip && facing === 1), pcx, groundY + lift, scale);   // PvP: dit beeld gaat naar de ander
     if (!moving && !attacking && onGround && !useDuck && !useCrawl && !dead && zhEigenK >= 1 && !bnActief()) zhVang(img, x, y, w, h, false, pcx, groundY + lift, scale);   // Test 91: zo staat de oefenteamgenoot
     if (mentorOpname) mentorOpname(img, x, y, w, h, useThrow ? thrFlip() : (autoFlip && facing === 1), pcx, groundY + lift, scale);   // de opname van de mentor (tools/mentor_opname.js)
-    if (pvp && pvp.coop && dead) mpcLig(w, h, groundY + lift - y, onGround && mpcLigHoog(playerX(), ph));   // Co-op: wie dood is ligt, tot de revive
-    if (useStok){ stokSlipStap(x, y, w, h, autoFlip && facing === 1); stokSlipTeken(true, w, h, autoFlip && facing === 1); }   // de slippen van een stok achter hem
+    if (pvp && pvp.coop && dead && !useNeer) mpcLig(w, h, groundY + lift - y, onGround && mpcLigHoog(playerX(), ph));   // Co-op: wie dood is ligt, tot de revive (de val van NEER ligt al zelf)
+    if (useStok && !useNeer){ stokSlipStap(x, y, w, h, autoFlip && facing === 1); stokSlipTeken(true, w, h, autoFlip && facing === 1); }   // de slippen van een stok achter hem
     const amirNu = hurt > 0 && amirSteen <= 0 ? amirRood(amirBeeld, Math.min(0.75, hurt * 2)) : amirBeeld;
     ctx.drawImage(amirNu, 0, 0, w, h);
     if (gifHits > 0 && mkGifPunt && mkGifPunt.cv === amirBeeld && !amirWeg){   // de speer in zijn hand: van framepixels naar het scherm (gifDrup)
@@ -63098,7 +63376,7 @@ function loop(now){
       gifBron.lijst.push(mkGifPunt.pts.map(p => T.transformPoint(new DOMPoint(p.x * w / W0, p.y * h / H0))));
     }
     if (beetKnipX === null) amirHerZet(amirNu, ctx.globalAlpha, w, h, groundY, scale, cx); else amirHer = null;   // voor lijkAchterAmir, op een eigen doek
-    if (useStok) stokSlipTeken(false, w, h, autoFlip && facing === 1);   // en die van een stok ervoor
+    if (useStok && !useNeer) stokSlipTeken(false, w, h, autoFlip && facing === 1);   // en die van een stok ervoor
     if (gloed > 0){ ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; }
     if (mesHand) mesTeken(mesHand, scale);            // het mes, over zijn hand heen (gespiegeld mee)
     ctx.restore();
@@ -63912,7 +64190,7 @@ function loop(now){
             if (v){ krbPijlen.splice(i, 1); continue; }  // gevangen: hij zit nu in de huid (amirSchild.bouten)
           }
         }
-        if (b.st === 'vlieg' && !b.terug && invuln <= 0 && !dead && !godMode && !woedeAan()){
+        if (b.st === 'vlieg' && !b.terug && invuln <= 0 && !dead && !godMode && !woedeAan() && !islotInWolk(world, ph)){   // in de wolk van Sack o' Bones mist hij
           const ox = cx + (b.px - world), oy = groundY - b.ph * scale;   // het hele stuk van dit beeld, zodat hij niet door Amir heen schiet
           const box = { l: Math.min(ox, dx) - r, r: Math.max(ox, dx) + r, t: Math.min(oy, dy) - r, b: Math.max(oy, dy) + r };
           if (hitBy(box, pbox)){
@@ -64281,7 +64559,7 @@ function loop(now){
       for (let i = banDolken.length - 1; i >= 0; i--){
         const d = banDolken[i];
         const dx = cx + (d.x - world), dy = groundY - d.h * scale;
-        if (!d.stuck && invuln <= 0 && !dead && !godMode && !woedeAan()){   // raakt hij Amir?
+        if (!d.stuck && invuln <= 0 && !dead && !godMode && !woedeAan() && !islotInWolk(world, ph)){   // raakt hij Amir? (in de wolk van Sack o' Bones niet)
           const r = BAN_DOLK.r * dscol, dbox = { l: dx - r, r: dx + r, t: dy - r, b: dy + r };
           if (hitBy(dbox, pbox)){ tlogHint('bandietdolk'); hurtPlayer(d.vx > 0); banDolken.splice(i, 1); continue; }
         }
@@ -66180,6 +66458,7 @@ function laadLevel(lv){
   slangLaadLevel(lv); scpLaadLevel(lv); hyLaadLevel(lv); panLaadLevel(lv);
   rolTenueLaadLevel(lv);                           // de rol in een ander tenue (Test 85)
   skinZet(lv.skin);                                // Amir het hele level in een ander tenue (SKIN, Test 88)
+  neerLaadLevel();                                 // de val van Amir, voor als hij neergaat (NEER)
   npcLaadLevel(lv); dorpLaadLevel(lv);
   banLaadLevel(lv);                                // de bandiet-frames als dit level ze gebruikt
   kooiLaadLevel(lv);                               // de kooiman-frames als dit level hem gebruikt
@@ -67852,7 +68131,7 @@ document.getElementById('btnTutorial').onclick = () => { setLevel(0, TUT_LEVELS)
 // Bij de eerste start kiest de speler op het rolscherm (menuRol) Tester (met zijn naam) of, klein linksonder, Designer.
 // De keuze blijft per apparaat bewaard; onder Settings staat wie je bent, met Switch. Een tester stuurt per poging op een
 // level een regel naar de Google Sheet "Amir testers log" via de Apps Script web-app (TLOG.url): bij uitspelen, doodgaan,
-// herstarten, terug naar het menu of het tabblad dicht. De designer en de sandbox loggen niets. Een regel die niet aankomt
+// herstarten, terug naar het menu of het tabblad dicht. De designer logt ook (als "designer", voor de highscores, HS); de sandbox logt niets. Een regel die niet aankomt
 // (offline) wacht in localStorage (TLOG.rijKey) en gaat mee met de volgende. Velden die geen kolom zijn zet het script in
 // `extra`. Uitleg en de kolommen: claude/tester_logging.md in het project.
 var TLOG = {
@@ -67866,7 +68145,9 @@ var tlog = { potje: null, sessie: Math.random().toString(36).slice(2, 8), doden:
 function tlogLees(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
 function tlogZet(k, v){ try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
 function tlogRol(){ return tlogLees(TLOG.rolKey); }                                  // 'tester', 'designer' of null
-function tlogAan(){ return tlogRol() === 'tester' && !!tlogLees(TLOG.naamKey); }
+// de designer logt ook (de enige, als 'designer'), zodat zijn potjes in de highscores staan (HS); een tester met zijn naam
+function tlogAan(){ return tlogRol() === 'designer' || (tlogRol() === 'tester' && !!tlogLees(TLOG.naamKey)); }
+function tlogWie(){ return tlogRol() === 'designer' ? 'designer' : tlogLees(TLOG.naamKey); }
 function tlogNaamNorm(t){ return String(t || '').toLowerCase().replace(/\s+/g, '').slice(0, 20); }
 function tlogApparaat(){
   let id = tlogLees(TLOG.idKey);
@@ -67878,7 +68159,7 @@ function tlogRijZet(r){ tlogZet(TLOG.rijKey, r.length ? JSON.stringify(r.slice(-
 // een regel erbij en de wachtrij legen; beacon: het tabblad gaat dicht, dan alles in een keer met sendBeacon
 function tlogStuur(velden, beacon){
   if (!tlogAan()) return;
-  const tester = tlogLees(TLOG.naamKey);
+  const tester = tlogWie();
   const gezien = TLOG.nieuwKey + tester;
   const nieuw = !tlogLees(gezien);
   if (nieuw) tlogZet(gezien, '1');
@@ -67949,7 +68230,7 @@ function tlogCoop(){
   if (!mpCoopAan()) return {};
   const C = pvp.coop;
   return { ronde: C.ronde, score: C.score, kaart: typeof mpcVersieNu !== 'undefined' ? mpcVersieNu : '', spelers: pvp.spelers ? pvp.spelers.length : 0,
-           host: !!pvp.host, ...(C.ep ? { epLevel: C.ep.i + 1 } : {}) };
+           host: !!pvp.host, map: (pvp.regels && pvp.regels.kaart) || 'dye', team: hsTeam(), ...(C.ep ? { epLevel: C.ep.i + 1 } : {}) };
 }
 // wie Amir het laatst raakte: de naam van de functie die hurtPlayer aanriep (updateBandiet, schbSlag, ...), of zelf meegegeven
 function tlogBron(naam){
@@ -68161,6 +68442,91 @@ function tlogCoopEind(e){
   }, tlogVast({})));
   tlogFbToon('Game over, round ' + e.ronde);
 }
+
+// ---- highscores per team in Co-op Survival (HS) ----
+// Elk team is een combinatie van spelers: de namen uit de lobby (mpSpelerNoem), op het alfabet, met ' + ' ertussen; alleen
+// spelen is een team van een. De regel "eind" van de tester-log (en van de designer) krijgt `team` en `map` mee, en de Apps
+// Script houdt op het tabblad Highscores per team de beste score bij. ?actie=scores geeft die lijst terug: het eindscherm
+// toont de beste van dit team en het record van iedereen, en onder Multiplayer staat het hele overzicht (High scores).
+// Logt niemand in het team (geen tester of designer), dan komt het potje er niet in. De Co-op episode telt niet mee.
+// Het Apps Script-stuk staat in notities/highscores.md.
+var HS = { lijst: null, voor: null, t: 0, bezig: null, max: 50 };
+function hsTeam(){
+  if (!pvp || !pvp.spelers) return '';
+  // zonder naam in de lobby is mijn naam die van de tester-log, anders zou het de naam van de outfit zijn (die delen er velen)
+  const eigen = q => q === pvp.mij && !(pvp.naam && pvp.naam[q]) && tlogRol() === 'tester' && tlogLees(TLOG.naamKey);
+  return pvp.spelers.map(q => eigen(q) || mpSpelerNoem(q) || '?').sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())).join(' + ');
+}
+function hsSleutel(t){ return String(t || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+// de lijst van de Sheet, hooguit eens per 15 s opnieuw; cb krijgt de lijst (of null zonder verbinding)
+function hsVraag(cb, nu){
+  if (!nu && HS.lijst && Date.now() - HS.t < 15000){ cb(HS.lijst); return; }
+  if (!HS.bezig) HS.bezig = fetch(TLOG.url + '?actie=scores&sleutel=' + encodeURIComponent(TLOG.sleutel))
+    .then(a => a.json()).then(a => { HS.bezig = null; if (a && a.ok && Array.isArray(a.scores)){ HS.lijst = a.scores; HS.t = Date.now(); } return HS.lijst; })
+    .catch(() => { HS.bezig = null; return HS.lijst; });
+  HS.bezig.then(cb);
+}
+// het potje dat net klaar is erbij, ook als de Sheet het nog niet heeft (de regel kan nog in de wachtrij staan)
+function hsMetEigen(lijst, e){
+  const l = (lijst || []).map(x => Object.assign({}, x)), team = hsTeam(), k = hsSleutel(team);
+  if (!e || !team) return l;
+  const m = l.find(x => hsSleutel(x.team) === k);
+  if (!m) l.push({ team, score: e.score, ronde: e.ronde, kills: e.kills, nieuw: true });
+  else if (e.score > (+m.score || 0)) Object.assign(m, { score: e.score, ronde: e.ronde, kills: e.kills, nieuw: true });
+  return l.sort((a, b) => (+b.score || 0) - (+a.score || 0));
+}
+// de beste van dit team in de Sheet zoals hij was voor het potje (HS.voor), gevraagd bij de start (mpCoopStart). Bij het
+// einde vragen is te laat: de regel van dit potje kan er dan al in staan, en dan lijkt een nieuwe high score gelijk
+function hsVoorVraag(){ HS.voor = null; if (tlogAan()) hsVraag(l => { HS.voor = l; }, true); }
+// op het eindscherm van Co-op Survival een regel high score en een regel record. De high score is die van dit team uit de
+// Sheet (solo: je eigen naam, op elk apparaat dezelfde). Logt hier niemand, of is er geen verbinding, dan die van dit
+// apparaat (lokaal, mpcEindSleutel) met "on this device" erbij, zodat altijd duidelijk is welke het is
+function hsEindToon(e, lokaal, hoog, rec){
+  const regel = (t, k) => { hoog.textContent = t; hoog.className = k; };
+  const opApparaat = () => { mpcHighRegel(regel, e.score, lokaal, 'High score on this device'); if (e.score <= lokaal) hoog.textContent += ' (this device)'; rec.remove(); };
+  if (!tlogAan()){ opApparaat(); return; }
+  const team = hsTeam();
+  const toon = lijst => {
+    if (!lijst){ opApparaat(); return; }
+    const m = lijst.find(x => hsSleutel(x.team) === hsSleutel(team));
+    mpcHighRegel(regel, e.score, m ? +m.score || 0 : 0, pvp.solo ? 'Your high score' : 'High score of ' + team);
+    const l = hsMetEigen(lijst, e), top = l[0];
+    if (!top || e.score <= 0 && !(+top.score > 0)) { rec.remove(); return; }
+    rec.textContent = hsSleutel(top.team) === hsSleutel(team) ? 'That is the record of all players!' : 'Record of all players: ' + top.score + ' by ' + top.team;
+  };
+  if (HS.voor){ toon(HS.voor); return; }
+  hoog.textContent = 'High score: ...'; hoog.className = 'best';
+  // geen lijst van voor het potje: nu vragen, en staat dit potje er al in (zelfde score, ronde en kills), dan telt hij niet als oude
+  hsVraag(lijst => toon(lijst && lijst.filter(x => !(hsSleutel(x.team) === hsSleutel(team) && +x.score === e.score && +x.ronde === e.ronde && +x.kills === e.kills))), true);
+}
+// het overzicht onder Multiplayer: elk team met zijn beste score, je eigen naam erin licht op
+function hsOverzicht(){
+  const el = pvpEl('mphs');
+  if (el.classList.toggle('on') === false) return;
+  el.innerHTML = '<p class="mphsk">High scores, Co-op Survival</p><p>Loading...</p>';
+  hsVraag(lijst => {
+    el.innerHTML = '<p class="mphsk">High scores, Co-op Survival</p>';
+    if (!lijst){ el.insertAdjacentHTML('beforeend', '<p>No connection to the scoreboard.</p>'); return; }
+    if (!lijst.length){ el.insertAdjacentHTML('beforeend', '<p>No scores yet.</p>'); return; }
+    const ik = hsSleutel(mpNaamEigen()), tab = document.createElement('table');
+    tab.innerHTML = '<tr><th>#</th><th>Team</th><th>Players</th><th>Score</th><th>Round</th><th>Map</th></tr>';
+    lijst.slice(0, HS.max).forEach((x, i) => {
+      const tr = document.createElement('tr');
+      const leden = String(x.team || '').split(' + ');
+      if (ik && leden.some(n => hsSleutel(n) === ik)) tr.className = 'ik';
+      for (const v of [i + 1, x.team, leden.length, x.score, x.ronde || '', x.map === 'ishmul' ? 'Ishmul' : x.map ? 'The Dye Yard' : '']){
+        const td = document.createElement('td'); td.textContent = v; tr.append(td);
+      }
+      tab.append(tr);
+    });
+    el.append(tab);
+    // per aantal spelers het beste team
+    const per = {}; for (const x of lijst){ const n = String(x.team || '').split(' + ').length; if (!per[n]) per[n] = x; }
+    const s = document.createElement('p'); s.className = 'mphsper';
+    s.textContent = Object.keys(per).sort().map(n => (n === '1' ? 'Solo' : n + ' players') + ': ' + per[n].score + ' (' + per[n].team + ')').join('   ');
+    el.append(s);
+  }, true);
+}
 // ---- de vraag na het potje (TLOG): sterren en een zin, alleen voor een tester, na game over in Co-op en na een gewonnen level.
 // Een eigen regel 'feedback'. Typen in het vak gaat niet naar het spel (R zou anders opnieuw starten)
 var tlogFbEl = null, tlogFbSter = 0, tlogFbWat = '';
@@ -68197,7 +68563,7 @@ function tlogFbBouw(){
   return el;
 }
 function tlogFbToon(wat){
-  if (!tlogAan()) return;
+  if (!tlogAan() || tlogRol() !== 'tester') return;   // de vraag na het potje alleen voor een tester
   const el = tlogFbBouw();
   tlogFbSter = 0; tlogFbWat = wat || '';
   el.querySelectorAll('.st button').forEach(x => x.classList.remove('aan'));
@@ -72631,6 +72997,7 @@ function startSandbox(arena, gates){
   sbArena = arena === true;                             // Arena modus: golven vijanden, met levens
   straalLijst = []; straalWis();                            // geen zonnestralen uit een vorig potje (de knop Zonnestraal zet er een)
   if (sbRenNieuw) renNieuwLaad();                       // de nieuwe ren (standaard, zie REN_NIEUW)
+  neerLaad('mk'); neerLaad('stok');                    // de val van Amir: de knoppen Fall en de arena-modus (NEER)
   sbGates = sbArena && gates === true;                  // Arena gates: dezelfde modus, maar het veld met de drie poorten en de rondes (zie 'arena gates')
   barEl.classList.add('hide'); barPijlToon();           // de testbalk begint ingeklapt; het pijltje onderin klapt hem uit
   barPijlEl.classList.add('on');
@@ -75703,6 +76070,8 @@ document.getElementById('sbgrondklap').onclick = e => {
   e.currentTarget.classList.toggle('on', sbGrondklap);
   cv.focus();
 };
+document.getElementById('sbneermk').onclick = () => { neerSandbox('mk'); cv.focus(); };
+document.getElementById('sbneerstok').onclick = () => { neerSandbox('stok'); cv.focus(); };
 document.getElementById('sbkop').onclick = e => {
   kopSb = (kopSb + 1) % KOP_SB.length; kopAltijd = KOP_SB[kopSb];
   e.currentTarget.textContent = 'Snake head: ' + ['1 in 6', 'always', 'through camera', 'past camera', 'small'][kopSb];
@@ -76831,7 +77200,7 @@ const pvpNu = () => performance.now() / 1000;
 // de vijandstand bevestigd heeft (vAk). Een gast heeft er een, naar de host (slot 0). Elk bericht draagt het slot van wie
 // het maakte (`p`); de host zet het zelf op wat binnenkomt (een gast kan niet voor een ander spreken) en stuurt wat de
 // andere gasten ook moeten weten door (MP_DOOR), en een bericht voor een gast (`naar`) alleen naar die. Zie notities/pvp.md.
-const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'naam', 'rek', 'symPak', 'zh', 'bn', 'wkklaar', 'rematch', 'gk', 'blokK', 'kivpraat', 'kivweg', 'isl', 'islm', 'ah', 'kivklaar']);
+const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'naam', 'rek', 'symPak', 'zh', 'bn', 'wkklaar', 'rematch', 'gk', 'blokK', 'kivpraat', 'kivweg', 'isl', 'islm', 'ah', 'kivklaar', 'shvK']);
 function pvpGasten(){ return pvp ? Object.keys(pvp.peers).map(Number).filter(p => p !== 0) : []; }
 function pvpRelay(){ return !!pvp && Object.values(pvp.peers).some(pe => pe.conn.relay); }
 function pvpPeerNieuw(conn, p){
@@ -78145,7 +78514,7 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
     if (zk < 1){ ctx.translate(sx, voet); ctx.scale(zk, zk); ctx.translate(-sx, -voet); }
     ctx.translate(sx + g.dx * scale, voet + g.dy * scale);
     if (g.fl){ ctx.translate(w, 0); ctx.scale(-1, 1); }
-    if (pvp.coop && g.d) mpcLig(w, h, -g.dy * scale, mpcLigHoog(g.x, g.h || 0));  // Co-op: mijn teamgenoot ligt dood
+    if (pvp.coop && g.d && !neerIs(g.im)) mpcLig(w, h, -g.dy * scale, mpcLigHoog(g.x, g.h || 0));  // Co-op: mijn teamgenoot ligt dood (in zijn val van NEER ligt hij al zelf)
     // zijn broekkleur uit de lobby, op een eigen doek per slot: het gedeelde doek van broekBeeld is ook het beeld van mijn
     // Amir (amirHer), en lijkAchterAmir tekende dat later opnieuw, dus dan stond zijn beeld in zijn kleur op mijn plek
     // zijn speersoort, het vaantje en zijn gif (MK_LOS); mkGifPunt is de druppel van mijn eigen speer, die blijft van mij
@@ -78231,6 +78600,7 @@ const MPC = {
   boven: 5,                 // hooguit zoveel boven (galerij en balkon) tegelijk, daarna komen ze beneden
   balkon: 2,                // hooguit zoveel kruisboogschutters op het balkon van het middenhuis
   reviveNa: 20,             // zoveel seconden na een dood komt de revive-ton
+  eindRust: 0.5,            // zoveel seconden blijft het lijk nog liggen na de val, voor het eindscherm komt (mpcEindWacht)
   vriesMax: 6,              // staat de wereld langer zo lang stil (een freeze die niet afliep), dan gaat hij los (mpcVriesWacht)
   wissel: 150,              // een vijand wisselt pas van doel als een ander zoveel dichterbij is
   hz: 20,                   // standberichten van de vijanden per seconde (via het relais PVP_RELAY.hz)
@@ -79336,7 +79706,12 @@ function mpcDodenStap(){
   const C = pvp.coop, S = pvp.spelers;
   for (const p of S){ if (mpcDood(p)){ if (C.doodT[p] == null) C.doodT[p] = C.t; } else delete C.doodT[p]; }
   for (const k in C.doodT) if (!S.includes(+k)) delete C.doodT[k];
-  if (S.every(mpcDood) && !mpcReviveKomt()){ mpcEinde(); return; }   // een hart of de veren brengen nog iemand terug: nog geen game over
+  if (S.every(mpcDood) && !mpcReviveKomt()){         // een hart of de veren brengen nog iemand terug: nog geen game over
+    if (C.eindOm == null) C.eindOm = C.t + mpcEindWacht();   // eerst de val van de laatste uitspelen, dan pas het eindscherm
+    if (C.t >= C.eindOm) mpcEinde();
+    return;
+  }
+  C.eindOm = null;
   for (const k in C.reviveTon){                       // niet meer dood: weg met zijn ton
     if (C.doodT[k] != null) continue;
     const t = C.reviveTon[k]; delete C.reviveTon[k];
@@ -79371,9 +79746,17 @@ function mpcVolgendeRonde(){
   C.fase = 'wacht'; C.klok = R.pauze;
   mpcBanner('Round ' + (C.ronde + 1) + ' in ' + R.pauze + ' s', 2);
 }
+// zo lang na de laatste dood komt het eindscherm: de val (NEER) speelt eerst uit, plus NEER.scherm en MPC.eindRust. Solo
+// weten we hoe ver onze eigen val is (in een ravijn gestort ligt hij meteen); met een team kan de laatste een ander zijn,
+// dus dan de langste val
+function mpcEindWacht(){
+  if (pvp.solo) return (neer ? Math.max(0, neerDuur(neer.set) - neer.t) : 0) + NEER.scherm + MPC.eindRust;
+  return Math.max(neerDuur('mk'), neerDuur('stok')) + NEER.scherm + MPC.eindRust;
+}
 function mpcEinde(){
   const C = pvp.coop;
   if (C.fase === 'uit') return;
+  C.eindOm = null;
   const e = { score: C.score, ronde: C.ronde, tijd: Math.round(C.t), kills: C.kills, ep: C.ep ? { i: C.ep.i, alles: !!C.ep.alles } : undefined };
   pvpZend({ t: 'ceind', e });
   mpcEindToon(e);
@@ -79382,7 +79765,7 @@ function mpcEinde(){
 function mpcEindSleutel(){
   const v = pvp.regels.coop.vij;
   // de chaser kwam later: met hem uit is de sleutel dezelfde als van voor hem, zodat de oude records blijven gelden
-  return 'amir.coopBest.' + MP_SOORTEN.filter(q => q.k !== 'chaser' || (v[q.k] && v[q.k] !== 'uit')).map(q => q.k + '=' + v[q.k]).join(',');
+  return 'amir.coopBest.' + (pvp.solo ? 'solo.' : '') + MP_SOORTEN.filter(q => q.k !== 'chaser' || (v[q.k] && v[q.k] !== 'uit')).map(q => q.k + '=' + v[q.k]).join(',');
 }
 function mpcEindToon(e){
   const C = pvp.coop;
@@ -79394,15 +79777,26 @@ function mpcEindToon(e){
   const m = Math.floor(e.tijd / 60), s = String(e.tijd % 60).padStart(2, '0');
   const el = pvpEl('mpeind');
   el.innerHTML = '';
-  const regel = (t, k) => { const p = document.createElement('p'); p.textContent = t; if (k) p.className = k; el.append(p); };
+  const regel = (t, k) => { const p = document.createElement('p'); p.textContent = t; if (k) p.className = k; el.append(p); return p; };
   regel('Game over', 'kop');
-  regel('Team score: ' + e.score);
+  regel((pvp.solo ? 'Score: ' : 'Team score: ') + e.score, 'score');
   regel('Survived until round ' + e.ronde + ', in ' + m + ':' + s + ' (' + e.kills + ' kills)');
-  regel(e.score > best ? 'New best score with these enemies!' : 'Best with these enemies: ' + best, 'best');
-  regel('Shift+O: play again (' + (pvp.spelers.length > 2 ? 'everyone presses' : 'both press') + ' Shift+O)   Esc: back to the lobby', 'klein');
+  const hoog = regel('', 'best'), rec = regel('', 'rec');   // de high score en het record, ingevuld door hsEindToon
+  regel('Shift+O: play again' + mpcIedereen() + '   Esc: back to the lobby', 'klein');
+  hsEindToon(e, best, hoog, rec);                    // de high score van dit team (solo: je naam) uit de Sheet (HS)
   el.classList.add('on');
   pvpBanner('');
 }
+// de regel over de high score op het eindscherm: nieuw (met de oude erbij), gelijk, of hoe hoog hij staat. De high score
+// telt per apparaat, solo en met een team apart, en per keuze van vijanden (mpcEindSleutel)
+function mpcHighRegel(regel, score, best, wat){
+  const nieuw = score > best;
+  regel(nieuw ? 'New high score!' + (best > 0 ? ' (previous: ' + best + ')' : '')
+        : score === best && best > 0 ? 'You matched your high score: ' + best
+        : best > 0 ? wat + ': ' + best : 'No high score yet: score points to set one', nieuw ? 'best nieuw' : 'best');
+}
+// wie Shift+O moet drukken: solo zeg je niets, met een team allebei of iedereen
+function mpcIedereen(){ return pvp.solo ? '' : ' (' + (pvp.spelers.length > 2 ? 'everyone presses' : 'both press') + ' Shift+O)'; }
 // de symbolen van de revive-tonnen: wie erbij is pakt er een, en de dode van dat symbool staat naast hem op
 function mpcSymboolStap(){
   const C = pvp.coop;
@@ -79637,7 +80031,8 @@ function mpCoopOntvang(m){
   if (m.t === 'blokG'){ const o = pvp.host && bandieten.find(v => v.mpId === m.id);   // een gast ving zijn klap op het stokblok
     if (o && mpcLeeft(o) && pvpAnderNu(m.p)){ mpcWisselIn(m.p); try { stokBlokGestuit(o); } finally { mpcWisselUit(); } } return true; }
   if (m.t === 'banP'){ if (pvp.host) mpcPareerVanGast(m); return true; }   // een bandiet pareerde de steek van een gast
-  if (m.t === 'shvR'){ if (pvp.host) mpcShoveVanGast(m); return true; }   // de shove van een gast duwt een vijand (SHOVE)
+  if (m.t === 'shvR'){ if (pvp.host) mpcShoveVanGast(m); return true; }
+  if (m.t === 'shvK'){ if (!laadWacht && m.p !== pvp.mij) shoveKlap(+m.x || 0, +m.b || 0, m.k === 1 ? 1 : -1, +m.ax || 0, +m.ah || 0, shoveKlapVol(+m.x || 0)); return true; }   // de duw van een teamgenoot: geluid en stof (SHOVE)   // de shove van een gast duwt een vijand (SHOVE)
   if (m.t === 'crit'){ if (!pvp.host && !laadWacht) critFx(m.x, m.h, true); return true; }
   if (m.t === 'blokK'){ if (!laadWacht){ houtRaak(STOK.toon.blok, 0.6); puffWorld(m.x, 4, 0, 0.8, m.h); } return true; }   // het stokblok van een ander
   if (m.t === 'gifOp'){ if (gifHits > 0){ gifHits--; invHud(); } return true; }   // de host zette mijn gif op een vijand: een treffer minder
@@ -79712,6 +80107,7 @@ function mpCoopLaad(){
 }
 function mpCoopStart(epI){
   const ep = pvp.regels.modus === 'ep', oud = pvp.coop;   // de Co-op episode: epI is het level (0, 1 of 2)
+  if (!ep) hsVoorVraag();                            // de high scores van voor dit potje (HS)
   Object.assign(pvp, { sc: [0, 0, 0], ronde: 1, zendT: 0, anders: {}, sn: 0, wn: 0, jn: 0, laatsteAtk: -1, laatsteSw: -1,
                        laatsteJav: null, mijn: null, jVorig: null, rematch: [false, false, false], levens: 3, banner: '', bannerT: 0 });
   winkelUIDicht();
@@ -79820,7 +80216,7 @@ function mpEpWinkel(){ const C = pvp && pvp.coop; return !!(C && C.ep && MPC_EPS
 function mpEpReeks(kaart){ return String(kaart || '').charAt(0) === 'b' ? 'b' : 'a'; }
 function mpEpKaartLevel(kaart){ return parseInt(String(kaart || '0').replace(/^b/, ''), 10) || 0; }
 function mpEpLijst(){ return MPC_EPS[mpEpReeks(pvp && pvp.regels && pvp.regels.kaart)].levels(); }
-function mpEpBestSleutel(){ return MPC_EPS[mpEpReeks(pvp && pvp.regels && pvp.regels.kaart)].best; }
+function mpEpBestSleutel(){ return MPC_EPS[mpEpReeks(pvp && pvp.regels && pvp.regels.kaart)].best + (pvp && pvp.solo ? '.solo' : ''); }   // solo een eigen high score
 // de soort van een vijand uit een spawn, voor de punten (MPC.punten): de lijst zegt het
 const MPC_EP_SOORT = { snakes: 'slang', scorps: 'scorp', hyenas: 'hyena', kooimannen: 'kooiman',
                        kruisbogen: 'kruisboog', bandieten: 'bandiet', schildmannen: 'schildman', zweepmannen: 'zweepman',
@@ -79933,18 +80329,19 @@ function mpEpEindToon(e){
   el.innerHTML = '';
   const regel = (t, k) => { const p = document.createElement('p'); p.textContent = t; if (k) p.className = k; el.append(p); };
   const naam = mpEpLijst()[e.ep.i].name.replace(MPC_EP.naamKop, '');
-  const iedereen = pvp.spelers.length > 2 ? 'everyone presses' : 'both press';
+  const scoreWoord = pvp.solo ? 'Score: ' : 'Team score: ';
   if (e.ep.alles){
     regel('Episode complete!', 'kop');
-    regel('Team score: ' + e.score);
+    regel(scoreWoord + e.score, 'score');
     regel('All ' + mpEpLijst().length + ' levels in ' + m + ':' + s + ' (' + e.kills + ' kills)');
-    regel(e.score > best ? 'New best score!' : 'Best score: ' + best, 'best');
-    regel('Shift+O: play the episode again (' + iedereen + ' Shift+O)   Esc: back to the lobby', 'klein');
+    mpcHighRegel(regel, e.score, best, 'Episode high score');
+    regel('Shift+O: play the episode again' + mpcIedereen() + '   Esc: back to the lobby', 'klein');
   } else {
     regel('Game over', 'kop');
-    regel('The whole team fell in level ' + (e.ep.i + 1) + ': ' + naam);
-    regel('Team score: ' + e.score + ', ' + m + ':' + s + ' (' + e.kills + ' kills)');
-    regel('Shift+O: try this level again (' + iedereen + ' Shift+O)   Esc: back to the lobby', 'klein');
+    regel((pvp.solo ? 'You fell in level ' : 'The whole team fell in level ') + (e.ep.i + 1) + ': ' + naam);
+    regel(scoreWoord + e.score + ', ' + m + ':' + s + ' (' + e.kills + ' kills)', 'score');
+    regel('No high score: that only counts when you finish the whole episode', 'best');
+    regel('Shift+O: try this level again' + mpcIedereen() + '   Esc: back to the lobby', 'klein');
   }
   el.classList.add('on');
   pvpBanner('');
@@ -80775,6 +81172,7 @@ function mpcFcModus(){
 pvpEl('btnpvp').onclick = () => { pvpStatus(''); showMenu('menuPvp'); mkVoorWarm(); };   // de outfits alvast laden en kleuren (MK_WARM)
 setTimeout(mkVoorWarm, 6000);                      // en al in het menu, als het spel net open is en de browser tijd over heeft
 pvpEl('pvphost').onclick = () => pvpHost();
+pvpEl('mphsknop').onclick = () => hsOverzicht();   // het overzicht van de highscores per team (HS)
 pvpEl('pvpjoin').onclick = () => pvpJoin();
 pvpEl('pvpcode').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') pvpJoin(); });
 pvpEl('pvpterug').addEventListener('click', () => { pvpPeerWeg(); pvpStatus(''); });

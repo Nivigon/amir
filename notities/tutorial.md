@@ -37,7 +37,14 @@ zegt `design/tutorial/gids/gids.json` welk frame van de gids erbij hoort. Kop in
 
 - Bouwen: `python3 tools/gids_bouw.py` (leest de mp4's van Tom uit `design/tutorial/gids/bron/`, keyt ze, kleurt de groene
   speer om, maakt per animatie een blad en koppelt het spoor). **Neem je het spoor opnieuw op (`tools/mentor_opname.js`),
-  draai dit daarna ook**, anders klopt de koppeling niet meer.
+  draai dit daarna ook**, anders klopt de koppeling niet meer. Daarna `gen-offline-manifest.py`.
+- Resolutie en geheugen (27-11-2026): de vellen staan op de resolutie van Amirs sprites. Amir staand is 276 px
+  (`idle_ns.png`), de gids in zijn vellen 1,15 keer zo hoog (318 px; `AMIR_H`, `GIDS_KEER`). In de wereld blijft hij
+  `LENGTE` (1,2 keer Amir); `px` in gids.json zegt hoeveel wereld-eenheden een pixel van het vel is. Elk frame staat strak
+  ingepakt met een eigen rechthoek (`f`: x, y, breed, hoog, ankerX, ankerY) in vellen van hooguit 4096 breed. Het script
+  maakt ook de halve set in `klein/design/tutorial/gids/` (Beeld: Licht); `gen-klein.py` laat die staan (`EIGEN`).
+  Uitgepakt: 134,5 MiB voor de verkleining, nu 103,4 MiB, en 25,9 MiB met Licht. Moet het nog lichter, dan houdt `STAP`
+  per animatie alleen elk zoveelste frame (bijvoorbeeld `{'idle': 2, 'verteller': 2, 'sprong': 2}`, rond 70 MiB).
 - Animaties: idle (heen en terug), verteller (een keer als hij wacht en iets uitlegt: alleen handgebaren, mond dicht, kijkt
   niet naar de camera), ren (lus van 24 op afstand, sprinten gaat sneller door de lus), sprong (de hoge korte sprong;
   uit de ren zonder het rechtop staan), groot (de sprintsprong, boven 380 px/s: station 8 en de race; opspringen is de
@@ -75,7 +82,38 @@ payoff komt als hij de speer krijgt). Alle teksten staan in het project: `claude
 - Nieuwe regel: mp3 in `design/tutorial/stem/` (stilte eraf, genormaliseerd), `stem`/`okStem` op het station, de `zeg`
   gelijk aan wat hij zegt (zonder tags als [chuckles]), dan `tools/gen-offline-manifest.py`.
 
+## De gids beweegt glad (27-11-2026)
+
+De opdrachtgever vond de gids naast Amir slecht bewegen. Gemeten (niet geschat) wat er mis was, en rechtgezet:
+
+- **Hij hing aan Amirs anker.** `gidsTeken` zette hem per beeld op het anker van Amirs plaatje van dat moment. In Amirs
+  renlus komen zijn voeten los: de gids huppelde 30 tot 36 eenheden op en neer en schoof 4 tot 20 opzij, op Amirs ritme in
+  plaats van dat van zijn eigen benen. Nu staan zijn voeten op zijn eigen plek: de x van het spoor en `voet` (zijn hoogte).
+- **Zijn anker was het midden van het hele plaatje,** speer en wapperende sjaal erbij: bij elke wissel van animatie sprong
+  hij opzij, en in de renlus schoof zijn hoofd 23 eenheden heen en weer. `tools/gids_glad.py` zet het anker op het
+  zwaartepunt van zijn silhouet; in de renlus nog 8.
+- **De renlus hakkelde.** Het vel heeft 24 frames, maar het zijn 12 houdingen die elk twee keer staan, en het spoor gaf 24
+  frames over 30 beelden: om en om 2 en 3 beelden per houding. Nu loopt hij op afgelegde afstand (`gidsRenFrame`,
+  `GIDS.pas` 344: Amirs lus is 287, de gids is 1,2 keer zo groot), met de 12 oneven frames.
+- **De sprong hing en jaagde.** Tien beelden dezelfde stijgende houding, dan frame 26 tot 62 in vier beelden. `gids_glad.py`
+  verdeelt elk luchtstuk (sprong, groot) gelijkmatig over de tijd in de lucht.
+- **In de lucht hing hij als een mediterende monnik.** De clip `jump_and_land` zelf zet af en zweeft dan bijna twee
+  seconden met de knieen op (frame 24 tot 68 is een houding). Nu volgt de houding in de lucht zijn verticale snelheid, net
+  als bij Amir: `gidsLuchtFrame`, `GIDS.vMax` en `GIDS.lucht` (sprong: strekken 16 tot 21, top 22 tot 40, vallen 66 tot
+  76; groot: gestrekt, dan intrekken). Afzet en landing op de grond blijven uit het spoor. De gelijkmatige verdeling van
+  `gids_glad.py` geldt nu alleen nog waar de snelheid niets kiest.
+- **De grootte klopte wel.** Gemeten op zijn haarknot (rond, dus vanuit elke hoek even groot): 17 tot 19 eenheden in idle,
+  ren, buk, sluip en groot. Lichaamshoogte zegt hier niets (een ren is lager), en een hoofd als maat ook niet (breder of
+  smaller per kijkhoek). De les: meet schaal op iets ronds of iets dat in elke houding gelijk blijft.
+
+Draai `tools/gids_glad.py` na `tools/gids_bouw.py` (en dus ook na een nieuwe opname van het spoor).
+
 ## Het spoor: opgenomen, niet nagebouwd
+
+**Les (27-11-2026): interpoleer het spoor.** Het spoor heeft 30 beelden per seconde, het spel tekent er 60. Zonder
+tussenstap stond de gids elk tweede beeld stil en sprong hij dan 11 px: schokkerig naast Amir, die elk beeld schuift.
+`mentorFrame` vult x en h nu in tussen dit beeld en het volgende. Bij een nieuw spoor of een andere opname: meet per
+getekend beeld hoeveel hij verschuift (gelijkmatig, geen 0 en dubbel om en om).
 
 De mentor heeft geen eigen natuurkunde. `tools/mentor_opname.js` speelt het level in Chromium met Amir (op vaste 60 fps,
 met echte toetsaanslagen) en de haak `mentorOpname` (naast `pvpVang`) legt per beeld vast welk plaatje waar stond. Het spel

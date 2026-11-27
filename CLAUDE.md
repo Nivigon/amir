@@ -44,6 +44,9 @@ door de rand van een ravijn: niet lopend, niet met een sprong of een duik, en ze
 ook niet aan de overkant op. Zo is een kei of een ravijn voor de speler een schuilplek.
 Een schuilplek, geen veilige plek: een slang of schorpioen naast de kei mag Amir bovenop die
 kei nog bijten of steken, want hun beet reikt tot de hoogte van een kei. Dat is zo bedoeld.
+Uitzondering op verzoek van de opdrachtgever: een bandiet die gestund is door de counter van de stokken en dan een slag
+krijgt aan de rand van een ravijn, slaat erin en is dood (`STOK_RAND`, `banRandVal`, zie `notities/stokken.md`); aan de rand
+van een galerij of dak slaat hij eraf naar de straat met de val van Full Circle (`FC_VAL`), alleen als hij veilig neerkomt.
 Een uitzondering mag alleen als de opdracht er expliciet om vraagt, of in een gevecht met
 een eindbaas als je daar zelf voor kiest omdat het dat gevecht beter maakt; zeg dan
 achteraf dat en waarom. Voor de panter is dat het veld `over: true` in zijn spawn
@@ -207,6 +210,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de Pathfinder Spear: de speer uit de winkel van Co-op met het rode vaantje dat meewaait (op de rug, in de worp, liggend), en de prooi: een geworpen treffer markeert 3 s (rode rand, vaantje boven het hoofd, 20% trager, een half leven extra per treffer) | `PATHFINDER`, `PROOI`, `javTeken`, `pfVaanTeken`, `pfStap`, `prooiRaak`, `prooiGloed` | notities/speer.md |
 | de Ardhi-wapens: Ardhi's Grip (stokken), Ardhi's Reach (speer) en Ardhi's Roots uit de winkel van Co-op; een treffer kan een leven teruggeven (knikkerzak: stok 1 op 33, steek 1 op 25, worp 1 op 10, een sapdruppel boven je hoofd), Roots zet wortels om twee vijanden in een groep (alleen op aarde), Bloom verdubbelt de kans van de speer (2 op 25, 2 op 10, met de aderen op de speer); sandboxknoppen Ardhi en Ardhi's Bloom, `tools/ardhi_test.js` | `ARDHI`, `ardhiBloom`, `ardhiAderTeken`, `ardhiStap`, `ardhiTreffer`, `ardhiKnikker`, `ardhiWortelRaak`, `ardhiAarde`, `ardhiVast` | notities/speer.md |
 | de Shield Piercer: de speer uit de winkel van Co-op met de zwarte naald en de ijzeren knol, door het schild heen (schildbandiet in een klap dood) uit een knikkerzak: verre worp 2 op 3, korte 1 op 3, steek en lage zwaai 1 op 8; de kansen van de speersoorten (ook de steek en zwaai van de Pathfinder), en het speervak links van de actiebalk (Z, de naam bij een wissel) | `SPEER_KANS`, `speerKansTrek`, `piercerDoor`, `spStap`, `pfMarkeert`, `SPVAK`, `spvakHud` | notities/speer.md, notities/speer-inventory.md |
+| neer: de val van Amir (grijpt naar zijn zij, zakt door zijn knieen, glijdt neer op zijn zij), twee eigen sets: Mkuki met de speer en de stokken-Amir; in Co-op neer tot de revive (ook bij teamgenoten), in single player sterven en dan het doodscherm; omkleuren met `tools/neer_zones.py` en `tools/vacht_bak.js`; sandboxknoppen Fall: Mkuki en Fall: sticks; `tools/mptest.js --neer --stokken host --spelers 2` | `NEER`, `amirSterf`, `neerStap`, `neerBeeld`, `neerSetVan`, `neerIs`, `neerMk`, `neerSandbox` | notities/neer.md |
 | Silver Pride: het zilveren leeuwenhart uit de winkel van Co-op (alleen de stokken, met een teamgenoot, 35/50/65 goud, een tegelijk): G legt het neer, het pulseert, de dode teamgenoot komt eruit (klein naar groot) terwijl Tau in de lucht brult, dan 3 s onkwetsbaar zonder abilities; Test 91 met een oefenteamgenoot; `tools/mptest.js --zilverhart --stokken host`, `tools/zilverhart_test.js` | `ZH`, `zhGebruik`, `zhStart`, `zhStap`, `zhTeken`, `zhTauNa`, `zhOpstaan`, `zhOntwaakT`, `zhCarry`, `TEST_93` | notities/multiplayer.md |
 | Feathers of the Bennu: de veren-revive van de speerspeler (Mkuki): G, op een knie, de veren gloeien, ogen open met een flits, blazen, een luchtbol met veren in de wind, de vlaag van het spel neemt ze mee naar de teamgenoot verderop; in de winkel van Co-op (tab Team, met de speer), over het netwerk (`bn`), de bol houdt vijanden en projectielen buiten; Test 94 met een oefenteamgenoot, K wisselt de kleur; dood met het hart of de veren in de tas brengen ze je zelf terug; `tools/mptest.js --bennu --spelers 2` | `BN`, `bnGebruik`, `bnStap`, `bnSchild`, `bnVan`, `bnZelfStart`, `reviveZelfStap`, `mpcReviveKomt`, `TEST_94` | notities/multiplayer.md |
 | vijanden uit elkaar houden: een groep van een soort glijdt uit elkaar, wie in zijn aanval zit blijft staan (bandiet, kooiman, schildbandiet, hyena, zandslang) | `scheidMobs`, `mobScheidAan`, `schbScheidHouding`, `SB_GROEP_N` | notities/scheiden.md |
@@ -399,6 +403,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de winkel van Co-op: na `winkelNa` rondes allebei naar een binnenkamer, ieder zijn eigen prijslijst en beurs, goud per kill en per ronde, Full Circle met twee upgrades die samen mogen; het scherm rechts met tabs, kaarten met plaatjes, You carry en de marktman links, Undo van de laatste aankoop, en na Ready van iedereen 3 s aftellen (Not ready stopt het) | `MPC_WINKEL`, `MPC_WINKEL_CAT`, `mpcWinkelToon`, `mpcUndo`, `mpcVertrekStap`, `mpcWinkelIn`, `mpcWinkelUit`, `mpcWinkelKoop`, `mpcGoudIedereen`, `mpcFcModus` | notities/multiplayer.md |
 | de winkel als kamer: geen paneel maar de winkelkamer zelf, het spel loopt door; houten bordjes per categorie boven een uitstalplek (het wapenrek met de speren of stokken, of een plank van de winkel), leren prijslabels, de keuze licht goud op (na het schemer getekend), rechts een doek met uitleg, upgrades en Buy; koop, Undo en Ready zijn die van de oude winkel; zonder winkelkamer (het Duel) het oude scherm; `tools/winkel_mockup.js` | `WKK`, `wkk`, `wkkKan`, `wkkTeken`, `wkkNaTeken`, `wkkToets`, `wkkToon`, `wkkLijst`, `design/winkel_ui/` | notities/multiplayer.md |
 | tester-logging: per poging een regel naar de Sheet (moves, treffers, fps, aankopen), en welke upgrade werkt: treffers en kills per wapen en aanval (`raakMet`, `killsMet`), effecten die afgingen (`effect`: ardhiLeven, prooi, door, warded, item, zilverhart, bennu) en wat de speler bij zich had (`bezit`) | `TLOG`, `tlogStap`, `tlogVast`, `tlogAanval`, `tlogRaak`, `tlogKill`, `tlogEffect`, `tlogBezit` | claude/tester_logging.md (in het project) |
+| highscores per team in Co-op Survival: de combinatie van spelers, het tabblad Highscores van de testers-Sheet, het eindscherm en de knop High scores onder Multiplayer; de designer logt ook (als `designer`) | `HS`, `hsTeam`, `hsEindToon`, `hsOverzicht`, `tlogWie` | notities/highscores.md |
 | notities van de designer: rechtsboven een potloodje voor bugs en verbeterpunten, naar het tabblad Notities van de testers-Sheet, en in het hoofdmenu de teller Open notes | `NOTE`, `noteOpen`, `noteZend`, `noteTelVraag` | notities/designer-notities.md |
 | sandbox | de vrije testmodus |  |
 
@@ -635,6 +640,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Savanne-opstapjes** (`design/opstap/savanne_onder.png` uit de grondrand, `savanne_eind.png` uit de Grok-plaat in `bron/`) → `tools/savanne_opstap.py`, daarna `gen-offline-manifest.py`
 - **Rotsdecor** (`design/rotsdecor/`, losse rotsstukken uit de platen in `bron/`) → `tools/rotsdecor_knip.py`, daarna `gen-offline-manifest.py`
 - **Stadsvoorgrond** (`design/stad/voorgrond/`, geknipt uit `design/stad/voetdecor.png`) → `tools/stad_voorgrond.py`, daarna `gen-offline-manifest.py`
+- **De val van Mkuki** (`karakters/amir/mkuki_spel/beweging/neer/`) → `tools/neer_zones.py` (de zonekaarten, ook in `klein/`), daarna `gen-offline-manifest.py`; nakijken met `tools/outfittest.js --frames mkuki_spel/beweging/neer/neer_45.png`
 - **Frames van Amir** die een stokspeler kan tonen (de stokken, de lage zwaai, `beweging/`, `idle/`): daarna `node tools/vacht_bak.js` (de maskers voor de outfits van de stoktribe in `karakters/amir_vacht/`), dan `gen-offline-manifest.py`
 - **De stokken van Amir** (`karakters/amir/stokken/`, uit `bron/lijf/` en `bron/stok_grok.jpg`) → `tools/stok_bak.py` (zet de regels die het print in `STOK`: de canvasmaat en `slip`), daarna `gen-klein.py` en `gen-offline-manifest.py`; `gen-klein.py` schrijft ook andere kleine plaatjes opnieuw, zet die terug
 - **Tau, de leeuwenkop van de zonnestraal** (`karakters/amir/tau/`, uit de Grok-clip in `bron/`) → `tools/tau_leeuw.py`, daarna `gen-offline-manifest.py`; een ander aantal frames of een andere maat gaat in `TAU`
@@ -643,7 +649,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Holle stam: kit en bastrand** (`design/regenwoud/holstam/kit/`, `rand.png`, uit de Grok-platen in `bron/`) → `tools/holstam_kit_knip.py`, daarna `gen-offline-manifest.py`
 - **Pathfinder Spear** (`design/speer/pathfinder/`, uit de Grok-platen in `bron/`) → `tools/pathfinder_speer.py` (zet de regel die het print in `PATHFINDER`), daarna de Pathfinder in Amirs hand (`karakters/amir/mkuki_spel/bron/pf_<hoek>.png`) met `pathfinder()` uit `tools/mkuki_spel_los.py`, en `gen-offline-manifest.py`
 - **Shield Piercer** (`design/speer/piercer/jav.png` en de speer in Amirs hand, `karakters/amir/mkuki_spel/bron/sp_<hoek>.png`, uit `bron/speer.png`) → `tools/piercer_speer.py`, daarna `gen-offline-manifest.py`
-- **De gids van The First Hunt** (`design/tutorial/gids/`, uit de Grok-clips in `bron/`, ook na een nieuwe opname van het spoor) → `tools/gids_bouw.py`, daarna `gen-offline-manifest.py`
+- **De gids van The First Hunt** (`design/tutorial/gids/`, uit de Grok-clips in `bron/`, ook na een nieuwe opname van het spoor) → `tools/gids_bouw.py`, dan `tools/gids_glad.py` (anker op het zwaartepunt, de sprong gelijkmatig), daarna `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`
 - **Winterversies** → `tools/sneeuw.py`, `sneeuw_bg.py`, `sneeuw_dorp.py`, `winter_art.py`
 
@@ -759,6 +765,11 @@ Het spel wil van een webserver komen, anders weigert de browser de sprites:
 ```
 python3 -m http.server
 ```
+
+Beweegt iets op een eigen klok die trager is dan het tekenen (een opgenomen spoor, een animatie op 30 fps die ook
+de positie bepaalt), dan interpoleer je de positie tussen twee beelden, anders staat het om het beeld stil en springt
+het dan (de gids van The First Hunt schokte zo naast Amir). Meet het na: de verschuiving per getekend beeld hoort
+gelijkmatig te zijn, net als bij Amir.
 
 Er zijn geen tests en geen linter, dus kijk zelf na wat je aangeraakt hebt: speelt
 het level uit, blijft de speer vindbaar, staat er niets in de lucht, en geeft de

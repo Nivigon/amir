@@ -233,7 +233,15 @@ de lobby staat dan in het staande stokframe.
 - **Punten (teamtotaal):** slang, schorpioen, goudaapje, hyena 10; bandiet, zweepman 15; kooiman, kruisboog 20;
   schildbandiet 25. De moeilijke versie 5 extra. Een multikill 10 extra per kill in de reeks.
 - **Eindscherm:** alleen het team: score, de ronde waarin het eindigde, tijd. Een highscore op het apparaat, per keuze van
-  vijanden.
+  vijanden, en solo apart van een team (`amir.coopBest.solo.`, in de episode `.solo` achter de sleutel). Logt de speler
+  (tester of designer), dan komt de high score van Survival uit de Sheet, per team en solo op je naam (zie
+  `notities/highscores.md`); de lokale is dan alleen het vangnet zonder verbinding, met "(this device)". De regel eronder
+  zegt altijd waar je staat (`mpcHighRegel`): **New high score!** (met de vorige erbij), gelijk, de high score die blijft
+  staan, of nog geen. In een episode telt de high score alleen als je hem uitspeelt; game over zegt dat ook. Solo staat er
+  Score in plaats van Team score en geen "both press".
+- **Eerst de val, dan het eindscherm:** is iedereen dood (en komt er geen revive), dan wacht `mpcDodenStap` tot de val
+  (NEER) uitgespeeld is, plus `NEER.scherm` en `MPC.eindRust` (`mpcEindWacht`, `C.eindOm`). Solo telt het vanaf hoe ver
+  de eigen val is (in een ravijn ligt hij meteen), met een team de langste val.
 
 ## De winkel en de economie (stuk 3, de afspraak; gebouwd)
 
@@ -829,8 +837,8 @@ De derde keuze onder Single Player, Survival (`btnsbcoop`, City Survival): Co-op
 is de code van Co-op zelf; elk bericht gaat naar niemand.
 
 - **Wat vanzelf klopt met een speler:** ronde 1 wacht op geen gast (`pvpGasten()` is leeg), Ready in de winkel is alleen
-  de jouwe (`mpcWinkelKlaar`), R op het eindscherm begint meteen opnieuw, en wie doodgaat is iedereen, dus meteen game over
-  (`mpcDodenStap`): geen revive-ton.
+  de jouwe (`mpcWinkelKlaar`), R op het eindscherm begint meteen opnieuw, en wie doodgaat is iedereen, dus game over zodra de val
+  uitgespeeld is (`mpcDodenStap`, `mpcEindWacht`): geen revive-ton.
 - **De lobby solo** (de klasse `solo` op `#mplobby`, `mpsolo` op `#start`): geen Duel, geen Ready, geen spelerslijst of ping,
   geen "Waiting for the other players" onder de broek, de titel `MP_SOLO.titel`, en Start kan altijd (behalve zonder
   vijanden). De broek en het wapen kies je zoals in Multiplayer.
@@ -1222,7 +1230,7 @@ heeft twee vakken erbij (`islot0`, `islot1`) met het plaatje en het aantal.
 
 | ding | prijs | wat |
 | --- | --- | --- |
-| Sack o' Bones | 25 | een witte stofwolk van 6 s (1,15 Amir breed); elke vijand die erin loopt is 2,5 s blind, wie al blind is niet opnieuw |
+| Sack o' Bones | 25 | een witte stofwolk van 6 s (1,725 Amir breed, 1,65 hoog), hij verblindt niemand; wie erin staat (ook een teamgenoot) wordt door geen projectiel geraakt: bout, dolk, gif en vogel vliegen erdoor (`islotInWolk`) |
 | Sack o' Fangs | 30 | de zak valt op de looplijn, een zwarte slang met gouden banden komt eruit en bijt steeds de dichtstbijzijnde vijand, 5 beten (elk een treffer); de vijanden negeren hem |
 | Jar o' Fire Ants | 25 | een muur van mieren, 5 s, een Amir breed, voor je; vijanden komen er niet door en wie erin staat deinst terug, projectielen vliegen eroverheen |
 | Oil of Mirrors | 35 | 5 s onzichtbaar voor vijanden (jij en je team zien je op 40% met een glasrand); ze vallen niet aan maar rennen zoekend rond; aanvallen maakt je zichtbaar |
