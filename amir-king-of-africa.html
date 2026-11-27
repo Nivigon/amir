@@ -52150,6 +52150,17 @@ function banGjDoor(s, plats, cliff){
   banStofWolk(s.x, (s.base || 0) + s.air, 3, -dir * 30, 0.8);
 }
 // de hele galerijsprong, per beeld; true zolang hij ermee bezig is
+// in de lucht in de galerijsprong (niet de vault, niet van boven de arena in, niet van een galerij geslagen)
+function banGjLucht(s){ return s.air > 0 && !s.dropping && s.valX1 == null && BAN_GJ_SETS.includes(s.state); }
+// in de sprong gedood: de baan loopt door tot de landingsvloer, de doodanimatie speelt al in de lucht
+function banGjVal(s, dt){
+  s.gjT += dt;
+  s.airV += BAN_GJ.g * dt; s.air -= s.airV * dt;
+  s.x = s.gjX0 + (s.gjX1 - s.gjX0) * Math.min(1, s.gjT / (s.gjDuur || 1));
+  if (s.air > 0) return;
+  s.air = 0; s.airV = 0; s.x = s.gjX1; s.gjVal = false; s.gjRiet = false;
+  banStofWolk(s.x, s.base || 0, 10, 0, 1.6); puffWorld(s.x, 8, 0, 1.2, s.base || 0);
+}
 function banGjStap(s, dt, plats, cliff){
   const st = s.state;
   if (st === 'afzet' && !(s.air > 0)){                            // aan de rand: hurken, de tell, afzetten
@@ -52398,6 +52409,7 @@ function updateBandiet(s, dt, plats, cliff){
   }
 
   if (s.state === 'dood'){                           // de doodanimatie, dan blijft het lijk liggen
+    if (s.gjVal) banGjVal(s, dt);                    // in de galerijsprong gedood: eerst nog neerkomen
     banDakSchuif(s);                                 // op een dak: het hele lijk blijft op het dak
     if (s.spuit) bloedSpuitStap(s, dt);              // bloed: de spuit loopt door terwijl hij valt en blijft liggen
     if (s.bloedWacht){                               // bloed: de val loopt op tot hij geraakt achterover reelt, dan spuit het
@@ -52668,7 +52680,8 @@ function banPareer(s, vonkWx, vonkY){
 }
 function hitBandiet(s){
   const doorDekking = (atkCombo || stokDoor()) && atkFrame >= 0 && steekLive();   // de derde slag (COMBO) en de counter met de stokken slaan door zijn dekking heen
-  if ((s.inv > 0 && !doorDekking) || s.state === 'dood' || s.state === 'vault' || s.air > 0) return false;   // in de lucht (de vault, de galerijsprong) is hij niet te raken
+  const gjLucht = banGjLucht(s);                   // in de galerijsprong van de chaser: wel te raken (op verzoek van de opdrachtgever)
+  if ((s.inv > 0 && !doorDekking) || s.state === 'dood' || s.state === 'vault' || (s.air > 0 && !gjLucht)) return false;   // in de lucht (de vault, van boven neerkomend) is hij niet te raken
   if (razAan(s) && !gifTikNu) return false;          // razend (zie RAZ): niets komt erdoor, ook de derde slag en de tweede speer niet
   if (comboX){                                     // de duw (DUW): geen schade, alleen ver terug en even stil
     if (s.duwId === duwId) return false;            // een keer per duw
@@ -52684,9 +52697,14 @@ function hitBandiet(s){
   hits++; hitsEl.textContent = hits; gifRaak(s, 'bandiet');   // een gifspeer vergiftigt hem (zie "het gif")
   const terug = comboTerugNu();                    // de derde slag als terugslag: ver weg en even stil (COMBO.terug)
   const T = comboT();                              // Full Circle zonder Crushing Circle: de kleine terugslag (FC.terug)
+  if (gjLucht){                                    // in de sprong geraakt: de vlucht loopt door (geen terugslag, geen andere staat)
+    if (s.hp > 0){ if (s.bloed) bloedSnedeZet(s); s.flash = 0.3; s.inv = BAN_INV_T; return true; }
+  } else {
   s.knock = (s.x < playerX() ? -1 : 1) * (terug ? T.v : BAN_KNOCK);   // altijd bij jou vandaan
   s.fcVal = terug;                                 // de draaislag: aan de rand van een galerij slaat hij eraf (FC_VAL)
   if (s.hp > 0){ if (s.bloed) bloedSnedeZet(s); s.flash = 0.3; s.inv = BAN_INV_T; banSet(s, 'run'); s.rust = terug ? T.rust : BAN_NA_HIT; s.traag = terug ? T.traag : 0; s.traagMax = s.traag; s.traagK = 1; return true; }
+  }
+  if (gjLucht) s.gjVal = true;                       // in de lucht gedood: hij valt zijn baan uit en sterft onderweg (banGjVal)
   s.deadFace = s.face;                                // de kant waar hij op keek: zo valt hij
   banSet(s, 'dood'); s.flash = 0.3; s.lig = 0;        // de doodanimatie speelt nu (63 frames)
   if (s.bloed) s.bloedWacht = true;                   // bloed: de val loopt op tot het reel-frame, dan spuit het bloed uit zijn borst
@@ -63232,17 +63250,19 @@ function loop(now){
           }
           continue;
         }
-        if (s.air > 0) continue;                         // nog in de lucht (van boven neerkomend): nog niet raakbaar en niet gevaarlijk
+        const gjLucht = banGjLucht(s);                   // in de galerijsprong van de chaser: wel raakbaar, zijn vak gaat met hem mee omhoog
+        if (s.air > 0 && !gjLucht) continue;             // nog in de lucht (van boven neerkomend): nog niet raakbaar en niet gevaarlijk
+        const vH = voeten - (gjLucht ? dropLift : 0);    // de voeten zoals hij nu hangt
 
         const lmid = bodyX + s.face * BAN_LIJF.mid * bS, lhalf = BAN_LIJF.half * bS;
-        const nbox = { l: lmid - lhalf, r: lmid + lhalf, t: voeten - BAN.fig * bS, b: voeten };
+        const nbox = { l: lmid - lhalf, r: lmid + lhalf, t: vH - BAN.fig * bS, b: vH };
         if (schA > 0.5) vijandHpBalk(bodyX, nbox.t, s, scale);   // het health-balkje boven zijn hoofd (met hpBalk); als schaduw niet, dat zou hem verraden
         if (s.verblind > 0 || s.stokStun > 0) stofTeken(bodyX, nbox.t, s, scale);   // blind van het stof: sterretjes om zijn hoofd
         let zbox = null;
         if (s.state === 'slag'){                         // de kling: alleen tijdens de raakframes
           const a1 = bodyX + s.face * BAN_ZWAARD.from * bS, a2 = bodyX + s.face * BAN_ZWAARD.to * bS;
           zbox = { l: Math.min(a1, a2), r: Math.max(a1, a2),
-                   t: voeten - BAN_ZWAARD.high * bS, b: voeten - BAN_ZWAARD.low * bS };
+                   t: vH - BAN_ZWAARD.high * bS, b: vH - BAN_ZWAARD.low * bS };
           const live = s.frame >= BAN.raak[0] && s.frame <= BAN.raak[1] && !s.hitUsed;
           if (live && invuln <= 0 && !dead && hitBy(zbox, pbox)){
             s.hitUsed = true; const vang = stokBlok.vang; tlogHint('bandieten'); hurtPlayer(s.x < playerX());
@@ -63276,7 +63296,7 @@ function loop(now){
           }
           if (razAan(s) && !s.raz.sch && javRaakt(nbox, s)){ javHitEnemy(); banClang(s.x); continue; }   // razend: je worp ketst af en valt (RAZ)
           // de tweede speer (DUBBEL) pareert hij niet: die gaat door zijn dekking heen (dubbelDoor)
-          if (dubbelVliegt() && javRaakt(nbox, s)){ javHitEnemy(); if (s.bloed) bloedTref(s, bodyX, voeten, bS, face, bodyX, voeten - BAN.fig * 0.5 * bS); hitBandiet(s); }
+          if (dubbelVliegt() && javRaakt(nbox, s)){ javHitEnemy(); if (s.bloed) bloedTref(s, bodyX, vH, bS, face, bodyX, vH - BAN.fig * 0.5 * bS); hitBandiet(s); }
           continue;
         }
         // de speerpunt: in elke staat raak
@@ -63287,14 +63307,14 @@ function loop(now){
           const reach = steekR() * scale;
           if (steekOver(tipX, reach, pcx, nbox) && steekOverY(tipY, reach, nbox)){
             if (atkMes){ if (mesAfweer(s, 'bandiet')) swingUsed = true; continue; }   // het mes weert af
-            if (s.bloed) bloedTref(s, bodyX, voeten, bS, face, tipX, tipY);           // bloed: de snee komt op de speerpunt
+            if (s.bloed) bloedTref(s, bodyX, vH, bS, face, tipX, tipY);           // bloed: de snee komt op de speerpunt
             if (slagEen(s)){ const rb = hitBandiet(s); if (atkStok && (rb || mpcGast())) stokTreffer(s, s.x, tipY, tipX, rb ? undefined : 'gevoel'); } continue;   // de duw en Wide Circle raken ze allemaal (een keer per slag, duwId en fcSlag); de stokken: klap en stun (STOK)
           }
         }
         // de geworpen speer
-        if (javRaakt(nbox, s)){ javHitEnemy(); if (s.bloed) bloedTref(s, bodyX, voeten, bS, face, bodyX, voeten - BAN.fig * 0.5 * bS); hitBandiet(s); continue; }   // bloed: een snee op borsthoogte
+        if (javRaakt(nbox, s)){ javHitEnemy(); if (s.bloed) bloedTref(s, bodyX, vH, bS, face, bodyX, vH - BAN.fig * 0.5 * bS); hitBandiet(s); continue; }   // bloed: een snee op borsthoogte
         // lage zwaai: één keer per zwaai
-        if (s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'bandiet'), nbox)){ s.sweptId = sweepId; if (s.bloed) bloedTref(s, bodyX, voeten, bS, face, bodyX, voeten - BAN.fig * 0.2 * bS); hitBandiet(s); }   // bloed: een snee laag op het lijf
+        if (s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'bandiet'), nbox)){ s.sweptId = sweepId; if (s.bloed) bloedTref(s, bodyX, vH, bS, face, bodyX, vH - BAN.fig * 0.2 * bS); hitBandiet(s); }   // bloed: een snee laag op het lijf
       }
     }
 
