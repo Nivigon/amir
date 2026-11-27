@@ -66384,18 +66384,36 @@ function tlogAanval(){
 function tlogRaak(o){
   const b = tlogAanval(); if (!b || !o) return;
   o.tlogT = performance.now(); o.tlogB = b;
+  if (o.mpId != null && typeof mpcGast === 'function' && mpcGast()){   // een gast onthoudt per vijand zijn laatste bron, voor de kill die de host meldt (tlogKillGast)
+    const k = mpcVind(o); if (k){ const G = tlog.gastB || (tlog.gastB = {}); G[k + ':' + o.mpId] = b; }
+  }
   const P = tlog.potje; if (P) P.raak[b] = (P.raak[b] || 0) + 1;
 }
 // uit vijandDood: was het mijn kill, en waarmee. Bij de host tijdens een treffer van een gast (stokHoutGast) telt hij bij die
 // gast; een gast kijkt alleen naar zijn eigen stempel, want daar komt de dood van de host en kan hij net zelf iets anders doen
+// Een gast telt hier niets: de dood van een vijand beslist de host, en die meldt de kill aan de gast die hem maakte ('tk').
+// Dat is de gast wiens treffer nu loopt (stokHoutGast, gifGast.p), of de gast die hem de laatste 3 s raakte na mijn laatste treffer.
 function tlogKill(wie){
+  if (typeof mpcGast === 'function' && mpcGast()) return;
+  const nu = performance.now();
+  const gp = stokHoutGast != null ? (gifGast ? gifGast.p : null)
+           : (wie && wie.tlogGt && nu - wie.tlogGt < 3000 && !(wie.tlogT > wie.tlogGt) ? wie.tlogGp : null);
+  if (stokHoutGast != null || gp != null){
+    if (wie){ wie.tlogT = 0; wie.tlogGt = 0; }
+    if (gp != null && wie && wie.mpId != null && pvp && pvp.host){ const k = mpcVind(wie); if (k) pvpZendAan(gp, { t: 'tk', a: k, id: wie.mpId }); }
+    return;
+  }
   const P = tlog.potje; if (!P) return;
-  if (stokHoutGast != null){ if (wie) wie.tlogT = 0; return; }
-  const gast = typeof mpcGast === 'function' && mpcGast();
-  let b = gast ? null : tlogAanval();
-  if (!b && wie && wie.tlogT && performance.now() - wie.tlogT < 3000) b = wie.tlogB;
-  if (!b){ if (gast) return; b = 'anders'; }       // een val, een kei, de rotswand of een ander dier
+  let b = tlogAanval();
+  if (!b && wie && wie.tlogT && nu - wie.tlogT < 3000) b = wie.tlogB;
+  if (!b) b = 'anders';                            // een val, een kei, de rotswand of een ander dier
   P.kills[b] = (P.kills[b] || 0) + 1;
+}
+// bij de gast: de host meldt dat zijn treffer een vijand doodde; tellen bij de bron van zijn laatste treffer op die vijand
+function tlogKillGast(m){
+  const G = tlog.gastB || {}, sl = m.a + ':' + m.id, b = G[sl] || 'anders';
+  delete G[sl];
+  const P = tlog.potje; if (P) P.kills[b] = (P.kills[b] || 0) + 1;
 }
 // een effect van een upgrade of item dat afging: 'ardhiLeven', 'prooi', 'door', 'warded', 'item.bones', 'zilverhart', ...
 function tlogEffect(k){ const P = tlog.potje; if (P) P.effect[k] = (P.effect[k] || 0) + 1; }
@@ -66465,6 +66483,7 @@ function tlogCoopEind(e){
     soort: 'eind', duur_s: e.tijd, uitgespeeld: false, doden: tlog.doden, kills: e.kills, plek_x: Math.round(world),
     ronde: e.ronde, score: e.score, ...(e.ep ? { epLevel: e.ep.i + 1, epAlles: e.ep.alles } : {}),
   }, tlogVast({})));
+  tlog.doodT0 = 0; tlog.terugHoe = null;             // het potje is uit: de volgende start is geen revive (gaf `terug` met hoe '?')
   tlogFbToon('Game over, round ' + e.ronde);
 }
 
@@ -77275,6 +77294,7 @@ function mpcInlineDood(s){
 function mpcTrefferVanGast(m){
   const q = mpcLijst(m.a); if (!q) return;
   const o = q.l().find(v => v.mpId === m.id); if (!o || !mpcLeeft(o) || !pvpAnderNu(m.p)) return;
+  o.tlogGp = m.p; o.tlogGt = performance.now();      // de tester-logging: deze gast raakte hem, voor een kill even later (tlogKill)
   mpcWisselIn(m.p);
   const eig = [atkStok, atkFrame, atkCombo, gkRaak, fcSoort];  // de slag van de gast, niet die van de host (de stokken, Full Circle, de grondklap)
   atkStok = m.st || null; atkFrame = m.sf ?? -1; atkCombo = !!m.co; stokHoutGast = m.hw || 0; prooiGast = !!m.pf; doorGast = !!m.dp; ardhiGast = !!m.ar;
@@ -78084,6 +78104,7 @@ function mpCoopOntvang(m){
   if (m.t === 'v'){ if (!pvp.host) pvpNetIn(pvpNetVan(0), 'v', m, mpcStandLees); return true; }   // in de speelbuffer (zie "de netcode")
   if (m.t === 'hb') return true;
   if (m.t === 'mh'){ if (pvp.host) mpcTrefferVanGast(m); return true; }
+  if (m.t === 'tk'){ if (!pvp.host) tlogKillGast(m); return true; }   // de host: mijn treffer doodde hem (TLOG)
   if (m.t === 'stofR'){ if (pvp.host) mpcStofVanGast(m); return true; }
   if (m.t === 'blokH'){ const o = !pvp.host && bandieten.find(v => v.mpId === m.id);   // de host ving zijn klap al op mijn blok
     if (o && !(o.mpBlokT > pvpNu() - 0.6) && stokAan()){   // nog niet zelf gevangen: het gevoel van het blok alsnog, en de counter open
