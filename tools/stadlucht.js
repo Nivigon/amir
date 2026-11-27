@@ -68,8 +68,8 @@ function server(){
     // welke levels: alles met stad.achterTot (in een episode, een testreeks of een Co-op map)
     const namen = await page.evaluate(([doel, def]) => {
       if (def) return [def.name || 'level.json'];
-      const lijsten = [KUM_LEVELS, TEST_LEVELS, STOK_LEVELS, RW_LEVELS, TUT_LEVELS, BAB_LEVELS, MUR_LEVELS, STAD_LEVELS, OAK_LEVELS,
-                       BEL_LEVELS, GP_LEVELS, RIV_LEVELS, COOPEP_LEVELS, COOPEP2_LEVELS, [MP_COOP_LEVEL, MP_ISHMUL_LEVEL]];
+      const lijsten = [KLEI_LEVELS, TEST_LEVELS, STOK_LEVELS, RW_LEVELS, TUT_LEVELS, BAB_LEVELS, MUR_LEVELS, STAD_LEVELS,
+                       COOPEP_LEVELS, COOPEP2_LEVELS, [MP_COOP_LEVEL, MP_ISHMUL_LEVEL]];
       const uit = [];
       for (const l of lijsten) for (const d of l)
         if (d.stad && d.stad.achterTot != null && (!doel || d.name.toLowerCase().includes(doel.toLowerCase())) && !uit.includes(d.name)) uit.push(d.name);
@@ -80,8 +80,8 @@ function server(){
       const span = await page.evaluate(([naam, def]) => {
         let d = def;
         if (!d){
-          const lijsten = [KUM_LEVELS, TEST_LEVELS, STOK_LEVELS, RW_LEVELS, TUT_LEVELS, BAB_LEVELS, MUR_LEVELS, STAD_LEVELS, OAK_LEVELS,
-                           BEL_LEVELS, GP_LEVELS, RIV_LEVELS, COOPEP_LEVELS, COOPEP2_LEVELS, [MP_COOP_LEVEL, MP_ISHMUL_LEVEL]];
+          const lijsten = [KLEI_LEVELS, TEST_LEVELS, STOK_LEVELS, RW_LEVELS, TUT_LEVELS, BAB_LEVELS, MUR_LEVELS, STAD_LEVELS,
+                           COOPEP_LEVELS, COOPEP2_LEVELS, [MP_COOP_LEVEL, MP_ISHMUL_LEVEL]];
           for (const l of lijsten) for (const q of l) if (!d && q.name === naam) d = q;
         }
         setLevel(0, [d]); beginPlay('medium');
