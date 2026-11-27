@@ -420,6 +420,8 @@ class Spel:
         rl = b.src[b.src.index('function readLevel'):]
         rl = blok_na(rl, rl.index('schoonLevel('))
         self.VELDEN = set(sleutels_bovenaan(rl))
+        # velden die readLevel alleen met een spread overneemt (...(o.tint ? { tint: ... } : {})), zoals tint
+        self.VELDEN |= set(re.findall(r'\.\.\.\((?:[A-Z_]+ && [A-Z_]+\[)?o\.(\w+)', rl))
         if 'rocks' not in self.VELDEN or 'ends' not in self.VELDEN:
             stop('readLevel heeft een andere vorm gekregen')
 
