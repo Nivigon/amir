@@ -34,7 +34,9 @@ In de sandbox onder Decor, rij **Savannedorp**: een knop per hut en put (`data-s
 ## De loopput (LOOPPUT)
 Een lage, brede leemput met een rond houten deksel, om op te staan en overheen te springen: `design/savanne/putten/put_loop.png`,
 Grok 4c665996 (een edit van put_leem met de galerij als referentie voor de kijkhoek). Het bovenvlak is van schuin boven te zien,
-zodat Amir erin staat en niet op een streep. Geen frame, windas of emmer: zo gaat de speer bij een steek of zwaai nergens door het hout.
+zodat Amir erin staat en niet op een streep. Het frame (twee palen, de balk met het touw, Grok fee91518) staat op de
+achterrand en de emmer op de grond: de hele plaat ligt achter de personages, dus Amir en zijn speer staan altijd voor het hout.
+De palen zijn bij het knippen 230 px verlengd (een strook herhaald), zodat de balk boven Amirs hoofd uitkomt.
 
 - Level: `loopPutten: [{x, s, f}]`, `x` het midden, `s` de grootte, `f` spiegelen. Bij `s` 1 ligt de looplijn 160 boven de grond
   (de sprong haalt 208) en is hij ruim 1,7 Amir breed (`LOOPPUT.k`).
