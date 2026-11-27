@@ -1242,6 +1242,12 @@ Hoe het werkt (zoek op `ISLOT`):
 - Clay: `islotDubbelNu` zet `critNu` voor de speer en vermenigvuldigt `straalSchadeK` voor de stokken; een gast stuurt
   `x2` mee in zijn treffer (`mh`). De stappen: `sounds/kivuli/klei_stap1.mp3` en `klei_stap2.mp3` (ElevenLabs, gekozen
   door Tom, even hard als de gewone stappen), de klap `sounds/brutus_raak.mp3`.
+- **Iedereen ziet de effecten** (27-11-2026, op verzoek). De wolk, de slang, de mieren en Mirrors kwamen al bij iedereen
+  aan (`isl` in `MP_DOOR`); de mieren waren alleen donkerbruin en lazen als een bloedvlek, zeker in de avond en de nacht.
+  Nu: een donkere rand, een vuurrood lijf, een glimpje en een rode gloed op de grond die met de muur meegroeit. Ketemba
+  Clay was alleen bij de gebruiker te zien; nu houdt elke ander per speler een klok bij (`islotKleiAnder`) en laat
+  `islotKleiAnderStap` om de 0,42 Amir die de teamgenoot loopt een klontje en een zachtere smak bij zijn voeten vallen.
+  Proef: `node tools/mptest.js --islotzien` (de gast gebruikt alle vijf, de host en de tweede gast moeten elk effect hebben).
 - Bazen zitten niet in de vijandlijsten, dus de mieren en Mirrors werken niet op een baas.
 - Beelden: `items/kivuli/*.png` (Grok, gekozen door Tom); de slang `enemies/slang_kivuli/` uit `tools/slang_kivuli.py`.
 - Sandbox: de rij **Kivuli items** stopt er een in je tas. Testen: `node tools/islot_test.js [map]`.

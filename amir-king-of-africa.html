@@ -27347,7 +27347,13 @@ function javSchacht(tx, ty, scale){                         // de speer zelf, op
   ctx.rotate(a + wob + wrik - jav.sag / L + (jav.kantel || 0));   // doorbuigen: het uiteinde zakt; kantel: nog niet plat
   const draai = (jav.state === 'vlucht' && !oudSoort(jav.blauw) && jav.blauw !== 'pathfinder' && jav.blauw !== 'piercer' && jav.blauw !== 'ardhi') ? draaiBeeld('gewoon', jav.t) : null;   // de Pathfinder Spear ook niet: zijn vaantje waait mee   // in de vlucht rolt hij om zijn as (de oude speer niet: de draai-frames hebben zijn art niet)
   if (draai) draaiTeken(vaanBlauw(draai, jav.blauw), 'gewoon', s);
-  else if (imgReady(javImg)) javTeken(jav.blauw, s, jav.state === 'vlucht' ? 1 : jav.state === 'val' ? 0.6 : 0.15, -jav.dir);
+  else if (imgReady(javImg)){
+    // het gif: dezelfde groene punt als in de hand en op de rug (mkGifBeeld), voor elke speersoort; de druppels komen
+    // alleen van de speren die hij draagt (gifBron), dus wat javTeken daar neerzet gaat er weer af
+    const nB = gifBron.lijst.length;
+    javTeken(jav.blauw, s, jav.state === 'vlucht' ? 1 : jav.state === 'val' ? 0.6 : 0.15, -jav.dir, gifSterkte());
+    gifBron.lijst.length = nB;
+  }
   else {                                                   // reserve, zodat je hem altijd ziet
     ctx.strokeStyle = '#6b4a2b'; ctx.lineWidth = Math.max(2, 5 * scale); ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-L, 0); ctx.stroke();
@@ -27355,7 +27361,7 @@ function javSchacht(tx, ty, scale){                         // de speer zelf, op
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-L * 0.16, -L * 0.05); ctx.lineTo(-L * 0.16, L * 0.05);
     ctx.closePath(); ctx.fill();
   }
-  gifPuntTeken(L);                                         // vergiftigd: een groene punt (zie "het gif")
+  if (draai || !imgReady(javImg)) gifPuntTeken(L);         // vergiftigd en draaiend (of nog zonder plaatje): de groene punt als vorm
   ctx.restore();
   if (jav.state !== 'vlucht') gifDrupTeken(tx, ty, scale, 7);   // en een druppel, als hij stilligt of vastzit
 }
@@ -29651,8 +29657,12 @@ function mkMaskers(sm){
   return m;
 }
 // de speer van een frame tekenen op g (in framepixels W x H); false als het plaatje nog niet binnen is
-// de speer van het gif: een kopie van het plaatje waarin alleen het staal zuurgroen is (de schacht en het lint blijven),
-// met de schaduw en glans van het staal erin; per plaatje een keer gemaakt. Staal: weinig kleur en niet te donker.
+// de speer van het gif: een kopie van het plaatje waarin alleen de punt zuurgroen is (de schacht en het lint blijven),
+// met de schaduw en glans van de punt erin; per plaatje een keer gemaakt. Werkt voor elke speersoort, ook toekomstige:
+// eerst de lange as van de speer (de spreiding van zijn pixels) en welk eind de punt is (het smalste eind). Dan het grootste
+// stuk staal (weinig kleur, niet te donker) dat bij die punt ligt; is er daar geen (een zwarte naald, een punt van been
+// naast een wit omwikkeld stuk), dan het laatste stuk van de lengte aan de kant van de punt (GIF_PUNT).
+const GIF_PUNT = { zone: 0.82, minStaal: 0.012, lengte: 0.13 };
 const mkGifCache = new WeakMap(), mkGifPunten = new WeakMap();
 function mkGifBeeld(im){
   let c = mkGifCache.get(im);
@@ -29663,29 +29673,45 @@ function mkGifBeeld(im){
   g.drawImage(im, 0, 0);
   try {
     const d = g.getImageData(0, 0, w, h), q = d.data, n = w * h, staal = new Uint8Array(n);
+    // de as: het zwaartepunt en de richting van de grootste spreiding
+    let N = 0, sx = 0, sy = 0;
+    for (let j = 0, i = 3; j < n; j++, i += 4) if (q[i] >= 40){ N++; sx += j % w; sy += (j - j % w) / w; }
+    if (!N) throw 0;
+    const mx0 = sx / N, my0 = sy / N;
+    let cxx = 0, cyy = 0, cxy = 0;
+    for (let j = 0, i = 3; j < n; j++, i += 4) if (q[i] >= 40){ const x = j % w - mx0, y = (j - j % w) / w - my0; cxx += x * x; cyy += y * y; cxy += x * y; }
+    const hk = 0.5 * Math.atan2(2 * cxy, cxx - cyy), ux = Math.cos(hk), uy = Math.sin(hk);
+    const proj = new Float32Array(n); let pmin = Infinity, pmax = -Infinity;
+    for (let j = 0, i = 3; j < n; j++, i += 4) if (q[i] >= 40){ const p = (j % w - mx0) * ux + ((j - j % w) / w - my0) * uy; proj[j] = p; if (p < pmin) pmin = p; if (p > pmax) pmax = p; }
+    const L = Math.max(1, pmax - pmin);
+    let nMin = 0, nMax = 0;                              // het smalste eind is de punt
+    for (let j = 0, i = 3; j < n; j++, i += 4) if (q[i] >= 40){ if (proj[j] < pmin + L * 0.04) nMin++; else if (proj[j] > pmax - L * 0.04) nMax++; }
+    const tipT = j => nMax <= nMin ? (proj[j] - pmin) / L : (pmax - proj[j]) / L;   // 0 aan de knop, 1 aan de punt
     for (let j = 0, i = 0; j < n; j++, i += 4){
       if (q[i + 3] < 40) continue;
       const mx = Math.max(q[i], q[i + 1], q[i + 2]), mn = Math.min(q[i], q[i + 1], q[i + 2]);
       if (mx > 45 && (mx - mn) / mx < 0.22) staal[j] = 1;
     }
-    // alleen het grootste aaneengesloten stuk staal is de punt; losse grijze plekjes op de schacht blijven bruin
+    // het grootste aaneengesloten stuk staal bij de punt; losse grijze plekjes en een wit stuk op de schacht blijven
     const groep = new Int32Array(n), rij = new Int32Array(n);
     let beste = 0, besteN = 0, nr = 0;
     for (let j0 = 0; j0 < n; j0++){
       if (!staal[j0] || groep[j0]) continue;
-      nr++; let kop = 0, staart = 0; rij[staart++] = j0; groep[j0] = nr;
+      nr++; let kop = 0, staart = 0, tSom = 0; rij[staart++] = j0; groep[j0] = nr;
       while (kop < staart){
-        const j = rij[kop++], x = j % w;
+        const j = rij[kop++], x = j % w; tSom += tipT(j);
         for (const m of [x > 0 ? j - 1 : -1, x < w - 1 ? j + 1 : -1, j - w, j + w])
           if (m >= 0 && m < n && staal[m] && !groep[m]){ groep[m] = nr; rij[staart++] = m; }
       }
-      if (staart > besteN){ besteN = staart; beste = nr; }
+      if (tSom / staart > GIF_PUNT.zone && staart > besteN){ besteN = staart; beste = nr; }
     }
+    const opStaal = beste && besteN >= N * GIF_PUNT.minStaal;
+    const punt = j => opStaal ? groep[j] === beste : (q[j * 4 + 3] >= 40 && tipT(j) >= 1 - GIF_PUNT.lengte);
     // de punten van het staal, voor de druppel (gifDrup): de punt (het verst van het midden) en de twee weerhaken
     // (het hoogste en laagste pixel); waar de speer ook staat, de laagste daarvan is waar het gif afdruipt
     let pa = null, pc = null, pd = null, ver = -1;
     for (let j = 0; j < n; j++){
-      if (groep[j] !== beste || !beste) continue;
+      if (!punt(j)) continue;
       const x = j % w, y = (j - x) / w, a = (x - w / 2) ** 2 + (y - h / 2) ** 2;
       if (a > ver){ ver = a; pa = [x, y]; }
       if (!pc || y < pc[1]) pc = [x, y];
@@ -29693,8 +29719,9 @@ function mkGifBeeld(im){
     }
     if (pa) mkGifPunten.set(im, [pa, pc, pd]);
     for (let j = 0, i = 0; j < n; j++, i += 4){
-      if (groep[j] !== beste || !beste){ q[i + 3] = 0; continue; }   // geen staal: doorzichtig, het origineel blijft
-      const f = 0.3 + 1.2 * (q[i] * 0.3 + q[i + 1] * 0.59 + q[i + 2] * 0.11) / 255;
+      if (!punt(j)){ q[i + 3] = 0; continue; }           // geen punt: doorzichtig, het origineel blijft
+      const l = (q[i] * 0.3 + q[i + 1] * 0.59 + q[i + 2] * 0.11) / 255;
+      const f = opStaal ? 0.3 + 1.2 * l : 0.6 + 1.0 * l;  // een donkere punt (de naald) wat lichter, anders zie je het groen niet
       q[i] = Math.min(255, 95 * f); q[i + 1] = Math.min(255, 225 * f); q[i + 2] = Math.min(255, 35 * f);
     }
     g.putImageData(d, 0, 0);
@@ -40626,7 +40653,7 @@ document.getElementById('wkterug').onclick = winkelTerugkoop;
 // Te zien: bloed met groen bij elke treffer en elke tik (gifSpat), een groene zweem en belletjes om de vijand
 // (gifVijandTeken), de balk die langzaam afloopt (vijandHpBalk), en een groene punt die druipt op elke speer die
 // getekend wordt (gifPuntTeken), minder groen naarmate de treffers opraken. In de sandbox onder Speerworp, Gif.
-const GIF = { hits: 10, tik: 3, baas: 0.5,
+const GIF = { hits: 10, tik: 3, baas: 0.5, zie: 1.1,   // zie: hoe duidelijk de waas en belletjes om een vergiftigde vijand (1,1 = 10% meer dan eerst)
   spat: { rood: 5, groen: 4, tikRood: 3, tikGroen: 5 } };   // zoveel druppels per treffer en per tik
 const INV_MAX = HPPOTION_MAX;                      // de inventory: zoveel plekken, een kalebas of een gif per plek
 let gifCarry = 0;                                  // zoveel gif in de inventory
@@ -40851,15 +40878,15 @@ function gifVijandTeken(sx, topY, s, scale){
   ctx.save();
   const puls = 0.75 + 0.25 * Math.sin(nu * 4 + s.x * 0.01);
   const g = ctx.createRadialGradient(sx, cy, 0, sx, cy, ah * 0.5);
-  g.addColorStop(0, 'rgba(150,235,80,' + (0.22 * puls).toFixed(3) + ')');
+  g.addColorStop(0, 'rgba(150,235,80,' + (0.22 * GIF.zie * puls).toFixed(3) + ')');   // GIF.zie: 10% duidelijker (op verzoek)
   g.addColorStop(1, 'rgba(150,235,80,0)');
   ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(sx, cy, ah * 0.32, ah * 0.5, 0, 0, Math.PI * 2); ctx.fill();
   for (let i = 0; i < 4; i++){                        // belletjes: elk een eigen fase, ze stijgen en knappen
     const f = (nu * 0.55 + i * 0.27 + (s.x % 97) * 0.01) % 1;
     const bx = sx + Math.sin(i * 2.3 + nu * 1.7) * ah * 0.12, by = cy + ah * 0.15 - f * ah * 0.55;
-    ctx.globalAlpha = (1 - f) * 0.85;
-    ctx.strokeStyle = '#b8f070'; ctx.fillStyle = 'rgba(120,210,60,0.35)'; ctx.lineWidth = Math.max(1, ah * 0.006);
-    ctx.beginPath(); ctx.arc(bx, by, Math.max(1.5, ah * (0.012 + 0.008 * (i % 2))), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.globalAlpha = Math.min(1, (1 - f) * 0.85 * GIF.zie);
+    ctx.strokeStyle = '#b8f070'; ctx.fillStyle = 'rgba(120,210,60,' + (0.35 * GIF.zie).toFixed(3) + ')'; ctx.lineWidth = Math.max(1, ah * 0.006 * GIF.zie);
+    ctx.beginPath(); ctx.arc(bx, by, Math.max(1.5, ah * (0.012 + 0.008 * (i % 2)) * GIF.zie), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   }
   ctx.restore();
 }
@@ -41052,6 +41079,7 @@ const islotFx = [];                                 // wat er in de wereld ligt:
 const islotMir = {};                                // per speler-slot: { t, x, h } zolang hij onzichtbaar is
 let islotKleiT = 0, islotDubbelT = 0, islotGastX2 = false, islotKleiStapN = 0;
 const islotKlonten = [];                            // klei die van zijn voeten valt (getekend zoals het bloed, BLOED_RAND)
+const islotKleiAnder = {};                          // per speler-slot: een teamgenoot met Ketemba Clay { t, x }: ook bij hem vallen er klonten
 const islotImgs = {};
 function islotImg(src){ if (!islotImgs[src]){ const i = new Image(); i.src = src; islotImgs[src] = i; } return islotImgs[src]; }
 let islotSlang = null;
@@ -41080,6 +41108,7 @@ function islotReset(){
   islotTas = {}; islot = [null, null]; islotKivKoop = false;
   islotFx.length = 0; islotKlonten.length = 0;
   for (const p in islotMir) delete islotMir[p];
+  for (const p in islotKleiAnder) delete islotKleiAnder[p];
   islotKleiT = 0; islotDubbelT = 0; islotGastX2 = false;
 }
 function islotLijst(){ const r = []; for (const k of ISLOT.dingen) for (let i = 0; i < (islotTas[k] || 0); i++) r.push('isl_' + k); return r; }
@@ -41136,6 +41165,7 @@ function islotStart(m, zelf){
     islotMir[p] = { t: ISLOT.mirrors.duur, x: m.x, h: m.h };
   } else if (m.k === 'klei'){
     if (zelf) islotKleiT = ISLOT.klei.duur;
+    else if (p != null) islotKleiAnder[p] = { t: ISLOT.klei.duur, x: null, stap: 0 };   // een teamgenoot: zijn klonten zie ik ook (islotKleiAnderStap)
   }
 }
 // iemand anders is weer zichtbaar (hij viel aan, of werd geraakt waar hij verdween)
@@ -41228,6 +41258,7 @@ function islotStap(dt){
   if (islotKleiT > 0) islotKleiT = Math.max(0, islotKleiT - dt);
   if (islotDubbelT > 0) islotDubbelT = Math.max(0, islotDubbelT - dt);
   for (const p in islotMir){ const m = islotMir[p]; m.t -= dt; if (m.t <= 0) delete islotMir[p]; }
+  islotKleiAnderStap(dt);
   const mij = islotMij();
   if (islotMirAan(mij) && (atkFrame >= 0 || swFrame >= 0 || thr || atkStok)) islotMirEind(mij, true);   // aanvallen breekt het
   for (let i = islotKlonten.length - 1; i >= 0; i--){
@@ -41315,6 +41346,26 @@ function islotKleiStap(){
   for (let i = 0; i < n; i++) islotKlonten.push({ x: world + facing * -(0.05 + Math.random() * 0.12) * A, hh: ph + 8 + Math.random() * 14, bodem: ph - Math.random() * 6,
     vx: -facing * (20 + Math.random() * 50), vh: 10 + Math.random() * 50, r: 2.2 + Math.random() * 1.6, los: true, t: 0 });
 }
+// een teamgenoot met Ketemba Clay: zijn voeten zie ik niet neerkomen, dus om de zoveel afstand die hij loopt een smak
+// en een klontje bij zijn voeten, zoals bij mij (islotKleiStap); de smak zachter, hij is niet ik
+function islotKleiAnderStap(dt){
+  for (const p in islotKleiAnder){
+    const k = islotKleiAnder[p]; k.t -= dt;
+    const g = pvp && pvp.anders && pvp.anders[p] && pvp.anders[p].g;
+    if (k.t <= 0 || !g){ if (k.t <= 0) delete islotKleiAnder[p]; continue; }
+    const A = islotA();
+    if (k.x == null){ k.x = g.x; continue; }
+    const dx = g.x - k.x; k.x = g.x;
+    if (Math.abs(dx) > A) continue;                 // een sprong in zijn stand (opstaan, een nieuwe plek): geen stap
+    k.stap += Math.abs(dx);
+    if (k.stap < A * 0.42) continue;
+    k.stap = 0;
+    const r = dx < 0 ? -1 : 1, n = Math.random() < 0.6 ? 1 : 2;
+    islotGeluid('stap', ISLOT.klei.stapVol * 0.5);
+    for (let i = 0; i < n; i++) islotKlonten.push({ x: g.x - r * (0.05 + Math.random() * 0.12) * A, hh: (g.h || 0) + 8 + Math.random() * 14, bodem: (g.h || 0) - Math.random() * 6,
+      vx: -r * (20 + Math.random() * 50), vh: 10 + Math.random() * 50, r: 2.2 + Math.random() * 1.6, los: true, t: 0 });
+  }
+}
 // de treffer met de klei klinkt zwaarder
 function islotKleiRaak(){ if (islotKleiAan()) islotGeluid('raak', ISLOT.klei.raakVol); }
 const islotScherm = (x, cx) => cx + (x - world);
@@ -41327,14 +41378,33 @@ function islotTeken(groundY, scale, cx){
     if (e.k === 'ants'){
       const T = ISLOT.ants, op = e.t > T.duur ? Math.max(0, 1 - (e.t - T.duur) / 0.7) : 1, t = e.t;
       const gy = groundY - e.h * scale;
-      ctx.globalAlpha = op * 0.9; ctx.fillStyle = '#6e2618';
-      for (const m of e.mier){
-        const wx = e.l + m.u * (e.r - e.l);
-        if (wx < e.lNu || wx > e.rNu) continue;
-        const s = m.s * 0.75 * scale / 0.6 * (0.85 + m.d * 0.4);
-        const x = islotScherm(wx, cx) + Math.sin(t * 9 * m.sp + m.ph) * 3 * scale + Math.sin(t * 2 + m.ph) * 4 * scale;
-        const y = gy - 4 * scale + m.d * 30 * scale + Math.cos(t * 11 * m.sp + m.ph) * 1.2;
-        ctx.beginPath(); ctx.ellipse(x - 3.2 * s, y, 2 * s, 1.6 * s, 0, 0, 7); ctx.ellipse(x, y, 1.4 * s, 1.1 * s, 0, 0, 7); ctx.ellipse(x + 2.8 * s, y, 1.6 * s, 1.3 * s, 0, 0, 7); ctx.fill();
+      // een gloed van vuurrood op de grond onder de muur, die meegroeit: zo lees je het als mieren en niet als bloed,
+      // ook in de avond en de nacht van Co-op (MPC_VERSIE)
+      const l = e.lNu == null ? e.l : e.lNu, r = e.rNu == null ? e.r : e.rNu;
+      if (r > l){
+        const mx = islotScherm((l + r) / 2, cx), rx = (r - l) / 2 + 10 * scale, my = gy + 10 * scale;
+        const puls = 0.85 + 0.15 * Math.sin(t * 7);
+        const gl = ctx.createRadialGradient(mx, my, 0, mx, my, rx);
+        gl.addColorStop(0, 'rgba(255,110,30,' + (0.34 * puls) + ')'); gl.addColorStop(0.7, 'rgba(230,70,20,' + (0.16 * puls) + ')'); gl.addColorStop(1, 'rgba(230,70,20,0)');
+        ctx.globalAlpha = op; ctx.fillStyle = gl;
+        ctx.save(); ctx.translate(mx, my); ctx.scale(1, 0.32); ctx.translate(-mx, -my); ctx.beginPath(); ctx.arc(mx, my, rx, 0, 7); ctx.fill(); ctx.restore();
+      }
+      // de mieren: een donkere rand, een vuurrood lijf en een glimpje, zodat ze ook op donkere grond te zien zijn
+      for (const laag of [0, 1, 2]){
+        ctx.globalAlpha = op * (laag === 2 ? 0.75 : 1);
+        ctx.fillStyle = laag === 0 ? '#2a0904' : laag === 1 ? '#d8471a' : '#ffb36a';
+        ctx.beginPath();
+        for (const m of e.mier){
+          const wx = e.l + m.u * (e.r - e.l);
+          if (wx < l || wx > r) continue;
+          const s = m.s * 0.75 * scale / 0.6 * (0.85 + m.d * 0.4);
+          const x = islotScherm(wx, cx) + Math.sin(t * 9 * m.sp + m.ph) * 3 * scale + Math.sin(t * 2 + m.ph) * 4 * scale;
+          const y = gy - 4 * scale + m.d * 30 * scale + Math.cos(t * 11 * m.sp + m.ph) * 1.2;
+          if (laag === 0){ const o = 0.8; ctx.moveTo(x - 3.2 * s + 2 * s + o, y); ctx.ellipse(x - 3.2 * s, y, 2 * s + o, 1.6 * s + o, 0, 0, 7); ctx.moveTo(x + 1.4 * s + o, y); ctx.ellipse(x, y, 1.4 * s + o, 1.1 * s + o, 0, 0, 7); ctx.moveTo(x + 4.4 * s + o, y); ctx.ellipse(x + 2.8 * s, y, 1.6 * s + o, 1.3 * s + o, 0, 0, 7); }
+          else if (laag === 1){ ctx.moveTo(x - 1.2 * s, y); ctx.ellipse(x - 3.2 * s, y, 2 * s, 1.6 * s, 0, 0, 7); ctx.moveTo(x + 1.4 * s, y); ctx.ellipse(x, y, 1.4 * s, 1.1 * s, 0, 0, 7); ctx.moveTo(x + 4.4 * s, y); ctx.ellipse(x + 2.8 * s, y, 1.6 * s, 1.3 * s, 0, 0, 7); }
+          else { const gr = 0.6 * s; ctx.moveTo(x - 3.6 * s + gr, y - 0.6 * s); ctx.arc(x - 3.6 * s, y - 0.6 * s, gr, 0, 7); }
+        }
+        ctx.fill();
       }
     } else if (e.k === 'fangs'){
       const gy = groundY - e.h * scale;
