@@ -28,6 +28,30 @@ boven blijft staan.
 Hij wordt getekend vlak voor Amir (na de lichtkaart), in dezelfde stand van de camera; eerder in het beeld stond hij op
 een hogere laag te zweven.
 
+## De gids (27-11-2026): de Mkuki-ranger in plaats van de omgekleurde Amir
+
+De mentor heeft nu eigen art: de nomadische Mkuki-ranger uit Grok (teal jas, roestrode sjaal en sjerp, speer). Het
+spoor blijft dat van Amir (waar hij staat, hoe hoog, welke kant op, wanneer hij op de grond is); per beeld van het spoor
+zegt `design/tutorial/gids/gids.json` welk frame van de gids erbij hoort. Kop in de HTML: `// ---- de gids: ...`, grep
+`GIDS`, `gidsLaad`, `gidsNu`, `gidsTeken`, `gidsFx`, `gidsRenGeluid`. Zonder gids.json tekent hij weer de omgekleurde Amir.
+
+- Bouwen: `python3 tools/gids_bouw.py` (leest de mp4's van Tom uit `design/tutorial/gids/bron/`, keyt ze, kleurt de groene
+  speer om, maakt per animatie een blad en koppelt het spoor). **Neem je het spoor opnieuw op (`tools/mentor_opname.js`),
+  draai dit daarna ook**, anders klopt de koppeling niet meer.
+- Animaties: idle (heen en terug), verteller (een keer als hij wacht en iets uitlegt: alleen handgebaren, mond dicht, kijkt
+  niet naar de camera), ren (lus van 24 op afstand, sprinten gaat sneller door de lus), sprong (de hoge korte sprong;
+  uit de ren zonder het rechtop staan), groot (de sprintsprong, boven 380 px/s: station 8 en de race; opspringen is de
+  clip achteruit), buk, sluip (lus van 58), rol (roll1, roll2 en roll3 achter elkaar).
+- Het roze in het haar: Grok tekent een paarse glans in het donkere haar en de knot. Het keyen haalt dat weg met despill
+  (waar rood en blauw samen boven groen uitkomen gaat dat eraf).
+- De speer is in de bron egaal groen (#00C800), zodat hij weg of te vervangen is. `SPEER` in het script kleurt hem om (de
+  punt staal: het brede eind van de speer; de rest hout); `SPEER = None` haalt hem eruit.
+- Schaal: per clip geijkt op het hoofd (`SCHAAL`), de gids staand 1,2 x Amir (ongeveer bandietmaat).
+- Stof en geluid: de renlus van Amir (`amirren.mp3`), zachter naarmate hij verder van je af is; stof bij de afzet en de
+  landing; bij de rol het rolgeluid en het stof van `ROL_STOF`.
+- Nog niet gebruikt: `gahurk`, `hurk_en_omkijk`, `hurkenwenk` (voor de panter-sluiples) en `deelsbruikbaar_vertellen`.
+- Open: de speer los (nu omgekleurd in de frames), een klim voor de richel (hij springt nu), een rustig loopje.
+
 ## Het spoor: opgenomen, niet nagebouwd
 
 De mentor heeft geen eigen natuurkunde. `tools/mentor_opname.js` speelt het level in Chromium met Amir (op vaste 60 fps,
