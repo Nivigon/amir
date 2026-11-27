@@ -19043,7 +19043,7 @@ function losBij(){
   const scale = nowScale(), reik = javReach() * 1.3;
   let best = null, bestD = Infinity;
   for (const sp of losseSperen){
-    if (ph < sp.h - 30 || ph > sp.h + CHAR_H * 0.5) continue;
+    if (sp.h > ph + CHAR_H * SPEER_GREEP.boven || sp.h < ph - CHAR_H * SPEER_GREEP.onder) continue;
     const half = sp.soort === 'skelet' ? LOS_LEN / 2 * skK(scale) : javLen(scale) * 0.4;
     const d = Math.abs(world - (sp.x + sp.zij * half));
     if (d < reik + half && d < bestD){ best = sp; bestD = d; }
@@ -26540,6 +26540,7 @@ const JAV = {
   tiles: 14,          // zoveel tegels per seconde, horizontaal
   gDeel: 1 / 3,       // zwaartekracht: een derde van die op Amir, dus duidelijk maar niet sloom
   inTile: 10,         // zo ver steekt de punt de tegel in na de inslag
+  kiepV: 90,         // zo snel glijdt een speer opzij als hij over de rand van een galerij of dak kiept
   inBos: 0.42,        // in een struweel zakt hij dieper weg: dit deel van zijn eigen lengte
   bosZak: 14,         // en het uiteinde hangt zo veel graden door, dus lager dan Amirs hoofd
   wobT: 4 / THR_FPS,  // natrillen na de inslag: vier frames lang
@@ -26629,6 +26630,9 @@ function rugTrekKlaar(){
   // een al neergekomen gegooide speer wordt nu een losse speer: je hand is weer vol, dus je raapt hem
   // straks op de rug op (en hij blijft niet als spearX geclaimd, zie javStick)
   if (jav && jav.lijk) jav.rug = true;            // in een lijk (de kruisboogbandiet): hij blijft zitten, E zet hem op de rug
+  // in een wand (een huis in de stad, een rots): hij blijft steken (en blijft een opstapje), E zet hem op de rug.
+  // Zonder dit bleef hij "de" speer terwijl je hand al vol was, en negeerde spearGreep hem: niet te pakken
+  else if (jav && jav.state === 'muur') jav.rug = true;
   else if (jav && (jav.state === 'grond' || jav.state === 'bos')){
     eigenSpeerLos(jav.x, jav.dir, jav.blauw, jav.h); jav = null; javLost = 0; spearX = null; spearH = null;
   }
@@ -27284,6 +27288,19 @@ function javStick(x, h, soort, scale){
     const b = Math.max(0, javDirHoek());
     jav.sa = jav.dir === 1 ? 0 : Math.PI;
     if (b > 0.02){ jav.kantel = jav.kantel0 = b; jav.kantelT = 0; jav.wob = 0; }
+    // Op een galerij of dak in de stad: komt alleen de punt op de planken en ligt het midden van de schacht
+    // er al naast, dan kiept hij over de rand en valt verder (naar de straat). Anders bleef hij liggen met
+    // bijna de hele schacht in de lucht, een zwevende speer (Ishmul: van de brug op een vijand aan de rand)
+    const vl = stadAan() ? stadPlats(scale).find(q => q.thin && q.stad && x > q.left && x < q.right && Math.abs(q.topH - h) < 1) : null;
+    if (vl){
+      const L = javLen(scale), mid = jav.x - Math.cos(jav.sa) * L / 2, marge = L * 0.1;   // het midden ruim op de planken
+      if (mid < vl.left + marge || mid > vl.right - marge){
+        jav.state = 'val'; jav.h = h - 2;                // net onder de planken: javFloor telt de galerij dan niet meer
+        jav.vx = (mid < vl.left ? -1 : 1) * JAV.kiepV; jav.vh = 0; jav.t = 0;
+        jav.kantel = 0; jav.wob = 0;
+        return;
+      }
+    }
   }
   if (spearFound && rugAan()){
     // je hand is al weer gevuld (van de rug getrokken): deze gegooide speer wordt een losse speer,
@@ -30787,9 +30804,12 @@ function speerVooraf(soortId){
 // een doornbos. Je loopt tegen de schacht aan, dus we zoeken het dichtstbijzijnde stuk schacht
 // dat binnen bereik ligt en op jouw hoogte zit. Dat is meestal het stompe uiteinde.
 // In de hoogte geldt hetzelfde als eerst: van onderaf, of vanaf het platform waar hij zelf op staat.
+const SPEER_GREEP = { reik: 1.3, onder: 0.45, boven: 1.1 };   // het venster om een speer op te pakken (spearGreep, losBij)
 function spearGreep(){
   if ((spearFound && !(jav && jav.rug)) || spearX === null) return null;
-  const reik = javReach(), laag = ph - 30, hoog = ph + CHAR_H * 0.95;
+  // ruim genoeg dat je niet op de pixel hoeft te staan: opzij iets verder dan je lijf, in de hoogte een halve Amir
+  // onder je voeten (van een kraamdak naar de galerij ernaast) tot je hand boven je hoofd (SPEER_GREEP)
+  const reik = javReach() * SPEER_GREEP.reik, laag = ph - CHAR_H * SPEER_GREEP.onder, hoog = ph + CHAR_H * SPEER_GREEP.boven;
   if (!jav || javLost > 0){                     // de speer die in de grond staat: één punt, zoals eerst
     const h = spearRestH();
     return (Math.abs(world - spearX) < reik && h > laag && h < hoog) ? { x: spearX, h } : null;
