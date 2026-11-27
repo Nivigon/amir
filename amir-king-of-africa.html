@@ -35409,6 +35409,7 @@ const STAD = {
   kraamGrijp: 0.1,
   kanteelBreed: 0.7,                // achter de kartels: de strook rond wie op een dak staat, halve breedte in Amir (stadKanteelVoor)
   kanteelLijk: 1.6,                 // idem voor een dode: hij ligt languit, dus de strook is breder, anders steken zijn voeten erbuiten
+  kanteelLijkOnder: 0.12,           // een dode Amir (Co-op): zoveel Amir loopt de muur voor hem onder de dakrand door, over een hangende arm en zijn schaduw
   vijandMarge: 30,                  // een dak is de vloer van een vijand vanaf zoveel onder de looplijn (stadVloerBij)
   vijandNaad: 0.4,                  // een kier tot zoveel Amir tussen twee vloeren op dezelfde hoogte is voor een vijand dicht (stadVloeren)
   dakRand: 0.12,                    // met level.dakRand: zoveel Amir houdt het dak als vloer binnen de muur op (stadDakRand)
@@ -42632,11 +42633,11 @@ function stadKanteelVoor(groundY, scale, cx){
     const g = gevels[gi], m = maten[gi], sx = cx + (m.x - world);
     if (sx > W / viewZoom() + W || sx + m.w < -W) continue;
     const kol = [];
-    if (gi === stadKanteelAmir && !exeAmirWeg()) kol.push(playerX());
+    if (gi === stadKanteelAmir && !exeAmirWeg()) kol.push(dead && pvp && pvp.coop ? { x: playerX(), lijk: true, l: -halfLijk, r: halfLijk, onder: CHAR_H * scale * STAD.kanteelLijkOnder } : playerX());   // dood (Co-op): hij ligt languit, de bredere strook, en een arm en zijn schaduw zakken onder de dakrand
     // Multiplayer: een teamgenoot of tegenstander op dit dak staat ook achter de tanden (ligt hij dood, dan de bredere strook)
     if (pvp) for (const p of pvpAnderen()){
       const g = pvp.anders[p] && pvp.anders[p].g;
-      if (g && g.im && op(m, g.x, g.h || 0)) kol.push(g.d ? { x: g.x, lijk: true, l: -halfLijk, r: halfLijk, onder: 0 } : g.x);
+      if (g && g.im && op(m, g.x, g.h || 0)) kol.push(g.d ? { x: g.x, lijk: true, l: -halfLijk, r: halfLijk, onder: CHAR_H * scale * STAD.kanteelLijkOnder } : g.x);
     }
     for (const lijst of lijsten) for (const s of lijst) if (op(m, s.x, s.base || 0)){
       const sv = lijst === schildmannen && camLeeft(s) ? schbKanteelVak(s, scale, half) : null;
@@ -62376,7 +62377,7 @@ function loop(now){
     if (pvp) pvpVang(img, x, y, w, h, useThrow ? thrFlip() : (autoFlip && facing === 1), pcx, groundY + lift, scale);   // PvP: dit beeld gaat naar de ander
     if (!moving && !attacking && onGround && !useDuck && !useCrawl && !dead && zhEigenK >= 1 && !bnActief()) zhVang(img, x, y, w, h, false, pcx, groundY + lift, scale);   // Test 91: zo staat de oefenteamgenoot
     if (mentorOpname) mentorOpname(img, x, y, w, h, useThrow ? thrFlip() : (autoFlip && facing === 1), pcx, groundY + lift, scale);   // de opname van de mentor (tools/mentor_opname.js)
-    if (pvp && pvp.coop && dead) mpcLig(w, h, groundY + lift - y);   // Co-op: wie dood is ligt, tot de revive
+    if (pvp && pvp.coop && dead) mpcLig(w, h, groundY + lift - y, onGround && mpcLigHoog(playerX(), ph));   // Co-op: wie dood is ligt, tot de revive
     if (useStok){ stokSlipStap(x, y, w, h, autoFlip && facing === 1); stokSlipTeken(true, w, h, autoFlip && facing === 1); }   // de slippen van een stok achter hem
     const amirNu = hurt > 0 && amirSteen <= 0 ? amirRood(amirBeeld, Math.min(0.75, hurt * 2)) : amirBeeld;
     ctx.drawImage(amirNu, 0, 0, w, h);
@@ -77395,7 +77396,7 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
     if (zk < 1){ ctx.translate(sx, voet); ctx.scale(zk, zk); ctx.translate(-sx, -voet); }
     ctx.translate(sx + g.dx * scale, voet + g.dy * scale);
     if (g.fl){ ctx.translate(w, 0); ctx.scale(-1, 1); }
-    if (pvp.coop && g.d) mpcLig(w, h, -g.dy * scale);  // Co-op: mijn teamgenoot ligt dood
+    if (pvp.coop && g.d) mpcLig(w, h, -g.dy * scale, mpcLigHoog(g.x, g.h || 0));  // Co-op: mijn teamgenoot ligt dood
     // zijn broekkleur uit de lobby, op een eigen doek per slot: het gedeelde doek van broekBeeld is ook het beeld van mijn
     // Amir (amirHer), en lijkAchterAmir tekende dat later opnieuw, dus dan stond zijn beeld in zijn kleur op mijn plek
     // zijn speersoort, het vaantje en zijn gif (MK_LOS); mkGifPunt is de druppel van mijn eigen speer, die blijft van mij
@@ -78660,9 +78661,13 @@ function mpcOpstaan(x, h){
   flashHint('Revived by your teammate');
 }
 // wie dood is ligt op zijn zij: het plaatje (w bij h, de voeten op fy) draait om zijn voeten plat op de grond. Het spel
-// zelf heeft geen doodspose (daar komt het dood-scherm), en in Co-op blijft het lijk liggen tot de revive
-function mpcLig(w, h, fy){
-  ctx.translate(w / 2, fy - h * 0.06);
+// zelf heeft geen doodspose (daar komt het dood-scherm), en in Co-op blijft het lijk liggen tot de revive.
+// Op de grond zakt het lijf half in de straat, dat heeft diepte. Op een verhoogde vloer (hoog: een galerij, een dak, een
+// trapbalkon) is de vloer een dunne rand: daar ligt hij erbovenop (MPC_LIG_TIL), anders hangt zijn halve lijf onder de planken
+const MPC_LIG_TIL = 0.1;   // zoveel h hoger op een verhoogde vloer
+function mpcLigHoog(x, h){ return h > terrainH(x) + 2; }
+function mpcLig(w, h, fy, hoog){
+  ctx.translate(w / 2, fy - h * (0.06 + (hoog ? MPC_LIG_TIL : 0)));
   ctx.rotate(Math.PI / 2);
   ctx.translate(-w / 2, -fy);
 }
