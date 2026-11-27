@@ -68,7 +68,7 @@ function server(){
     // welke levels: alles met stad.achterTot (in een episode, een testreeks of een Co-op map)
     const namen = await page.evaluate(([doel, def]) => {
       if (def) return [def.name || 'level.json'];
-      const lijsten = [KLEI_LEVELS, TEST_LEVELS, STOK_LEVELS, RW_LEVELS, TUT_LEVELS, BAB_LEVELS, MUR_LEVELS, STAD_LEVELS,
+      const lijsten = [KLEI_LEVELS, TEST_LEVELS, STOK_LEVELS, RW_LEVELS, TUT_LEVELS, BAB_LEVELS, MUR_LEVELS, REI_LEVELS, STAD_LEVELS,
                        COOPEP_LEVELS, COOPEP2_LEVELS, [MP_COOP_LEVEL, MP_ISHMUL_LEVEL]];
       const uit = [];
       for (const l of lijsten) for (const d of l)
@@ -80,7 +80,7 @@ function server(){
       const span = await page.evaluate(([naam, def]) => {
         let d = def;
         if (!d){
-          const lijsten = [KLEI_LEVELS, TEST_LEVELS, STOK_LEVELS, RW_LEVELS, TUT_LEVELS, BAB_LEVELS, MUR_LEVELS, STAD_LEVELS,
+          const lijsten = [KLEI_LEVELS, TEST_LEVELS, STOK_LEVELS, RW_LEVELS, TUT_LEVELS, BAB_LEVELS, MUR_LEVELS, REI_LEVELS, STAD_LEVELS,
                            COOPEP_LEVELS, COOPEP2_LEVELS, [MP_COOP_LEVEL, MP_ISHMUL_LEVEL]];
           for (const l of lijsten) for (const q of l) if (!d && q.name === naam) d = q;
         }
