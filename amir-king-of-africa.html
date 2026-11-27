@@ -2434,6 +2434,8 @@
         <button data-sdorp="put_leem">Put leem</button>
         <button data-sdorp="put_steen">Put steen</button>
         <button data-sdorp="put_shaduf">Shaduf</button>
+        <button id="sbloopput" title="de loopput: een lage put met een houten deksel, om op te staan; houdt vijanden tegen als een kei (LOOPPUT)">Loopput</button>
+        <button id="sbloopputweg">Weg</button>
       </div>
       <div class="row">
         <label title="de barsten en het puin van het plein van Nyundo, als los decor; elke klik een ander stuk">Kapotte vloer</label>
@@ -7470,12 +7472,13 @@ const TEST_97 = {
     gevels: [ {x: -3240, hoog: 2}, {x: -4000, hoog: 3, aan: 1.0} ],
     voet: [ {x: -3390, stuk: 'stenen'} ]
   },
-  grondSoort: [ {van: -4040, tot: -8000, soort: 'savanne'} ],
+  grondSoort: [ {van: -4040, tot: -8500, soort: 'savanne'} ],
   spawns: [], rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
   props: [ {x: -4180, k: 'hut_rond'}, {x: -4620, k: 'hut_koepel_groot'}, {x: -5130, k: 'hut_koepel_hoog'},
            {x: -5700, k: 'put_leem'}, {x: -6150, k: 'put_steen'}, {x: -6620, k: 'put_shaduf'},
-           {x: -6900, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -7050, k: 'tree', s: 1.1, f: 1, v: 0} ],
-  cliffs: [ {x: -7350, s: 1.6} ],
+           {x: -7500, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -7650, k: 'tree', s: 1.1, f: 1, v: 0} ],
+  loopPutten: [ {x: -7150} ],                      // de loopput: erop springen, staan en eraf (LOOPPUT)
+  cliffs: [ {x: -7950, s: 1.6} ],
   ends: [],
   tips: [ { x: -2980, t: 'Stijlproef: load a PNG in the panel (top left), it lands next to Amir. Check it against the city house and the huts' } ]
 };
@@ -11372,6 +11375,40 @@ function kruipstamTeken(groundY, scale, cx){
     ctx.drawImage(im, sx, groundY - K.grond * k, w, h);
   }
 }
+// ---- de loopput: een lage leemput met een houten deksel, om op te staan en overheen te springen (level.loopPutten) ----
+// Een Grok-plaat (design/savanne/putten/put_loop.png, wit weggeknipt, als edit van put_leem). Het bovenvlak is van
+// schuin boven te zien, zoals de galerij, zodat Amir erin staat en niet op een streep. Geen frame of emmer erop: zo gaat
+// de speer bij een steek of zwaai nergens door het hout. Botsing zoals bij de kruipstam: readLevel zet er een onzichtbare
+// zwevende laag (look 'geen') op, van de grond tot het bovenvlak. Die houdt vijanden tegen als een kei (regel 7: geen
+// slang, schorpioen of panter komt erover), Amir springt erop. Maten in pixels van de plaat.
+const LOOPPUT = {
+  src: 'design/savanne/putten/put_loop.png', w: 730, h: 314,
+  grond: 300,                 // de rij van de grondlijn (de voet van de muur)
+  top: 38,                    // de looplijn: midden in het bovenvlak
+  links: 34, rechts: 34,      // zoveel px van de randen begint en eindigt het loopvlak
+  k: 0.61                     // wereld-px per pixel van de plaat: de looplijn ligt zo 160 boven de grond
+};
+let loopputImg = null;
+function loopputPic(){ if (!loopputImg){ loopputImg = new Image(); loopputImg.src = LOOPPUT.src; } return loopputImg; }
+function loopputDak(q){
+  const K = LOOPPUT, k = K.k * (Number(q.s) || 1), x = Number(q.x);
+  return { r: x + (K.w / 2 - K.rechts) * k, l: x - (K.w / 2 - K.links) * k, h: (K.grond - K.top) * k, onder: 0, look: 'geen' };
+}
+function loopputTeken(groundY, scale, cx){
+  const L = level && level.loopPutten;
+  if (!L || !L.length) return;
+  const im = loopputPic(); if (!imgReady(im)) return;
+  const K = LOOPPUT;
+  for (const q of L){
+    const k = K.k * (q.s || 1) * scale, w = K.w * k, h = K.h * k;
+    const sx = cx + (q.x - world) - w / 2;
+    if (sx > W / viewZoom() + W || sx + w < -W) continue;
+    ctx.save();
+    if (q.f){ ctx.translate(2 * sx + w, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(im, sx, groundY - K.grond * k, w, h);
+    ctx.restore();
+  }
+}
 function drawLedge(o, groundY, scale, cx, binnen){
   const za = binnen ? 1 : maskerZicht(o.x, o.h);    // binnen een masker dat er nog ligt: niet te zien (hij draagt wel, wie erop landt onthult het)
   if (za <= 0) return;
@@ -11422,6 +11459,7 @@ function drawClimb(groundY, scale, cx, onder){
     }
   }
   if (!onder) kruipstamTeken(groundY, scale, cx);   // de kruipstam: een omgevallen stam op twee keien (KRUIPSTAM)
+  if (!onder) loopputTeken(groundY, scale, cx);    // de loopput: een lage put om op te staan (LOOPPUT)
   // zwevende savannelagen: hetzelfde dikke blok, maar afgesneden op de onderkant met lucht eronder
   for (const z of zweefList().filter(z => hier(z.h) && z.look !== 'geen').sort((a, b) => a.h - b.h)){   // geen: onzichtbaar (het plafond van de kelderzaal)
     const floorY = groundY - z.onder * scale;        // de onderkant van het blok op het scherm
@@ -65446,11 +65484,12 @@ function readLevel(txt){
                                                     zwart: (q.zwart === 'savanne' || q.zwart === 'vulling') ? q.zwart : undefined })),   // zwarte terrein-variant, zie de tekenlagen
            // zwevende savannelagen: een dik savanneblok in de lucht, zie "zwevende savannelaag"
            kruipstammen: Array.isArray(o.kruipstammen) ? o.kruipstammen.map(q => ({ x: Number(q.x), s: Number(q.s) || 1 })) : undefined,
+           loopPutten: Array.isArray(o.loopPutten) ? o.loopPutten.map(q => ({ x: Number(q.x), s: Number(q.s) || 1, f: !!q.f })) : undefined,   // de loopput (LOOPPUT)
            zwammen: Array.isArray(o.zwammen) ? o.zwammen.map(q => ({ x: Number(q.x), k: q.k === 'gloei' ? 'gloei' : 'paddo', v: q.v ? 1 : 0, s: Number(q.s) || 1, f: !!q.f })) : undefined,   // losse paddenstoeltjes (HOLSTAM.zwam)
            holstammen: Array.isArray(o.holstammen) ? o.holstammen.map(q => ({ x: Number(q.x), s: Number(q.s) || 1, n: q.n != null ? Number(q.n) : undefined, vlieg: q.vlieg === true, anker: q.anker === 'r' ? 'r' : undefined, boma: q.boma === true || undefined,
                                                                        hol: q.hol ? { dx: Number(q.hol.dx) || 0, inhoud: ['goud', 'ruimte', 'uitzicht', 'ingang'].includes(q.hol.inhoud) ? q.hol.inhoud : 'kalebas', vondst: q.hol.vondst === 'kist' ? 'kist' : 'kalebas', goud: q.hol.goud != null ? Number(q.hol.goud) : undefined, f: !!q.hol.f, kruis: q.hol.kruis === true, h: q.hol.h != null ? Number(q.hol.h) : undefined } : undefined })) : undefined,   // de holle stam (HOLSTAM)
            holstamSoort: o.holstamSoort ? String(o.holstamSoort) : undefined,   // het hout van de holle stam (HOLSTAM_SOORT): savanne
-           zwevers: (o.zwevers || []).concat((o.kruipstammen || []).map(kruipstamDak)).concat((o.schachtbomen || []).map(q => schachtMuur({ x: Number(q.x), s: Number(q.s) || 1 }))).concat((o.holstammen || []).map(q => holstamDak({ x: Number(q.x), s: Number(q.s) || 1, n: q.n, anker: q.anker, boma: q.boma }))).map(q => {
+           zwevers: (o.zwevers || []).concat((o.kruipstammen || []).map(kruipstamDak)).concat((o.loopPutten || []).map(loopputDak)).concat((o.schachtbomen || []).map(q => schachtMuur({ x: Number(q.x), s: Number(q.s) || 1 }))).concat((o.holstammen || []).map(q => holstamDak({ x: Number(q.x), s: Number(q.s) || 1, n: q.n, anker: q.anker, boma: q.boma }))).map(q => {
              const h = Number(q.h) || 0;
              let onder = q.onder != null ? Number(q.onder) : h - ZWEEF.dik;
              if (onder >= h) onder = h - ZWEEF.dik;          // de onderkant ligt altijd onder de looplijn
@@ -65652,6 +65691,7 @@ function laadLevel(lv){
   kelderLaadLevel(lv);                             // het kelderluik (level.kelder)
   kzaalLaadLevel(lv);                              // de kelderzaal (level.kelderZaal)
   if (lv.kruipstammen && lv.kruipstammen.length) kruipstamPic();   // de kruipstam (KRUIPSTAM)
+  if (lv.loopPutten && lv.loopPutten.length) loopputPic();         // de loopput (LOOPPUT)
   comboLaadLevel(lv);                              // de derde slag (level.combo)
   stokLaadLevel(lv);                               // de stokken (level.stokken, zie STOK)
   renNieuwLaadLevel(lv);                           // de nieuwe ren (level.nieuweRen, zie REN_NIEUW)
@@ -74700,6 +74740,20 @@ function sbHolstam(extra){
   cv.focus();
 }
 document.getElementById('sbholstam').onclick = () => sbHolstam();
+// Een loopput voor je uit (LOOPPUT): elke klik zet er een bij, iets verder dan de vorige, met zijn loopvlak erbij
+function sbLoopput(){
+  loopputPic();
+  if (!level.loopPutten) level.loopPutten = [];
+  if (!level.zwevers) level.zwevers = [];
+  const half = LOOPPUT.w / 2 * LOOPPUT.k;
+  const verst = level.loopPutten.reduce((m, o) => Math.min(m, o.x - half), world - 150);
+  const q = { x: verst - 250 - half, s: 1, f: false };
+  level.loopPutten.push(q);
+  level.zwevers.push(Object.assign(loopputDak(q), { loopput: true }));
+  cv.focus();
+}
+document.getElementById('sbloopput').onclick = sbLoopput;
+document.getElementById('sbloopputweg').onclick = () => { if (level.loopPutten) level.loopPutten.length = 0; if (level.zwevers) level.zwevers = level.zwevers.filter(z => !z.loopput); cv.focus(); };
 document.getElementById('sbholstamlang').onclick = () => sbHolstam({ n: 3 });
 document.getElementById('sbholstamklein').onclick = () => sbHolstam({ s: 0.58, n: 0.3 });
 document.getElementById('sbholstamvlieg').onclick = () => sbHolstam({ n: 1, vlieg: true });

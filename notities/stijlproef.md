@@ -30,3 +30,18 @@ savanne_hutten_2d.md.
 
 Putten: `design/savanne/putten/` (put_leem, put_steen, put_shaduf), Grok 2b165ff8. Ze staan in Test 97 na de hutten.
 In de sandbox onder Decor, rij **Savannedorp**: een knop per hut en put (`data-sdorp`).
+
+## De loopput (LOOPPUT)
+Een lage, brede leemput met een rond houten deksel, om op te staan en overheen te springen: `design/savanne/putten/put_loop.png`,
+Grok 4c665996 (een edit van put_leem met de galerij als referentie voor de kijkhoek). Het bovenvlak is van schuin boven te zien,
+zodat Amir erin staat en niet op een streep. Geen frame, windas of emmer: zo gaat de speer bij een steek of zwaai nergens door het hout.
+
+- Level: `loopPutten: [{x, s, f}]`, `x` het midden, `s` de grootte, `f` spiegelen. Bij `s` 1 ligt de looplijn 160 boven de grond
+  (de sprong haalt 208) en is hij ruim 1,7 Amir breed (`LOOPPUT.k`).
+- Botsing zoals bij de kruipstam: readLevel zet er een onzichtbare zwevende laag op (`loopputDak`, look `geen`, `onder: 0`).
+  Amir loopt er tegenaan, springt erop en loopt er aan beide kanten af. Vijanden houdt hij tegen als een kei (regel 7): een
+  slang bleef aan de linkerkant staan, een hyena aan de rechterkant.
+- Getekend in `drawClimb` na de kruipstam, dus achter de personages (`loopputTeken`).
+- Nagekeken met Playwright: tegen de muur, de sprong, staan, de steek en de worp bovenop, eraf lopen. De voeten staan in het
+  vlak, ook in de brede steekhouding.
+- In Test 97 na de drie putten (x -7150). In de sandbox in de rij **Savannedorp**: **Loopput** (elke klik een verder) en **Weg**.
