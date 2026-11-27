@@ -28131,6 +28131,7 @@ function mentorReset(){
   if (!M || sandbox) return;
   mentor = { def: M, spoor: null, i: 0, fase: 'wacht', t: 0, seg: -1, f: 0, eis: {}, ok: '', okT: 0, val: 0, valT: 0,
              faal: '', faalT: 0, race: null, wolkT: 0, wolkTekst: '', beeld: null };
+  gidsLaad();
   const s = mentorSporen[M.spoor];
   hintEl.classList.add('gone');                  // de toetsen leert de mentor je, niet de balk bovenin
   if (s && s !== 'laden'){ mentor.spoor = s; return; }
@@ -28145,16 +28146,17 @@ function mentorReset(){
 function mentorEvent(naam){ if (mentorAan()) mentor.eis[naam] = true; }   // rolStart en zo melden wat de speler deed
 function mentorStation(){ return mentor.def.stations[mentor.i] || null; }
 // het beeld waar hij nu staat: in een stuk, of (wachtend) in de lus van het laatste stuk
-function mentorFrame(){
+// waar in het spoor hij nu is: [stuk, beeld], stuk 0 is het begin (start), daarna segs[stuk - 1]
+function mentorPos(){
   const S = mentor.spoor;
-  if (mentor.seg >= 0){
-    const sg = S.segs[mentor.seg];
-    return sg.f[Math.min(sg.f.length - 1, Math.floor(mentor.f))];
-  }
-  const sg = S.segs[mentor.rust != null ? mentor.rust : 0];
-  if (mentor.rust == null) return S.start.f[Math.floor(mentor.t * MENTOR.fps) % S.start.f.length];
-  const lus = sg.f.length - sg.lus;
-  return sg.f[sg.lus + Math.floor(mentor.t * MENTOR.fps) % Math.max(1, lus)];
+  if (mentor.seg >= 0) return [mentor.seg + 1, Math.min(S.segs[mentor.seg].f.length - 1, Math.floor(mentor.f))];
+  if (mentor.rust == null) return [0, Math.floor(mentor.t * MENTOR.fps) % S.start.f.length];
+  const sg = S.segs[mentor.rust], lus = sg.f.length - sg.lus;
+  return [mentor.rust + 1, sg.lus + Math.floor(mentor.t * MENTOR.fps) % Math.max(1, lus)];
+}
+function mentorFrame(){
+  const [s, i] = mentorPos(), S = mentor.spoor;
+  return (s === 0 ? S.start : S.segs[s - 1]).f[i];
 }
 function mentorX(){ const f = mentorFrame(); return f ? f[0] : 0; }
 function mentorSpeel(seg, tempo){ mentor.seg = seg; mentor.f = 0; mentor.tempo = tempo || 1; mentor.fase = 'demo'; mentor.t = 0; }
@@ -28178,13 +28180,15 @@ function mentorUpdate(dt){
   if (!mentorAan() || !running || paused) return;
   const m = mentor, st = mentorStation();
   // de omgekleurde beelden alvast maken, twee per beeld, zodat het voordoen niet hapert
-  for (let n = 0, i = m.warm || 0; n < 2 && i < m.spoor.beelden.length; i++){
+  for (let n = 0, i = m.warm || 0; !gidsKlaar() && n < 2 && i < m.spoor.beelden.length; i++){   // met de gids hoeft dat niet
     const im = mentorPlaat(m.spoor.beelden[i]);
     if (!im) break;
     if (!mentorKleuren.has(im)){ mentorKleur(im); n++; }
     m.warm = i + 1;
   }
   m.t += dt;
+  m.klok = (m.klok || 0) + dt;
+  gidsFx(dt);                                               // stof en geluid bij zijn bewegingen (GIDS)
   const fc = mentorFrame();                                 // zijn vloer voor de camera: op de grond zijn hoogte, in de lucht de laagste
   if (fc) m.camH = fc[8] || m.camH == null ? fc[1] : Math.min(m.camH, fc[1]);
   if (m.faalT > 0) m.faalT -= dt;
@@ -28297,6 +28301,100 @@ function mentorKleur(im){
   mentorKleuren.set(im, c);
   return c;
 }
+// ---- de gids: zijn eigen animaties over het spoor van Amir (design/tutorial/gids/, tools/gids_bouw.py) ----
+// De Mkuki-ranger uit Grok. Het spoor blijft dat van Amir (waar hij staat, hoe hoog, welke kant op); per beeld zegt
+// gids.json welk frame van de gids erbij hoort (ren, sprong, grote sprong, bukken, sluipen, rol). Het anker van dat frame
+// (midden en onderkant van zijn lijf) komt op het anker van het beeld van Amir. In de idle kiest het spel: zolang hij
+// wacht en iets uitlegt eerst een keer de vertel-clip (handgebaren, mond dicht), daarna de idle heen en terug.
+// Stof en geluid zoals bij Amir: de renlus (amirren.mp3) zachter naarmate hij verder van je af is, stof bij de afzet
+// en de landing, en bij de rol het rolgeluid en het stof van ROL_STOF. Zonder gids.json tekent hij de omgekleurde Amir.
+const GIDS = { src: 'design/tutorial/gids/gids.json', fps: { idle: 12, verteller: 12 }, kop: 1.02,
+               geluid: { ver: 1100, ren: 0.45, rol: 0.7, sprint: 420 } };
+let gids = null;                                 // gids.json als hij binnen is, 'laden' onderweg
+function gidsLaad(){
+  if (gids) return;
+  gids = 'laden';
+  fetch(GIDS.src).then(r => r.json()).then(j => {
+    for (const a of Object.values(j.anims)) mentorPlaat(a.src);
+    gids = j;
+  }).catch(() => { gids = null; });
+}
+function gidsKlaar(){ return gids && gids !== 'laden' && mentor && mentor.spoor; }
+// het frame van de gids nu: [anim, index]
+function gidsNu(){
+  const [s, i] = mentorPos();
+  const rij = gids.spoor.segs[s];
+  let [anim, af] = rij && rij[i] ? rij[i] : ['idle', -1];
+  if (anim === 'idle'){
+    const m = mentor, st = mentorStation(), V = gids.anims.verteller;
+    if (m.fase === 'wacht' && st && st.zeg && m.t * GIDS.fps.verteller < V.n) return ['verteller', Math.floor(m.t * GIDS.fps.verteller)];
+    const n = gids.anims.idle.n, k = Math.floor(m.klok * GIDS.fps.idle) % (2 * n - 2);   // heen en terug
+    return ['idle', k < n ? k : 2 * n - 2 - k];
+  }
+  return [anim, af];
+}
+// hoe hard je hem hoort: dichtbij vol, verder weg zachter
+function gidsVol(x){ return Math.max(0, 1 - Math.abs(x - world) / GIDS.geluid.ver); }
+let gidsRenSnd = null, gidsRenVol = 0, gidsRolSnd = null;
+function gidsFx(dt){
+  if (!gidsKlaar()) return;
+  const m = mentor, f = mentorFrame(), [anim] = gidsNu();
+  const v = m.fxVorig, x = f[0], h = f[1], grond = !!f[8], dir = f[7] ? 1 : -1;
+  m.fxVorig = { anim, grond, x, bi: f[2] };
+  m.gidsRen = anim === 'ren' && grond ? (v && Math.abs(x - v.x) / Math.max(dt, 1e-3) > GIDS.geluid.sprint ? 2 : 1) : 0;
+  if (!v) return;
+  if (v.grond && !grond) puffWorld(x, 4, 0, 0.8, h);                                   // de afzet
+  if (!v.grond && grond) puffWorld(x, anim === 'rol' ? 3 : 6, dir * 60, 1, h);         // de landing
+  if (anim === 'rol'){
+    const nr = +((mentor.spoor.beelden[f[2]].match(/(\d+)\.png$/) || [0, 1])[1]) - 1;   // het rolframe van Amir (rol_1 is frame 0)
+    if (v.anim !== 'rol'){
+      m.rolF = -1;
+      if (!gidsRolSnd) gidsRolSnd = banStemmen(ROL.geluid.src, 2);
+      const vol = ROL.geluid.vol * GIDS.geluid.rol * gidsVol(x);
+      if (vol > 0.02) banStemSpeel(gidsRolSnd, vol);
+    }
+    while (m.rolF < nr){
+      m.rolF++;
+      const p = ROL_STOF[m.rolF];
+      if (p && waterDepthAt(x, h) <= 0.2) puffWorld(x + dir * p[0] * CHAR_H, p[1], dir * p[2], 4 * p[3], h);
+    }
+  }
+}
+// de renlus van de gids: net als die van Amir, maar zachter op afstand (na het tekenen, ook als het spel stilstaat)
+function gidsRenGeluid(){
+  const aan = wantSound && running && !paused && !won && mentorAan() && mentor.gidsRen > 0;
+  if (!aan && !gidsRenSnd) return;
+  if (!gidsRenSnd){
+    gidsRenSnd = geluidAan(new Audio()); gidsRenSnd.preload = 'auto'; gidsRenSnd.loop = true;
+    gidsRenSnd.preservesPitch = true; gidsRenSnd.src = AMIR_REN.src;
+  }
+  const doel = aan ? gidsVol(mentorX()) : 0;
+  gidsRenVol += (doel - gidsRenVol) * (aan ? 0.35 : 0.2);
+  if (aan){
+    const rate = mentor.gidsRen === 2 ? AMIR_REN.sprint : AMIR_REN.loop;
+    if (gidsRenSnd.playbackRate !== rate) gidsRenSnd.playbackRate = rate;
+    if (gidsRenSnd.paused) gidsRenSnd.play().catch(() => {});
+  }
+  gidsRenSnd.volume = Math.max(0, Math.min(1, GIDS.geluid.ren * gidsRenVol));
+  if (!aan && gidsRenVol < 0.01 && !gidsRenSnd.paused){ gidsRenSnd.pause(); gidsRenVol = 0; }
+}
+// tekent de gids; false als hij (nog) niet kan, dan tekent mentorTeken de omgekleurde Amir
+function gidsTeken(f, sx, voet, scale){
+  if (!gidsKlaar()) return false;
+  const [anim, af] = gidsNu(), A = gids.anims[anim];
+  const im = A && mentorPlaat(A.src);
+  if (!im) return false;
+  const [x, h, bi, dx, dy, dw, dh, fl] = f;
+  const [acx, aby, aw, ah] = gids.spoor.amir[bi];
+  const px = sx + (dx + (fl ? aw - acx : acx) * dw / aw) * scale, py = voet + (dy + aby * dh / ah) * scale;
+  const i = Math.max(0, Math.min(A.n - 1, af)), [gx, gy] = A.anker[i];
+  ctx.save();
+  ctx.translate(px, py);
+  if (fl) ctx.scale(-1, 1);
+  ctx.drawImage(im, (i % A.cols) * A.cw, Math.floor(i / A.cols) * A.ch, A.cw, A.ch, -gx * scale, -gy * scale, A.cw * scale, A.ch * scale);
+  ctx.restore();
+  return true;
+}
 // voor Amir getekend, zodat de speler voor hem langs loopt
 function mentorTeken(groundY, scale, cx){
   mentor && (mentor.wolkPlek = null);
@@ -28305,7 +28403,8 @@ function mentorTeken(groundY, scale, cx){
   if (!f) return;
   const [x, h, bi, dx, dy, dw, dh, fl, grond] = f;
   const sx = cx + (x - world), voet = groundY - h * scale;
-  const kop = ctx.getTransform().transformPoint(new DOMPoint(sx, voet - CHAR_H * scale * 1.08));
+  const kopH = gidsKlaar() ? gids.lengte * GIDS.kop : CHAR_H * 1.08;   // de wolk boven zijn hoofd: de gids is langer
+  const kop = ctx.getTransform().transformPoint(new DOMPoint(sx, voet - kopH * scale));
   mentor.wolkPlek = { x: kop.x / DPR, y: kop.y / DPR };          // ook buiten beeld: dan wijst de wolk naar hem vanaf de rand
   if (sx < -400 || sx > W / Math.max(0.3, viewZoom()) + 400) return;
   if (grond){                                               // een zachte schaduw onder zijn voeten
@@ -28313,6 +28412,7 @@ function mentorTeken(groundY, scale, cx){
     ctx.beginPath(); ctx.ellipse(sx, voet, CHAR_H * scale * 0.26, CHAR_H * scale * 0.045, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
+  if (gidsTeken(f, sx, voet, scale)) return;
   const im = mentorPlaat(mentor.spoor.beelden[bi]);
   if (im){
     const w = dw * scale, hh = dh * scale;
@@ -63898,6 +63998,7 @@ function safeLoop(now){
     lusVraag();
   }
   try { amirRenGeluid(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis met de voetstappen: ' + foutKort(err), err); }
+  try { gidsRenGeluid(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis met de voetstappen van de gids: ' + foutKort(err), err); }
   try { drawTouch(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis bij het tekenen: ' + foutKort(err), err); }
   if (meterAan) try { meterStap(now, performance.now() - meterT0); } catch (err) {}
 }

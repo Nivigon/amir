@@ -324,7 +324,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | Amir zegt er iets van als hij geraakt wordt | `SFX_RAAK`, `playRaak()` | notities/geluid.md |
 | Amir zegt iets als een vijand sterft | `SFX_RUST`, `vijandDood(baas)`, `DOOD_KANS` | notities/geluid.md |
 | stap voor stap leren spelen | `tutorial` | notities/wegwijzers.md |
-| de tutorial The First Hunt: een mentor (omgekleurde Amir, opgenomen spoor) die voordoet en wacht, een tekstwolk met toetsen, een fade terug na een val en een race; een eigen knop onder Single Player met "Start here" tot hij uitgespeeld is | `TUT_1`, `TUT_LEVELS`, `btnTutorial`, `tutKnopToon`, `MENTOR`, `mentorUpdate`, `mentorTeken`, `mentorWolkTeken`, `mentorVal`, `mentorOpname` | notities/tutorial.md |
+| de tutorial The First Hunt: een mentor (de gids, de Mkuki-ranger met eigen animaties over het opgenomen spoor; zonder gids.json de omgekleurde Amir) die voordoet en wacht, een tekstwolk met toetsen, een fade terug na een val en een race; een eigen knop onder Single Player met "Start here" tot hij uitgespeeld is | `TUT_1`, `TUT_LEVELS`, `btnTutorial`, `tutKnopToon`, `MENTOR`, `mentorUpdate`, `mentorTeken`, `mentorWolkTeken`, `mentorVal`, `mentorOpname`, `GIDS`, `gidsTeken`, `gidsFx` | notities/tutorial.md |
 | gaten in de grond | `gaps`, `grondDoorlopen` | notities/wegwijzers.md |
 | zuil: een smalle strook grond tussen twee ravijnen | `ZUIL`, `zuilBij`, `zuilWand` | notities/zuil.md |
 | zuil met een hoogte: hoger of lager dan de grond | `ZUIL_HOOG`, `zuilLijst`, `zuilBasis` | notities/zuil.md |
@@ -637,6 +637,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Holle stam: kit en bastrand** (`design/regenwoud/holstam/kit/`, `rand.png`, uit de Grok-platen in `bron/`) → `tools/holstam_kit_knip.py`, daarna `gen-offline-manifest.py`
 - **Pathfinder Spear** (`design/speer/pathfinder/`, uit de Grok-platen in `bron/`) → `tools/pathfinder_speer.py` (zet de regel die het print in `PATHFINDER`), daarna de Pathfinder in Amirs hand (`karakters/amir/mkuki_spel/bron/pf_<hoek>.png`) met `pathfinder()` uit `tools/mkuki_spel_los.py`, en `gen-offline-manifest.py`
 - **Shield Piercer** (`design/speer/piercer/jav.png` en de speer in Amirs hand, `karakters/amir/mkuki_spel/bron/sp_<hoek>.png`, uit `bron/speer.png`) → `tools/piercer_speer.py`, daarna `gen-offline-manifest.py`
+- **De gids van The First Hunt** (`design/tutorial/gids/`, uit de Grok-clips in `bron/`, ook na een nieuwe opname van het spoor) → `tools/gids_bouw.py`, daarna `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`
 - **Winterversies** → `tools/sneeuw.py`, `sneeuw_bg.py`, `sneeuw_dorp.py`, `winter_art.py`
 
