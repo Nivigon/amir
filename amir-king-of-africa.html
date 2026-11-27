@@ -34056,7 +34056,7 @@ function stadSoortLaad(st){
   const zet = (k, src) => { if (!stadImgs[k]) stadImgs[k] = zetBron(new Image(), STAD_DIR + src, () => console.warn('ontbreekt: stad ' + src)); };
   if (st && (st.accenten || (st.gevels || []).some(g => g.takel))){ zet('takelArm', STAD_TAKEL.arm.src); zet('takelMand', STAD_TAKEL.mand.src); }
   if (st && st.accenten) for (const n in STAD_RAMEN.soorten) zet('raam_' + n, 'raam_' + n + '.png');
-  if (st && ((st.luifels || []).some(q => q.raam) || (st.gevels || []).some(g => (g.hoog || 1) >= 2))) zet('raam_luiken', 'raam_luiken.png');   // het raam onder een strakke luifel, en de losse luiken
+  if (st && ((st.luifels || []).some(q => q.raam) || (st.gevels || []).length)) zet('raam_luiken', 'raam_luiken.png');   // het raam onder een strakke luifel, en de losse luiken
   if (((st && st.gevels) || []).some(g => STAD_BALKON.soorten.includes(g.balkon)) || (st && st.accenten)){   // de balustrades van een balkon
     if (!stadImgs.balkonVoor) stadImgs.balkonVoor = zetBron(new Image(), STAD_DIR + STAD_BALKON.voor.src, () => console.warn('ontbreekt: stad ' + STAD_BALKON.voor.src));
     if (!stadImgs.balkonZij) stadImgs.balkonZij = zetBron(new Image(), STAD_DIR + STAD_BALKON.zij.src, () => console.warn('ontbreekt: stad ' + STAD_BALKON.zij.src));
@@ -41401,9 +41401,9 @@ function stadPleinPoortTeken(groundY, scale, cx, zicht){
     straatBordje(cx + (bij.x - world), groundY - terrainH(bij.x) * scale - (m.R.h - m.R.boogTop) * m.f - A * 0.25, level.brutus ? 'Het plein verlaten?  E' : 'Door de poort?  E', true, A); }   // net boven de boog
 }
 // De losse zijluiken (STAD_ZIJLUIK): een open luik op de zijmuur van een huis, zonder luifel, puur decor; het ziet eruit
-// alsof daar een raampje openstaat. In elk level, per seed vast, op een verdieping (huizen van 2 hoog en meer), alleen
-// aan een kant waar plek is: geen buurhuis, galerij, buitentrap, takel, hoekbalkon of luifel aan die kant
-const STAD_ZIJLUIK = { kans: 0.3, ruimte: 0.6 };   // kans per zijmuur, en zoveel Amir vrij naast de muur
+// alsof daar een raampje openstaat. In elk level, per seed vast: per etage en per zijmuur een kans (een huis van 2 hoog heeft
+// dus vier plekken), alleen aan een kant waar plek is: geen buurhuis, galerij, buitentrap, takel, hoekbalkon of luifel
+const STAD_ZIJLUIK = { kans: 0.3, ruimte: 0.6 };   // kans per etage per zijmuur, en zoveel Amir vrij naast de muur
 function stadZijLuiken(S, scale){
   const C = S._zijluik;
   if (C && C.sc === scale && C.n === (S.gevels || []).length) return C.lijst;
@@ -41411,11 +41411,10 @@ function stadZijLuiken(S, scale){
   const maten = (S.gevels || []).map(g => stadGevelMaat(g, scale));
   const gal = (S.galerijen || []).map(gl => stadGalerijMaat(gl, scale, S.gevels)).filter(Boolean);
   (S.gevels || []).forEach((g, gi) => {
-    if ((g.hoog || 1) < 2 || stadGeenDak(g)) return;
+    if (stadGeenDak(g)) return;
     const m = maten[gi], acc = stadAccentVan(S, gi);
     for (const w of ['l', 'r']){
       const h = n => gordijnHash(S.seed, gi, 120 + (w === 'l' ? 0 : 10) + n);
-      if (h(0) >= STAD_ZIJLUIK.kans) continue;
       const wx = w === 'l' ? m.left : m.right, a = w === 'l' ? wx - vrij : wx, b = w === 'l' ? wx : wx + vrij;
       const raak = (l, r) => r > a && l < b;
       if (maten.some((q, j) => j !== gi && raak(q.left, q.right))) continue;
@@ -41424,7 +41423,8 @@ function stadZijLuiken(S, scale){
       if ((S.luifels || []).some(q => q.gevel === gi && q.wand === w)) continue;
       if (acc.takel && ((acc.takel === 'r') !== !!g.f) === (w === 'r')) continue;   // de takel aan deze kant (gespiegeld met de gevel)
       if (acc.balkon && acc.balkon.startsWith('hoek')) continue;                      // een hoekbalkon: liever geen luik ernaast
-      lijst.push({ x: wx, dir: w === 'l' ? -1 : 1, k: 1 + Math.floor(h(1) * ((g.hoog || 1) - 1)) });
+      const kraam = (S.kramen || []).some(kr => { const q = stadKraamMaat(kr, scale); return raak(q.left, q.right); });   // de begane grond niet door een kraam
+      for (let k = kraam ? 1 : 0; k < (g.hoog || 1); k++) if (h(k) < STAD_ZIJLUIK.kans) lijst.push({ x: wx, dir: w === 'l' ? -1 : 1, k });
     }
   });
   S._zijluik = { sc: scale, n: (S.gevels || []).length, lijst };
@@ -41436,7 +41436,7 @@ function stadZijLuikenTeken(S, groundY, scale, cx, zicht){
   for (const z of stadZijLuiken(S, scale)){
     const wx = cx + (z.x - world);
     if (!zicht(z.dir < 0 ? wx - hP : wx, hP)) continue;
-    const top = stadVerdieping(z.k) + (R.midden + R.hoog / 2) * CHAR_H;
+    const top = (z.k ? stadVerdieping(z.k) : 0) + (R.midden + R.hoog / 2) * CHAR_H;
     stadLuikZij(wx, z.dir, groundY - (terrainH(z.x) + top) * scale, hP, false);
   }
 }
