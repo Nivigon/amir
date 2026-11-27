@@ -84,6 +84,11 @@ payoff komt als hij de speer krijgt). Alle teksten staan in het project: `claude
 
 ## Het spoor: opgenomen, niet nagebouwd
 
+**Les (27-11-2026): interpoleer het spoor.** Het spoor heeft 30 beelden per seconde, het spel tekent er 60. Zonder
+tussenstap stond de gids elk tweede beeld stil en sprong hij dan 11 px: schokkerig naast Amir, die elk beeld schuift.
+`mentorFrame` vult x en h nu in tussen dit beeld en het volgende. Bij een nieuw spoor of een andere opname: meet per
+getekend beeld hoeveel hij verschuift (gelijkmatig, geen 0 en dubbel om en om).
+
 De mentor heeft geen eigen natuurkunde. `tools/mentor_opname.js` speelt het level in Chromium met Amir (op vaste 60 fps,
 met echte toetsaanslagen) en de haak `mentorOpname` (naast `pvpVang`) legt per beeld vast welk plaatje waar stond. Het spel
 speelt dat terug op 30 fps. Elk stuk (`segs[i]`) eindigt met omdraaien en een idle; vanaf `lus` speelt hij die idle in een
