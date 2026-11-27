@@ -577,23 +577,28 @@ De tweede map van Co-op Survival, uitgewerkt in een mockup met de opdrachtgever 
 - **De rivier** van 1280 breed met een brug op straathoogte: de enige weg naar de overkant.
 - **De linkeroever**: twee huizen met een gedeelde galerij (401), een rieten kraam als opstap, en het hoge huis.
 - **De savanne** tegen de rots (`grondSoort` savanne tot voorbij de rots, gras, een acacia en een struik). Boven de savanne
-  houdt de stad in de verte op (`stad.achterTot`, -3300): links daarvan tekent `stadAchter` geen rijen huizen meer (per rij
-  op zijn parallax, afgerond op de muur tussen twee huizen) en vaagt het paleis weg, zodat je daar lucht ziet.
+  houdt de stad in de verte op (`stad.achterTot`): links daarvan tekent `stadAchter` geen rijen huizen meer en vaagt het
+  paleis weg, zodat je daar lucht ziet (hoe ver precies: zie hieronder).
 - **De rotsreuzen** (`achterBeeld: {k: 'rotsreuzen', x}` in `stad`, `STAD_ACHTERBEELD`, `stadAchterBeeld`): in die lucht
   staan granieten rotskoepels in de verte (`design/stad/verte/rotsreuzen.png`, een Grok-plaat, magenta uitgeknipt). Eigen
   trage parallax (0.12), de horizon net boven de straat, een beetje nevel erover, rechts afgeknipt op de grens van de
   verste rij huizen en naar links herhaald. Hij doet niet mee met de witte tint (`tintNiet`). Met x schuif je de rotsen:
   -2050 zet de hoge rots tussen de acacia en het hoge huis als je bij de savanne staat.
-  Alle rijen huizen in de verte houden op dezelfde plek op, op de muur van de voorste rij (`grensRand` in `stadAchter`):
-  eerst had elke rij zijn eigen rand, liep de verste rij verder door en zag je onder die huizen de nevel als een plat blauw
-  vak tussen de huizen. Ook het paleis vaagt weg voor het die rand bereikt, anders zweefde het boven de savanne.
-  Die rand ligt nooit rechts van de linkermuur van het meest linkse huis aan de straat (`grensHuis` in `stadAchter`): door
-  de parallax lag hij, met de camera op de brug, rechts van het lage huis op de linkeroever, en daarboven zag je blauwe
-  lucht waar de stad hoort. Let op de zoom: de verte staat buiten `viewZoom`, de huizen aan de straat erin, dus die muur
-  staat op `W / 2 + (x - world) * zoom`. Die muur schuift sneller dan de verte, dus daar is de rand niet afgerond: per rij
-  zijn de huizen heel vanaf de eerste muur rechts van de rand, en het huis dat de rand doorsnijdt staat er alleen achter de
-  huizen aan de straat, zo doorzichtig als het deel dat er nog van over is (`stadAchterRijRand`). Eerst sprong de rand bij
-  elke muur een heel huis op, en verdween er een huis in de verte in een keer in de lucht (boven het dak en in de steeg).
+  Elke rij huizen in de verte houdt op bij een vast huis van zichzelf (`stadAchterRanden`): dat huis schuift met zijn rij
+  mee, dus er springt nooit een huis weg en er staat nooit een half huis. Eerder hield elke rij op bij de linkermuur van
+  het huis aan de straat, en stond het huis in de verte dat die muur doorsneed er half en doorzichtig achter: een half
+  spookhuis boven het dak (daarvoor sprong de rand bij elke muur een heel huis op, en nog eerder zag je op de brug lucht
+  tussen de huizen). Welk huis het eerste is, rekent het spel een keer per level en schermmaat uit, met twee eisen:
+  1. staat de linkermuur van het meest linkse huis aan de straat links op het scherm, dan begint elke rij daar al, zodat je
+     rechts ervan nooit lucht tussen de huizen ziet. Verder naar rechts geldt het vanzelf, want het huis aan de straat
+     schuift sneller dan de verte. Gerekend met zoom `STAD_RAND.zoom` (0,85), iets boven de meekijkende camera. Let op:
+     de verte staat buiten `viewZoom`, de huizen aan de straat erin. `achterTot` is daarbij alleen een extra grens.
+  2. bij de rots (`cliffs`) loopt de middelste rij minstens zo ver door als de verste (de daken), zodat onder de daken
+     altijd een huis staat en je de nevel daar niet als een plat blauw vak ziet. De voorste rij is vrij: zijn muren lopen
+     door tot de grond.
+  Met de camera bij de savanne staat de stad in de verte dus een stuk voorbij het huis aan de straat, en houdt hij op met
+  hele huizen, als een trap: de voorste rij het verst. Het paleis vaagt weg voor de rand van de verste rij, het achterbeeld
+  houdt daar op (`grensRand`).
   `tools/stadlucht.js` loopt de camera over de straat op vier schermen en meldt FOUT op elke plek waar tussen de huizen
   lucht te zien is (`stadAchterRand`) en waar een huis in de verte verspringt (`stadAchterRijen`).
 - **De lucht** (`lucht: {wolken, vogels, gloed}` in `stad`, `STAD_LUCHT`, `stadLucht`, `luchtWolken`, `stadReigers`): wolken

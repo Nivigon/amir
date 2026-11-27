@@ -218,7 +218,8 @@ stappen van 40 over de hele straat en kijkt per beeld of er tussen de linkermuur
 (`stadAchterRand`, met de camera van dat beeld, `stadAchterCam`) een stuk in beeld is dat geen huis aan de straat dekt.
 Dat is lucht waar de stad hoort, en dan meldt hij FOUT. Hij rekent met de zoom (`stadAchterZoom`): de verte staat buiten
 de zoom, de huizen aan de straat erin. Hij meldt ook FOUT als de rand van een rij huizen in de verte in een stap verder
-springt dan de camera schoof (`stadAchterRijen`): dan verdwijnt of verschijnt er een huis in een keer. Draai hem na een
+springt dan de camera schoof (`stadAchterRijen`): dan verdwijnt of verschijnt er een huis in een keer. Elke rij
+houdt op bij een vast huis (`stadAchterRanden`), dus die rand schuift gewoon met de rij mee. Draai hem na een
 wijziging aan `stadAchter`, `STAD.rijen` of een level met `achterTot`.
 
 ```

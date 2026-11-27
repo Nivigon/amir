@@ -6,7 +6,7 @@
 // dan zie je boven een laag huis blauwe lucht waar de stad hoort (zo stond het in Ishmul, op de brug). Dit script laadt
 // elk level met stad.achterTot (en de Co-op maps) in Chromium, loopt de camera over de hele straat en meldt FOUT op elke
 // plek waar de verte te vroeg ophoudt. En FOUT als een huis in de verte in een keer verdwijnt of verschijnt: de rand van
-// een rij mag per stap niet verder springen dan de camera schuift (een huis dat de rand doorsnijdt vaagt weg).
+// een rij mag per stap niet verder springen dan de camera schuift (elke rij houdt op bij een vast huis, stadAchterRanden).
 //
 //   node tools/stadlucht.js                 alle levels met achterTot, op 1280x720, 852x393, 1440x620 en 1920x1080
 //   node tools/stadlucht.js Ishmul          alleen de levels waarvan de naam dit bevat
@@ -106,8 +106,8 @@ function server(){
           let lucht = 0;
           if (rand != null) for (let px = Math.max(0, Math.ceil(links)); px < Math.min(W, rand - 1); px++)
             if (!huizen.some(h => px >= h[0] && px <= h[1])) lucht++;
-          // per rij de linkerrand zoals je hem ziet: de eerste hele muur (gx), min het vervaagde huis ervoor naar rato (a)
-          const randen = stadAchterRijen.map(q => q.gx > q.sl && q.a > 0.01 ? q.gx - q.a * (q.gx - q.sl) : q.gx);
+          // per rij de linkerrand: de linkerkant van het eerste huis (gx), dat met zijn rij meeschuift (stadAchterRanden)
+          const randen = stadAchterRijen.map(q => q.gx);
           return { rand, links, lucht, x: Math.round(stadAchterCam), cam: stadAchterCam, z: stadAchterZoom, randen };
         }, x);
         gemeten++;
