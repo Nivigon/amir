@@ -48,6 +48,15 @@ het veld `sneeuw`: savanne of rots, en het dek in vier standen
 
 `cliffs`, het einde van het level
 
+De plaat (`design/cliff.png`, `CLIFF`) is zo hoog als het scherm bij de oude standaardzoom (`cliffAt`: `H * 0.82`),
+dus bij `view` 0.8, als de camera meeklimt of met de knoppen op een telefoon komt zijn bovenkant in beeld. Daarom heeft
+de plaat sinds 27-11-2026 een afgewerkte top: de oude cliff.png aangevuld in Grok (bron `design/bron/cliff_top_grok.jpg`,
+"Edit the reference image. Keep the existing rock cliff EXACTLY as it is ... extend the cliff upward ... give it a
+FINISHED top"), met het gras en de steentjes aan de voet eraf, zodat die los als decor kunnen. De wintervariant komt
+uit `tools/sneeuw.py cliff` en heeft nu een sneeuwkap op de kam. Een nieuwe rotsplaat hoort uit dezelfde familie te
+komen (hoekig grijsbruin gesteente met facetten): stuur een bestaande rots mee of bewerk het origineel, alleen een
+Ishmul-uitsnede als referentie gaf een ander soort steen.
+
 ## licht op de runerotsen
 
 `RUNE_LICHT`, `runeLichtMaak`, `runeGrondSchaduw`: de zon op een rots met een rune, uit dezelfde richting als de lichtkaart (`LK.zonHoek`, `zonRechts`); zie "runes op elke rots"
