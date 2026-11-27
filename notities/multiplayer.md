@@ -1131,7 +1131,12 @@ de marktman en de teamgenoten bewegen.
   van zijn ouder en staat als icoontje in het doek (`wkkOuder`, `wkkUpgrades`): Full Circle: more damage en all around, Ardhi's Roots.
   Give 5 gold staat bij Team, een keer per teamgenoot.
 - **Besturing** (`wkkToets`): links en rechts kiezen, omhoog en omlaag (of Q, Tab) wisselen de categorie, Enter of spatie koopt,
-  Backspace is Undo, R is Ready; Escape en E sluiten zoals altijd. De muis: hover en klik kiezen, een dubbelklik koopt (`mpcDubbelKlik`, een enkele klik nooit), een
+  Backspace is Undo, R is Ready; Escape en E sluiten zoals altijd.
+  E bij de deur naar de straat (de sierdeur rechts) is ook Ready (`WK_DEUR`, `wkDeurE`): de eerste E vraagt "Ready to leave?"
+  (een hint en een label boven de E), een tweede E binnen 3 s zet Ready; ben je al Ready, dan is E daar meteen Not ready.
+  `tools/mptest.js --proef --winkeleerst` kijkt het na.
+  Duka verspringt niet meer bij het in- en uitgaan: `mpcWinkelIn` en `mpcWinkelUit` roepen `winkelGeheimZet` met `houd`, zodat
+  hij staat waar hij stond (alleen na een betrapping begint hij opnieuw op zijn plek). De muis: hover en klik kiezen, een dubbelklik koopt (`mpcDubbelKlik`, een enkele klik nooit), een
   klik op een bordje wisselt (`pointermove`/`pointerdown` met capture).
 - **Het doek** (`#wkkamer`, `wkkToon`): naam, upgrade-label, uitleg, citaat, de upgrade-icoontjes met een hover-kaartje (`wkkTip`),
   de prijs, en de knoppen Buy, Leave, Ready en Undo. De regel bovenin (`.wkk-bericht`) spiegelt `#wkuitleg` en `#wkvertrek` van de
