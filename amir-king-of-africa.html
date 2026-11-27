@@ -7263,14 +7263,18 @@ const TUT_1 = {
   mentor: {
     spoor: 'design/tutorial/mentor_spoor.json',
     finish: -9200, prijs: {x: -9300, h: 320},
-    win: 'Fast! Who taught you that?', verlies: 'Not bad, little one. Not bad.',
-    vallen: ['Again, little one.', 'The ground is down there. Try again.', 'Ha! Up you get.'],
+    win: 'Fast! Who taught you that?', verlies: 'Not bad, little spear. Not bad.',
+    vallen: ['Again, little spear.', 'The ground is down there. Try again.', 'Ha! Up you get.'],
+    // stem en okStem: de ingesproken regels van de gids (GIDS_STEM, design/tutorial/stem/); een zeg in delen loopt mee met de stem
     stations: [
-      { zeg: 'Morning, little one. Your first hunt! Come here. [LEFT]', seg: 0, ok: 'Good. Keep up!', kijk: false },
+      { zeg: ['Morning, little spear! A Mkuki with no spear...', 'Today, we fix that. Come. Follow me. [LEFT]'],
+        stem: ['guide_start_1.mp3', 'guide_start_2.mp3'], seg: 0, ok: 'Good. Keep up!', kijk: false },
       { zeg: 'Now you. Jump over the rock! [UP]', seg: 1, ok: 'Nice jump.', terug: -620 },
       { zeg: 'Up here! Jump onto the ledge, then to the top. [UP]', seg: 2, ok: 'Good eyes.', terug: -1300 },
-      { zeg: 'Too low to stand. Hold [DOWN] and crawl. [LEFT]', seg: 3, ok: 'Like a lion in the grass.', terug: -2700 },
-      { zeg: 'Roll! Press [V] while you run.', eis: 'rol', nog: 'Roll first! Press [V].', seg: 4, ok: 'Quick!', terug: -3700 },
+      { zeg: 'Get low, like a snake. Crawl through. [DOWN] [LEFT]', stem: 'guide_kruip.mp3', seg: 3,
+        ok: 'You fit! Being small is useful.', okStem: 'guide_kruip_ok.mp3', terug: -2700 },
+      { zeg: 'Now roll. Fast, low, and up again. [V]', stem: 'guide_rol.mp3', eis: 'rol', nog: 'Roll first! Press [V].', seg: 4,
+        ok: 'Smooth. Like water.', okStem: 'guide_rol_ok.mp3', terug: -3700 },
       { zeg: 'A small gap. Just jump! [UP]', seg: 5, ok: 'Easy, right?', terug: -4150 },
       { zeg: 'Now run fast. Hold [SHIFT] while you run.', eis: 'sprint', nog: 'Faster! Hold [SHIFT] while you run.', seg: 6, ok: 'Now you are fast.', terug: -4750, kijk: 'Watch closely.' },
       { zeg: 'Too wide to jump. Sprint with [SHIFT], then leap with [UP] at the edge!', ok: 'You flew!', okDuur: 1.6, terug: -5150 },
@@ -28164,8 +28168,10 @@ const mentorSporen = {};                         // pad -> het geladen spoor (of
 function mentorAan(){ return !!(mentor && mentor.spoor && level && level.mentor && !sandbox); }
 function mentorReset(){
   mentor = null;
+  gidsStemStop();
   const M = level && level.mentor;
   if (!M || sandbox) return;
+  gidsStemLaad(M);
   mentor = { def: M, spoor: null, i: 0, fase: 'wacht', t: 0, seg: -1, f: 0, eis: {}, ok: '', okT: 0, val: 0, valT: 0,
              faal: '', faalT: 0, race: null, wolkT: 0, wolkTekst: '', beeld: null };
   gidsLaad();
@@ -28213,6 +28219,44 @@ function mentorCamKlem(d){
 }
 function mentorCamH(){ return mentorCamAan() && mentor.camH != null ? mentor.camH : null; }
 function mentorZeg(tekst, duur){ mentor.faal = tekst; mentor.faalT = duur || 2.2; }
+// ---- de stem van de gids: ingesproken regels per station (ElevenLabs, stem "Guide", zie notities/tutorial.md) ----
+// Een station met `stem` speelt zijn uitleg als de speler in de buurt is (GIDS_STEM.bij), een keer per station: na een
+// val niet opnieuw. Een `zeg` in delen (een rij) toont steeds het deel dat hij nu zegt, en hij gaat pas verder als hij
+// uitgepraat is. `okStem` klinkt bij het "goed zo", dat dan minstens zo lang blijft staan als de regel duurt.
+const GIDS_STEM = { map: 'design/tutorial/stem/', vol: 0.95, bij: 650, lees: 0.28, leesMin: 1.4 };
+const gidsStemPool = {};
+let gidsStemNu = null, gidsStemPauze = false;
+function gidsStemAudio(f){
+  let a = gidsStemPool[f];
+  if (!a){
+    a = geluidAan(new Audio()); a.preload = 'auto'; a.src = GIDS_STEM.map + f;
+    a.onerror = () => console.warn('ontbreekt: ' + GIDS_STEM.map + f);
+    gidsStemPool[f] = a; PRAAT_STEMMEN.push(a);              // Amir praat er niet doorheen
+  }
+  return a;
+}
+function gidsStemLaad(M){ for (const st of M.stations) for (const f of [].concat(st.stem || [], st.okStem || [])) gidsStemAudio(f); }
+function gidsStemStop(){ if (gidsStemNu){ gidsStemNu.pause(); gidsStemNu = null; } gidsStemPauze = false; }
+function gidsStemSpeel(f){
+  gidsStemStop();                                           // nooit twee regels tegelijk
+  if (!f || !wantSound) return;
+  const a = gidsStemAudio(f);
+  try { a.currentTime = 0; } catch (e) {}
+  a.volume = GIDS_STEM.vol;
+  a.play().catch(() => {});
+  gidsStemNu = a;
+}
+function gidsStemBezig(){ return !!(gidsStemNu && (gidsStemPauze || (!gidsStemNu.paused && !gidsStemNu.ended))); }
+function gidsStemDuur(f){ const a = f && gidsStemPool[f]; return a && isFinite(a.duration) ? a.duration : 0; }
+// elk beeld, ook als het spel stilstaat: bij pauze stil, daarna verder; buiten het level weg
+function gidsStemStap(){
+  if (!gidsStemNu) return;
+  if (!mentorAan() || !running || !wantSound){ gidsStemStop(); return; }
+  if (paused && !gidsStemNu.paused && !gidsStemNu.ended){ gidsStemNu.pause(); gidsStemPauze = true; }
+  else if (!paused && gidsStemPauze){ gidsStemPauze = false; gidsStemNu.play().catch(() => {}); }
+}
+function mentorDelen(st){ return st && st.zeg ? [].concat(st.zeg) : []; }
+function mentorZegNu(st){ const d = mentorDelen(st); return d[Math.min(d.length - 1, mentor.deel || 0)] || ''; }
 function mentorUpdate(dt){
   if (!mentorAan() || !running || paused) return;
   const m = mentor, st = mentorStation();
@@ -28282,8 +28326,25 @@ function mentorUpdate(dt){
   const gedaan = !st.eis || m.eis[st.eis];
   // stil: de speler staat (bijna) stil, pas dan zegt hij wat er nog mist
   m.stilT = Math.abs(world - (m.vorigeX == null ? world : m.vorigeX)) < 1 ? (m.stilT || 0) + dt : 0; m.vorigeX = world;
-  if (dicht && gedaan && m.t > 1 && (st.seg != null || st.ok)){ m.faalT = 0; m.ok = st.ok || ''; m.okT = m.ok ? (st.okDuur || MENTOR.okDuur) : 0.01; m.fase = 'ok'; }
-  else if (dicht && !gedaan && st.nog && m.faalT <= 0 && m.stilT > 0.4) mentorZeg(st.nog, 2.6);   // bij hem, maar het trucje nog niet gedaan
+  // de stem (GIDS_STEM): een nieuw station begint bij deel 0; het deel klinkt als de speler in de buurt is, en het
+  // volgende deel komt pas als hij uitgepraat is (zonder geluid na een leestijd)
+  if (m.stemI !== m.i){ m.stemI = m.i; m.deel = 0; m.stemDeel = -1; m.stemT = 0; }
+  const delen = mentorDelen(st), stem = [].concat(st.stem || []);
+  const deelTekst = delen[m.deel] || '';
+  if (m.stemDeel !== m.deel && (Math.abs(world - mentorX()) < GIDS_STEM.bij || !stem[m.deel])){
+    m.stemDeel = m.deel; m.stemT = 0;
+    if (stem[m.deel]) gidsStemSpeel(stem[m.deel]);
+  }
+  if (m.stemDeel === m.deel) m.stemT += dt;
+  const deelKlaar = m.stemDeel === m.deel && !gidsStemBezig()
+    && m.stemT > (stem[m.deel] && wantSound ? 0.3 : Math.max(GIDS_STEM.leesMin, deelTekst.split(' ').length * GIDS_STEM.lees));
+  if (deelKlaar && m.deel < delen.length - 1){ m.deel++; }
+  const uitgepraat = m.deel >= delen.length - 1 && (!stem.length || deelKlaar);
+  if (dicht && gedaan && uitgepraat && m.t > 1 && (st.seg != null || st.ok)){
+    m.faalT = 0; m.ok = st.ok || ''; m.okT = m.ok ? (st.okDuur || MENTOR.okDuur) : 0.01; m.fase = 'ok';
+    if (st.okStem){ gidsStemSpeel(st.okStem); m.okT = Math.max(m.okT, gidsStemDuur(st.okStem) + 0.25); }
+  }
+  else if (dicht && !gedaan && uitgepraat && st.nog && m.faalT <= 0 && m.stilT > 0.4) mentorZeg(st.nog, 2.6);   // niet door zijn uitleg heen   // bij hem, maar het trucje nog niet gedaan
 }
 function mentorRaceUit(win){
   const d = mentor.def;
@@ -28465,7 +28526,7 @@ const MENTOR_TOETS = { LEFT: '←', RIGHT: '→', UP: '↑', DOWN: '↓', SHIFT:
 function mentorTekstNu(){
   const m = mentor, st = mentorStation();
   if (m.faalT > 0){                                         // de grap, en de uitleg blijft eronder staan
-    const zeg = m.fase === 'wacht' && st && st.zeg && m.faal !== st.nog ? ' ' + st.zeg : '';
+    const zeg = m.fase === 'wacht' && st && st.zeg && m.faal !== st.nog ? ' ' + mentorZegNu(st) : '';
     return m.faal + zeg;
   }
   if (m.uitslagT > 0) return m.uitslag;
@@ -28474,7 +28535,7 @@ function mentorTekstNu(){
   if (m.race && m.race.go > 0) return 'Go!';
   if (m.fase === 'demo') return m.t < MENTOR.kijkDuur && m.def.stations[m.i] && m.def.stations[m.i].kijk !== false ? (m.def.stations[m.i].kijk || 'Watch.') : '';
   if (m.fase === 'race') return '';
-  return st ? st.zeg : '';
+  return st ? mentorZegNu(st) : '';
 }
 // woorden en toetsen in regels, binnen de breedte
 function mentorWolkRegels(tekst, max, fs){
@@ -64167,6 +64228,7 @@ function safeLoop(now){
     lusVraag();
   }
   try { amirRenGeluid(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis met de voetstappen: ' + foutKort(err), err); }
+  try { gidsStemStap(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis met de stem van de gids: ' + foutKort(err), err); }
   try { gidsRenGeluid(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis met de voetstappen van de gids: ' + foutKort(err), err); }
   try { drawTouch(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis bij het tekenen: ' + foutKort(err), err); }
   if (meterAan) try { meterStap(now, performance.now() - meterT0); } catch (err) {}
