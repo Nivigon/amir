@@ -373,12 +373,20 @@
   #kivklok i{width:26px;height:26px;border-radius:50%;box-shadow:inset 0 0 0 2px #3a2414}
   #kivklok.kort span{color:#ffb08a}
   #mpkijk{font-size:18px;font-weight:600;opacity:.9}
+  #mphs{display:none;max-width:640px;margin:8px auto 0;background:rgba(20,12,6,.7);border:1px solid #8a6a3a;border-radius:10px;padding:10px 14px;max-height:46vh;overflow:auto}
+  #mphs.on{display:block}
+  #mphs table{width:100%;border-collapse:collapse;font-size:14px}
+  #mphs th,#mphs td{padding:3px 6px;text-align:left;border-bottom:1px solid rgba(138,106,58,.35)}
+  #mphs tr.ik td{color:#ffe28a}
+  #mphs .mphsk{font-weight:700;margin:0 0 6px}
+  #mphs .mphsper{font-size:13px;opacity:.85;margin:8px 0 0}
   #mpeind{display:none;margin-top:40px;background:rgba(20,12,6,.86);border:1px solid #8a6a3a;border-radius:12px;padding:18px 30px;text-align:center;font-size:19px}
   #mpeind.on{display:block}
   #mpeind p{margin:6px 0}
   #mpeind .kop{font-size:34px;font-weight:700}
   #mpeind .score{font-size:24px;font-weight:700}
   #mpeind .best{color:#ffe28a}
+  #mpeind .rec{font-size:15px;opacity:.85}
   #mpeind .best.nieuw{font-size:24px;font-weight:700;text-shadow:0 0 12px rgba(255,200,80,.6)}
   #mpeind .klein{font-size:15px;opacity:.8;margin-top:14px}
   .bigbtn{position:relative;min-width:210px;padding:16px 26px!important;font-size:20px!important;font-weight:700;
@@ -1626,6 +1634,8 @@
           <input id="pvpcode" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false">
           <button id="pvpjoin" class="bigbtn">Join<small>Type the code of the host</small></button>
         </div>
+        <div class="row"><button id="mphsknop" type="button">High scores</button></div>
+        <div id="mphs"></div>
       </div>
       <div id="mplobby">
         <p id="mpwie"></p>
@@ -68114,7 +68124,7 @@ document.getElementById('btnTutorial').onclick = () => { setLevel(0, TUT_LEVELS)
 // Bij de eerste start kiest de speler op het rolscherm (menuRol) Tester (met zijn naam) of, klein linksonder, Designer.
 // De keuze blijft per apparaat bewaard; onder Settings staat wie je bent, met Switch. Een tester stuurt per poging op een
 // level een regel naar de Google Sheet "Amir testers log" via de Apps Script web-app (TLOG.url): bij uitspelen, doodgaan,
-// herstarten, terug naar het menu of het tabblad dicht. De designer en de sandbox loggen niets. Een regel die niet aankomt
+// herstarten, terug naar het menu of het tabblad dicht. De designer logt ook (als "designer", voor de highscores, HS); de sandbox logt niets. Een regel die niet aankomt
 // (offline) wacht in localStorage (TLOG.rijKey) en gaat mee met de volgende. Velden die geen kolom zijn zet het script in
 // `extra`. Uitleg en de kolommen: claude/tester_logging.md in het project.
 var TLOG = {
@@ -68128,7 +68138,9 @@ var tlog = { potje: null, sessie: Math.random().toString(36).slice(2, 8), doden:
 function tlogLees(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
 function tlogZet(k, v){ try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
 function tlogRol(){ return tlogLees(TLOG.rolKey); }                                  // 'tester', 'designer' of null
-function tlogAan(){ return tlogRol() === 'tester' && !!tlogLees(TLOG.naamKey); }
+// de designer logt ook (de enige, als 'designer'), zodat zijn potjes in de highscores staan (HS); een tester met zijn naam
+function tlogAan(){ return tlogRol() === 'designer' || (tlogRol() === 'tester' && !!tlogLees(TLOG.naamKey)); }
+function tlogWie(){ return tlogRol() === 'designer' ? 'designer' : tlogLees(TLOG.naamKey); }
 function tlogNaamNorm(t){ return String(t || '').toLowerCase().replace(/\s+/g, '').slice(0, 20); }
 function tlogApparaat(){
   let id = tlogLees(TLOG.idKey);
@@ -68140,7 +68152,7 @@ function tlogRijZet(r){ tlogZet(TLOG.rijKey, r.length ? JSON.stringify(r.slice(-
 // een regel erbij en de wachtrij legen; beacon: het tabblad gaat dicht, dan alles in een keer met sendBeacon
 function tlogStuur(velden, beacon){
   if (!tlogAan()) return;
-  const tester = tlogLees(TLOG.naamKey);
+  const tester = tlogWie();
   const gezien = TLOG.nieuwKey + tester;
   const nieuw = !tlogLees(gezien);
   if (nieuw) tlogZet(gezien, '1');
@@ -68211,7 +68223,7 @@ function tlogCoop(){
   if (!mpCoopAan()) return {};
   const C = pvp.coop;
   return { ronde: C.ronde, score: C.score, kaart: typeof mpcVersieNu !== 'undefined' ? mpcVersieNu : '', spelers: pvp.spelers ? pvp.spelers.length : 0,
-           host: !!pvp.host, ...(C.ep ? { epLevel: C.ep.i + 1 } : {}) };
+           host: !!pvp.host, map: (pvp.regels && pvp.regels.kaart) || 'dye', team: hsTeam(), ...(C.ep ? { epLevel: C.ep.i + 1 } : {}) };
 }
 // wie Amir het laatst raakte: de naam van de functie die hurtPlayer aanriep (updateBandiet, schbSlag, ...), of zelf meegegeven
 function tlogBron(naam){
@@ -68423,6 +68435,91 @@ function tlogCoopEind(e){
   }, tlogVast({})));
   tlogFbToon('Game over, round ' + e.ronde);
 }
+
+// ---- highscores per team in Co-op Survival (HS) ----
+// Elk team is een combinatie van spelers: de namen uit de lobby (mpSpelerNoem), op het alfabet, met ' + ' ertussen; alleen
+// spelen is een team van een. De regel "eind" van de tester-log (en van de designer) krijgt `team` en `map` mee, en de Apps
+// Script houdt op het tabblad Highscores per team de beste score bij. ?actie=scores geeft die lijst terug: het eindscherm
+// toont de beste van dit team en het record van iedereen, en onder Multiplayer staat het hele overzicht (High scores).
+// Logt niemand in het team (geen tester of designer), dan komt het potje er niet in. De Co-op episode telt niet mee.
+// Het Apps Script-stuk staat in notities/highscores.md.
+var HS = { lijst: null, voor: null, t: 0, bezig: null, max: 50 };
+function hsTeam(){
+  if (!pvp || !pvp.spelers) return '';
+  // zonder naam in de lobby is mijn naam die van de tester-log, anders zou het de naam van de outfit zijn (die delen er velen)
+  const eigen = q => q === pvp.mij && !(pvp.naam && pvp.naam[q]) && tlogRol() === 'tester' && tlogLees(TLOG.naamKey);
+  return pvp.spelers.map(q => eigen(q) || mpSpelerNoem(q) || '?').sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())).join(' + ');
+}
+function hsSleutel(t){ return String(t || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+// de lijst van de Sheet, hooguit eens per 15 s opnieuw; cb krijgt de lijst (of null zonder verbinding)
+function hsVraag(cb, nu){
+  if (!nu && HS.lijst && Date.now() - HS.t < 15000){ cb(HS.lijst); return; }
+  if (!HS.bezig) HS.bezig = fetch(TLOG.url + '?actie=scores&sleutel=' + encodeURIComponent(TLOG.sleutel))
+    .then(a => a.json()).then(a => { HS.bezig = null; if (a && a.ok && Array.isArray(a.scores)){ HS.lijst = a.scores; HS.t = Date.now(); } return HS.lijst; })
+    .catch(() => { HS.bezig = null; return HS.lijst; });
+  HS.bezig.then(cb);
+}
+// het potje dat net klaar is erbij, ook als de Sheet het nog niet heeft (de regel kan nog in de wachtrij staan)
+function hsMetEigen(lijst, e){
+  const l = (lijst || []).map(x => Object.assign({}, x)), team = hsTeam(), k = hsSleutel(team);
+  if (!e || !team) return l;
+  const m = l.find(x => hsSleutel(x.team) === k);
+  if (!m) l.push({ team, score: e.score, ronde: e.ronde, kills: e.kills, nieuw: true });
+  else if (e.score > (+m.score || 0)) Object.assign(m, { score: e.score, ronde: e.ronde, kills: e.kills, nieuw: true });
+  return l.sort((a, b) => (+b.score || 0) - (+a.score || 0));
+}
+// de beste van dit team in de Sheet zoals hij was voor het potje (HS.voor), gevraagd bij de start (mpCoopStart). Bij het
+// einde vragen is te laat: de regel van dit potje kan er dan al in staan, en dan lijkt een nieuwe high score gelijk
+function hsVoorVraag(){ HS.voor = null; if (tlogAan()) hsVraag(l => { HS.voor = l; }, true); }
+// op het eindscherm van Co-op Survival een regel high score en een regel record. De high score is die van dit team uit de
+// Sheet (solo: je eigen naam, op elk apparaat dezelfde). Logt hier niemand, of is er geen verbinding, dan die van dit
+// apparaat (lokaal, mpcEindSleutel) met "on this device" erbij, zodat altijd duidelijk is welke het is
+function hsEindToon(e, lokaal, hoog, rec){
+  const regel = (t, k) => { hoog.textContent = t; hoog.className = k; };
+  const opApparaat = () => { mpcHighRegel(regel, e.score, lokaal, 'High score on this device'); if (e.score <= lokaal) hoog.textContent += ' (this device)'; rec.remove(); };
+  if (!tlogAan()){ opApparaat(); return; }
+  const team = hsTeam();
+  const toon = lijst => {
+    if (!lijst){ opApparaat(); return; }
+    const m = lijst.find(x => hsSleutel(x.team) === hsSleutel(team));
+    mpcHighRegel(regel, e.score, m ? +m.score || 0 : 0, pvp.solo ? 'Your high score' : 'High score of ' + team);
+    const l = hsMetEigen(lijst, e), top = l[0];
+    if (!top || e.score <= 0 && !(+top.score > 0)) { rec.remove(); return; }
+    rec.textContent = hsSleutel(top.team) === hsSleutel(team) ? 'That is the record of all players!' : 'Record of all players: ' + top.score + ' by ' + top.team;
+  };
+  if (HS.voor){ toon(HS.voor); return; }
+  hoog.textContent = 'High score: ...'; hoog.className = 'best';
+  // geen lijst van voor het potje: nu vragen, en staat dit potje er al in (zelfde score, ronde en kills), dan telt hij niet als oude
+  hsVraag(lijst => toon(lijst && lijst.filter(x => !(hsSleutel(x.team) === hsSleutel(team) && +x.score === e.score && +x.ronde === e.ronde && +x.kills === e.kills))), true);
+}
+// het overzicht onder Multiplayer: elk team met zijn beste score, je eigen naam erin licht op
+function hsOverzicht(){
+  const el = pvpEl('mphs');
+  if (el.classList.toggle('on') === false) return;
+  el.innerHTML = '<p class="mphsk">High scores, Co-op Survival</p><p>Loading...</p>';
+  hsVraag(lijst => {
+    el.innerHTML = '<p class="mphsk">High scores, Co-op Survival</p>';
+    if (!lijst){ el.insertAdjacentHTML('beforeend', '<p>No connection to the scoreboard.</p>'); return; }
+    if (!lijst.length){ el.insertAdjacentHTML('beforeend', '<p>No scores yet.</p>'); return; }
+    const ik = hsSleutel(mpNaamEigen()), tab = document.createElement('table');
+    tab.innerHTML = '<tr><th>#</th><th>Team</th><th>Players</th><th>Score</th><th>Round</th><th>Map</th></tr>';
+    lijst.slice(0, HS.max).forEach((x, i) => {
+      const tr = document.createElement('tr');
+      const leden = String(x.team || '').split(' + ');
+      if (ik && leden.some(n => hsSleutel(n) === ik)) tr.className = 'ik';
+      for (const v of [i + 1, x.team, leden.length, x.score, x.ronde || '', x.map === 'ishmul' ? 'Ishmul' : x.map ? 'The Dye Yard' : '']){
+        const td = document.createElement('td'); td.textContent = v; tr.append(td);
+      }
+      tab.append(tr);
+    });
+    el.append(tab);
+    // per aantal spelers het beste team
+    const per = {}; for (const x of lijst){ const n = String(x.team || '').split(' + ').length; if (!per[n]) per[n] = x; }
+    const s = document.createElement('p'); s.className = 'mphsper';
+    s.textContent = Object.keys(per).sort().map(n => (n === '1' ? 'Solo' : n + ' players') + ': ' + per[n].score + ' (' + per[n].team + ')').join('   ');
+    el.append(s);
+  }, true);
+}
 // ---- de vraag na het potje (TLOG): sterren en een zin, alleen voor een tester, na game over in Co-op en na een gewonnen level.
 // Een eigen regel 'feedback'. Typen in het vak gaat niet naar het spel (R zou anders opnieuw starten)
 var tlogFbEl = null, tlogFbSter = 0, tlogFbWat = '';
@@ -68459,7 +68556,7 @@ function tlogFbBouw(){
   return el;
 }
 function tlogFbToon(wat){
-  if (!tlogAan()) return;
+  if (!tlogAan() || tlogRol() !== 'tester') return;   // de vraag na het potje alleen voor een tester
   const el = tlogFbBouw();
   tlogFbSter = 0; tlogFbWat = wat || '';
   el.querySelectorAll('.st button').forEach(x => x.classList.remove('aan'));
@@ -79673,22 +79770,23 @@ function mpcEindToon(e){
   const m = Math.floor(e.tijd / 60), s = String(e.tijd % 60).padStart(2, '0');
   const el = pvpEl('mpeind');
   el.innerHTML = '';
-  const regel = (t, k) => { const p = document.createElement('p'); p.textContent = t; if (k) p.className = k; el.append(p); };
+  const regel = (t, k) => { const p = document.createElement('p'); p.textContent = t; if (k) p.className = k; el.append(p); return p; };
   regel('Game over', 'kop');
   regel((pvp.solo ? 'Score: ' : 'Team score: ') + e.score, 'score');
   regel('Survived until round ' + e.ronde + ', in ' + m + ':' + s + ' (' + e.kills + ' kills)');
-  mpcHighRegel(regel, e.score, best, (pvp.solo ? 'Solo' : 'Team') + ' high score with these enemies');
+  const hoog = regel('', 'best'), rec = regel('', 'rec');   // de high score en het record, ingevuld door hsEindToon
   regel('Shift+O: play again' + mpcIedereen() + '   Esc: back to the lobby', 'klein');
+  hsEindToon(e, best, hoog, rec);                    // de high score van dit team (solo: je naam) uit de Sheet (HS)
   el.classList.add('on');
   pvpBanner('');
 }
 // de regel over de high score op het eindscherm: nieuw (met de oude erbij), gelijk, of hoe hoog hij staat. De high score
 // telt per apparaat, solo en met een team apart, en per keuze van vijanden (mpcEindSleutel)
 function mpcHighRegel(regel, score, best, wat){
-  if (score > best) regel('New high score!' + (best > 0 ? ' (previous: ' + best + ')' : ''), 'best nieuw');
-  else if (score === best && best > 0) regel('You matched your high score: ' + best, 'best');
-  else if (best > 0) regel(wat + ': ' + best, 'best');
-  else regel('No high score yet: score points to set one', 'best');
+  const nieuw = score > best;
+  regel(nieuw ? 'New high score!' + (best > 0 ? ' (previous: ' + best + ')' : '')
+        : score === best && best > 0 ? 'You matched your high score: ' + best
+        : best > 0 ? wat + ': ' + best : 'No high score yet: score points to set one', nieuw ? 'best nieuw' : 'best');
 }
 // wie Shift+O moet drukken: solo zeg je niets, met een team allebei of iedereen
 function mpcIedereen(){ return pvp.solo ? '' : ' (' + (pvp.spelers.length > 2 ? 'everyone presses' : 'both press') + ' Shift+O)'; }
@@ -80002,6 +80100,7 @@ function mpCoopLaad(){
 }
 function mpCoopStart(epI){
   const ep = pvp.regels.modus === 'ep', oud = pvp.coop;   // de Co-op episode: epI is het level (0, 1 of 2)
+  if (!ep) hsVoorVraag();                            // de high scores van voor dit potje (HS)
   Object.assign(pvp, { sc: [0, 0, 0], ronde: 1, zendT: 0, anders: {}, sn: 0, wn: 0, jn: 0, laatsteAtk: -1, laatsteSw: -1,
                        laatsteJav: null, mijn: null, jVorig: null, rematch: [false, false, false], levens: 3, banner: '', bannerT: 0 });
   winkelUIDicht();
@@ -81066,6 +81165,7 @@ function mpcFcModus(){
 pvpEl('btnpvp').onclick = () => { pvpStatus(''); showMenu('menuPvp'); mkVoorWarm(); };   // de outfits alvast laden en kleuren (MK_WARM)
 setTimeout(mkVoorWarm, 6000);                      // en al in het menu, als het spel net open is en de browser tijd over heeft
 pvpEl('pvphost').onclick = () => pvpHost();
+pvpEl('mphsknop').onclick = () => hsOverzicht();   // het overzicht van de highscores per team (HS)
 pvpEl('pvpjoin').onclick = () => pvpJoin();
 pvpEl('pvpcode').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') pvpJoin(); });
 pvpEl('pvpterug').addEventListener('click', () => { pvpPeerWeg(); pvpStatus(''); });

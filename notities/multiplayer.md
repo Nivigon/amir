@@ -233,7 +233,9 @@ de lobby staat dan in het staande stokframe.
 - **Punten (teamtotaal):** slang, schorpioen, goudaapje, hyena 10; bandiet, zweepman 15; kooiman, kruisboog 20;
   schildbandiet 25. De moeilijke versie 5 extra. Een multikill 10 extra per kill in de reeks.
 - **Eindscherm:** alleen het team: score, de ronde waarin het eindigde, tijd. Een highscore op het apparaat, per keuze van
-  vijanden, en solo apart van een team (`amir.coopBest.solo.`, in de episode `.solo` achter de sleutel). De regel eronder
+  vijanden, en solo apart van een team (`amir.coopBest.solo.`, in de episode `.solo` achter de sleutel). Logt de speler
+  (tester of designer), dan komt de high score van Survival uit de Sheet, per team en solo op je naam (zie
+  `notities/highscores.md`); de lokale is dan alleen het vangnet zonder verbinding, met "(this device)". De regel eronder
   zegt altijd waar je staat (`mpcHighRegel`): **New high score!** (met de vorige erbij), gelijk, de high score die blijft
   staan, of nog geen. In een episode telt de high score alleen als je hem uitspeelt; game over zegt dat ook. Solo staat er
   Score in plaats van Team score en geen "both press".
