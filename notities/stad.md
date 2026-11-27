@@ -434,7 +434,10 @@ een verdieping omhoog. De treden zijn altijd even groot (de schaal hangt aan de 
   meekijkende camera erbij). Het beeld wordt daarbij iets donkerder (`dim`, niet zwart: je ziet waar je heen gaat), en in
   `in` seconden komt Amir terug. De wereld staat stil zoals bij de executie (`stadTrapFade`, op echte tijd).
 - Niet in een gevecht: een levende vijand binnen 950 en hoogstens 150 hoger of lager (`stadInGevecht`; een vijand op een
-  andere etage telt niet). Dan zie je "Niet nu". En niet zonder speer (in de hand of op de rug).
+  andere etage telt niet). Dan zie je "Not now: an enemy is close". En niet zonder speer (in de hand of op de rug): "Grab your spear first".
+- In Co-op is dat ruimer (`STAD_TRAP.coopGevecht`, 450, en `stadVijandBijAnder`): alleen een vijand binnen 450, en niet
+  als hij dichter bij een levende teamgenoot staat dan bij jou. Met 950 hield een vijand buiten beeld, of een die met een
+  teamgenoot vocht, de trap dicht voor wie er stond; testers meldden dat ze de trap niet op konden.
 - Dichtbij gloeit de trap of de opening zacht warm op, en er staat een E met een pijltje. De uitgang aan de andere kant
   gloeit dan ook (iets zachter), met twee gouden pijltjes erboven die op en neer gaan (`stadTrapNabij`, `stadTrapUitTeken`):
   zo zie je voor je E drukt waar je uitkomt. De pijltjes komen na de personages (`stadTrapUitLaag`), zodat een vijand op
@@ -880,8 +883,8 @@ straten: { raster: true, start: 'kuiper', doel: 0, muur: 300,
   aanvullen) en zet Amir bij dezelfde knoop in de andere straat, met zijn gezicht de kant op waar hij heen ging; de camera
   begint daar een stukje (`schuif`) achter zijn plek en glijdt mee (`stadTrapCamX`, binnen de nieuwe straat door
   `straatCamKlem`).
-- **Niet in een gevecht**: `stadInGevecht`, "Niet nu". Met de pijltjes springt of bukt Amir dan gewoon (de hint komt wel),
-  met E gebeurt er niets. Zonder speer: "Pak je speer eerst". Vijanden gaan nooit door een poort of over een pad.
+- **Niet in een gevecht**: `stadInGevecht`, "Not now". Met de pijltjes springt of bukt Amir dan gewoon (de hint komt wel),
+  met E gebeurt er niets. Zonder speer: "Grab your spear first". Vijanden gaan nooit door een poort of over een pad.
 - **De camera** zakt bij een pad tot `padZak` Amir (vanaf `padZie` Amir afstand, zacht), zodat je meer van het pad ziet
   (`straatPadZak` in de doelhoogte van `stadVloeren`).
 - **De minimap** (`straatRasterKaart`, alleen op een laptop: `camTelefoon()`): een vierkant met de straten als lijnen, de
