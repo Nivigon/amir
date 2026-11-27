@@ -86,7 +86,14 @@ te bleek, en de rotswand ging op in de witte stad. De textuur mag dus blijven, n
 Wat er nu is: dezelfde platen, alleen warmer grijsbruin en met warm donkerbruine lijnen in plaats van zwart (de
 buitenrand 1 pixel dunner). Vorm, textuur en maten zijn gelijk, dus geen getal in de code veranderd.
 
-- De originelen staan in `design/bron/rotsen_oud/` (en `klein/design/bron/rotsen_oud/`).
-- `python3 tools/rots_warm.py` maakt de speelversie opnieuw, daarna `tools/gen-offline-manifest.py`.
-- Nog niet gedaan: de winterversies (`boulder_sneeuw.png`, `flatrock_sneeuw.png`, `cliff_sneeuw.png`) en de andere
-  rotsplaten (`rotswand_kaal.png` van de muur, de runerotsen, `ROTS_FAM`). Kijk of die dezelfde behandeling nodig hebben.
+Dezelfde behandeling hebben ook gekregen: de rotswand van de muur (`rotswand_kaal.png`), de runerotsen
+(`rotswand_spits/pieken/zuilen/boog/boog_scheef.jpg`, het wit blijft wit voor `witKnip`), de rots van een ravijn
+(`rotstextuur.png`), de grot (`design/grot/`: keien, hangblokken en de tegels, zonder de rand dunner te maken zodat ze
+naadloos blijven) en het rotsdecor (`design/rotsdecor/`, `ROTS_FAM`). Die waren al warmer en dunner omlijnd, dus daar is
+het verschil klein; het gaat erom dat alle rots uit dezelfde kleur komt.
+
+- De originelen staan in `design/bron/rotsen_oud/` (en `klein/design/bron/rotsen_oud/`), op hetzelfde pad als in het spel.
+- `python3 tools/rots_warm.py` maakt van alles daarin de speelversie opnieuw, daarna `tools/gen-offline-manifest.py`.
+- Maakt `tools/rotsdecor_knip.py` of `tools/rots_vulling.py` een plaat opnieuw, kopieer die dan eerst naar
+  `bron/rotsen_oud/` en draai `rots_warm.py` erna, anders is hij weer koel grijs.
+- Nog niet gedaan: de winterversies (`*_sneeuw.png`).
