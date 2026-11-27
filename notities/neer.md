@@ -14,7 +14,17 @@ Nieuwe val-animatie: Amir grijpt naar zijn zij, zakt door zijn knieën, leunt vo
 - Stokken: frames 0-21 ~42 ms, 22-56 ~50 ms (totaal ~2,7 s).
 
 ## Recolor
-- Stokken: `node tools/vacht_bak.js` (map `beweging` wordt al meegenomen) maakt de maskers voor de zes stoktribe-outfits.
-- Mkuki: zonekaarten (`<frame>_zones.png`) moeten nog gemaakt worden; deze frames komen niet uit de Mkuki animeer tool, dus `mkuki_spel_zones.py` werkt er niet direct op.
+- Stokken: `node tools/vacht_bak.js` (map `beweging` wordt al meegenomen) maakt de maskers voor de zes stoktribe-outfits, in `karakters/amir_vacht/beweging/neer/`. Het spel kleurt ze via `broekLap`, op de framenaam (`beweging/neer/neer_NN.png`).
+- Mkuki: `python3 tools/neer_zones.py [--toon uit.png]` maakt per frame `<frame>_zones.png` (en de helft in `klein/`). Deze frames komen niet uit de Mkuki animeer tool, dus `mkuki_spel_zones.py` werkt er niet op; de zones gaan op kleur (broek donkergrijs, of blauwpaars in de frames met een paarse Grok-zweem; schort zand, die doorgroeit in zijn vale randen; kralen rood, alleen de grote stukken; armbanden koper; leer bij de schort is de riem). De schuine band is bijna zo bruin als de huid: die staat per sleutelframe als lijn van de kralen door de gesp (`BAND_LIJN`, op het oog gezet), de frames ertussen schuiven mee. Elk kledingstuk groeit 2 px over de donkere omtrek, zodat er na het omkleuren geen randje in de oude kleur blijft. Nagekeken met `tools/outfittest.js --frames mkuki_spel/beweging/neer/neer_00.png,...` (alle zes outfits).
+- Omdat de val van Mkuki een eigen frame is en niet uit de skin komt, slaat `broekBeeld` voor deze frames `mkSkinVan` over (`neerMk`) en kleurt het frame zelf met `mkLap`.
+
+## In het spel (`NEER`)
+- `amirSterf(lig)` vervangt `dead = true; deadEl...` op de plekken waar Amir sterft (een klap, een val, de fosforbeet). De set volgt de outfit (`neerSetVan`: een outfit van Mkuki met skin is `mk`, de rest `stok`). `neerStap` loopt de frames af met de timing hierboven.
+- Single player: het doodscherm komt `NEER.scherm` (0,35 s) na het laatste frame. In een ravijn gestort (`fallDeath`): meteen de neer-pose en meteen het scherm, zonder val.
+- Co-op en Duel: geen doodscherm; de neer-pose blijft liggen tot de revive. `mpcLig` (het oude omkantelen) alleen nog als de frames er niet zijn. Teamgenoten krijgen het pad van het frame mee (`pvpVang`), dus zelfde moment en zelfde set, in hun outfit (`neerIs` houdt bij hen `mpcLig` weg). Silver Pride, de veren en de revive-ton werken op de plek van de speler, niet op het beeld, dus die lopen gewoon door; de veren van de zelf-revive stijgen op uit het midden van het liggende lijf (`lijkX` in `bnZelfTeken`).
+- Laden: `neerLaadLevel` in `laadLevel` (single player de set van nu, met een teamgenoot beide), en de set van nu wordt bijgeladen als je van wapen wisselt. De sandbox laadt beide.
+- Sandbox: **Fall: Mkuki** en **Fall: sticks** (naast Speel dood) spelen de val, laten hem `NEER.sbLig` liggen en zetten hem weer overeind (`neerSandbox`).
+- Testen: `node tools/mptest.js --neer --stokken host --spelers 2` (de gast valt als Mkuki, de host als de stokken-Amir, de ander ziet dezelfde frames in de juiste set, het hart en de veren brengen ze terug); `--sterf gast` en `--bennu` lopen ook nog.
+- Nog niet: een wachtloop (ademen) in de neer-pose. De oefenteamgenoot van Test 91 en 94 ligt nog omgekanteld (`zhPopTeken`).
 
 Herkomst en werkwijze: project-doc `claude/amir_neer_coop.md`.
