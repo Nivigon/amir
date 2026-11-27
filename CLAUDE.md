@@ -762,6 +762,11 @@ Het spel wil van een webserver komen, anders weigert de browser de sprites:
 python3 -m http.server
 ```
 
+Beweegt iets op een eigen klok die trager is dan het tekenen (een opgenomen spoor, een animatie op 30 fps die ook
+de positie bepaalt), dan interpoleer je de positie tussen twee beelden, anders staat het om het beeld stil en springt
+het dan (de gids van The First Hunt schokte zo naast Amir). Meet het na: de verschuiving per getekend beeld hoort
+gelijkmatig te zijn, net als bij Amir.
+
 Er zijn geen tests en geen linter, dus kijk zelf na wat je aangeraakt hebt: speelt
 het level uit, blijft de speer vindbaar, staat er niets in de lucht, en geeft de
 console geen 404. Merkt de speler iets van je wijziging, werk dan `README.md` bij.
