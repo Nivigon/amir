@@ -1140,6 +1140,11 @@ async function elk(H, G){
       return uit;
     });
     meld(JSON.stringify(d) === '["klaar",false,true,false]', ramen[1].wie + ': E bij de deur van de winkel vraagt, dan Ready, dan Not ready (' + JSON.stringify(d) + ')');
+    // de rug is gedeeld: zet de host Duka bij het schap, dan staat hij bij iedereen met zijn rug naar je toe
+    await ramen[0].page.evaluate(() => { const M = winkelMan; M.fase = 'actie'; dukaZet(M, 'schap'); M.t = 2.5; });   // de host: Duka bij het schap
+    await wacht(400);
+    const rugG = await Promise.all(ramen.map(r => r.page.evaluate(() => dukaRug(winkelMan))));
+    meld(rugG.every(x => x), 'Duka staat bij iedereen tegelijk met zijn rug naar je toe (' + JSON.stringify(rugG) + ')');
     // elk bordje (ook Team) te klikken: niet onder het doek of een andere knop, waar Amir ook staat in de kamer
     for (const r of ramen){
       const terug = await r.page.evaluate(() => { const w = world; world = MPC_WINKEL_KAMER.toonbank + 40; onGround = true; jump = null; if (!winkelUIAan) winkelUIOpen(); return w; });
