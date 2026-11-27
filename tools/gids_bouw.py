@@ -67,7 +67,7 @@ ZOOM_VAST = ('idle',)
 # zijn hoofd in ren, buk, sluip en sprong even groot als in de idle, net als bij Amir (diens hoofd is in zijn ren ook even
 # groot als in zijn idle). Dat hij rennend lager is komt door de houding. Het krimpen dat Tom eerst zag kwam vooral van de
 # idle-clip die 6% inzoomde (rechtgezet met ZOOM_VAST). Alleen de sprintsprong had een iets kleiner hoofd: 1,05.
-GROOTTE = {'idle': 1, 'verteller': 1, 'ren': 1, 'sprong': 1, 'groot': 1.05, 'buk': 1, 'sluip': 1, 'rol': 1}
+GROOTTE = {'idle': 1, 'verteller': 1, 'ren': 1, 'sprong': 1, 'groot': 1.05, 'buk': 1.15, 'sluip': 1.15, 'rol': 1}   # sluip en buk 1,15 (28-11-2026, Tom: sluipend leek hij veel kleiner dan staand)
 SPEER = {'staal': (178, 184, 190), 'staalDonker': (104, 110, 118), 'hout': (112, 72, 42), 'houtDonker': (70, 44, 26)}
 
 # de animaties: welke frames uit welke clip
