@@ -25,6 +25,10 @@ met de kit en de winkel van Co-op.
 - **De winkel.** Goud per kill en `MPC_EP.levelGoud` per gehaald level (solo met `MP_SOLO.goudFactor`). De winkel van
   Co-op staat in een huis in level 2, 4, 6 en 7, als in The Smugglers' Cellar: een `binnen` met `winkel` en de houten
   vloer (`zwevers`) op de strook -20000 tot -22200; E bij de deur, binnen de toonbank met de prijslijst van Co-op.
+- **Kivuli.** In de winkel van level 4 en 7 (`winkel.kivuli: true`, door `readLevel` doorgegeven) staat Kivuli, de
+  eerste keer dat je binnenkomt in dat potje (`kleiKivKijk`, vanuit `winkelGeheimStap`): een van zijn drie versies, zijn
+  voorraad zoals in Survival, en daarna komt Duka altijd terug (`duka: true`). Een nieuw level begint zonder hem
+  (`kivStart(null)` in `mpCoopStart`). In de andere episodes komt hij niet (`kivBesluit` slaat `C.ep` over).
 - **Het keuzescherm.** Twee rijen: Difficulty (`dkzwaar`, `duoKeuze.zwaar`: `easy`, `normal`, `hard`, in beeld Young
   Whelp, Lion, Hunter XL) en Weapon (`dkwapen`; `wapenKeuzeAan` geldt ook voor `KLEI_LEVELS` zolang er geen `pvp` is).
   `duoKeuzeNodig` vraagt het alleen bij Play (`kleiKies`). Geen outfit: `pvp.broek[0]` is de standaard van slot 0

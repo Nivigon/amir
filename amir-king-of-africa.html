@@ -8716,7 +8716,7 @@ const KLEI_4 = {
   // de winkel van Co-op in huis 5: E bij de deur, binnen de toonbank met de prijslijst van Co-op (zie "de winkel in de episode")
   binnen: [ { gevel: 5, r: -20000, l: -22200, deur: -20250,
               ramen: [ {x: -20750, h: 420}, {x: -21500, h: 420} ], palen: [ {x: -21050, h: 0} ],
-              winkel: { x: -21550, seed: 9041, koopman: true }, planken: [ {x: -20700, h: 380, soort: 'touw', seed: 9042} ] } ],
+              winkel: { x: -21550, seed: 9041, koopman: true, kivuli: true }, planken: [ {x: -20700, h: 380, soort: 'touw', seed: 9042} ] } ],
   zwevers: [ {r: -20000, l: -22200, h: 900, onder: 750, look: 'hout'} ],
   spawns: [ {x: -1600, k: 'bandiet'}, {x: -1900, k: 'bandiet', van: 'normal'},
             {x: -2900, k: 'zweepman'},
@@ -8827,7 +8827,7 @@ const KLEI_7 = {
   // de winkel van Co-op in huis 4: E bij de deur, binnen de toonbank met de prijslijst van Co-op (zie "de winkel in de episode")
   binnen: [ { gevel: 4, r: -20000, l: -22200, deur: -20250,
               ramen: [ {x: -20750, h: 420}, {x: -21500, h: 420} ], palen: [ {x: -21050, h: 0} ],
-              winkel: { x: -21550, seed: 9071, koopman: true }, planken: [ {x: -20700, h: 380, soort: 'touw', seed: 9072} ] } ],
+              winkel: { x: -21550, seed: 9071, koopman: true, kivuli: true }, planken: [ {x: -20700, h: 380, soort: 'touw', seed: 9072} ] } ],
   zwevers: [ {r: -20000, l: -22200, h: 900, onder: 750, look: 'hout'} ],
   spawns: [ {x: -1800, k: 'bandiet'}, {x: -2000, k: 'bandiet', dolk: true},
             {x: -2700, k: 'kruisboogbandiet', dak: 401, wijk: false, van: 'normal'},
@@ -37460,6 +37460,7 @@ function winkelGeheimStap(dt, kruipt, loopt){
   const G = winkelGeheim, K = WINKEL.geheim, b = binnenBij(world);
   if (!b || !b.winkel || !winkelImgs || !winkelKlaar()){ if (G.achter && !b) G.achter = false; return; }
   winkelManStap(dt, b.winkel);
+  kleiKivKijk(b);                                     // The Clay City: Kivuli in een winkel met kivuli: true
   kivStap(dt, b);                                     // Kivuli, de reizende handelaar
   if (!G.aan || !b.winkel.geheim || dukaRegie) return;
   if (G.uitzet){ if (!stadTrapFade || stadTrapFade.gewisseld){ G.achter = false; G.uitzet = false; } return; }
@@ -38270,6 +38271,16 @@ function kivBesluit(){
   const pool = MPC_WINKEL.filter(q => q.kivuli).map(q => q.k);   // zijn eigen spullen (ISLOT): de kalebas en 2 of 3 daarvan
   for (let i = pool.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   return { v: versie, duka, voorraad: ['kalebas', ...pool.slice(0, 2 + kivZak('aantal', [0, 1]))] };
+}
+// The Clay City (pvp.klei): Kivuli staat vast in twee winkels (winkel.kivuli in level 4 en 7), de eerste keer dat je
+// binnenkomt in dat potje, in een van zijn drie versies, met zijn voorraad als in Survival. Daarna komt Duka altijd terug
+// (duka: true), zodat de gewone winkel open blijft. Elk nieuw level begint zonder hem (kivStart(null) in mpCoopStart).
+function kleiKivKijk(b){
+  if (!pvp || !pvp.klei || !b.winkel.kivuli || b.winkel.kivGeweest) return;
+  b.winkel.kivGeweest = true;
+  const pool = MPC_WINKEL.filter(q => q.kivuli).map(q => q.k);
+  for (let i = pool.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  kivStart({ v: kivZak('versie', [1, 2, 3]), duka: true, voorraad: ['kalebas', ...pool.slice(0, 2 + kivZak('aantal', [0, 1]))] });
 }
 function kivLaad(){
   if (KIV.frames) return;
@@ -64135,6 +64146,7 @@ function readLevel(txt){
              ladders: (b.ladders || []).map(q => ({ x: Number(q.x), van: Number(q.van) || 0, naar: Number(q.naar) || 0, f: !!q.f })),
              // de winkel en de planken (zie "de winkel"); zonder deze regels vielen ze bij setLevel weg
              winkel: b.winkel ? { x: Number(b.winkel.x), seed: b.winkel.seed != null ? Number(b.winkel.seed) : undefined, koopman: b.winkel.koopman !== false,
+               ...(b.winkel.kivuli === true ? { kivuli: true } : {}),   // The Clay City: hier staat Kivuli (kleiKivKijk)
                // het geheim (zie WINKEL.geheim): de achterkamer en hoe vaak de marktman naar achteren loopt
                ...(b.winkel.geheim && Number.isFinite(Number(b.winkel.geheim.naar)) ? { geheim: { naar: Number(b.winkel.geheim.naar),
                  ...(Number.isFinite(Number(b.winkel.geheim.achterKans)) && b.winkel.geheim.achterKans != null ? { achterKans: Number(b.winkel.geheim.achterKans) } : {}) } } : {}) } : undefined,
@@ -77870,6 +77882,7 @@ function mpCoopStart(epI){
   sandbox = false; godMode = false;
   if (ROL.koelOud != null){ ROL.koel = ROL.koelOud; ROL.koelOud = null; }
   beginPlay('normal');
+  if (pvp.klei) kivStart(null);                     // The Clay City: geen Kivuli uit het vorige level mee (kleiKivKijk)
   if (ep){ mpcVersieNu = 'ep'; mpcFakSc = 0; mpEpNaStart(); }   // het uitzicht van het level zelf, geen versies en geen fakkels; de tas uit het vorige level
   else if (pvp.host) mpcVersieWissel(mpcVersieKies(null));   // een willekeurige versie van de map; de gast krijgt hem met 'cv'
   else mpcVersieZet((mpcKaart().versies || ['avond'])[0]);
