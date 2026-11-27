@@ -56,7 +56,11 @@ zegt `design/tutorial/gids/gids.json` welk frame van de gids erbij hoort. Kop in
   punt staal: het brede eind van de speer; de rest hout); `SPEER = None` haalt hem eruit.
 - Schaal: per clip geijkt op het hoofd (`SCHAAL`), de gids staand 1,2 x Amir (ongeveer bandietmaat).
 - Stof en geluid: de renlus van Amir (`amirren.mp3`), zachter naarmate hij verder van je af is; stof bij de afzet en de
-  landing; bij de rol het rolgeluid en het stof van `ROL_STOF`.
+  landing, en bij een landing van minstens `GIDS.geluid.landMin` hoog een zachte plof (`bavland.mp3`, zoals de chaser);
+  bij de rol het rolgeluid en het stof van `ROL_STOF`.
+- Schaduw (27-11-2026): dezelfde als die van Amir (`drawAmirSchaduw`, omgevingsschaduw en zonneschaduw, ijler in een
+  sprong), via `gidsSchaduw`. amirSilhouet wil een los plaatje, dus elk frame wordt een keer klein uit het vel geknipt
+  (`gidsSchaduwFrame`, `GIDS.schaduw.maat` hoog). Zonder gids.json blijft het oude ovaaltje.
 - **De idle zoomde in (27-11-2026).** In de Grok-clip werd de gids van het eerste tot het laatste idle-frame 5 tot 6%
   groter (de hele figuur). De idle speelt heen en weer, dus hij zwol op en kromp weer, en bij de wissel naar de verteller
   (die even groot blijft) sprong hij tot 13 px kleiner. `ZOOM_VAST` in `gids_bouw.py` meet per frame de lijfhoogte, legt

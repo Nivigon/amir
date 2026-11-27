@@ -26805,7 +26805,8 @@ const GIDS = { src: 'design/tutorial/gids/gids.json', fps: { idle: 12, verteller
   lucht: { sprong: [[0, 16], [0.2, 21], [0.42, 26], [0.58, 40], [0.72, 66], [1, 76]],   // strekken, kort intrekken op de top, benen omlaag
            groot: [[0, 2], [0.45, 12], [0.7, 24], [1, 36]] },                           // de sprintsprong: gestrekt, dan intrekken voor de landing
   kop: 1.02,
-               geluid: { ver: 1100, ren: 0.45, rol: 0.7, sprint: 420 } };
+               geluid: { ver: 1100, ren: 0.45, rol: 0.7, sprint: 420, land: 0.35, landMin: 40 },   // land: de plof bij de landing (bavland.mp3, zacht), alleen na een sprong van minstens landMin hoog
+               schaduw: { maat: 100 } };                         // het frame voor de schaduw, uit het vel geknipt op deze hoogte (amirSilhouet bakt het dan zelf)
 let gids = null;                                 // gids.json als hij binnen is, 'laden' onderweg
 function gidsLaad(){
   if (gids) return;
@@ -26870,7 +26871,7 @@ function gidsNu(){
 }
 // hoe hard je hem hoort: dichtbij vol, verder weg zachter
 function gidsVol(x){ return Math.max(0, 1 - Math.abs(x - world) / GIDS.geluid.ver); }
-let gidsRenSnd = null, gidsRenVol = 0, gidsRolSnd = null;
+let gidsRenSnd = null, gidsRenVol = 0, gidsRolSnd = null, gidsLandSnd = null;
 function gidsFx(dt){
   if (!gidsKlaar()) return;
   const m = mentor, f = mentorFrame(), [anim] = gidsNu();
@@ -26880,7 +26881,16 @@ function gidsFx(dt){
   m.gidsRen = anim === 'ren' && grond ? (v && Math.abs(x - v.x) / Math.max(dt, 1e-3) > GIDS.geluid.sprint ? 2 : 1) : 0;
   if (!v) return;
   if (v.grond && !grond) puffWorld(x, 4, 0, 0.8, h);                                   // de afzet
-  if (!v.grond && grond) puffWorld(x, anim === 'rol' ? 3 : 6, dir * 60, 1, h);         // de landing
+  if (v.grond && !grond) m.luchtTop = h;
+  if (!grond) m.luchtTop = Math.max(m.luchtTop || h, h);
+  if (!v.grond && grond){
+    puffWorld(x, anim === 'rol' ? 3 : 6, dir * 60, 1, h);                                // de landing
+    const vol = GIDS.geluid.land * gidsVol(x);                                         // en een zachte plof, net als de chaser
+    if (anim !== 'rol' && vol > 0.02 && (m.luchtTop == null ? h : m.luchtTop) - h >= GIDS.geluid.landMin){
+      if (!gidsLandSnd) gidsLandSnd = banStemmen('sounds/bavland.mp3', 2);
+      banStemSpeel(gidsLandSnd, Math.min(1, vol));
+    }
+  }
   if (anim === 'rol'){
     const nr = +((mentor.spoor.beelden[f[2]].match(/(\d+)\.png$/) || [0, 1])[1]) - 1;   // het rolframe van Amir (rol_1 is frame 0)
     if (v.anim !== 'rol'){
@@ -26929,12 +26939,39 @@ function gidsTeken(f, sx, voet, scale){
   // A.k: hoe groot deze animatie getekend wordt (gids_bouw.py GROOTTE; ren, sprong, buk en sluip groter, anders kromp hij in
   // beweging naast Amir), geschaald vanaf zijn voeten
   const i = Math.max(0, Math.min(A.n - 1, af)), [fx, fy, fw, fh, gx, gy] = A.f[i], k = im._bron || 1, u = (gids.px || 1) * (A.k || 1) * scale;
+  gidsSchaduw(f, im, anim, i, px, py, u, scale);
   ctx.save();
   ctx.translate(px, py);
   if (fl) ctx.scale(-1, 1);
   ctx.drawImage(im, fx / k, fy / k, fw / k, fh / k, -gx * u, -gy * u, fw * u, fh * u);
   ctx.restore();
   return true;
+}
+// De schaduw van de gids, zoals die van Amir (drawAmirSchaduw): de omgevingsschaduw recht onder hem en de zonneschaduw
+// van de zon af, ijler en verder weg in een sprong. amirSilhouet wil een los plaatje; de frames van de gids staan in
+// een vel, dus elk frame wordt een keer klein uitgeknipt (GIDS.schaduw.maat hoog, een doekje met de velden van een plaatje).
+const gidsSchaduwFrames = {};
+function gidsSchaduwFrame(im, anim, i){
+  const sleutel = anim + '|' + i + '|' + (im._bron || 1);
+  let c = gidsSchaduwFrames[sleutel];
+  if (c) return c;
+  const A = gids.anims[anim], [fx, fy, fw, fh] = A.f[i], k = im._bron || 1;
+  const s = Math.min(1, GIDS.schaduw.maat / fh);
+  c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(fw * s)); c.height = Math.max(1, Math.round(fh * s));
+  c.getContext('2d').drawImage(im, fx / k, fy / k, fw / k, fh / k, 0, 0, c.width, c.height);
+  c.naturalWidth = c.width; c.naturalHeight = c.height; c.complete = true;
+  c.src = 'gids/' + anim + '/' + i;                         // amirSilLeen leent per animatie (de "map" van dit pad)
+  return gidsSchaduwFrames[sleutel] = c;
+}
+function gidsSchaduw(f, im, anim, i, px, py, u, scale){
+  const A = gids.anims[anim], [, , fw, fh, gx, gy] = A.f[i], fl = f[7];
+  const X = fl ? px - (fw - gx) * u : px - gx * u, Y = py - gy * u;
+  if (buitenDoek(X, fw * u, fh * u * AMIR_SCHADUW.lang * 1.5)) return;
+  const vloer = f[8] ? f[1] : terrainH(f[0]);               // in de lucht: de grond onder hem (boven een ravijn diep, dan geen schaduw)
+  const shY = py + (f[1] - vloer) * scale;
+  drawAmirSchaduw(gidsSchaduwFrame(im, anim, i), X, Y, fw * u, fh * u, !!fl, px, py, shY,
+                  (shY - py) / scale, scale, amirZon(vloer, f[0]), 1);
 }
 // voor Amir getekend, zodat de speler voor hem langs loopt
 function mentorTeken(groundY, scale, cx){
@@ -26948,7 +26985,7 @@ function mentorTeken(groundY, scale, cx){
   const kop = ctx.getTransform().transformPoint(new DOMPoint(sx, voet - kopH * scale));
   mentor.wolkPlek = { x: kop.x / DPR, y: kop.y / DPR };          // ook buiten beeld: dan wijst de wolk naar hem vanaf de rand
   if (sx < -400 || sx > W / Math.max(0.3, viewZoom()) + 400) return;
-  if (grond){                                               // een zachte schaduw onder zijn voeten
+  if (grond && !gidsKlaar()){                               // een zachte schaduw onder zijn voeten (de gids heeft zijn eigen, gidsSchaduw)
     ctx.save(); ctx.globalAlpha = 0.28; ctx.fillStyle = '#1a0f08';
     ctx.beginPath(); ctx.ellipse(sx, voet, CHAR_H * scale * 0.26, CHAR_H * scale * 0.045, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
