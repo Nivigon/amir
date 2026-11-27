@@ -39,6 +39,8 @@ een eigen gezicht):
 - **savanne** (de standaard, `design/savanne/putten/put_loop_savanne.png`, Grok d77b641d): de steenput van het dorp
   (put_steen) breed en laag gemaakt, met gevorkte takken, een houten deksel en een kruik ernaast, net zo rustig geschilderd
   als de rest. Een eerdere, verweerde versie (Grok 48c99908) zag er te echt uit naast de stad en is vervangen.
+  De kleur komt uit `tools/loopput_kleur.py`: de steen en het zand van de Grok-plaat (`bron/put_loop_savanne_bron.png`)
+  voller, iets donkerder en naar het oker van de hutten (tint 25, verzadiging x2,1, licht x0,8); de kruik blijft.
 - **stad** (`soort: 'stad'`, `put_loop_stad.png`, Grok fee91518): de gepleisterde leemput met een rond houten deksel,
   rechte palen en een kuipemmer. Hoort eerder in Ishmul.
 
