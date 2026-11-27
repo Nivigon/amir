@@ -37369,6 +37369,7 @@ function winkelManStap(dt, w){
   const M = winkelMan, K = WINKEL.man, G = winkelGeheim;
   if (M.w !== w){ const o = winkelOpbouw(w); M.w = w; M.pos = M.doel = o.koopman / o.tbB; M.fase = 'rust'; M.klok = winkelRnd(K.rust[0], K.rust[1]); M.kijk = 1; M.flip = true; M.anim = 'idle'; M.t = Math.random() * 5; }
   if (dukaRegie) return;                                // gesnapt: de regie speelt zijn animaties (dukaRegieStap)
+  if (mpcGast()){ dukaGastStap(dt, w); return; }       // Co-op: de host beslist wat Duka doet (dukaDeel)
   const o = winkelOpbouw(w);
   M.t += dt;
   // naar achteren: links van het doek, met zijn rug naar de winkel
@@ -37401,6 +37402,40 @@ function winkelManStap(dt, w){
     else { M.fase = 'rust'; M.flip = true; dukaZet(M, 'idle'); M.klok = winkelRnd(K.rust[0], K.rust[1]); }
   } else M.pos += Math.sign(rest) * stap;
 }
+// Co-op: de host beslist wat Duka doet en stuurt het rond (bericht duka), zodat iedereen dezelfde Duka ziet en hij voor
+// het hele team tegelijk met zijn rug naar de winkel staat (en je dus samen achter de toonbank kunt komen). Een gast doet
+// zelf geen keuzes: hij speelt de animatie af en loopt naar het doel tot het volgende bericht. Gesnapt worden blijft per
+// speler: een gast die betrapt wordt ziet zijn eigen regie en pakt daarna de stand van de host weer op (naRegie).
+const dukaDeel = { sleutel: '', zendT: 0, van: null, laatst: null, naRegie: false };
+function dukaHostZend(){
+  if (!mpCoopAan() || !pvp.host) return;
+  const M = winkelMan; if (!M.w) return;
+  const k = M.fase + '|' + M.anim + '|' + M.doel.toFixed(3) + '|' + M.flip, nu = performance.now();
+  if (k === dukaDeel.sleutel && nu - dukaDeel.zendT < 3000) return;   // alleen bij een keuze, en elke 3 s als vangnet
+  dukaDeel.sleutel = k; dukaDeel.zendT = nu;
+  pvpZend({ t: 'duka', s: [+M.pos.toFixed(4), +M.doel.toFixed(4), M.fase, M.anim, +M.t.toFixed(3), M.flip ? 1 : 0, M.kijk, +(M.klok || 0).toFixed(2)] });
+}
+function dukaGastStap(dt, w){
+  const M = winkelMan, o = winkelOpbouw(w);
+  if (dukaDeel.naRegie){                              // de rest van de klap na de eigen regie, dan weer de stand van de host
+    M.t += dt; if (!dukaKlaar(M)) return;
+    dukaDeel.naRegie = false; dukaDeel.van = dukaDeel.laatst;
+  }
+  const V = dukaDeel.van;
+  if (V){
+    dukaDeel.van = null; const s = V.s;
+    M.pos = s[0]; M.doel = s[1]; M.fase = s[2]; if (DUKA.anims[s[3]]) M.anim = s[3];
+    M.t = s[4] + Math.min(3, (performance.now() - V.ont) / 1000); M.flip = !!s[5]; M.kijk = s[6]; M.klok = s[7];
+    return;
+  }
+  M.t += dt;
+  if (M.fase === 'loop' || M.fase === 'naarAchter'){
+    if (M.anim === 'loop2in' && dukaKlaar(M)) dukaZet(M, 'loop2');
+    const stap = DUKA.v / o.tbB * dt, rest = M.doel - M.pos;
+    if (Math.abs(rest) <= stap) M.pos = M.doel; else M.pos += Math.sign(rest) * stap;
+  }
+}
+function dukaGastOntvang(s){ dukaDeel.van = dukaDeel.laatst = { s, ont: performance.now() }; }
 // de x van de marktman in de wereld
 function dukaX(w){ const o = winkelOpbouw(w); return w.x - (winkelMan.w === w ? winkelMan.pos : o.koopman / o.tbB) * o.tbB * CHAR_H; }
 // gesnapt (DUKA.regie): de wereld staat stil (dt 0, zie de lus), alleen Duka en het stofwolkje lopen door op echte tijd.
@@ -37443,8 +37478,10 @@ function dukaRegieStap(rdt){
       winkelGeheim.achter = false; winkelGeheim.betrap = 0; winkelGeheim.lawaai = 0;
       dukaWolkZet(x, ph + 0.4 * CHAR_H, 0.6);
       dukaRegie = null; M.fase = 'actie';               // de rest van de klap speelt gewoon af, dan weer rust
+      if (mpcGast()) dukaDeel.naRegie = true;           // Co-op: daarna weer de Duka van de host
     }
   }
+  dukaHostZend();
 }
 function dukaAmirWeg(){ return !!(dukaRegie && dukaRegie.weg); }
 function dukaWolkZet(x, h, k){
@@ -37486,6 +37523,7 @@ function winkelGeheimStap(dt, kruipt, loopt){
   if (!b || !b.winkel || !winkelImgs || !winkelKlaar()){ if (G.achter && !b) G.achter = false; return; }
   winkelManStap(dt, b.winkel);
   kivStap(dt, b);                                     // Kivuli, de reizende handelaar
+  dukaHostZend();                                     // Co-op: de gasten zien dezelfde Duka
   if (!G.aan || !b.winkel.geheim || dukaRegie) return;
   if (G.uitzet){ if (!stadTrapFade || stadTrapFade.gewisseld){ G.achter = false; G.uitzet = false; } return; }
   // rechtop lopen achter de toonbank hoort hij (alleen op de grond, en pas na even: een landing en een halve stap rechtop
@@ -77855,6 +77893,7 @@ function mpCoopOntvang(m){
   if (m.t === 'kistNee'){ const k = kisten[m.i]; if (k){ k.mpWacht = false; if (!k.open) kistOpenBeeld(k); } flashHint('Too late: the chest is already open', 2500); return true; }
   if (m.t === 'geef'){ mpcGoudErbij(m.n, pvp.spelers.length > 2 ? 'from ' + mpSpelerNoem(m.p, true) : 'from your teammate'); return true; }
   if (m.t === 'winkel'){ if (!pvp.host){ C.winkelGeheim = !!m.g; C.winkelKiv = m.kv || null; if (laadWacht) C.winkelStraks = true; else mpcWinkelIn(m.g, m.kv); } return true; }
+  if (m.t === 'duka'){ if (!pvp.host && Array.isArray(m.s)) dukaGastOntvang(m.s); return true; }   // wat Duka doet (dukaHostZend)
   if (m.t === 'kivin'){ if (!pvp.host) kivBinnen(); return true; }     // Kivuli komt binnen (versie 2)
   if (m.t === 'kivpraat'){ kivKlokStart(); return true; }           // iemand sprak Kivuli aan: de klok loopt
   if (m.t === 'kivklaar'){ kiv.klaar = kiv.klaar || {}; kiv.klaar[m.p] = !!m.aan; if (winkelUIAan) wkkToon(); return true; }   // iemand is klaar met hem (Done)

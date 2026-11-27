@@ -1128,6 +1128,20 @@ async function elk(H, G){
       return uit;
     });
     meld(JSON.stringify(d) === '["klaar",false,true,false]', ramen[1].wie + ': E bij de deur van de winkel vraagt, dan Ready, dan Not ready (' + JSON.stringify(d) + ')');
+    // Duka is gedeeld (dukaHostZend): bij iedereen dezelfde fase en animatie, op dezelfde plek, en tegelijk met zijn rug naar je toe
+    let mis = 0, n = 0, rug = 0;
+    for (let i = 0; i < 20; i++){
+      await wacht(500);
+      const st = await Promise.all(ramen.map(r => r.page.evaluate(() => winkelMan.w ? [winkelMan.fase, winkelMan.anim, winkelMan.pos, dukaRug(winkelMan)] : null)));
+      if (!st[0]) continue;
+      n++; if (st[0][3]) rug++;
+      if (st.some(x => !x || x[0] !== st[0][0] || x[1] !== st[0][1] || Math.abs(x[2] - st[0][2]) > 0.05)) mis++;
+    }
+    await ramen[0].page.evaluate(() => { const M = winkelMan; M.fase = 'actie'; dukaZet(M, 'schap'); M.t = 2.5; });   // de host: Duka bij het schap
+    await wacht(400);
+    const rugG = await Promise.all(ramen.map(r => r.page.evaluate(() => dukaRug(winkelMan))));
+    meld(rugG.every(x => x), 'Duka staat bij iedereen tegelijk met zijn rug naar je toe (' + JSON.stringify(rugG) + ')');
+    meld(n > 10 && mis <= 3, 'Duka doet bij iedereen hetzelfde (' + (n - mis) + ' van de ' + n + ' gelijk, ' + rug + ' keer met zijn rug)');
   }
   if (stokken.length && !args.includes('--neer')){   // --neer: alleen de val, niet de hele stokkenproef
     await wacht(1500);
