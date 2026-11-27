@@ -56,3 +56,22 @@ knippen verlengd (een strook herhaald), zodat de balk boven Amirs hoofd uitkomt.
 - Nagekeken met Playwright: tegen de muur, de sprong, staan, de steek en de worp bovenop, eraf lopen.
 - In Test 97 de savanneversie na de drie putten (x -7150). In de sandbox in de rij **Savannedorp**: **Loopput**,
   **Loopput stad** (elke klik een verder) en **Weg**.
+
+## De oude 3/4-hutten vervangen
+De hut bij de rotswand aan de start (`HUT`), de verre hut (prop `hut`) en de dorpsplaten (`VILLAGE`: de vijf hutten, de
+voorgrondhut en de put) wijzen nu naar het savannedorp (hut_rond, hut_koepel_groot, hut_koepel_hoog, put_steen). De namen
+blijven, dus levels en de Maker veranderen niet; alleen The First Hunt gebruikt de dorpsplaten. Nog oud en 3/4: het
+kookafdak (`cooking_shelter`) en alle winterversies (`*_sneeuw`, `villeaghut_sneeuw`); de oude platen staan nog op schijf.
+
+## Op te ruimen zodra het kan (de oude 3/4-hutten)
+Na deze vervanging gebruikt geen savannelevel de oude platen nog. Ze blijven voorlopig op schijf, omdat de oude episodes
+eruit gaan en er nog naar kunnen wijzen. Zodra die weg zijn:
+- Weghalen: `design/villeaghut.png`, `klein/design/villeaghut.png`, en in `design/village/` (en `klein/`) `hut_round_arch`,
+  `hut_round_door_left`, `hut_round_back`, `hut_rect_porch`, `hut_rect_back`, `well`, `foreground/hut_round_back_closeup`.
+- Eerst nakijken: `grep -n "villeaghut\|design/village/" amir-king-of-africa.html tools/*.py` geeft geen treffer meer behalve
+  de winterplaten (`*_sneeuw`, `villeaghut_sneeuw`, prop `hut_sneeuw`).
+- Mee aanpassen: de lijst bovenaan de HTML met `design/villeaghut.png` (de kleine set), `tools/gen-klein.py` (de regels voor
+  `villeaghut`), en de bronnen in `tools/sneeuw_dorp.py`.
+- Nog te beslissen: het kookafdak (`cooking_shelter`, 3/4, door geen level gebruikt) en de winterversies. Die laatste kunnen
+  opnieuw uit de nieuwe hutten met `tools/sneeuw_dorp.py`, daarna kunnen de oude sneeuwplaten ook weg.
+- Daarna `python3 tools/gen-offline-manifest.py`.
