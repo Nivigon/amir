@@ -641,6 +641,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Dierenkooien** (`design/stad/kooi/`, uit de Grok-segmenten in `bron/` en het blad van `galerij.png`) → `tools/kooi_bak.py`, en het deurtje (`deur.png`) `tools/kooi_deur.py`, daarna `gen-offline-manifest.py`
 - **Tonnen** (`design/stad/ton/`, uit de Grok-platen in `bron/`) → `tools/ton_kleur.py`, daarna `gen-offline-manifest.py`
 - **Savanne-opstapjes** (`design/opstap/savanne_onder.png` uit de grondrand, `savanne_eind.png` uit de Grok-plaat in `bron/`) → `tools/savanne_opstap.py`, daarna `gen-offline-manifest.py`
+- **Hutten en putten van het savannedorp** (`design/savanne/hutten/`, `design/savanne/putten/`, ook na een nieuwe Grok-plaat op wit) → `tools/rand_ontwit.py` (haalt de witte franje en het ingesloten wit weg), daarna `gen-offline-manifest.py`
 - **Rotsdecor** (`design/rotsdecor/`, losse rotsstukken uit de platen in `bron/`) → `tools/rotsdecor_knip.py`, daarna `gen-offline-manifest.py`
 - **Stadsvoorgrond** (`design/stad/voorgrond/`, geknipt uit `design/stad/voetdecor.png`) → `tools/stad_voorgrond.py`, daarna `gen-offline-manifest.py`
 - **De val van Mkuki** (`karakters/amir/mkuki_spel/beweging/neer/`) → `tools/neer_zones.py` (de zonekaarten, ook in `klein/`), daarna `gen-offline-manifest.py`; nakijken met `tools/outfittest.js --frames mkuki_spel/beweging/neer/neer_45.png`
