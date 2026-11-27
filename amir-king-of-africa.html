@@ -4422,7 +4422,7 @@ function shoveVijanden(){
 // Mag de aanval een shove zijn? Dan de vijand die geduwd wordt, anders null (en dan steekt hij gewoon)
 function shoveDoel(){
   if (!SHOVE.aan || shoveA || shoveKoel > 0 || !spear || atkMes || stokAan() || !onGround || jump || fell) return null;
-  if (mpcGast()) return null;                     // Co-op bij een gast: de host denkt voor de vijanden, dus daar gewoon steken
+  // Co-op bij een gast: hij kiest en speelt de shove zelf (op zijn kopie van de vijanden), de duw zelf doet de host (shoveRaak)
   const k = nowScale(), px = playerX(), kant = facing === 1 ? 1 : -1;
   const van = SHOVE.raakVan * k, tot = SHOVE.raakTot * k;
   let dicht = null;
@@ -4461,11 +4461,25 @@ function shoveStap(dt){                          // elk beeld: de afkoeling, de 
   }
 }
 // de speer raakt hem: terug tot op steekafstand, en even stil. Is hij intussen buiten bereik, dan duwt hij in de lucht
+// Co-op bij een gast: de host denkt voor de vijanden, dus de duw gaat als bericht naar de host (shvR), net als een treffer
+// (mpcHitDoor); die duwt hem met de stand van de gast (mpcShoveVanGast). Hier alleen het stof en de schok
 function shoveRaak(){
   const v = shoveA.doel, s = v.s, k = nowScale(), kant = shoveA.kant;
   if (!sbLeeft(s) || s.air > 0) return;
   const d = (s.x - playerX()) * kant;
   if (d < -v.half || d - v.half > SHOVE.raakVan * k) return;
+  if (mpcGast() && s.mpId != null){
+    const a = mpcVind(s);
+    if (a) pvpZendAan(0, { t: 'shvR', a, id: s.mpId, kant });
+    puffWorld(s.x, 5, kant * 200, 1, s.base || 0);
+    shake = Math.max(shake, 0.12); hitstop = Math.max(hitstop, 0.06);
+    return;
+  }
+  shoveDuw(v, kant, d);
+}
+// de duw zelf: bij de host (ook voor een gast, met zijn stand) of zonder Co-op. d: hoe ver de vijand voor Amir staat
+function shoveDuw(v, kant, d){
+  const s = v.s, k = nowScale();
   const zwaar = v.soort === 'kooiman' ? SHOVE.zwaar : 1;
   const ver = Math.max(SHOVE.minDuw * k, SHOVE.doel * k - d) * zwaar;
   const snel = kant * ver * 3.91;                 // een knock dooft uit met 0,02 per seconde: de afstand is snel / ln 50
@@ -78796,6 +78810,22 @@ function mpcPareerVanGast(m){
   mpcWisselIn(m.p);
   try { banPareer(o, m.vx, m.vy); } finally { hitstop = hs; shake = sh; mpcWisselUit(); }
 }
+// de host: gast m.p duwde een vijand met de shove (SHOVE, shoveRaak). Met de stand van die gast, zodat hij van hem weg
+// schuift; de schok en hitstop waren bij de gast. Wat bij de gast nog net in bereik stond, mag hier door de vertraging iets
+// verder staan: een halve lijfbreedte en een vijfde van de strook speling
+function mpcShoveVanGast(m){
+  const q = mpcLijst(m.a); if (!q) return;
+  const o = q.l().find(v => v.mpId === m.id); if (!o || !mpcLeeft(o) || o.air > 0 || !pvpAnderNu(m.p)) return;
+  const v = shoveVijanden().find(e => e.s === o); if (!v || !v.duw) return;
+  if (v.soort === 'bandiet' && razAan(o)) return;
+  if (v.soort === 'schildman' && (schbOnaantastbaar(o) || o.exe)) return;
+  const kant = m.kant === 1 ? 1 : -1, hs = hitstop, sh = shake;
+  mpcWisselIn(m.p);
+  try {
+    const k = nowScale(), d = (o.x - playerX()) * kant;
+    if (d >= -v.half * 1.5 && d - v.half <= SHOVE.raakVan * k * 1.2) shoveDuw(v, kant, d);
+  } finally { hitstop = hs; shake = sh; mpcWisselUit(); }
+}
 // de tonnen: een treffer van de gast gaat naar de host, die telt; de host stuurt elke treffer terug, voor het beeld
 const mpcTonRaakOrig = tonRaak;
 tonRaak = function(t, from, amir){
@@ -79514,6 +79544,7 @@ function mpCoopOntvang(m){
   if (m.t === 'blokG'){ const o = pvp.host && bandieten.find(v => v.mpId === m.id);   // een gast ving zijn klap op het stokblok
     if (o && mpcLeeft(o) && pvpAnderNu(m.p)){ mpcWisselIn(m.p); try { stokBlokGestuit(o); } finally { mpcWisselUit(); } } return true; }
   if (m.t === 'banP'){ if (pvp.host) mpcPareerVanGast(m); return true; }   // een bandiet pareerde de steek van een gast
+  if (m.t === 'shvR'){ if (pvp.host) mpcShoveVanGast(m); return true; }   // de shove van een gast duwt een vijand (SHOVE)
   if (m.t === 'crit'){ if (!pvp.host && !laadWacht) critFx(m.x, m.h, true); return true; }
   if (m.t === 'blokK'){ if (!laadWacht){ houtRaak(STOK.toon.blok, 0.6); puffWorld(m.x, 4, 0, 0.8, m.h); } return true; }   // het stokblok van een ander
   if (m.t === 'gifOp'){ if (gifHits > 0){ gifHits--; invHud(); } return true; }   // de host zette mijn gif op een vijand: een treffer minder
