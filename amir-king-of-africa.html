@@ -13358,7 +13358,15 @@ function deurDemp(lang = SFX_DEUR.duur + SFX_DEUR.uit, tot = SFX_DEUR.demp){
   const vol = MUZIEK[muziekNu].vol;
   clearTimeout(bg.dempT);
   sndRamp(bg, vol * tot, 0.25, false);
-  bg.dempT = setTimeout(() => sndRamp(bg, MUZIEK[muziekNu].vol, SFX_DEUR.terug, false), lang * 1000);
+  // na afloop dempT weer leeg, anders laat kivMuzStap de muziek niet meer zakken onder Kivuli; terug naar het volume
+  // dat nu hoort (met Kivuli erbij zachter)
+  bg.dempT = setTimeout(() => { bg.dempT = 0; sndRamp(bg, muzDoelVol(), SFX_DEUR.terug, false); }, lang * 1000);
+}
+// het volume van de gewone muziek zoals het nu hoort: vol, of gedempt zolang Kivuli's muziek speelt
+function muzDoelVol(){
+  const M = MUZIEK[muziekNu]; if (!M) return bg.volume;
+  if (typeof kivSfeer === 'undefined' || !kivSfeer.m || M.stil) return M.vol;
+  return M.vol * (1 - (1 - KIV.sfeer.muz.dempt) * kivSm(kivSfeer.m));
 }
 // De aardbeving van een ravijn dat openscheurt: hetzelfde gerommel als de rotswand, maar vanaf
 // het eerste trillen (onTremorStart) in plaats van pas op de klap, en tot het ravijn open ligt.
@@ -13473,8 +13481,8 @@ function stopDeur(){
   a.pause();
   try { a.currentTime = 0; } catch (e) {}
   if (bg.dempT){
-    clearTimeout(bg.dempT); bg.dempT = 0; clearInterval(bg.fadeT);
-    bg.volume = MUZIEK[muziekNu].vol;
+    clearTimeout(bg.dempT); bg.dempT = 0; clearInterval(bg.fadeT); bg.fadeT = 0;
+    bg.volume = muzDoelVol();
   }
 }
 
@@ -40797,8 +40805,9 @@ function kivMuzStap(){
     if (a.paused){ try { const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
     a.volume = Math.max(0, Math.min(1, K.vol * kivSm(S.m)));
   } else if (!a.paused){ a.pause(); try { a.currentTime = 0; } catch (e) {} }
-  if (!bg.dempT && MUZIEK[muziekNu] && !MUZIEK[muziekNu].stil){                // de gewone muziek zakt zolang hij er is
-    const v = MUZIEK[muziekNu].vol * (1 - (1 - K.dempt) * kivSm(S.m)); if (Math.abs(bg.volume - v) > 0.002) bg.volume = Math.max(0, Math.min(1, v));
+  // de gewone muziek zakt zolang hij er is (niet tijdens een deurdemp of een lopende fade, die gaan zelf naar muzDoelVol)
+  if (!bg.dempT && !bg.fadeT && MUZIEK[muziekNu] && !MUZIEK[muziekNu].stil){
+    const v = muzDoelVol(); if (Math.abs(bg.volume - v) > 0.002) bg.volume = Math.max(0, Math.min(1, v));
   }
 }
 // voor (na de personages van het level, voor Amir): de marktman en de toonbank ervoor
