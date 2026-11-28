@@ -54940,7 +54940,9 @@ const REI = {
   kapHoog: 140, zwaaiHoog: 55,     // de kap raakt Amir tot deze hoogte (proefpixels boven zijn voeten), de zwaai tot deze
   lijfHalf: 30,
   doodLig: 6, doodVaag: 1.2,       // zo lang blijft hij liggen, dan vaagt hij weg
-  vol: { zwaai: 0.75, inslag: 0.9, grond: 0.7, grom: 0.8, pijn: 0.8, dood: 0.9 }
+  vol: { zwaai: 0.75, inslag: 0.9, grond: 0.7, grom: 0.8, pijn: 0.8, dood: 0.9, ruk: 0.45, los: 0.8 },
+  hoop: { x: -346, breed: 130, hoog: 34, blijf: 4, vaag: 1 },   // de bijl zit echt in de grond: een hoop omgewoelde aarde over het blad (spritepixels)
+  ruk: { duur: 0.15, terug: 7, kantel: 0.02 }   // een ruk aan de vastzittende bijl (de vlag 'ruk' in reiKap): spritepixels naar achter, radialen achterover
 };
 // zijn geluiden: bestaande uit sounds/ (de knots van Nyundo voor de bijl, de bandiet voor zijn stem)
 let reiGeluid = null;
@@ -54948,7 +54950,8 @@ function reiGeluidLaad(){
   if (reiGeluid) return;
   reiGeluid = { zwaai: banStemmen('sounds/brutus_zwaai.mp3', 2), inslag: banStemmen('sounds/brutus_inslag.mp3', 2),
                 grond: banStemmen('sounds/kooihitground.mp3', 2), grom: banStemmen('sounds/kooigrr.mp3', 2),
-                pijn: banStemmen('sounds/banditpijn.mp3', 3), dood: banStemmen('sounds/banditdeath.mp3', 1) };
+                pijn: banStemmen('sounds/banditpijn.mp3', 3), dood: banStemmen('sounds/banditdeath.mp3', 1),
+                ruk: banStemmen('sounds/houtraak.mp3', 3), los: banStemmen('sounds/stofveeg.mp3', 2) };
 }
 function reiZeg(k){ if (reiGeluid && reiGeluid[k]) banStemSpeel(reiGeluid[k], REI.vol[k]); }
 let REI_DATA = null, reiBezig = false;
@@ -54959,7 +54962,7 @@ function reiLaad(){
   reiBezig = true; laadJsonOpen++;
   fetch(REI_ROOT + 'reinier.json').then(r => r.ok ? r.json() : Promise.reject(r.status)).then(m => {
     const naam = new Set();
-    for (const k of ['run', 'stop', 'feint', 'uit', 'draai', 'hit', 'dood']){ const L = m[k]; for (const i in L) naam.add(L[i][0]); }
+    for (const k of ['run', 'stop', 'feint', 'uit', 'ruk', 'draai', 'hit', 'dood']){ const L = m[k]; for (const i in L) naam.add(L[i][0]); }
     for (const n of naam) reiBank[n] = loadQuiet([REI_ROOT + n + '.webp']);
     REI_DATA = m;
   }).catch(e => { reiBezig = false; meldFout('reiData', 'reinier: reinier.json niet geladen', e); })
@@ -54979,11 +54982,15 @@ function makeReinier(x, side){
 }
 // de reeksen: [set, frame, duur, vlag]
 function reiKap(tell){
-  // de uitval in een vloeiende stap (snel in, de klap met een korte stop), dan kort de bijl in de grond (het strafvenster)
-  // en vlot lostrekken en terug: eerder stond hij bijna 2 s stil met de bijl in de grond
-  return [[0, tell], ...[1,2,3,4,5].map(i => [i, 1/22]), ...[6,7,8].map(i => [i, 1/26]), [9, 1/20], [10, 1/28], [12, 1/30], [13, .09],
-          [14, 1/10], [15, 1/10], [16, .12], ...[17,18,19].map(i => [i, 1/18]), ...[20,21,22,23].map(i => [i, 1/22]),
-          ...[24,25,26,27,28,29].map(i => [i, 1/16]), [30, .1]].map(([i, d]) => ['uit', i, d]);
+  // de uitval in een vloeiende stap en de klap; daarna de set ruk (Grok, de bijl groen gemaakt en als staal en hout
+  // ingekleurd): de achterste voet bij, twee rukken gehurkt, overeind en nog een ruk, de bijl schiet los en op de schouder
+  const kap = [[0, tell], ...[1,2,3,4,5].map(i => [i, 1/22]), ...[6,7,8].map(i => [i, 1/26]), [9, 1/20], [10, 1/28], [12, 1/30], [13, .09]]
+                .map(([i, d]) => ['uit', i, d]);
+  const ruk = [...[0,2,4,6,8,10,12,14,16,18,20,22,24].map(i => [i, 1/30]), [25, .09, 'ruk'], [29, .08], [33, .09, 'ruk'], [37, .06],
+               ...[38,39,40,41,42,43].map(i => [i, 1/26]), [44, 1/22, 'ruk'], [45, 1/24], [46, 1/24], [47, 1/24], [48, 1/24],
+               [49, 1/26, 'los'], ...Array.from({length: 14}, (_, j) => [50 + j, 1/26]), ...[64,66,68,70,72].map(i => [i, 1/18]), [74, .1]]
+                .map(([i, d, v]) => ['ruk', i, d, v]);
+  return kap.concat(ruk);
 }
 function reiDraai(tell){
   return [[0, .12], ...Array.from({length: 18}, (_, j) => [1 + j, 1/20]), [19, tell], ...[20,21,22,23].map(i => [i, 1/16]),
@@ -55018,7 +55025,7 @@ function reiFrame(s){
 function reiOpen(s){
   if (s.st !== 'aanval') return false;
   const c = s.seq[s.si];
-  return (c[0] === 'uit' && c[1] >= 14 && c[1] <= 18) || (c[0] === 'draai' && c[1] >= 29 && c[1] <= 37);
+  return (c[0] === 'ruk' && c[1] <= 48) || (c[0] === 'draai' && c[1] >= 29 && c[1] <= 37);   // ruk: zolang de bijl vastzit
 }
 // waar zijn lijf nu staat t.o.v. het anker (spritepixels): de uitval en de draai verplaatsen hem binnen de clip
 function reiLijfDX(s){
@@ -55026,6 +55033,7 @@ function reiLijfDX(s){
   const c = s.seq[s.si];
   if (c[0] === 'draai') return D.draaiHX[c[1]] - D.draaiHX[0];
   if (c[0] === 'uit') return D.uitDisp * Math.min(1, Math.max(0, (c[1] - 1) / 11));   // glijdend mee met de stap, geen sprongen
+  if (c[0] === 'ruk') return D.uitDisp;
   return 0;
 }
 function reiAmirHoog(s){ return (ph - (s.base || 0)) * (H * (Number(sizeEl.value) / 100)) / CHAR_H; }   // Amirs voeten boven de zijne, in schermpixels
@@ -55070,8 +55078,32 @@ function reiInslagFx(s, blad){
     s.kluiten.push({ wx: blad + (Math.random() - 0.5) * 20 * P, h: 4, vx: (Math.random() - 0.5) * 380, vh: 220 + Math.random() * 300,
                      r: 3.5 + Math.random() * 4.5, rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 14, lig: 0, base });
   s.hangStof = 0.9; s.hangStofX = blad;                          // nog even stof dat uit de kuil walmt
+  const H = REI.hoop;                                              // de hoop aarde waar het blad in zit; hij blijft liggen als de bijl los is
+  s.hoop = { wx: s.x - s.face * H.x * reiScale(), t: 0, base, bult: Array.from({ length: 6 }, () => 0.88 + Math.random() * 0.24) };
+}
+// de bijl zit vast: bij elke ruk schiet zijn lijf even naar achteren, met stof en gruis bij het blad en een kraak;
+// bij frame 20 schiet de bijl los, met een klont aarde en een wolk
+function reiFrameIn(s, c){
+  if (c[0] !== 'ruk' || !REI_DATA) return;
+  const blad = s.x - s.face * REI_DATA.uitBlade * reiScale(), base = s.base || 0, rnd = (a, b) => a + Math.random() * (b - a);
+  if (c[3] === 'ruk'){
+    s.ruk = REI.ruk.duur; reiZeg('ruk'); shake = Math.max(shake, 0.06);
+    for (let i = 0; i < 4; i++)
+      bruStofDeeltje(s, { wx: blad + (Math.random() - 0.5) * 30, y: -rnd(0, 6), vx: (Math.random() - 0.5) * 260, vy: -rnd(60, 160), r: rnd(18, 30), life: rnd(0.4, 0.7), a: 0.7 });
+    for (let i = 0; i < 8; i++) stofKorrel(blad + (Math.random() - 0.5) * 20, base, (Math.random() - 0.5) * 200, 120 + Math.random() * 200);
+  }
+  if (c[3] === 'los'){
+    reiZeg('los'); shake = Math.max(shake, 0.12);
+    for (let i = 0; i < 8; i++)
+      bruStofDeeltje(s, { wx: blad + (Math.random() - 0.5) * 40, y: -rnd(0, 10), vx: s.face * rnd(40, 300) * (Math.random() < 0.7 ? 1 : -1), vy: -rnd(140, 300), r: rnd(24, 44), life: rnd(0.6, 1.0), a: 0.8 });
+    s.kluiten = s.kluiten || [];
+    for (let i = 0; i < 4; i++)                                    // de aarde die aan het blad hing vliegt mee omhoog
+      s.kluiten.push({ wx: blad, h: 6, vx: s.face * rnd(60, 220), vh: rnd(300, 480), r: rnd(4, 8), rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 16, lig: 0, base });
+  }
 }
 function reiFxStap(s, dt){
+  if (s.ruk > 0) s.ruk = Math.max(0, s.ruk - dt);
+  if (s.hoop){ s.hoop.t += dt; if (s.hoop.t > REI.hoop.blijf + REI.hoop.vaag) s.hoop = null; }
   bruStofStap(s, dt);
   if (s.hangStof > 0){
     s.hangStof -= dt;
@@ -55096,6 +55128,31 @@ function reiBloed(s, veel){                                      // een spat blo
   for (let i = 0; i < n; i++)
     s.bloed.push({ wx: s.x - s.face * (((REI_DATA ? REI_DATA.body[0] + REI_DATA.body[1] : 105) / 2) + reiLijfDX(s)) * reiScale() + (Math.random() - 0.5) * 10, h: CHAR_H * REI.hShare * (0.5 + Math.random() * 0.15),
                    vx: naar * (60 + Math.random() * 260), vh: 60 + Math.random() * 260, r: (1.6 + Math.random() * 2.2) * P / 1.5, lig: 0 });
+}
+// de hoop aarde over het blad: na Reinier getekend, zodat het blad erin verdwijnt. Een lage ronde bult losgewoeld zand
+// met twee kluiten erop; hij ligt waar het blad de grond in ging en blijft liggen als de bijl weer los is
+function reiHoopTeken(s, cx, gY, g, a){
+  const h = s.hoop; if (!h) return;
+  const HP = REI.hoop, sc = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
+  const k = h.t > HP.blijf ? Math.max(0, 1 - (h.t - HP.blijf) / HP.vaag) : 1;
+  const x = cx + (h.wx - world), y = gY - (h.base || 0) * sc, w = HP.breed * g, hh = HP.hoog * g * Math.min(1, h.t / 0.06);
+  const b = h.bult;
+  ctx.save(); ctx.globalAlpha = a * k;
+  ctx.beginPath(); ctx.moveTo(x - w / 2, y + 1);
+  ctx.bezierCurveTo(x - w * 0.36, y - hh * 0.35 * b[0], x - w * 0.3, y - hh * b[1], x - w * 0.05, y - hh * b[2]);
+  ctx.bezierCurveTo(x + w * 0.15, y - hh * 1.05 * b[3], x + w * 0.32, y - hh * 0.55 * b[4], x + w / 2, y + 1);
+  ctx.closePath();
+  ctx.fillStyle = '#93653b'; ctx.fill(); ctx.lineWidth = Math.max(1.5, 2.4 * g); ctx.strokeStyle = '#2b1b0f'; ctx.stroke();
+  ctx.save(); ctx.clip();
+  ctx.fillStyle = 'rgba(198,150,98,0.8)';                          // licht op de bovenkant
+  ctx.beginPath(); ctx.ellipse(x - w * 0.12, y - hh * 0.85, w * 0.26, hh * 0.32, -0.15, 0, 6.29); ctx.fill();
+  ctx.fillStyle = 'rgba(60,38,20,0.35)';                           // schaduw onderaan
+  ctx.fillRect(x - w / 2, y - hh * 0.22, w, hh * 0.3);
+  ctx.restore();
+  ctx.fillStyle = '#6e4a2a'; ctx.strokeStyle = '#2b1b0f'; ctx.lineWidth = Math.max(1, 1.6 * g);
+  for (const [dx, dy, r] of [[-0.24, 0.62, 5.5], [0.2, 0.5, 4.5], [0.05, 0.92, 4]]){
+    ctx.beginPath(); ctx.ellipse(x + w * dx, y - hh * dy * b[5], r * g, r * 0.8 * g, 0.3, 0, 6.29); ctx.fill(); ctx.stroke(); }
+  ctx.restore();
 }
 function reiFxTeken(s, cx, gY, a){                               // kluiten en bloed, in schermpixels op de grond van hem
   const sc = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
@@ -55160,6 +55217,7 @@ function updateReinier(s, dt, plats, cliff){
     if (c[3] === 'houd' && reiAmirWeg(s)) s.t = Math.min(s.t, c[2] - 0.25);   // de rugdraai: hij wacht tot je landt
     if (!s.zwoesj && ((c[0] === 'uit' && c[1] === 9) || (c[0] === 'draai' && c[1] === 21))){ s.zwoesj = true; reiZeg('zwaai'); }
     if (c[0] === 'uit' && c[1] === 13 && !s.inslag){ s.inslag = true; reiKapRaak(s); }
+    if (c[0] + c[1] !== s.vorigFr){ s.vorigFr = c[0] + c[1]; reiFrameIn(s, c); }
     if (c[0] === 'draai' && c[1] === 24 && !s.inslag){ s.inslag = true; reiZwaaiRaak(s); }
     while (s.st === 'aanval' && s.t >= s.seq[s.si][2]){
       s.t -= s.seq[s.si][2]; s.si++;
@@ -55220,6 +55278,10 @@ function reiTeken(s, bodyX, voeten, g, alpha){   // g: schermpixels per spritepi
   const fr = reiFrame(s); if (!fr) return;
   const im = reiBank[fr[0]]; if (!im || !imgReady(im)) return;
   ctx.save(); ctx.globalAlpha = alpha; ctx.translate(bodyX, voeten); if (s.face === 1) ctx.scale(-1, 1);
+  if (s.ruk > 0 && s.st === 'aanval'){                     // de ruk: naar achteren (spritepixels, + is zijn rug) en een tikje achterover
+    const k = Math.sin((1 - s.ruk / REI.ruk.duur) * Math.PI);
+    ctx.translate(REI.ruk.terug * k * g, 0); ctx.rotate(REI.ruk.kantel * k);
+  }
   const vr = reiVeeg(s);                                    // de snelle stukken: het vorige beeld vaag erachter, als een veeg
   if (vr){ const vi = reiBank[vr[0]]; if (vi && imgReady(vi)){ ctx.globalAlpha = alpha * 0.32; ctx.drawImage(vi, vr[1] * g, vr[2] * g, vr[3] * g, vr[4] * g); ctx.globalAlpha = alpha; } }
   ctx.drawImage(s.flash > 0 ? whiteCopy(im, s.flash * 4) : im, fr[1] * g, fr[2] * g, fr[3] * g, fr[4] * g);
@@ -63316,6 +63378,7 @@ function loop(now){
         ctx.save(); ctx.globalAlpha = 0.26 * alpha; ctx.fillStyle = '#1d140f'; ctx.beginPath();
         ctx.ellipse(lx, voeten, REI.lijfHalf * P * 1.6, REI.lijfHalf * P * 0.25, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
         reiTeken(s, bodyX, voeten, g, alpha);
+        reiHoopTeken(s, cx, groundY, g, 1);
         reiFxTeken(s, cx, groundY, alpha);
         bruStofTeken(s, voeten, g, cx);
         if (s.st === 'dood' || s.st === 'weg') continue;
