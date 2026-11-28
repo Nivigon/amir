@@ -68,9 +68,20 @@ Hunt geeft het winscherm "Next: The Spear". `onsterfelijk: true`: een beet doet 
   Met `beide: true` komt de tweede slang van links (`later`: zoveel verder weg, voor een andere timing): de lage zwaai
   raakt naar twee kanten, en dat laat het station zien (keuze opdrachtgever 28-11-2026). De slang van links glipt langs de
   rots van de gids (`tutOver`, in `slangSchuif`): een uitzondering op regel 7, op verzoek, alleen voor deze slangen.
-- Deel 1 staat (live): speer pakken, een slang van achteren steken, de lage zwaai vanaf de rots (twee keer in de lucht),
-  drie golven van twee, van links en rechts. Nog te bouwen: gooien en oprapen, ontwijken met de rol (speerval), sluipen in hoog gras en de
-  panter. Stemregels pas aan het eind.
+- `vrij: true` op een station: geen grens, geen rem en de eis telt waar de speler ook staat (gooien en oprapen: het doel
+  staat voorbij de gids). `doelen: [{x, h, heen, v}]` zet de oefendoelen van de rol-worp neer (`mentorDoelen`; `heen` en
+  `v` laten het heen en weer gaan, `doelen: []` haalt ze weg). Een treffer meldt `doel`, en de speer valt voor de paal
+  (in `rolDoelTreffer`: geen speren op de rug in de tutorial). `nogSpeer`: de tekst als hij gemist heeft en de speer nog
+  ligt. De eis `speer` is ook het oprapen.
+- De speerval: een rots als decor (`rotsen`, spits) met de speer in zijn flank (`speervallen`, x is de flank) en een
+  zegel ervoor. `valDemo` op een station: tijdens zijn voordoen zet het spel de val zelf af (`mentorValStap`), op tijd
+  zodat de speer bij hem is terwijl hij rolt (uit het eerste rolbeeld van zijn spoor), en de speer valt achter hem neer
+  (`stopX`). De rem houdt je dan bij zijn startplek (niet achter hem aan over het zegel). De eis `ontwijk`: de speer
+  vliegt langs de speler terwijl die rolt; gebukt geeft `bukZeg`, geraakt `raakZeg`. De opname laat het zegel en de val weg.
+- In de tutorials geen meldingen in de balk (`flashHint`): de gids praat.
+- Live: deel 1 (speer pakken, een slang van achteren steken, de lage zwaai vanaf de rots (twee keer in de lucht),
+  drie golven van twee, van links en rechts) en deel 2 (gooien op een stil en een bewegend doel,
+  oprapen, en de speerval: hij doet het voor, dan jij). Nog te bouwen: sluipen in hoog gras en de panter. Stemregels pas aan het eind.
 - Testen: `node tools/tut2_test.js` speelt het uit met een simpele speler (`--shots map`, `--een`, `--debug`).
 
 ## De gids (27-11-2026): de Mkuki-ranger in plaats van de omgekleurde Amir

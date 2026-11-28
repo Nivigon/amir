@@ -41,13 +41,14 @@ function speler(opties){
     if (B.klaar || laadWacht || !running) return;
     B.t += 1 / 60;
     if (won){ B.log.push(['gewonnen', B.t.toFixed(1)]); B.klaar = true; return; }
-    if (B.t > 400){ B.fout = 'te lang'; B.klaar = true; return; }
+    if (B.t > 600){ B.fout = 'te lang'; B.klaar = true; return; }
     const m = mentor;
     if (!m || !m.spoor){ return; }
     if (m.i !== B.station){ B.station = m.i; B.sindsT = B.t; B.log.push(['station', m.i, B.t.toFixed(1), Math.round(world)]); B.shot++; }
     if (opties.debug && Math.round(B.t * 60) % 60 === 0) B.log.push(['dbg', B.t.toFixed(0), Math.round(world), m.fase, JSON.stringify(m.eis), duckT.toFixed(2), swFrame, swLading, m.deel, snakes.map(s => s.state + '@' + Math.round(s.x) + '/' + s.side).join(' ')]);
     if (B.t - B.sindsT > 60){ B.fout = 'vast in station ' + m.i + ' fase ' + m.fase + ' op x ' + Math.round(world); B.klaar = true; return; }
     if (m.golf && m.golf.n !== B.golf){ B.golf = m.golf.n; B.log.push(['golf', m.golf.n, B.t.toFixed(1)]); B.shot++; }
+    if (B.fT > 0 && --B.fT === 0){ dispatchEvent(new KeyboardEvent('keyup', { key: 'f' })); keys['f'] = false; wachtF = 40; return; }
     if (wachtF > 0){ wachtF--; return; }
     const st = mentorStation();
     const levend = snakes.filter(s => s.tutSlang && s.state !== 'dying' && s.state !== 'gone');
@@ -80,6 +81,20 @@ function speler(opties){
     if (!spear && spearX != null){
       if (Math.abs(world - spearX) > 20){ toets(world > spearX ? 'ArrowLeft' : 'ArrowRight', true); return; }
       toets('ArrowLeft', false); toets('ArrowRight', false); tik('e'); wachtF = 30; return;
+    }
+    // de speerval: trilt hij, dan rollen (de rol is 0,6 s onkwetsbaar)
+    const val = level.speervallen && level.speervallen[0];
+    if (val && val.st === 'tril' && val.t > 0.6 && !rol && Math.abs(world - val.x) < 900){ tik('v'); wachtF = 30; return; }
+    // gooien: op zo'n 480 px van het doel, F een tel vasthouden
+    if (st && st.eis === 'doel' && spear && rolDoelen.length && m.fase === 'wacht'){
+      const doel = rolDoelen[0], d = world - doel.x;
+      if (d > 560){ toets('ArrowRight', false); toets('ArrowLeft', true); return; }
+      if (d < 400){ toets('ArrowLeft', false); toets('ArrowRight', true); return; }
+      toets('ArrowLeft', false); toets('ArrowRight', false);
+      if (facing > 0){ tik('ArrowLeft'); return; }
+      if (doel.heen && Math.abs(d - 480) > 40) return;          // het bewegende doel: wachten tot het op de goede plek is
+      if (!keys['f']){ dispatchEvent(new KeyboardEvent('keydown', { key: 'f' })); keys['f'] = true; B.fT = 24; return; }
+      return;
     }
     // de lage zwaai in de lucht: bukken, een paar beelden later F, en na de zwaai weer omhoog
     if (st && st.eis === 'zwaai' && m.fase === 'wacht' && Math.abs(world - mentorX()) < 220 && onGround){

@@ -31,8 +31,14 @@ const SEGS_2 = [
   [ { tot: -1400 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
   // 1: naar de rots, en erop
   [ { tot: -2200 }, { spring: 14, tot: -2440 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
-  // 2: van de rots af, naar het eind
-  [ { tot: -3600 }, { draai: 1 }, { lus: 1 }, { idle: 3 } ]
+  // 2: van de rots af, naar de plek om te gooien
+  [ { tot: -3300 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
+  // 3: voorbij de doelen, naar het zegel
+  [ { tot: -4650 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
+  // 4: op het zegel, even wachten tot de speer trilt, dan erdoorheen rollen en voorbij de rots
+  [ { tot: -4790 }, { idle: 0.45 }, { rol: 1, tot: -5160 }, { tot: -5650 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
+  // 5: naar het eind
+  [ { tot: -6300 }, { draai: 1 }, { lus: 1 }, { idle: 3 } ]
 ];
 const SEGS_1 = [
   // 0: naar de kei, eroverheen
@@ -149,6 +155,7 @@ function opname([START, SEGS]){
     const i = TUT_LEVELS.findIndex(l => l.name.includes(naam));
     const def = TUT_LEVELS[i];
     def._mentor = def.mentor; delete def.mentor;            // opnemen zonder mentor in beeld
+    delete def.zegels; delete def.speervallen;              // zonder val: hij mag niet geraakt worden (een raakbeeld kent gids_bouw.py niet)
     def.geenSpeer = true;                                  // en zonder speer: de beelden van Amir die gids_bouw.py kent (zoals in The First Hunt)
     setLevel(i, TUT_LEVELS); beginPlay('medium');
   }, NAAM);
