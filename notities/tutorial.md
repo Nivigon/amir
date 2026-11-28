@@ -45,6 +45,32 @@ in `rolWorpDruk` en waar `STOF.aan` gezet wordt). Die leer je in de eerste level
 opdrachtgever: twee tutorials (The First Hunt: bewegen; tutorial 2: de speer, de lage zwaai, gooien, ontwijken met de rol,
 besluipen en de panter), de rest leer je onderweg. Ontwerp van tutorial 2: `claude/tutorial_2_ontwerp.md` in het project.
 
+## Tutorial 2: The Spear (TUT_2, 28-11-2026)
+
+De tweede tutorial (ontwerp: `claude/tutorial_2_ontwerp.md` in het project), met een eigen knop onder Single Player
+(`btnTutorial2`, vinkje `amir.tut2Gehaald`; "Start here" staat op de eerste die nog open is, `TUT_SLEUTELS`). Na The First
+Hunt geeft het winscherm "Next: The Spear". `onsterfelijk: true`: een beet doet pijn maar kost niets.
+
+- De gids doet de speer niet voor (keuze opdrachtgever 28-11-2026: geen Grok-clips voor steken, zwaai en gooien): hij
+  legt uit vanaf zijn plek. Zijn spoor bevat dus alleen lopen, springen, rollen en sluipen.
+- Eigen spoor en koppeling: `design/tutorial/mentor_spoor_2.json` (`node tools/mentor_opname.js --level 2`, de opdrachten
+  staan in `SEGS_2`; opgenomen met `geenSpeer`, zodat het dezelfde beelden van Amir zijn als in The First Hunt) en
+  `design/tutorial/gids/spoor_2.json` (`python3 tools/gids_bouw.py --spoor 2`: alleen de koppeling aan de vellen die er
+  al zijn, de luchtstukken meteen gelijkmatig). Het level wijst ernaar met `mentor.gids`; `gidsSpoorNu` kiest die
+  koppeling in plaats van `gids.spoor`. **Verander je het level, neem dan opnieuw op en draai die twee opnieuw.**
+- De speer: zonder `speerInHand` staat hij voor je in de grond (`SPEAR_AHEAD`), de gids staat daarom op -520. De eis
+  `speer` is gedaan zodra `spear` waar is.
+- `eis` telt nu: `mentorEvent` hoogt op, `eisN` zegt hoe vaak (standaard 1). De lage zwaai meldt `zwaai` (in
+  `startSweep`). `F` is een toets in de wolk.
+- `golven` op een station (`mentorGolven`): is hij uitgepraat en staat de speler bij hem, dan komen de slangen per golf
+  net buiten beeld van rechts (achter de speler), `{n, tussen, speed}`. Een golf weg: `golfZeg` (per golf), of `dubbel`
+  als ze binnen 0,5 s vielen (een zwaai), na `golfPauze` (1,8 s) de volgende. Na de laatste is de eis `golven` gedaan.
+  Zandslangen houden afstand van elkaar (scheiden), dus twee in een zwaai vraagt dat je erin stapt.
+- Deel 1 staat (live): speer pakken, een slang van achteren steken, de lage zwaai vanaf de rots (twee keer in de lucht),
+  drie golven van twee. Nog te bouwen: gooien en oprapen, ontwijken met de rol (speerval), sluipen in hoog gras en de
+  panter. Stemregels pas aan het eind.
+- Testen: `node tools/tut2_test.js` speelt het uit met een simpele speler (`--shots map`, `--een`, `--debug`).
+
 ## De gids (27-11-2026): de Mkuki-ranger in plaats van de omgekleurde Amir
 
 De mentor heeft nu eigen art: de nomadische Mkuki-ranger uit Grok (teal jas, roestrode sjaal en sjerp, speer). Het

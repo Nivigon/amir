@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// De opname van de mentor (The First Hunt, TUT_1): speelt het level met Amir en legt per beeld vast welk plaatje
+// De opname van de mentor (The First Hunt, TUT_1, en met --level 2 The Spear, TUT_2): speelt het level met Amir en legt per beeld vast welk plaatje
 // waar stond. Daaruit tekent het spel de mentor (zie "tutorial: de mentor" in de HTML en notities/tutorial.md).
 //
 // Per stuk (seg) staat hieronder een rij opdrachten: lopen tot een x, springen, kruipen, rollen, omdraaien en wachten.
@@ -16,12 +16,25 @@ const http = require('http');
 const { chromium } = require('playwright');
 
 const ROOT = path.dirname(__dirname);
-const UIT = path.join(ROOT, 'design/tutorial/mentor_spoor.json');
 const args = process.argv.slice(2);
+// --level 2: tutorial 2 (The Spear, TUT_2), met een eigen spoor (mentor_spoor_2.json). Daarna tools/gids_bouw.py --spoor 2
+const LV = args.includes('--level') ? +args[args.indexOf('--level') + 1] : 1;
+const UIT = path.join(ROOT, LV === 2 ? 'design/tutorial/mentor_spoor_2.json' : 'design/tutorial/mentor_spoor.json');
+const NAAM = LV === 2 ? 'The Spear' : 'First Hunt';
 
 // de opdrachten. x is de wereld-x (Amir loopt naar links, dus negatief); `tot` loopt tot die x
-const START = [ { tot: -450 }, { draai: 1 }, { idle: 0.6, stil: true }, { lus: 1 }, { idle: 2.6 } ];
-const SEGS = [
+const START_1 = [ { tot: -450 }, { draai: 1 }, { idle: 0.6, stil: true }, { lus: 1 }, { idle: 2.6 } ];
+// tutorial 2: hij staat verder weg, want de speer staat tussen jullie in (SPEAR_AHEAD, -260)
+const START_2 = [ { tot: -520 }, { draai: 1 }, { idle: 0.6, stil: true }, { lus: 1 }, { idle: 2.6 } ];
+const SEGS_2 = [
+  // 0: naar de plek van de eerste slang
+  [ { tot: -1400 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
+  // 1: naar de rots, en erop
+  [ { tot: -2200 }, { spring: 14, tot: -2440 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
+  // 2: van de rots af, naar het eind
+  [ { tot: -3600 }, { draai: 1 }, { lus: 1 }, { idle: 3 } ]
+];
+const SEGS_1 = [
   // 0: naar de kei, eroverheen
   [ { tot: -690 }, { spring: 14, tot: -1150 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
   // 1: het lage terras op, de richel aan de wand, en het hoge terras op
@@ -41,6 +54,7 @@ const SEGS = [
     { kruip: true, tot: -8825 }, { sprint: true, tot: -8890 }, { spring: 16, sprint: true, tot: -9290 },
     { spring: 16, sprint: true, tot: -9740 }, { spring: 16, sprint: true, tot: -10200 }, { draai: 1 }, { lus: 1 }, { idle: 3 } ]
 ];
+const START = LV === 2 ? START_2 : START_1, SEGS = LV === 2 ? SEGS_2 : SEGS_1;
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png',
                 '.jpg': 'image/jpeg', '.webp': 'image/webp', '.mp3': 'audio/mpeg', '.css': 'text/css' };
@@ -131,12 +145,13 @@ function opname([START, SEGS]){
   await page.goto(url);
   await page.waitForFunction(() => typeof setLevel === 'function' && typeof TUT_LEVELS !== 'undefined');
   await page.waitForTimeout(1500);
-  await page.evaluate(() => {
-    const i = TUT_LEVELS.findIndex(l => l.name.includes('First Hunt'));
+  await page.evaluate(naam => {
+    const i = TUT_LEVELS.findIndex(l => l.name.includes(naam));
     const def = TUT_LEVELS[i];
     def._mentor = def.mentor; delete def.mentor;            // opnemen zonder mentor in beeld
+    def.geenSpeer = true;                                  // en zonder speer: de beelden van Amir die gids_bouw.py kent (zoals in The First Hunt)
     setLevel(i, TUT_LEVELS); beginPlay('medium');
-  });
+  }, NAAM);
   await page.waitForTimeout(800);
   await page.evaluate(opname, [START, SEGS]);
   for (;;){
