@@ -9664,9 +9664,17 @@ function loopputSoort(q){ return LOOPPUT[q && q.soort] || LOOPPUT.savanne; }
 const loopputImgs = {};
 function loopputPic(K){ K = K || LOOPPUT.savanne; if (!loopputImgs[K.src]){ const im = new Image(); im.src = K.src; loopputImgs[K.src] = im; } return loopputImgs[K.src]; }
 function loopputDak(q){
-  const K = loopputSoort(q), k = K.k * (Number(q.s) || 1), x = Number(q.x);
+  const K = loopputSoort(q), k = K.k * (Number(q.s) || 1), x = Number(q.x), kx = k * nowScale();   // een breedte in wereld is schermpixels, een hoogte niet: de breedte schaalt mee met het beeld, net als in loopputTeken
   const l = q.f ? K.rechts : K.links, r = q.f ? K.links : K.rechts;   // gespiegeld wisselen de randen
-  return { r: x + (K.w / 2 - r) * k, l: x - (K.w / 2 - l) * k, h: (K.grond - K.top) * k, onder: 0, look: 'geen', pas: true };   // pas: Amir staat er alleen op met zijn midden (terracePlats)
+  return { r: x + (K.w / 2 - r) * kx, l: x - (K.w / 2 - l) * kx, h: (K.grond - K.top) * k, onder: 0, look: 'geen', pas: true, lp: x };   // pas: Amir staat er alleen op met zijn midden (terracePlats); lp: dit is het loopvlak van de put op die x (loopputDakStap)
+}
+// Per beeld: het loopvlak volgt de getekende put als het beeld van maat verandert (zoals de holle stam, holstamUpdate).
+// Zonder dit stond Amir op een klein scherm naast de put in de lucht: het loopvlak was breder dan de plaat.
+function loopputDakStap(){
+  const L = level && level.loopPutten; if (!L || !L.length) return;
+  for (const z of level.zwevers || []) if (z.lp != null){
+    const q = L.find(o => Number(o.x) === z.lp); if (q){ const d = loopputDak(q); z.l = d.l; z.r = d.r; }
+  }
 }
 function loopputTeken(groundY, scale, cx){
   const L = level && level.loopPutten;
@@ -61217,6 +61225,7 @@ function loop(now){
   const halfWNow = PLAYER_HALF_W * CHAR_H * scaleNow;
   if (dt > 0) takelUpdate(dt);                    // het takelwiel: het rad draait naar zijn doel, het plateau zakt en veert
   if (dt > 0) hstamUpdate(dt);                    // de hangende stam: slingert, valt een kant op, dan plat (HSTAM)
+  loopputDakStap();                               // het loopvlak van de loopput schaalt mee met het beeld (LOOPPUT)
   if (dt > 0) holstamUpdate(dt);                  // de holle stam: de voorkant vervaagt als Amir erin staat, en de vuurvliegjes (HOLSTAM)
   if (dt > 0) mistStootStap(dt);                  // een klap in de mist loopt weer dicht (MIST_STOOT)
   if (dt > 0) deurUpdate(dt);                     // de deur in de rotswand: vliegt open als Amir dichtbij komt, en laat een bandiet los
@@ -65144,7 +65153,7 @@ function readLevel(txt){
              return { r: Number(q.r), l: Number(q.l), h, onder, look: (q.look === 'rots' || q.look === 'hout' || q.look === 'geen') ? q.look : undefined,
                       zwart: (q.zwart === 'plafond' || q.zwart === 'vulling' || q.zwart === 'savanne') ? q.zwart : undefined,   // 'rots' = een rotsoverhang i.p.v. savanne; zwart: een zwevend zwart blok (savanne-vloer, muur, of plafond met tandjes)
                       tot0: q.tot0 === true,   // een zwart blok direct onder het oppervlak: teken door tot de grondlijn (dekt de aardrand af)
-                      drape: q.drape === true, drapeVan: Number(q.drapeVan) || 0, hq: q.hq, pas: q.pas === true };   // hq: dit is het dak van de holle stam op die x (holstamDakStap)   // de savanne-aarde loopt van drapeVan door tot dit blok (zie zwartDrapeTeken)
+                      drape: q.drape === true, drapeVan: Number(q.drapeVan) || 0, hq: q.hq, lp: q.lp, pas: q.pas === true };   // hq: dit is het dak van de holle stam op die x (holstamDakStap)   // de savanne-aarde loopt van drapeVan door tot dit blok (zie zwartDrapeTeken)
            }),
            // gangen onder de grond: zie "holte onder de grond"
            holtes: (o.holtes || []).map(q => ({ r: Number(q.r), l: Number(q.l),
@@ -74354,9 +74363,9 @@ function sbLoopput(soort){
   const K = loopputSoort({ soort }); loopputPic(K);
   if (!level.loopPutten) level.loopPutten = [];
   if (!level.zwevers) level.zwevers = [];
-  const halfVan = o => { const L = loopputSoort(o); return L.w / 2 * L.k; };
+  const halfVan = o => { const L = loopputSoort(o); return L.w / 2 * L.k * nowScale(); };
   const verst = level.loopPutten.reduce((m, o) => Math.min(m, o.x - halfVan(o)), world - 150);
-  const q = { x: verst - 250 - K.w / 2 * K.k, s: 1, f: false, soort };
+  const q = { x: verst - 250 - K.w / 2 * K.k * nowScale(), s: 1, f: false, soort };
   level.loopPutten.push(q);
   level.zwevers.push(Object.assign(loopputDak(q), { loopput: true }));
   cv.focus();
