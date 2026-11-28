@@ -65,9 +65,11 @@ Hunt geeft het winscherm "Next: The Spear". `onsterfelijk: true`: een beet doet 
 - `golven` op een station (`mentorGolven`): is hij uitgepraat en staat de speler bij hem, dan komen de slangen per golf
   net buiten beeld van rechts (achter de speler), `{n, tussen, speed}`. Een golf weg: `golfZeg` (per golf), of `dubbel`
   als ze binnen 0,5 s vielen (een zwaai), na `golfPauze` (1,8 s) de volgende. Na de laatste is de eis `golven` gedaan.
-  Zandslangen houden afstand van elkaar (scheiden), dus twee in een zwaai vraagt dat je erin stapt.
+  Met `beide: true` komt de tweede slang van links (`later`: zoveel verder weg, voor een andere timing): de lage zwaai
+  raakt naar twee kanten, en dat laat het station zien (keuze opdrachtgever 28-11-2026). De slang van links glipt langs de
+  rots van de gids (`tutOver`, in `slangSchuif`): een uitzondering op regel 7, op verzoek, alleen voor deze slangen.
 - Deel 1 staat (live): speer pakken, een slang van achteren steken, de lage zwaai vanaf de rots (twee keer in de lucht),
-  drie golven van twee. Nog te bouwen: gooien en oprapen, ontwijken met de rol (speerval), sluipen in hoog gras en de
+  drie golven van twee, van links en rechts. Nog te bouwen: gooien en oprapen, ontwijken met de rol (speerval), sluipen in hoog gras en de
   panter. Stemregels pas aan het eind.
 - Testen: `node tools/tut2_test.js` speelt het uit met een simpele speler (`--shots map`, `--een`, `--debug`).
 

@@ -62,7 +62,8 @@ function speler(opties){
       const laag = st && st.eis === 'golven' && st.golven.length > 1;
       if (laag){
         const al = levend.filter(s => Math.abs(s.x - world) < 255).length >= Math.min(2, levend.length);
-        if (!opties.een && !al && d > 100){ toets('ArrowDown', false); toets(rechts ? 'ArrowRight' : 'ArrowLeft', true); return; }   // erin stappen tot ze allebei binnen de zwaai zijn
+        const tweeKanten = levend.some(s => s.x < world) && levend.some(s => s.x > world);
+        if (!opties.een && !al && d > 100 && !tweeKanten){ toets('ArrowDown', false); toets(rechts ? 'ArrowRight' : 'ArrowLeft', true); return; }   // erin stappen tot ze allebei binnen de zwaai zijn
         toets('ArrowRight', false); toets('ArrowLeft', false);
         toets('ArrowDown', true);
         // twee: wachten tot de tweede ook in bereik is (behalve met --een)
