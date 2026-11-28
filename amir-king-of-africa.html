@@ -7504,12 +7504,17 @@ const TUT_2 = {
   vredig: true, rugMax: 0, onsterfelijk: true,
   village: [ {id: 'hut_round_arch', x: 260, depth: 0.55, flip: true} ],
   rocks: [ {x: -2450, s: 1.15} ],
+  // de speerval: een rots met een speer in zijn flank, en een zegel ervoor (SPEERVAL). De speer vliegt naar rechts, de speler tegemoet
+  rotsen: [ {x: -5762, soort: 'spits', groot: 2.2} ],   // x de linkervoet: de rechterflank ligt rond -5260, waar de speer in zit
+  speervallen: [ {x: -5250} ],
+  zegels: [ {x: -4800, speerval: -5250} ],
   gaps: [], ledges: [], npcs: [], water: [], thickets: [], spawns: [], hppotions: [],
   props: [ {x: 140, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -700, k: 'struik', s: 0.9, f: 1, v: 0},
            {x: -1000, k: 'tree', s: 1.1, f: 0, v: 1}, {x: -1750, k: 'gras', s: 1.1, f: 1, v: 0},
-           {x: -2900, k: 'tree', s: 1.2, f: 1, v: 1}, {x: -3300, k: 'gras', s: 1.0, f: 0, v: 0} ],
-  cliffs: [ {x: -4400} ],
-  ends: [ {x: -3950} ],
+           {x: -2900, k: 'tree', s: 1.2, f: 1, v: 1}, {x: -3200, k: 'gras', s: 1.0, f: 0, v: 0},
+           {x: -4300, k: 'struik', s: 1.0, f: 1, v: 0}, {x: -6000, k: 'tree', s: 1.1, f: 0, v: 1}, {x: -6450, k: 'gras', s: 1.0, f: 1, v: 0} ],
+  cliffs: [ {x: -7150} ],
+  ends: [ {x: -6700} ],
   mentor: {
     spoor: 'design/tutorial/mentor_spoor_2.json', gids: 'design/tutorial/gids/spoor_2.json',
     vallen: ['Again, little spear.', 'The ground is down there. Try again.', 'Ha! Up you get.'],
@@ -7526,7 +7531,20 @@ const TUT_2 = {
         golfZeg: ['Good. More coming.', 'Again. This time one is slower. Wait for it.'],
         dubbel: ['Two in one swing!', 'Both! Beautiful.', 'Ha! One swing, two snakes.'],
         eis: 'golven', seg: 2, ok: 'The snakes will tell stories about you.', okDuur: 2, kijk: false },
-      { zeg: 'Enough snakes for one morning. Next, we throw. The torches are yours.' }
+      // gooien: vrij, want het doel staat voorbij hem en je raapt de speer daar op
+      { zeg: ['Now the throw. See the target?', 'Hold [F] a moment, then let go.'], vrij: true, doelen: [ {x: -3850, h: 0.9} ],
+        eis: 'doel', nogSpeer: 'Missed. Pick it up and try again. [E]', ok: 'Ha! Right in the middle.' },
+      { zeg: 'Now get it back. A hunter never leaves his spear. [E]', vrij: true, eis: 'speer', ok: 'Good.' },
+      { zeg: ['This one moves.', 'Throw where it will be, not where it is.'], vrij: true,
+        doelen: [ {x: -3950, h: 0.9, heen: 170, v: 120} ], eis: 'doel', nogSpeer: 'Pick it up. Again. [E]', ok: 'You led it! Good eyes.' },
+      { zeg: 'Pick it up. [E]', vrij: true, eis: 'speer', seg: 3, ok: 'Come. One more lesson.', kijk: false },
+      // de speerval: hij doet het voor, dan jij
+      { zeg: ['See that seal in the ground? It wakes a trap.', 'When the spear flies, roll through it. [V]'], doelen: [],
+        seg: 4, valDemo: true, ok: 'Watch me.', kijk: 'Watch closely.' },
+      { zeg: ['Your turn. Step on the seal.', 'When the spear flies, roll. [V]'], eis: 'ontwijk',
+        nog: 'Step on the seal. When it flies, roll. [V]', bukZeg: 'Low works too. But roll, little spear. [V]',
+        raakZeg: 'Ow! Roll when it flies. Try again.', seg: 5, ok: 'Like water. It went right through you.', okDuur: 2, kijk: false },
+      { zeg: 'Enough for one morning. Tomorrow, we hunt. The torches are yours.' }
     ]
   },
   tips: []
@@ -17031,13 +17049,13 @@ function speervalWandX(sp, scale){
 function speervalZegel(z){
   const sp = speervalZoek(z.speerval);
   if (!sp || (sp.st && sp.st !== 'wand')){
-    if (!z.aan) flashHint(zegelWie(z) + ' blijft donker: de speer zit niet in de wand');
+    if (!z.aan && !mentorAan()) flashHint(zegelWie(z) + ' blijft donker: de speer zit niet in de wand');
     return;
   }
   z.aan = true;
   sp.st = 'tril'; sp.t = 0; sp.vuur = false;
   speervalSpeel(valSpanSnd, SPEERVAL_SND.span);                   // hij spant
-  flashHint(zegelWie(z) + ' licht op: in de rotswand komt een speer los');
+  if (!mentorAan()) flashHint(zegelWie(z) + ' licht op: in de rotswand komt een speer los');   // de tutorial legt het zelf uit
 }
 const speervalKlaar = x => { const sp = speervalZoek(x); return !!sp && (!sp.st || sp.st === 'wand'); };
 // hij valt: na een treffer op Amir of een misser. Raakt hij de baviaan, dan blijft hij in zijn borst zitten
@@ -17060,6 +17078,7 @@ function speervalUpdate(dt, scale){
     else if (sp.st === 'vlucht'){
       sp.px += SPEERVAL.v * u * dt;
       if (sp.px - sp.px0 > SPEERVAL.ver * u || sp.px > cliffAt().wall) speervalVal(sp);
+      else if (sp.stopX != null && sp.px > sp.stopX){ sp.stopX = null; speervalVal(sp); }   // het voordoen in tutorial 2: hij valt achter de gids, niet op de speler
     }
     else if (sp.st === 'val'){                                 // vallen tot op de grond onder hem, in sprite-eenheden
       sp.vy += GRAVITY * dt; sp.hy -= sp.vy * dt;
@@ -17106,7 +17125,7 @@ function speervalTeken(groundY, scale, cx, achter){
 }
 function speervalReset(){
   speervalStil();
-  if (level && level.speervallen) for (const sp of level.speervallen){ sp.st = 'wand'; sp.t = 0; sp.px = null; }
+  if (level && level.speervallen) for (const sp of level.speervallen){ sp.st = 'wand'; sp.t = 0; sp.px = null; sp.stopX = null; }
 }
 // de baviaan houdt de fakkels dicht, maar alleen als er een speerval is: anders is hij niet te verslaan
 function bavBlokkeert(){
@@ -26696,6 +26715,7 @@ const hintEl = document.getElementById('hint');
 const HINT_START = hintEl.textContent;            // de uitleg van de toetsen bij het begin; restart zet er het stof bij als de stofveeg aan staat
 let hintTimer = null;
 function flashHint(msg, ms){
+  if (typeof mentor !== 'undefined' && mentorAan()) return;   // in de tutorials praat de gids: geen (Nederlandse) meldingen in de balk
   hintEl.textContent = msg;
   hintEl.classList.remove('gone');
   clearTimeout(hintTimer);
@@ -26858,6 +26878,7 @@ function mentorRemLijn(m, st, uitgepraat){
   if (m.race || !st) return null;
   const R = MENTOR.rem, ver = Math.min(R.afstand, (st.bij || MENTOR.bij) - 20);   // binnen `bij`, anders wacht hij voor altijd
   if (m.fase === 'demo' && st.kijk === false) return null;        // een stuk zonder "Watch." is meelopen ("Keep up!")
+  if (m.fase === 'demo' && st.valDemo) return (m.demoX == null ? mentorX() : m.demoX) + ver;   // de speerval: niet achter hem aan over het zegel
   if (m.fase === 'demo') return Math.min((m.demoX == null ? mentorX() : m.demoX) + ver, mentorX() + R.volg);
   if (m.fase === 'ok' || (m.fase === 'wacht' && !uitgepraat)) return mentorX() + ver;
   return null;
@@ -26969,11 +26990,13 @@ function mentorUpdate(dt){
   if (m.sprintT > 0.5) m.eis.sprint = true;
   if (spear) m.eis.speer = true;                            // de eis 'speer': hij heeft de speer in de hand (tutorial 2)
   // niet voorbij hem: zolang hij uitlegt, voordoet of wacht, houdt hij je tegen (niet in de race, niet bij het slot)
-  if ((!m.race || m.fase === 'aftel') && st && (m.i < m.def.stations.length - 1 || m.fase === 'demo')){   // ook tijdens het aftellen: geen valse start
+  if ((!m.race || m.fase === 'aftel') && st && !st.vrij && (m.i < m.def.stations.length - 1 || m.fase === 'demo')){   // vrij: de speler mag voorbij hem (gooien en oprapen)   // ook tijdens het aftellen: geen valse start
     const grens = mentorX() + MENTOR.voor;
     if (world < grens){ world = grens; }
   }
-  if (m.fase !== 'wacht') mentorRem(m, mentorRemLijn(m, st, true));   // bij het wachten pas als bekend is of hij uitgepraat is
+  mentorDoelen(m, st, dt);                                  // tutorial 2: de doelen om op te gooien
+  mentorValStap(m, st);                                     // tutorial 2: de speerval (voordoen en ontwijken)
+  if (m.fase !== 'wacht' && !(st && st.vrij)) mentorRem(m, mentorRemLijn(m, st, true));   // bij het wachten pas als bekend is of hij uitgepraat is
   if (m.fase === 'demo' || m.fase === 'race'){
     const sg = m.spoor.segs[m.seg];
     m.f += dt * MENTOR.fps * m.tempo;
@@ -27013,7 +27036,7 @@ function mentorUpdate(dt){
   }
   if (m.fase !== 'wacht' || !st) return;
   // wacht tot de speler bij hem is (op de grond) en gedaan heeft wat het station vraagt
-  const dicht = Math.abs(world - mentorX()) < (st.bij || MENTOR.bij) && onGround && !dead;
+  const dicht = (st.vrij || Math.abs(world - mentorX()) < (st.bij || MENTOR.bij)) && onGround && !dead;   // vrij: waar de speler ook staat
   const gedaan = !st.eis || (m.eis[st.eis] || 0) >= (st.eisN || 1);   // eisN: zo vaak (de lage zwaai twee keer)
   // stil: de speler staat (bijna) stil, pas dan zegt hij wat er nog mist
   m.stilT = Math.abs(world - (m.vorigeX == null ? world : m.vorigeX)) < 1 ? (m.stilT || 0) + dt : 0; m.vorigeX = world;
@@ -27031,11 +27054,12 @@ function mentorUpdate(dt){
     && m.stemT > (stem[m.deel] && wantSound ? 0.3 : Math.max(GIDS_STEM.leesMin, deelTekst.split(' ').length * GIDS_STEM.lees));
   if (deelKlaar && m.deel < delen.length - 1){ m.deel++; }
   const uitgepraat = m.deel >= delen.length - 1 && (!stem.length || deelKlaar);
-  mentorRem(m, mentorRemLijn(m, st, uitgepraat));
+  if (!st.vrij) mentorRem(m, mentorRemLijn(m, st, uitgepraat));
   if (st.golven) mentorGolven(m, st, dt, uitgepraat);      // tutorial 2: slangen in golven (de eis 'golven')
   if (dicht && gedaan && uitgepraat && m.t > 1 && (st.seg != null || st.ok)){
     m.faalT = 0; m.fase = 'ok'; mentorOkDeel(m, st, 0);
   }
+  else if (dicht && !gedaan && uitgepraat && st.nogSpeer && !spear && spearX != null && m.faalT <= 0 && m.stilT > 0.4) mentorZeg(st.nogSpeer, 2.6);   // gemist: eerst oprapen
   else if (dicht && !gedaan && uitgepraat && st.nog && m.faalT <= 0 && m.stilT > 0.4) mentorNog(m, st);   // niet door zijn uitleg heen   // bij hem, maar het trucje nog niet gedaan
 }
 // `nog` met zijn `nogStem`: de tekst komt terug zolang de speler stilstaat, de stem hooguit eens per GIDS_STEM.nogOpnieuw s
@@ -27046,6 +27070,47 @@ function mentorNog(m, st){
     m.nogStemT = nu; gidsStemSpeel(st.nogStem); duur = Math.max(duur, gidsStemDuur(st.nogStem) + 0.3);
   }
   mentorZeg(st.nog, duur);
+}
+// ---- tutorial 2: gooien op een doel (station met `doelen`) ----
+// Komt een station met `doelen` aan de beurt, dan staan die doelen er (de oefendoelen van de rol-worp, ROL_DOEL); een
+// station zonder het veld laat ze staan, `doelen: []` haalt ze weg. `h` in Amir, `heen` (wereld-px) en `v` laten het doel
+// heen en weer gaan. Een treffer meldt 'doel', de speer valt voor de paal (rolDoelTreffer).
+function mentorDoelen(m, st, dt){
+  if (st && st.doelen && m.doelI !== m.i && m.fase === 'wacht'){
+    m.doelI = m.i;
+    rolDoelen = st.doelen.map(d => ({ x: d.x, x0: d.x, h: (d.h || ROL_DOEL.hoog) * CHAR_H, flits: -9, heen: d.heen || 0, v: d.v || 0, fase: 0 }));
+  }
+  for (const d of rolDoelen) if (d.heen){                 // heen en weer, zacht omkeren aan de randen
+    d.fase += dt * d.v / Math.max(1, d.heen);
+    d.x = d.x0 + Math.sin(d.fase) * d.heen;
+  }
+}
+// ---- tutorial 2: de speerval (station met `valDemo` of `ontwijk`) ----
+// valDemo: tijdens zijn voordoen zet het spel de val zelf af (hij staat niet echt op het zegel), op tijd zodat de speer
+// hem raakt terwijl hij rolt, en de speer valt achter hem neer (stopX) in plaats van door te vliegen naar de speler.
+// ontwijk: vliegt de speer langs de speler terwijl die rolt, dan is de eis 'ontwijk' gedaan; geraakt of gebukt: een tip.
+function mentorValStap(m, st){
+  const sp = level.speervallen && level.speervallen[0], z = level.zegels && level.zegels.find(q => q.speerval != null);
+  if (!sp || !z) return;
+  if (m.fase === 'demo' && st && st.valDemo && m.valDemoI !== m.i){
+    const S = m.spoor.segs[m.seg], G = gidsKlaar() ? gidsSpoorNu().segs[m.seg + 1] : null;
+    let iRol = G ? G.findIndex(e => e && e[0] === 'rol') : -1;
+    if (iRol < 0) iRol = S.f.findIndex(f => /rol\//.test(m.spoor.beelden[f[2]]));
+    if (iRol >= 0){
+      const gx = S.f[iRol][0], u = CHAR_H * nowScale();
+      const vlucht = Math.max(0, gx - speervalWandX(sp, nowScale())) / (SPEERVAL.v * u);
+      const tTrig = iRol / MENTOR.fps + 0.2 - vlucht - SPEERVAL.wacht;
+      if (m.f / MENTOR.fps >= tTrig && speervalKlaar(sp.x)){ m.valDemoI = m.i; speervalZegel(z); sp.stopX = gx + 160; }
+    }
+  }
+  if (!st || st.eis !== 'ontwijk' || m.fase !== 'wacht') return;
+  if (sp.st === 'vlucht' && !m.valLangs && sp.px >= world){   // hij is bij de speler: rolde hij, of bukte hij?
+    m.valLangs = true;
+    if (rol) mentorEvent('ontwijk');
+    else if (invuln <= 0 && st.bukZeg) mentorZeg(st.bukZeg, 2.6);
+  }
+  if (sp.st === 'val' && !m.valLangs && Math.abs(sp.px - world) < 200){ m.valLangs = true; if (st.raakZeg) mentorZeg(st.raakZeg, 2.6); }   // geraakt
+  if (sp.st === 'wand') m.valLangs = false;
 }
 // ---- tutorial 2: slangen in golven (station met `golven`) ----
 // Is de gids uitgepraat en staat de speler bij hem, dan komen de slangen van een golf net buiten beeld van achteren
@@ -29951,6 +30016,14 @@ function rolDoelRaak(x, h, scale){
 }
 function rolDoelTreffer(d){
   d.flits = performance.now() / 1000;
+  if (mentorAan()){                                      // tutorial 2: geen speren op de rug, dus de speer valt voor de paal en E raapt hem op
+    hitstop = Math.max(hitstop, 0.08); shake = Math.max(shake, 0.14);
+    const dir = jav ? jav.dir : -1;
+    puffWorld(d.x, 4, 0, 0.8, terrainH(d.x));
+    jav = null; javLost = 0; spearX = d.x - dir * 50; spearH = null;
+    mentorEvent('doel');
+    return;
+  }
   if (jav && jav.crit) critFx(d.x, jav.h);              // True Flight: ook op het oefendoel zie je de crit
   const k = Math.min(2, ROL_WORP.inslag);
   if (k > 0 && jav){
