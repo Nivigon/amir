@@ -34,7 +34,7 @@ const srv = http.createServer((q, r) => {
   }
   const toest = []; for (const l of log) if (!toest.length || toest[toest.length - 1].s !== l.s) toest.push(l);
   console.log(toest.map(l => l.s + '@' + l.x).join(' '));
-  for (let k = 0; k < 12; k++){ await page.evaluate(() => { const s = reinieren[0]; if (s){ s.inv = 0; hitReinier(s); } }); }
+  for (let k = 0; k < 20; k++){ await page.evaluate(() => { const s = reinieren[0]; if (s){ s.inv = 0; hitReinier(s); } }); }
   await page.waitForTimeout(2500);
   if (shots) await page.screenshot({ path: path.join(shots, 'r_dood.png') });
   console.log('na de treffers:', await page.evaluate(() => { const s = reinieren[0]; return s ? { st: s.st, hp: s.hp } : 'weg'; }));
