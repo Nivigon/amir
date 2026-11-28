@@ -22,7 +22,9 @@ het eindscherm brengen je terug naar de kaartjes van Reinier (`kleiCoopStop`).
   `REI.ketting`): nauwelijks een adempauze.
   - **Uitvalskap** (`reiKap`, set `uit`): grote stap naar voren en de bijl diep in de grond op frame 13 (`reiKapRaak`, `reiInslagFx`: een
     zware dreun, een stofwolk met de deeltjes van Nyundo, gruis, kluiten aarde en stof dat nog even uit de kuil walmt). Kost
-    `REI.kapSchade` (2) levens. Ontwijken: wegrollen. Daarna zit de bijl vast en trekt hij hem los.
+    `REI.kapSchade` (2) levens. De stap loopt vlot (frames 1 tot 10 op 22 tot 28 fps, met een veeg: `reiVeeg` tekent het
+    vorige beeld vaag erachter bij 12 en 13, en in de zwaai bij 22 tot 26), de bijl zit nog maar ruim een halve seconde vast
+    en lostrekken en terug gaan op 16 tot 22 fps (eerder stond hij bijna 2 s stil). De schaduw glijdt mee (`reiLijfDX`). Ontwijken: wegrollen. Daarna zit de bijl vast en trekt hij hem los.
   - **Schijnkap** (`reiSchijn`, set `feint`): een ruk naar voren; rolt of springt Amir dan al (`reiAmirWeg`), dan draait hij
     zijn rug naar de camera en wacht (`houd`) tot je landt, draait terug en doet de echte uitvalskap.
   - **Draaizwaai** (`reiDraai`, set `draai`): hij draait in met zijn rug naar de camera, bijl horizontaal, stap, en een vlakke
