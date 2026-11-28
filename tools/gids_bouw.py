@@ -2,6 +2,9 @@
 # spoor van de mentor (design/tutorial/mentor_spoor.json) gekoppeld aan zijn eigen animaties.
 #   python3 tools/gids_bouw.py            alles
 #   python3 tools/gids_bouw.py idle       alleen die animatie(s), de rest van gids.json en het spoor blijven staan
+#   python3 tools/gids_bouw.py --spoor 2  alleen de koppeling van een ander spoor (tutorial 2: mentor_spoor_2.json) aan de
+#                                         bestaande vellen, naar design/tutorial/gids/spoor_2.json (de vellen blijven staan;
+#                                         gids_glad.py hoeft daarna niet: de luchtstukken worden hier al gelijkmatig)
 # Leest de mp4's uit design/tutorial/gids/bron/ en schrijft per animatie een blad (<anim>.png) en gids.json.
 #
 # Keyen: magenta weg met een smalle ramp (0,92 en 0,62 van de achtergrond-key), randen terugrekenen zonder de achtergrond,
@@ -339,8 +342,8 @@ def soort(b):
     raise SystemExit('onbekend beeld in het spoor: ' + b)
 
 
-def koppel(nvol):
-    S = json.load(open(SPOOR))
+def koppel(nvol, spoor=None):
+    S = json.load(open(spoor or SPOOR))
     B = S['beelden']
     # het anker van elk beeld van Amir: midden en onderkant van zijn figuur, in beeldpixels, plus de maat van het beeld
     ankers = []
@@ -391,5 +394,24 @@ def koppel(nvol):
     return uit
 
 
+def bouw_spoor(naam):
+    """Een ander spoor (tutorial 2) koppelen aan de vellen die er al zijn: alleen de koppeling, naar spoor_<naam>.json."""
+    import gids_glad
+    pad = os.path.join(ROOT, f'design/tutorial/mentor_spoor_{naam}.json')
+    g = json.load(open(os.path.join(UIT, 'gids.json')))
+    nvol = {k: v['n'] * v.get('stap', 1) for k, v in g['anims'].items()}
+    uit = koppel(nvol, pad)
+    for rij in uit['segs']:                                        # naar frames van het vel, als een animatie uitgedund is
+        for k, e in enumerate(rij):
+            if e and e[1] >= 0 and g['anims'][e[0]].get('stap', 1) > 1: rij[k] = [e[0], e[1] // g['anims'][e[0]]['stap']]
+    gids_glad.lucht({'spoor': uit}, json.load(open(pad)))
+    doel = os.path.join(UIT, f'spoor_{naam}.json')
+    json.dump(uit, open(doel, 'w'), separators=(',', ':'))
+    print('geschreven:', os.path.relpath(doel, ROOT), os.path.getsize(doel), 'bytes')
+
+
 if __name__ == '__main__':
-    bouw(sys.argv[1:] or None)                                     # bv. python3 tools/gids_bouw.py idle
+    if sys.argv[1:2] == ['--spoor']:
+        bouw_spoor(sys.argv[2])
+    else:
+        bouw(sys.argv[1:] or None)                                     # bv. python3 tools/gids_bouw.py idle
