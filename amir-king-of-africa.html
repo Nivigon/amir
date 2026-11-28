@@ -2435,6 +2435,7 @@
         <button data-sdorp="put_leem">Put leem</button>
         <button data-sdorp="put_steen">Put steen</button>
         <button data-sdorp="put_shaduf">Shaduf</button>
+        <button id="sbhangers" title="de hangers aan de hutten (HANGER): bag is de knikkerzak, always hangt er aan elke hut twee, off geen">Hangers: bag</button>
         <button id="sbloopput" title="de loopput van de savanne: een verweerde stenen put om op te staan; houdt vijanden tegen als een kei (LOOPPUT)">Loopput</button>
         <button id="sbloopputstad" title="de loopput van de stad: de leemput met een houten deksel (LOOPPUT, soort stad)">Loopput stad</button>
         <button id="sbloopputweg">Weg</button>
@@ -26296,6 +26297,81 @@ function propLaad(k){
 function propLaadLevel(lv){ for (const q of (lv && lv.props) || []) propLaad(q.k || q.kind); }
 for (const k in PROPS) if (!PROPS[k].lui) propLaad(k);
 
+// ---- hangers aan savannegebouwen ----------------------------------------
+// Kleine versieringen die aan de zijkant van een savannegebouw hangen, zodat het bewoond oogt: kalebasrammelaars
+// en windvangers met veren (Grok 517eee9b en 46bff867, zie claude/hut_hangers.md in het project). Ze horen bij de
+// plaat van het gebouw: elke plek die die plaat tekent (los decor, de dorpsplaten, de hut aan de start, de verre
+// hutjes) hangt ze er vanzelf aan. Per gebouw beslist een knikkerzak (regel 16) of er niets, een of twee hangen en
+// welke; een verse zak per level. Ze zwaaien zacht om hun lusje, elk in een eigen fase.
+const HANGER = {
+  dir: 'design/savanne/hangers/',
+  // hoogte in Amir (op de maat van hut_rond, vastgelegd door Tom: klein, aan de zijkant onder de dakrand)
+  soorten: { kalebas_rood: 0.44, kalebas_lang: 0.45, kalebas_kort: 0.27,
+             windvanger_hoorn: 0.47, windvanger_takje: 0.47, windvanger_latje: 0.47 },
+  // de soortzak: zoveel knikkers per soort (de hoorn en de rode kalebas vaker, het latje minder)
+  soortZak: { kalebas_rood: 2, kalebas_lang: 1, kalebas_kort: 2, windvanger_hoorn: 2, windvanger_takje: 1, windvanger_latje: 1 },
+  // de aantalzak: zoveel knikkers voor niets, een en twee hangers
+  aantalZak: [2, 5, 3],
+  // ophangpunten per plaat, links en rechts, als deel van breedte en hoogte: de rietrand van de ronde hut, de
+  // uiteinden van de latei boven de deur van de koepel, de onderste balkkoppen van de hoge koepel
+  haken: {
+    'design/savanne/hutten/hut_rond.png':         [[0.07, 0.585], [0.93, 0.585]],
+    'design/savanne/hutten/hut_koepel_groot.png': [[0.348, 0.572], [0.566, 0.572]],
+    'design/savanne/hutten/hut_koepel_hoog.png':  [[0.082, 0.585], [0.915, 0.585]]
+  },
+  lus: 0.03,          // zoveel van zijn hoogte steekt het lusje boven het haakje uit
+  zwaai: 0.07,        // radialen, de grootste uitslag
+  tempo: 1.3          // rad/s van de langzame golf
+};
+const hangerImg = {};
+let hangerZakken = {}, hangerKeuze = new WeakMap(), hangerLevel, hangerModus = 0;   // modus: 0 zak, 1 altijd twee, 2 uit (sandboxknop)
+const HANGER_MODI = ['bag', 'always', 'off'];
+function hangerLaad(){
+  for (const k in HANGER.soorten){
+    if (hangerImg[k]) continue;
+    const im = new Image(); hangerImg[k] = im;
+    zetBron(im, HANGER.dir + 'hanger_' + k + '.png', () => console.warn('ontbreekt: ' + HANGER.dir + 'hanger_' + k + '.png'));
+  }
+}
+function hangerKnikker(naam, vul){
+  let z = hangerZakken[naam];
+  if (!z || !z.length){
+    z = hangerZakken[naam] = vul();
+    for (let i = z.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [z[i], z[j]] = [z[j], z[i]]; }
+  }
+  return z.pop();
+}
+function hangerVoor(obj){                      // de keuze voor dit gebouw, een keer per level
+  if (hangerLevel !== level){ hangerLevel = level; hangerZakken = {}; hangerKeuze = new WeakMap(); }
+  let k = hangerKeuze.get(obj);
+  if (k) return k;
+  const n = hangerModus === 1 ? 2 : hangerKnikker('aantal', () => HANGER.aantalZak.flatMap((m, i) => Array(m).fill(i)));
+  const soort = () => hangerKnikker('soort', () => Object.entries(HANGER.soortZak).flatMap(([s, m]) => Array(m).fill(s)));
+  const kant = n === 1 ? (Math.random() < 0.5 ? 0 : 1) : -1;
+  k = [0, 1].map(i => (n === 2 || i === kant) ? { soort: soort(), fase: Math.random() * 6.28 } : null);
+  hangerKeuze.set(obj, k);
+  return k;
+}
+// in het assenstelsel van de plaat: (0, 0) linksboven, w en h zoals de plaat getekend is (een spiegeling zit al in ctx)
+function hangersTeken(obj, src, w, h, amirPx){
+  const haken = HANGER.haken[src];
+  if (!haken || hangerModus === 2 || !obj) return;
+  hangerLaad();
+  const keuze = hangerVoor(obj), t = performance.now() / 1000;
+  for (let i = 0; i < 2; i++){
+    const q = keuze[i]; if (!q) continue;
+    const im = hangerImg[q.soort];
+    if (!im || !im.complete || !im.naturalWidth) continue;
+    const ih = amirPx * HANGER.soorten[q.soort], iw = im.naturalWidth * (ih / im.naturalHeight);
+    const hoek = HANGER.zwaai * (0.7 * Math.sin(t * HANGER.tempo + q.fase) + 0.3 * Math.sin(t * HANGER.tempo * 2.3 + q.fase * 1.7));
+    ctx.save();
+    ctx.translate(haken[i][0] * w, haken[i][1] * h);
+    ctx.rotate(hoek);
+    ctx.drawImage(im, -iw / 2, -ih * HANGER.lus, iw, ih);
+    ctx.restore();
+  }
+}
+
 // ---- dorpsdecor --------------------------------------------------------
 // De acht platen uit design/village, met de waarden uit design/village/metadata.json
 // ernaast overgenomen. h = hoogte in Amirs (heightInPlayerHeights): de hoogte volgt
@@ -26422,6 +26498,7 @@ function drawVillageProp(id, x, groundY, scale, cx, opt){
   ctx.translate(px, py);
   if (flip){ ctx.translate(size.w, 0); ctx.scale(-1, 1); }
   ctx.drawImage(def.layer === 'fg' ? villageImg[id] : (villageVoetCopy(id) || villageImg[id]), 0, 0, size.w, size.h);
+  if (def.layer !== 'fg') hangersTeken(o, def.src, size.w, size.h, size.h / (def.h * (1 - VILLAGE_FAR * depth)));   // de hangers (HANGER); de voorgrondhut niet
   const tint = depth * VILLAGE_TINT;
   if (tint > 0.002){
     const tc = villageTintCopy(id);
@@ -59729,6 +59806,7 @@ function drawPlacedFar(groundY){
       ctx.translate(px2, py2);
       if (p.flip){ ctx.translate(pw2, 0); ctx.scale(-1, 1); }
       ctx.drawImage(src2, 0, 0, pw2, ph2);
+      hangersTeken(p, def.src, pw2, ph2, ph2 / (def.h * p.scale));   // de hangers aan een savannegebouw (HANGER)
       ctx.restore();
     }
   }
@@ -59768,6 +59846,7 @@ function drawProps(groundY, unit, near){
     ctx.translate(x, y);
     if (p.flip){ ctx.translate(w, 0); ctx.scale(-1, 1); }
     ctx.drawImage(src, 0, 0, w, h);
+    hangersTeken(p, def.src, w, h, h / (def.h * p.scale));   // de hangers aan een savannegebouw (HANGER), ook aan de verre hutjes
     ctx.restore();
   }
 }
@@ -62028,6 +62107,9 @@ function loop(now){
           const hw = hutImg.naturalWidth / hutImg.naturalHeight * hh;
           const hx = cxp + c.wPx * HUT.at - hw / 2;
           ctx.drawImage(hutImg, hx, groundY - hh + hh * HUT.sink, hw, hh);
+          ctx.save(); ctx.translate(hx, groundY - hh + hh * HUT.sink);
+          hangersTeken(HUT, HUT.src, hw, hh, hh / HUT.h);   // de hangers aan de hut bij de rotswand (HANGER)
+          ctx.restore();
           if (grassImg.complete && grassImg.naturalWidth){
             for (const t of GRASS_TUFTS){
               const gh = CHAR_H * scale * t.h;
@@ -62154,6 +62236,7 @@ function loop(now){
           } else ctx.translate(px2, py2);
           if (p.flip){ ctx.translate(pw2, 0); ctx.scale(-1, 1); }
           ctx.drawImage(src2, 0, 0, pw2, ph2);
+          hangersTeken(p, def.src, pw2, ph2, ph2 / (def.h * p.scale));   // de hangers aan een savannegebouw (HANGER)
           ctx.restore();
         }
       }
@@ -65542,6 +65625,7 @@ function laadLevel(lv){
   poortLaadLevel(lv);                              // de stenen bogen als het level poorten heeft
   rotsenLaadLevel(lv);                             // de rotsplaten als het level losse rotsen als decor heeft
   propLaadLevel(lv);                               // het luie decor (het rotsdecor) dat het level neerzet
+  hangerLaad();                                    // de hangers aan de savannegebouwen (HANGER): klein, en bijna elk level heeft wel een hut
   savOpLaadLevel(lv);                              // de wand en het eind van de savanne-opstapjes (SAV_OPSTAP)
   fonteinLaadLevel(lv);                            // de plaat van een fontein (wateren met k: 'fontein')
   stadLaadLevel(lv);                               // de stad: gevels, kramen, de straat en het paleis (ook voor een strook straat)
@@ -73519,6 +73603,10 @@ sandboxEl.querySelectorAll('button[data-rots]').forEach(b => b.onclick = () => s
 sandboxEl.querySelectorAll('button[data-vloer]').forEach(b => b.onclick = () => sbRots(b.dataset.vloer, true));
 // het savannedorp: een hut of put op dezelfde plek als een schild, lui geladen
 sandboxEl.querySelectorAll('button[data-sdorp]').forEach(b => b.onclick = () => { propLaad(b.dataset.sdorp); sbSchild(b.dataset.sdorp); });
+document.getElementById('sbhangers').onclick = e => {   // de hangers aan de hutten: knikkerzak, altijd twee, of uit
+  hangerModus = (hangerModus + 1) % HANGER_MODI.length; hangerLevel = null; hangerLaad();
+  e.currentTarget.textContent = 'Hangers: ' + HANGER_MODI[hangerModus]; cv.focus();
+};
 sandboxEl.querySelectorAll('button[data-windvlaag]').forEach(b => b.onclick = () => {
   startGust(Number(b.dataset.windvlaag));
   gustTimer = 9 + Math.random() * 10;             // de volgende vanzelf pas weer over een tijdje
