@@ -194,7 +194,6 @@ op als de tekst wisselt. De grootte schaalt met de hoogte van het scherm. De bal
 
 - De panter aan het eind (de sluiples: hoog gras, omkijken met een tell, de speer van de mentor, steken): het volgende stuk.
 - De stem bij stilstaan (de wachtregels uit `claude/tutorial_stemteksten.md`) en deel 2 met de panter.
-- Op een telefoon staan er nog toetsen in de wolk in plaats van de knoppen.
 - `offline-assets.json` kent het spoor nog niet: draai `tools/gen-offline-manifest.py` op een volledige checkout. Zonder het
   spoor is het level gewoon speelbaar, alleen zonder mentor.
 - Het level staat nu in Test levels; als het af is, krijgt het een eigen plek in Campaign.
