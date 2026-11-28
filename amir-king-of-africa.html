@@ -7532,12 +7532,17 @@ const TUT_2 = {
         dubbel: ['Two in one swing!', 'Both! Beautiful.', 'Ha! One swing, two snakes.'],
         eis: 'golven', seg: 2, ok: 'The snakes will tell stories about you.', okDuur: 2, kijk: false },
       // gooien: vrij, want het doel staat voorbij hem en je raapt de speer daar op
-      { zeg: ['Now the throw. See the target?', 'Hold [F] a moment, then let go.'], vrij: true, doelen: [ {x: -3850, h: 0.9} ],
+      // tot: verder dan daar mag je niet (het zegel van de speerval ligt verderop); een speer die je niet meer haalt komt terug
+      { zeg: ['Now the throw. See the target?', 'Hold [F] a moment, then let go.'], vrij: true, tot: -4450, doelen: [ {x: -3850, h: 0.9} ],
         eis: 'doel', nogSpeer: 'Missed. Pick it up and try again. [E]', ok: 'Ha! Right in the middle.' },
-      { zeg: 'Now get it back. A hunter never leaves his spear. [E]', vrij: true, eis: 'speer', ok: 'Good.' },
-      { zeg: ['This one moves.', 'Throw where it will be, not where it is.'], vrij: true,
+      { zeg: 'Now get it back. A hunter never leaves his spear. [E]', vrij: true, tot: -4450, eis: 'speer', ok: 'Good.' },
+      { zeg: ['This one moves.', 'Throw where it will be, not where it is.'], vrij: true, tot: -4450,
         doelen: [ {x: -3950, h: 0.9, heen: 170, v: 120} ], eis: 'doel', nogSpeer: 'Pick it up. Again. [E]', ok: 'You led it! Good eyes.' },
-      { zeg: 'Pick it up. [E]', vrij: true, eis: 'speer', seg: 3, ok: 'Come. One more lesson.', kijk: false },
+      { zeg: 'Pick it up. [E]', vrij: true, tot: -4450, eis: 'speer', ok: 'Good.' },
+      // de hoge worp: F langer vasthouden (de tweede trap, THR_CHARGE), een doel hoog op een paal
+      { zeg: ['See that one, up high?', 'Hold [F] longer. Let the arm go all the way back. Then it flies high.'], vrij: true, tot: -4450,
+        doelen: [ {x: -4120, h: 2.5} ], eis: 'doel', nogSpeer: 'Pick it up. Hold longer this time. [E]', ok: 'High and far! Now you have two throws.' },
+      { zeg: 'Pick it up. [E]', vrij: true, tot: -4450, eis: 'speer', seg: 3, ok: 'Come. One more lesson.', kijk: false },
       // de speerval: hij doet het voor, dan jij
       { zeg: ['See that seal in the ground? It wakes a trap.', 'When the spear flies, roll through it. [V]'], doelen: [],
         seg: 4, valDemo: true, ok: 'Watch me.', kijk: 'Watch closely.' },
@@ -26910,7 +26915,10 @@ function mentorCamAan(){
 function mentorCamKlem(d){
   if (!mentorCamAan()) return d;
   const half = W / 2 / viewZoom(), ruim = half * (1 - MENTOR.cam.marge), mx = mentorX();
-  return Math.min(mx + ruim, Math.max(mx - ruim, d));
+  d = Math.min(mx + ruim, Math.max(mx - ruim, d));
+  const st = mentorStation();                      // tutorial 2: het doel om op te gooien ook in beeld (het hoge doel staat ver weg)
+  if (st && st.doelen && st.doelen.length && rolDoelen.length) d = Math.min(d, rolDoelen[0].x + ruim);
+  return d;
 }
 function mentorCamH(){ return mentorCamAan() && mentor.camH != null ? mentor.camH : null; }
 function mentorZeg(tekst, duur){ mentor.faal = tekst; mentor.faalT = duur || 2.2; mentor.faalLos = false; }
@@ -26994,7 +27002,9 @@ function mentorUpdate(dt){
     const grens = mentorX() + MENTOR.voor;
     if (world < grens){ world = grens; }
   }
+  if (st && st.vrij && st.tot != null && world < st.tot) world = st.tot;   // vrij, maar niet verder dan `tot` (niet al naar het zegel van de speerval)
   mentorDoelen(m, st, dt);                                  // tutorial 2: de doelen om op te gooien
+  mentorSpeerTerug(m, st, dt);                              // tutorial 2: een speer die je niet meer haalt komt terug
   mentorValStap(m, st);                                     // tutorial 2: de speerval (voordoen en ontwijken)
   if (m.fase !== 'wacht' && !(st && st.vrij)) mentorRem(m, mentorRemLijn(m, st, true));   // bij het wachten pas als bekend is of hij uitgepraat is
   if (m.fase === 'demo' || m.fase === 'race'){
@@ -27084,6 +27094,25 @@ function mentorDoelen(m, st, dt){
     d.fase += dt * d.v / Math.max(1, d.heen);
     d.x = d.x0 + Math.sin(d.fase) * d.heen;
   }
+}
+// Kwijt: ligt de speer voorbij `tot` (waar je niet mag komen), verder dan MENTOR.terugSpeer.ver van de speler, of zit hij
+// hoog in een wand of rots, dan gooit de gids je na `wacht` s een nieuwe toe: hij ligt dan voor je, met een regel uit `zeg`.
+MENTOR.terugSpeer = { ver: 1300, wacht: 1.6, hoog: 140, zeg: ['Too far, little spear. Here, take this one.', 'Lost it? Here. Again.'] };
+function mentorSpeerTerug(m, st, dt){
+  if (!st || !st.doelen && !st.vrij || spear || m.fase === 'demo'){ m.kwijtT = 0; return; }
+  const T = MENTOR.terugSpeer;
+  let x = null, vast = false;
+  if (jav && jav.state !== 'vlucht'){ x = jav.x; vast = jav.state === 'muur' && (jav.h || 0) > T.hoog; }
+  else if (!jav && spearX != null) x = spearX;
+  const kwijt = (x == null && !jav) || (x != null && (vast || Math.abs(x - world) > T.ver || (st.tot != null && x < st.tot - 30)));
+  m.kwijtT = kwijt ? (m.kwijtT || 0) + dt : 0;
+  if (m.kwijtT < T.wacht) return;
+  m.kwijtT = 0;
+  const nx = Math.max(st.tot != null ? st.tot + 60 : -1e9, world - 130);   // voor de speler, binnen het stuk
+  jav = null; javLost = 0; spearX = nx; spearH = null;
+  puffWorld(nx, 5, 0, 0.9, terrainH(nx));
+  m.terugI = ((m.terugI == null ? -1 : m.terugI) + 1) % T.zeg.length;
+  mentorZeg(T.zeg[m.terugI], 2.6); m.faalLos = true;
 }
 // ---- tutorial 2: de speerval (station met `valDemo` of `ontwijk`) ----
 // valDemo: tijdens zijn voordoen zet het spel de val zelf af (hij staat niet echt op het zegel), op tijd zodat de speer

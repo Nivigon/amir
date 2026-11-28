@@ -4,6 +4,7 @@
 //   node tools/tut2_test.js               uitspelen
 //   node tools/tut2_test.js --shots map   bij elk nieuw station en elke golf een schermafdruk
 //   node tools/tut2_test.js --een         de golven een voor een (zonder op een dubbele zwaai te wachten)
+//   node tools/tut2_test.js --kwijt       de eerste worp expres te ver: de gids moet een nieuwe speer geven
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -45,8 +46,9 @@ function speler(opties){
     const m = mentor;
     if (!m || !m.spoor){ return; }
     if (m.i !== B.station){ B.station = m.i; B.sindsT = B.t; B.log.push(['station', m.i, B.t.toFixed(1), Math.round(world)]); B.shot++; }
-    if (opties.debug && Math.round(B.t * 60) % 60 === 0) B.log.push(['dbg', B.t.toFixed(0), Math.round(world), m.fase, JSON.stringify(m.eis), duckT.toFixed(2), swFrame, swLading, m.deel, snakes.map(s => s.state + '@' + Math.round(s.x) + '/' + s.side).join(' ')]);
+    if (opties.debug && Math.round(B.t * 60) % 60 === 0) B.log.push(['dbg', B.t.toFixed(0), Math.round(world), m.fase, JSON.stringify(m.eis), Object.keys(keys).filter(k=>keys[k]).join('+'), facing, spear, spearX && Math.round(spearX), jav && (jav.state + '@' + Math.round(jav.x) + '/' + Math.round(jav.h)), !!thr, keys['f'], B.fT, snakes.map(s => s.state + '@' + Math.round(s.x) + '/' + s.side).join(' ')]);
     if (B.t - B.sindsT > 60){ B.fout = 'vast in station ' + m.i + ' fase ' + m.fase + ' op x ' + Math.round(world); B.klaar = true; return; }
+    if (m.terugI != null && m.terugI !== B.terug){ B.terug = m.terugI; B.log.push(['speer terug', B.t.toFixed(1), Math.round(spearX)]); }
     if (m.golf && m.golf.n !== B.golf){ B.golf = m.golf.n; B.log.push(['golf', m.golf.n, B.t.toFixed(1)]); B.shot++; }
     if (B.fT > 0 && --B.fT === 0){ dispatchEvent(new KeyboardEvent('keyup', { key: 'f' })); keys['f'] = false; wachtF = 40; return; }
     if (wachtF > 0){ wachtF--; return; }
@@ -80,20 +82,27 @@ function speler(opties){
     // de speer oprapen
     if (!spear && spearX != null){
       if (Math.abs(world - spearX) > 20){ toets(world > spearX ? 'ArrowLeft' : 'ArrowRight', true); return; }
-      toets('ArrowLeft', false); toets('ArrowRight', false); tik('e'); wachtF = 30; return;
+      toets('ArrowLeft', false); toets('ArrowRight', false); tik('e'); wachtF = 30; B.plekI = -1; return;
     }
     // de speerval: trilt hij, dan rollen (de rol is 0,6 s onkwetsbaar)
     const val = level.speervallen && level.speervallen[0];
     if (val && val.st === 'tril' && val.t > 0.6 && !rol && Math.abs(world - val.x) < 900){ tik('v'); wachtF = 30; return; }
     // gooien: op zo'n 480 px van het doel, F een tel vasthouden
     if (st && st.eis === 'doel' && spear && rolDoelen.length && m.fase === 'wacht'){
-      const doel = rolDoelen[0], d = world - doel.x;
-      if (d > 560){ toets('ArrowRight', false); toets('ArrowLeft', true); return; }
-      if (d < 400){ toets('ArrowLeft', false); toets('ArrowRight', true); return; }
+      const doel = rolDoelen[0], d = world - doel.x, hoog = doel.h > 400;   // hoog: F lang vasthouden (de tweede trap)
+      const verKwijt = opties.kwijt && !B.kwijtGedaan;
+      if (verKwijt && !keys['f'] && facing < 0 && d >= 400){ B.kwijtGedaan = true; dispatchEvent(new KeyboardEvent('keydown', { key: 'f' })); keys['f'] = true; B.fT = 60; B.log.push(['kwijt-worp', B.t.toFixed(1)]); return; }
+      const [dMin, dMax, dMid] = hoog ? [950, 1150, 1050] : [400, 560, 480];
+      const d0 = world - (doel.x0 != null ? doel.x0 : doel.x);   // het bewegende doel: op zijn middenplek richten en wachten
+      // naar de middenplek lopen en daar blijven staan (zonder heen en weer te pendelen op de rand van het bereik)
+      if (B.plekI !== m.i){
+        if (Math.abs(d0 - dMid) > 25){ const links = d0 > dMid; toets(links ? 'ArrowRight' : 'ArrowLeft', false); toets(links ? 'ArrowLeft' : 'ArrowRight', true); return; }
+        B.plekI = m.i;
+      }
       toets('ArrowLeft', false); toets('ArrowRight', false);
-      if (facing > 0){ tik('ArrowLeft'); return; }
-      if (doel.heen && Math.abs(d - 480) > 40) return;          // het bewegende doel: wachten tot het op de goede plek is
-      if (!keys['f']){ dispatchEvent(new KeyboardEvent('keydown', { key: 'f' })); keys['f'] = true; B.fT = 24; return; }
+      if (facing > 0){ toets('ArrowLeft', true); wachtF = 2; return; }
+      if (doel.heen && Math.abs(d - dMid) > 40) return;          // het bewegende doel: wachten tot het op de goede plek is
+      if (!keys['f']){ dispatchEvent(new KeyboardEvent('keydown', { key: 'f' })); keys['f'] = true; B.fT = hoog ? 60 : 24; return; }
       return;
     }
     // de lage zwaai in de lucht: bukken, een paar beelden later F, en na de zwaai weer omhoog
@@ -135,7 +144,7 @@ function speler(opties){
   await page.waitForTimeout(1500);
   await page.evaluate(() => { setLevel(1, TUT_LEVELS); runReset(); beginPlay('normal'); });
   await page.waitForTimeout(800);
-  await page.evaluate(speler, { een: args.includes('--een'), debug: args.includes('--debug') });
+  await page.evaluate(speler, { een: args.includes('--een'), debug: args.includes('--debug'), kwijt: args.includes('--kwijt') });
   if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   let shot = 0;
   for (;;){
