@@ -28,6 +28,13 @@ boven blijft staan.
 Hij wordt getekend vlak voor Amir (na de lichtkaart), in dezelfde stand van de camera; eerder in het beeld stond hij op
 een hogere laag te zweven.
 
+## Niet in de tutorials (28-11-2026)
+
+De rol-worp (en de contra-worp) en de blind sweep (stof in de ogen) staan uit in elk level van `TUT_LEVELS` (`tutAan`,
+in `rolWorpDruk` en waar `STOF.aan` gezet wordt). Die leer je in de eerste levels van de campagne. Besluit van de
+opdrachtgever: twee tutorials (The First Hunt: bewegen; tutorial 2: de speer, de lage zwaai, gooien, ontwijken met de rol,
+besluipen en de panter), de rest leer je onderweg. Ontwerp van tutorial 2: `claude/tutorial_2_ontwerp.md` in het project.
+
 ## De gids (27-11-2026): de Mkuki-ranger in plaats van de omgekleurde Amir
 
 De mentor heeft nu eigen art: de nomadische Mkuki-ranger uit Grok (teal jas, roestrode sjaal en sjerp, speer). Het
