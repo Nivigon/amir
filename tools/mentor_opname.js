@@ -33,13 +33,13 @@ const SEGS = [
   // 4: over een smal gat, gewoon lopend
   [ { tot: -4235 }, { spring: 14, tot: -4700 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
   // 5: sprinten
-  [ { sprint: true, tot: -5100 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
+  [ { sprint: true, tot: -5900 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
   // 6: de sprintsprong over het brede ravijn
-  [ { sprint: true, tot: -5420 }, { spring: 16, sprint: true, tot: -6250 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
+  [ { sprint: true, tot: -6220 }, { spring: 16, sprint: true, tot: -7050 }, { draai: 1 }, { lus: 1 }, { idle: 2.6 } ],
   // 7: de race naar de top
-  [ { sprint: true, tot: -6465 }, { spring: 14, sprint: true, tot: -6965 }, { spring: 14, sprint: true, tot: -7390 },
-    { kruip: true, tot: -8025 }, { sprint: true, tot: -8090 }, { spring: 16, sprint: true, tot: -8490 },
-    { spring: 16, sprint: true, tot: -8940 }, { spring: 16, sprint: true, tot: -9400 }, { draai: 1 }, { lus: 1 }, { idle: 3 } ]
+  [ { sprint: true, tot: -7265 }, { spring: 14, sprint: true, tot: -7765 }, { spring: 14, sprint: true, tot: -8190 },
+    { kruip: true, tot: -8825 }, { sprint: true, tot: -8890 }, { spring: 16, sprint: true, tot: -9290 },
+    { spring: 16, sprint: true, tot: -9740 }, { spring: 16, sprint: true, tot: -10200 }, { draai: 1 }, { lus: 1 }, { idle: 3 } ]
 ];
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png',

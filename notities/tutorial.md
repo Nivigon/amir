@@ -73,6 +73,8 @@ zegt `design/tutorial/gids/gids.json` welk frame van de gids erbij hoort. Kop in
   vooral van de inzoomende idle (ZOOM_VAST). Nu alles op 1, de sprintsprong op 1,05 (iets kleiner hoofd). `GROOTTE` in
   `gids_bouw.py`, `k` in gids.json. Les: ijk de maat op het hoofd, niet op de lichaamshoogte. Tool:
   https://claude.ai/artifact/SpQZiaU7nnS4NmwNtANnzQ
+- **Rennend weer groter (28-11-2026).** Tom: rennend werd hij te veel kleiner dan in de idle. `GROOTTE['ren']` op 1,1
+  (eerder 1,135 voelde te groot); alleen `k` verandert, het blad is opnieuw gebouwd met `gids_bouw.py ren`.
 - Nog niet gebruikt: `gahurk`, `hurk_en_omkijk`, `hurkenwenk` (voor de panter-sluiples) en `deelsbruikbaar_vertellen`.
 - Open: de speer los (nu omgekleurd in de frames), een klim voor de richel (hij springt nu), een rustig loopje.
 
@@ -146,6 +148,10 @@ je per tiende seconde x, hoogte en op de grond, om de opdrachten bovenin het scr
 dan meldt het script FOUT en schrijft het niets weg. Verandert er iets aan Amirs sprites, dan ook.
 
 ## Het level: `mentor`
+
+Het sprintstuk ("Run like the wind", seg 6) is sinds 28-11-2026 1200 lang in plaats van 400 (van -4700 tot -5900): alles
+erachter (het brede ravijn, de race, de treden, de fakkels, finish en `terug`) schoof 800 naar links, en het spoor is
+opnieuw opgenomen.
 
 ```
 mentor: { spoor, finish, prijs: {x, h}, win, verlies, vallen: [grappen], stations: [
