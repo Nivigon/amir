@@ -78,6 +78,13 @@ Hunt geeft het winscherm "Next: The Spear". `onsterfelijk: true`: een beet doet 
   zodat de speer bij hem is terwijl hij rolt (uit het eerste rolbeeld van zijn spoor), en de speer valt achter hem neer
   (`stopX`). De rem houdt je dan bij zijn startplek (niet achter hem aan over het zegel). De eis `ontwijk`: de speer
   vliegt langs de speler terwijl die rolt; gebukt geeft `bukZeg`, geraakt `raakZeg`. De opname laat het zegel en de val weg.
+- `tot` op een vrij station: verder naar links mag je niet (tijdens het gooien kom je niet bij het zegel van de speerval).
+- Een speer die je niet meer haalt komt terug (`mentorSpeerTerug`, `MENTOR.terugSpeer`, feedback opdrachtgever 28-11-2026):
+  ligt hij voorbij `tot`, verder dan 1300 van de speler, of zit hij hoog vast, dan legt de gids na 1,6 s een nieuwe voor
+  je neer met "Too far, little spear. Here, take this one." Test: `node tools/tut2_test.js --kwijt`.
+- De hoge worp (op verzoek): een station met een doel hoog op een paal (`h: 2.5`), alleen te raken met F lang
+  vasthouden (de tweede trap, `THR_CHARGE`); een gewone worp komt niet hoger dan zo'n 250. Bij een station met `doelen`
+  houdt de camera het doel in beeld (`mentorCamKlem`).
 - In de tutorials geen meldingen in de balk (`flashHint`): de gids praat.
 - Live: deel 1 (speer pakken, een slang van achteren steken, de lage zwaai vanaf de rots (twee keer in de lucht),
   drie golven van twee, van links en rechts) en deel 2 (gooien op een stil en een bewegend doel,
