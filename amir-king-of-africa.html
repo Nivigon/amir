@@ -9626,9 +9626,9 @@ let kruipstamImg = null;
 function kruipstamPic(){ if (!kruipstamImg){ kruipstamImg = new Image(); kruipstamImg.src = KRUIPSTAM.src; } return kruipstamImg; }
 // het dak bij een stam (in readLevel): r is de rechterkant (minder negatief), l de linker
 function kruipstamDak(q){
-  const K = KRUIPSTAM, k = K.k * (Number(q.s) || 1), x = Number(q.x);
-  return { r: x + (K.w / 2 - K.rechts) * k, l: x - (K.w / 2 - K.links) * k,
-           h: (K.grond - K.stamBoven) * k, onder: (K.grond - K.stamOnder) * k, look: 'geen' };
+  const K = KRUIPSTAM, k = K.k * (Number(q.s) || 1), x = Number(q.x), kx = k * nowScale();   // de breedte schaalt mee met het beeld, net als in kruipstamTeken
+  return { r: x + (K.w / 2 - K.rechts) * kx, l: x - (K.w / 2 - K.links) * kx,
+           h: (K.grond - K.stamBoven) * k, onder: (K.grond - K.stamOnder) * k, look: 'geen', kp: x };   // kp: het dak van de kruipstam op die x (loopputDakStap)
 }
 function kruipstamTeken(groundY, scale, cx){
   const L = level && level.kruipstammen;
@@ -9668,12 +9668,14 @@ function loopputDak(q){
   const l = q.f ? K.rechts : K.links, r = q.f ? K.links : K.rechts;   // gespiegeld wisselen de randen
   return { r: x + (K.w / 2 - r) * kx, l: x - (K.w / 2 - l) * kx, h: (K.grond - K.top) * k, onder: 0, look: 'geen', pas: true, lp: x };   // pas: Amir staat er alleen op met zijn midden (terracePlats); lp: dit is het loopvlak van de put op die x (loopputDakStap)
 }
-// Per beeld: het loopvlak volgt de getekende put als het beeld van maat verandert (zoals de holle stam, holstamUpdate).
-// Zonder dit stond Amir op een klein scherm naast de put in de lucht: het loopvlak was breder dan de plaat.
+// Per beeld: het loopvlak volgt de getekende put (en de kruipstam) als het beeld van maat verandert (zoals de holle stam,
+// holstamUpdate). Zonder dit stond Amir op een klein scherm naast de put in de lucht: het loopvlak was breder dan de plaat.
 function loopputDakStap(){
-  const L = level && level.loopPutten; if (!L || !L.length) return;
-  for (const z of level.zwevers || []) if (z.lp != null){
-    const q = L.find(o => Number(o.x) === z.lp); if (q){ const d = loopputDak(q); z.l = d.l; z.r = d.r; }
+  const L = (level && level.loopPutten) || [], S = (level && level.kruipstammen) || [];
+  if (!L.length && !S.length) return;
+  for (const z of level.zwevers || []){
+    if (z.lp != null){ const q = L.find(o => Number(o.x) === z.lp); if (q){ const d = loopputDak(q); z.l = d.l; z.r = d.r; } }
+    else if (z.kp != null){ const q = S.find(o => Number(o.x) === z.kp); if (q){ const d = kruipstamDak(q); z.l = d.l; z.r = d.r; } }
   }
 }
 function loopputTeken(groundY, scale, cx){
@@ -61225,7 +61227,7 @@ function loop(now){
   const halfWNow = PLAYER_HALF_W * CHAR_H * scaleNow;
   if (dt > 0) takelUpdate(dt);                    // het takelwiel: het rad draait naar zijn doel, het plateau zakt en veert
   if (dt > 0) hstamUpdate(dt);                    // de hangende stam: slingert, valt een kant op, dan plat (HSTAM)
-  loopputDakStap();                               // het loopvlak van de loopput schaalt mee met het beeld (LOOPPUT)
+  loopputDakStap();                               // het loopvlak van de loopput en de kruipstam schaalt mee met het beeld (LOOPPUT)
   if (dt > 0) holstamUpdate(dt);                  // de holle stam: de voorkant vervaagt als Amir erin staat, en de vuurvliegjes (HOLSTAM)
   if (dt > 0) mistStootStap(dt);                  // een klap in de mist loopt weer dicht (MIST_STOOT)
   if (dt > 0) deurUpdate(dt);                     // de deur in de rotswand: vliegt open als Amir dichtbij komt, en laat een bandiet los
@@ -65153,7 +65155,7 @@ function readLevel(txt){
              return { r: Number(q.r), l: Number(q.l), h, onder, look: (q.look === 'rots' || q.look === 'hout' || q.look === 'geen') ? q.look : undefined,
                       zwart: (q.zwart === 'plafond' || q.zwart === 'vulling' || q.zwart === 'savanne') ? q.zwart : undefined,   // 'rots' = een rotsoverhang i.p.v. savanne; zwart: een zwevend zwart blok (savanne-vloer, muur, of plafond met tandjes)
                       tot0: q.tot0 === true,   // een zwart blok direct onder het oppervlak: teken door tot de grondlijn (dekt de aardrand af)
-                      drape: q.drape === true, drapeVan: Number(q.drapeVan) || 0, hq: q.hq, lp: q.lp, pas: q.pas === true };   // hq: dit is het dak van de holle stam op die x (holstamDakStap)   // de savanne-aarde loopt van drapeVan door tot dit blok (zie zwartDrapeTeken)
+                      drape: q.drape === true, drapeVan: Number(q.drapeVan) || 0, hq: q.hq, lp: q.lp, kp: q.kp, pas: q.pas === true };   // hq: dit is het dak van de holle stam op die x (holstamDakStap)   // de savanne-aarde loopt van drapeVan door tot dit blok (zie zwartDrapeTeken)
            }),
            // gangen onder de grond: zie "holte onder de grond"
            holtes: (o.holtes || []).map(q => ({ r: Number(q.r), l: Number(q.l),
