@@ -5,6 +5,14 @@ een codenaam. Een elite-vijand (regel 12: geen baas): een oudere bandiet met gri
 een bijl met lange steel. In de sandbox (rij **Reinier (elite)**, met **AI uit**) en in Test Lab, Elite tests, Reinier,
 **Reinier: Test 1** (`REI_1`).
 
+## Spelen met de kit van Co-op
+
+Spelen (of dubbelklik op het kaartje) start de map van Reinier zoals The Clay City: als solo Co-op episode (reeks `r` in
+`MPC_EPS`, `reiSpeel`, `kleiCoopStart(i, 'r')`, `pvp.rei`). Geen tribe en geen talents, de kit van Co-op (stof in de ogen
+met de speer, de grondklap met de stokken, een speer op de rug). Eerst het keuzescherm: Mkuki (speer) of Bhubesi (stokken),
+en Lives of Invulnerable (`duoKeuze.onst`, in het level als `onsterfelijk`). Geen winkel en geen moeilijkheid. Escape en
+het eindscherm brengen je terug naar de kaartjes van Reinier (`kleiCoopStop`).
+
 ## Het gevecht
 
 - **Rust, ren, rem**: binnen `REI.zicht` rent hij op je af (de ren-clip, `REI.renV`), binnen `REI.remAf` remt hij (de
