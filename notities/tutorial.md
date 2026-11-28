@@ -19,6 +19,16 @@ bij hem zonder het gedaan te hebben, dan zegt hij `nog`. Dan "goed zo" (`ok`, me
 volgende voor. Voorbij hem lopen kan niet: zolang hij uitlegt, voordoet of aftelt houdt hij de speler `MENTOR.voor` achter
 zich (niet in de race en niet bij het slot).
 
+De rem (`MENTOR.rem`, `mentorRemLijn`, `mentorRem`): zolang hij uitlegt, "goed zo" zegt of voordoet houdt hij je verder weg,
+`rem.afstand` (200, altijd binnen `bij`), zodat je ziet wat hij doet in plaats van op zijn neus te staan. Bij het voordoen
+telt de plek waar hij begon (`demoX`), dus je loopt hem niet achterna; is hij verder dan `rem.volg` (520) weg, dan mag je
+op die afstand volgen, zodat jullie samen in beeld blijven. Wie al dichterbij stond wordt niet teruggeduwd maar komt niet
+verder, terugstappen mag. In de lucht houdt hij je alleen tegen als je daar veilig neerkomt (geen ravijn onder de lijn,
+geen hogere grond), anders mag de sprong door. Loop je er tijdens het voordoen tegenaan, dan zegt hij om de beurt een
+regel uit `rem.zeg` (hooguit eens per `rem.opnieuw` s, nog zonder stem). Een station met `kijk: false` (station 0, "Keep
+up!") is meelopen: daar geen rem bij het voordoen. Waarom zo en niet vastzetten: de speler houdt de controle, en een
+ervaren speler wacht alleen zolang het voordoen duurt.
+
 De camera houdt hem in beeld zolang hij voordoet, uitlegt of wacht (niet in de race en niet bij het slot): horizontaal
 schuift het midden alleen zover als nodig is tot hij binnen `MENTOR.cam.marge` van de rand staat (`mentorCamKlem`, in de
 meekijkende camera), en in de hoogte kijkt de camera naar de laagste vloer van de twee, zolang de hoogste nog in beeld past

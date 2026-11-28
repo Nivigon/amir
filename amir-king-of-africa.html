@@ -26735,7 +26735,15 @@ const MENTOR = {
   broek: 'turq',                                 // de broekkleur uit BROEK.kleuren
   huid: { van: 345, tot: 38, maxV: 0.66, minS: 0.16, keer: 0.7, sat: 1.08 },   // de huid: deze tinten, niet te licht (het lint), donkerder
   bij: 230,                                      // zo dicht (wereld-px) moet de speler bij hem zijn voor hij verder gaat
-  voor: 70,                                      // zo ver achter hem houdt hij de speler tegen zolang hij uitlegt of voordoet
+  voor: 70,                                      // zo ver achter hem houdt hij de speler altijd tegen (ook als hij wacht en tijdens het aftellen)
+  // de rem: zolang hij uitlegt, "goed zo" zegt of voordoet blijf je verder weg, zodat je ziet wat hij doet. Bij het
+  // voordoen geldt de plek waar hij begon, dus je loopt hem niet achterna; is hij verder dan `volg` weg, dan mag je hem op
+  // die afstand volgen (zo blijven jullie samen in beeld). In de lucht houdt hij je alleen tegen als je daar veilig
+  // neerkomt (geen ravijn onder de lijn, geen hogere grond); anders mag de sprong door en schuift de rem mee. Wie al dichterbij stond wordt niet
+  // teruggeduwd, maar komt niet verder. Loop je er tijdens het voordoen tegenaan, dan zegt hij er iets van (om de beurt,
+  // hooguit eens per `opnieuw` s); bij de uitleg niet, want die zegt vaak juist "follow me". Een station met `kijk: false`
+  // (geen "Watch.") is meelopen: daar geen rem bij het voordoen, alleen `voor`.
+  rem: { afstand: 200, volg: 520, opnieuw: 6, zeg: ['Easy, little spear. Watch first.', 'Not yet. Look.', 'Patience. Eyes on me.'] },
   okDuur: 1.5,                                   // zo lang blijft het "goed zo" staan voor hij voordoet
   kijkDuur: 1.3,                                 // en zo lang "Watch." aan het begin van het voordoen
   fps: 30,                                       // beelden per seconde van het spoor
@@ -26793,7 +26801,31 @@ function mentorFrame(){
   return uit;
 }
 function mentorX(){ const f = mentorFrame(); return f ? f[0] : 0; }
-function mentorSpeel(seg, tempo){ mentor.seg = seg; mentor.f = 0; mentor.tempo = tempo || 1; mentor.fase = 'demo'; mentor.t = 0; }
+function mentorSpeel(seg, tempo){ mentor.seg = seg; mentor.f = 0; mentor.tempo = tempo || 1; mentor.fase = 'demo'; mentor.t = 0; mentor.demoX = mentorX(); }
+// de rem (MENTOR.rem): waar de speler nu niet voorbij mag, of null als alleen MENTOR.voor geldt
+function mentorRemLijn(m, st, uitgepraat){
+  if (m.race || !st) return null;
+  const R = MENTOR.rem, ver = Math.min(R.afstand, (st.bij || MENTOR.bij) - 20);   // binnen `bij`, anders wacht hij voor altijd
+  if (m.fase === 'demo' && st.kijk === false) return null;        // een stuk zonder "Watch." is meelopen ("Keep up!")
+  if (m.fase === 'demo') return Math.min((m.demoX == null ? mentorX() : m.demoX) + ver, mentorX() + R.volg);
+  if (m.fase === 'ok' || (m.fase === 'wacht' && !uitgepraat)) return mentorX() + ver;
+  return null;
+}
+function mentorRem(m, lijn){
+  if (lijn == null){ m.rem = null; return; }
+  if (m.rem == null) m.rem = Math.min(world, lijn);       // wie al voorbij de lijn stond: daar blijft hij
+  m.rem = Math.min(lijn, Math.max(m.rem, world));         // terugstappen mag, en dan schuift de rem mee tot de lijn
+  if (world >= m.rem) return;
+  // in de lucht alleen vastzetten als hij daar veilig neerkomt: geen ravijn onder de lijn en geen hogere grond
+  if (!onGround && (gapBetween(m.rem - 40, m.rem + 40) || terrainH(m.rem) > ph)){ m.rem = world; return; }
+  world = m.rem;
+  const duwt = keys['ArrowLeft'] || keys['a'] || keys['A'];
+  const nu = m.klok || 0, R = MENTOR.rem;
+  if (duwt && m.fase === 'demo' && m.faalT <= 0 && nu - (m.remZegT == null ? -1e9 : m.remZegT) > R.opnieuw){
+    m.remZegT = nu; m.remZegI = ((m.remZegI == null ? -1 : m.remZegI) + 1) % R.zeg.length;
+    mentorZeg(R.zeg[m.remZegI], 2);
+  }
+}
 // De camera houdt de mentor in beeld zolang hij voordoet, uitlegt of wacht (niet in de race: daar kijk je naar je eigen
 // pad). Blijft de speler staan, dan zag hij hem anders van het terras springen en uit beeld rennen. Horizontaal schuift het
 // midden alleen zover als nodig is (mentorCamKlem, in de meekijkende camera), in de hoogte telt de laagste van de twee
@@ -26889,6 +26921,7 @@ function mentorUpdate(dt){
     const grens = mentorX() + MENTOR.voor;
     if (world < grens){ world = grens; }
   }
+  if (m.fase !== 'wacht') mentorRem(m, mentorRemLijn(m, st, true));   // bij het wachten pas als bekend is of hij uitgepraat is
   if (m.fase === 'demo' || m.fase === 'race'){
     const sg = m.spoor.segs[m.seg];
     m.f += dt * MENTOR.fps * m.tempo;
@@ -26946,6 +26979,7 @@ function mentorUpdate(dt){
     && m.stemT > (stem[m.deel] && wantSound ? 0.3 : Math.max(GIDS_STEM.leesMin, deelTekst.split(' ').length * GIDS_STEM.lees));
   if (deelKlaar && m.deel < delen.length - 1){ m.deel++; }
   const uitgepraat = m.deel >= delen.length - 1 && (!stem.length || deelKlaar);
+  mentorRem(m, mentorRemLijn(m, st, uitgepraat));
   if (dicht && gedaan && uitgepraat && m.t > 1 && (st.seg != null || st.ok)){
     m.faalT = 0; m.fase = 'ok'; mentorOkDeel(m, st, 0);
   }
