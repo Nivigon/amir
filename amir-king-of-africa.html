@@ -54891,22 +54891,34 @@ const ZWM_ROOT = 'enemies/zweepman/';
 const REI_ROOT = 'enemies/reinier/';
 const REI = {
   hShare: BAN_H_SHARE * 1.12,     // 12 procent groter dan een bandiet (Tom: elite, iets groter dan normaal)
-  hp: 10, strafSchade: 2,          // in een strafvenster telt een treffer dubbel
-  renV: 270, renFps: 12,           // proefpixels per seconde, maal de schaal
+  hp: 14, strafSchade: 2,          // in een strafvenster telt alleen de eerste treffer dubbel, de rest gewoon
+  kapSchade: 2,                    // de uitvalskap kost twee levens, de draaizwaai een
+  renV: 320, renFps: 13,           // proefpixels per seconde, maal de schaal
   remAf: 185, remDuw: 70,          // binnen remAf (proefpixels) remt hij af, en schuift dan remDuw door
   aanvalAf: 200,                   // in de klaarstand: binnen deze afstand en naar je toe valt hij aan
   zicht: 1300,                     // zo ver (proefpixels) ziet hij je in rust
-  wankelKoel: 2.5,                 // na een wankel zo lang alleen een flits
+  wankelKoel: 4,                   // na een wankel zo lang geen wankel meer: een tweede klap in die tijd beantwoordt hij met een kap
+  ketting: 0.08,                   // de klaarstand na een aanval als hij doorpakt (knikkerzak: 2 van 3 keer)
   achterTijd: 0.3, achterAf: 320,  // zo lang achter hem (binnen achterAf) en hij draait om en kapt
-  klaar: 0.2,                      // s in de klaarstand voor hij beslist
+  klaar: 0.16,                     // s in de klaarstand voor hij beslist
   kapHoog: 140, zwaaiHoog: 55,     // de kap raakt Amir tot deze hoogte (proefpixels boven zijn voeten), de zwaai tot deze
   lijfHalf: 30,
-  doodLig: 6, doodVaag: 1.2        // zo lang blijft hij liggen, dan vaagt hij weg
+  doodLig: 6, doodVaag: 1.2,       // zo lang blijft hij liggen, dan vaagt hij weg
+  vol: { zwaai: 0.75, inslag: 0.9, grond: 0.7, grom: 0.8, pijn: 0.8, dood: 0.9 }
 };
+// zijn geluiden: bestaande uit sounds/ (de knots van Nyundo voor de bijl, de bandiet voor zijn stem)
+let reiGeluid = null;
+function reiGeluidLaad(){
+  if (reiGeluid) return;
+  reiGeluid = { zwaai: banStemmen('sounds/brutus_zwaai.mp3', 2), inslag: banStemmen('sounds/brutus_inslag.mp3', 2),
+                grond: banStemmen('sounds/kooihitground.mp3', 2), grom: banStemmen('sounds/kooigrr.mp3', 2),
+                pijn: banStemmen('sounds/banditpijn.mp3', 3), dood: banStemmen('sounds/banditdeath.mp3', 1) };
+}
+function reiZeg(k){ if (reiGeluid && reiGeluid[k]) banStemSpeel(reiGeluid[k], REI.vol[k]); }
 let REI_DATA = null, reiBezig = false;
 const reiBank = {};
 function reiLaad(){
-  laadNodig('rei');
+  laadNodig('rei'); reiGeluidLaad();
   if (REI_DATA || reiBezig) return;
   reiBezig = true; laadJsonOpen++;
   fetch(REI_ROOT + 'reinier.json').then(r => r.ok ? r.json() : Promise.reject(r.status)).then(m => {
@@ -54948,8 +54960,9 @@ const REI_WANKEL = [1/24, 1/20, 1/20, 1/20, 1/20, 1/16, 1/16, 1/16, 1/16, 1/16, 
 const REI_DOOD = [.08, 1/12, 1/12, 1/12, .1, .1, .1, .1, .12, .12, .12, .12, .12, 1/12, 1/12, 1/12, 1/12, 1/12, 1/12, 99];
 function reiStart(s, soort){
   soort = soort || reiTrek(s, 'zak', () => ['kap', 'kap', 'schijn', 'draai', 'draai']);
-  const tell = soort === 'snel' ? 0.15 : reiTrek(s, 'tellZak', () => [0.25, 0.5, 0.85]);
-  s.st = 'aanval'; s.soort = soort; s.si = 0; s.t = 0; s.inslag = false; s.doorzien = false;
+  const tell = soort === 'snel' ? 0.1 : reiTrek(s, 'tellZak', () => [0.12, 0.28, 0.5]);
+  s.st = 'aanval'; s.soort = soort; s.si = 0; s.t = 0; s.inslag = false; s.doorzien = false; s.strafGehad = false; s.zwoesj = false;
+  if (soort !== 'snel' && reiTrek(s, 'gromZak', () => [1, 0, 0])) reiZeg('grom');
   s.seq = soort === 'schijn' ? reiSchijn() : soort === 'draai' ? reiDraai(tell * 0.8) : reiKap(tell);
 }
 function reiTijdFrame(lijst, t){ let i = 0; while (i < lijst.length - 1 && t >= lijst[i]){ t -= lijst[i]; i++; } return i; }
@@ -54966,7 +54979,7 @@ function reiFrame(s){
 function reiOpen(s){
   if (s.st !== 'aanval') return false;
   const c = s.seq[s.si];
-  return (c[0] === 'uit' && c[1] >= 14 && c[1] <= 19) || (c[0] === 'draai' && c[1] >= 29 && c[1] <= 42);
+  return (c[0] === 'uit' && c[1] >= 14 && c[1] <= 18) || (c[0] === 'draai' && c[1] >= 29 && c[1] <= 37);
 }
 // waar zijn lijf nu staat t.o.v. het anker (spritepixels): de uitval en de draai verplaatsen hem binnen de clip
 function reiLijfDX(s){
@@ -54987,21 +55000,86 @@ function reiKapRaak(s){
   const D = REI_DATA, P = reiP(), g = reiScale(), px = playerX();   // D in spritepixels (maal g), REI in proefpixels (maal P)
   const blad = s.x - s.face * D.uitBlade * g, bij = s.x - s.face * ((D.body[0] + D.uitDisp) * g - 10 * P);
   const lo = Math.min(blad - 30 * P, bij), hi = Math.max(blad + 30 * P, bij);
-  puffWorld(blad, 7, 0, 1.0, s.base || 0); shake = Math.max(shake, 0.18);
-  if (px > lo && px < hi && reiAmirHoog(s) < REI.kapHoog * P){ tlogHint('reinieren'); hurtPlayer(s.x < px); }
+  reiInslagFx(s, blad);
+  if (px > lo && px < hi && reiAmirHoog(s) < REI.kapHoog * P){ tlogHint('reinieren'); hurtPlayer(s.x < px, REI.kapSchade); }
 }
 function reiZwaaiRaak(s){
   const D = REI_DATA, P = reiP(), g = reiScale(), px = playerX();
   const blad = s.x - s.face * D.draaiBlade * g, bij = s.x - s.face * (D.draaiHX[24] * g + 20 * P);
   const lo = Math.min(blad, bij) - 20 * P, hi = Math.max(blad, bij) + 20 * P;
-  s.zwaaiFx = 0.22; s.zwaaiX = [bij, blad]; shake = Math.max(shake, 0.1);
+  s.zwaaiFx = 0.22; s.zwaaiX = [bij, blad]; shake = Math.max(shake, 0.14);
+  for (let i = 0; i < 7; i++) stofWolk(bij + (blad - bij) * Math.random(), 4, s.base || 0, -s.face * (80 + Math.random() * 160), 20 + Math.random() * 16, 0.6, 0.55);
   if (px > lo && px < hi && reiAmirHoog(s) < REI.zwaaiHoog * P){ tlogHint('reinieren'); hurtPlayer(s.x < px); }
+}
+// de bijl slaat in de grond: een zware klap, een stofwolk die opspat en blijft hangen, gruis en kluiten
+function reiInslagFx(s, blad){
+  const P = reiP(), base = s.base || 0;
+  reiZeg('inslag'); reiZeg('grond');
+  shake = Math.max(shake, 0.34); hitstop = Math.max(hitstop, 0.05);
+  puffWorld(blad, 14, 0, 2.4, base);
+  const rnd = (a, b) => a + Math.random() * (b - a);              // de wolk (de deeltjes van Nyundo, bruStofDeeltje): laag en breed weg van het blad
+  for (let i = 0; i < 16; i++)
+    bruStofDeeltje(s, { wx: blad + (Math.random() - 0.5) * 60 * P, y: -rnd(0, 10), vx: (Math.random() - 0.5) * 620, vy: -rnd(120, 340),
+                        r: rnd(30, 58), life: rnd(0.7, 1.2), a: 0.85 });
+  for (let i = 0; i < 6; i++)                                     // en een paar die opstijgen en blijven hangen
+    bruStofDeeltje(s, { wx: blad + (Math.random() - 0.5) * 50 * P, y: -rnd(0, 20), vx: (Math.random() - 0.5) * 140, vy: -rnd(160, 300),
+                        r: rnd(50, 85), life: rnd(1.6, 2.4), a: 0.7, zweef: rnd(18, 38) });
+  for (let i = 0; i < 22; i++)                                   // gruis: korrels die hoog opspatten
+    stofKorrel(blad + (Math.random() - 0.5) * 40 * P, base, (Math.random() - 0.5) * 420, 260 + Math.random() * 420);
+  s.kluiten = s.kluiten || [];
+  for (let i = 0; i < 7; i++)                                    // kluiten aarde die wegspringen en neerploffen
+    s.kluiten.push({ wx: blad + (Math.random() - 0.5) * 20 * P, h: 4, vx: (Math.random() - 0.5) * 380, vh: 220 + Math.random() * 300,
+                     r: 3.5 + Math.random() * 4.5, rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 14, lig: 0, base });
+  s.hangStof = 0.9; s.hangStofX = blad;                          // nog even stof dat uit de kuil walmt
+}
+function reiFxStap(s, dt){
+  bruStofStap(s, dt);
+  if (s.hangStof > 0){
+    s.hangStof -= dt;
+    if (Math.random() < dt * 14) stofWolk(s.hangStofX + (Math.random() - 0.5) * 50, 2, s.base || 0, (Math.random() - 0.5) * 60, 18 + Math.random() * 18, 1.0, 0.55);
+  }
+  if (s.kluiten) for (let i = s.kluiten.length - 1; i >= 0; i--){
+    const k = s.kluiten[i];
+    if (k.lig){ k.lig += dt; if (k.lig > 1.6) s.kluiten.splice(i, 1); continue; }
+    k.vh -= 1400 * dt; k.h += k.vh * dt; k.wx += k.vx * dt; k.rot += k.vr * dt;
+    if (k.h <= 0){ k.h = 0; k.lig = 0.001; if (Math.random() < 0.5) stofWolk(k.wx, 1, k.base, 0, 6 + Math.random() * 6, 0.4, 0.4); }
+  }
+  if (s.bloed) for (let i = s.bloed.length - 1; i >= 0; i--){
+    const d = s.bloed[i];
+    if (d.lig){ d.lig += dt; if (d.lig > 3) s.bloed.splice(i, 1); continue; }
+    d.vh -= 1500 * dt; d.h += d.vh * dt; d.wx += d.vx * dt;
+    if (d.h <= 0){ d.h = 0; d.lig = 0.001; }
+  }
+}
+function reiBloed(s, veel){                                      // een spat bloed waar de speer hem raakt, naar Amir toe
+  const P = reiP(), naar = playerX() > s.x ? 1 : -1, n = veel ? 16 : 8;
+  s.bloed = s.bloed || [];
+  for (let i = 0; i < n; i++)
+    s.bloed.push({ wx: s.x - s.face * (((REI_DATA ? REI_DATA.body[0] + REI_DATA.body[1] : 105) / 2) + reiLijfDX(s)) * reiScale() + (Math.random() - 0.5) * 10, h: CHAR_H * REI.hShare * (0.5 + Math.random() * 0.15),
+                   vx: naar * (60 + Math.random() * 260), vh: 60 + Math.random() * 260, r: (1.6 + Math.random() * 2.2) * P / 1.5, lig: 0 });
+}
+function reiFxTeken(s, cx, gY, a){                               // kluiten en bloed, in schermpixels op de grond van hem
+  const sc = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
+  ctx.save(); ctx.globalAlpha = a;
+  if (s.kluiten) for (const k of s.kluiten){
+    const x = cx + (k.wx - world), y = gY - (k.base + k.h) * sc;
+    ctx.globalAlpha = a * (k.lig ? Math.max(0, 1 - k.lig / 1.6) : 1);
+    ctx.fillStyle = '#6b4a2e'; ctx.save(); ctx.translate(x, y); ctx.rotate(k.rot);
+    ctx.fillRect(-k.r, -k.r * 0.7, k.r * 2, k.r * 1.4); ctx.fillStyle = '#8c6a44'; ctx.fillRect(-k.r, -k.r * 0.7, k.r * 2, k.r * 0.5); ctx.restore();
+  }
+  if (s.bloed) for (const d of s.bloed){
+    const x = cx + (d.wx - world), y = gY - ((s.base || 0) + d.h) * sc;
+    ctx.globalAlpha = a * (d.lig ? Math.max(0, 1 - d.lig / 3) : 1); ctx.fillStyle = '#7a0c0c';
+    ctx.beginPath(); if (d.lig) ctx.ellipse(x, y, d.r * 1.8, d.r * 0.5, 0, 0, 6.29); else ctx.arc(x, y, d.r, 0, 6.29); ctx.fill();
+  }
+  ctx.restore();
 }
 function updateReinier(s, dt, plats, cliff){
   if (achterMasker(s.x, s.base)) return;
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
   if (s.zwaaiFx > 0) s.zwaaiFx = Math.max(0, s.zwaaiFx - dt);
+  reiFxStap(s, dt);
   if (s.st === 'dood'){
     s.dood += dt;
     if (s.dood > REI.doodLig){ s.alpha = Math.max(0, 1 - (s.dood - REI.doodLig) / REI.doodVaag); if (s.alpha <= 0) s.st = 'weg'; }
@@ -55041,6 +55119,7 @@ function updateReinier(s, dt, plats, cliff){
     const c = s.seq[s.si];
     if (s.soort === 'schijn' && c[0] === 'feint' && reiAmirWeg(s)) s.doorzien = true;
     if (c[3] === 'houd' && reiAmirWeg(s)) s.t = Math.min(s.t, c[2] - 0.25);   // de rugdraai: hij wacht tot je landt
+    if (!s.zwoesj && ((c[0] === 'uit' && c[1] === 9) || (c[0] === 'draai' && c[1] === 21))){ s.zwoesj = true; reiZeg('zwaai'); }
     if (c[0] === 'uit' && c[1] === 13 && !s.inslag){ s.inslag = true; reiKapRaak(s); }
     if (c[0] === 'draai' && c[1] === 24 && !s.inslag){ s.inslag = true; reiZwaaiRaak(s); }
     while (s.st === 'aanval' && s.t >= s.seq[s.si][2]){
@@ -55049,6 +55128,7 @@ function updateReinier(s, dt, plats, cliff){
         const dr = s.seq[s.seq.length - 1][0] === 'draai';
         s.x -= s.face * (dr ? D.draaiDisp : D.uitDisp) * reiScale();   // het anker schuift op naar waar hij nu staat
         s.klaarF = dr ? D.draaiR : D.uitR; s.st = 'klaar'; s.t = 0;
+        if (reiTrek(s, 'kettingZak', () => [1, 1, 0])) s.t = REI.klaar - REI.ketting;   // hij pakt door: nauwelijks een adempauze
       }
     }
   }
@@ -55064,14 +55144,22 @@ function hitReinier(s){
   if (s.st === 'dood' || s.st === 'weg' || s.inv > 0) return false;
   const open = reiOpen(s);
   hits++; hitsEl.textContent = hits;
-  s.hp -= open ? REI.strafSchade : 1;
+  const dubbel = open && !s.strafGehad;                    // alleen de eerste klap in een strafvenster telt dubbel
+  if (open) s.strafGehad = true;
+  s.hp -= dubbel ? REI.strafSchade : 1;
   if (s.hp > 0 && critPak()) s.hp--;
-  s.flash = 0.25; s.inv = 0.3;
+  s.flash = 0.25; s.inv = 0.42;
+  reiBloed(s, dubbel);
   hitstop = Math.max(hitstop, 0.06); shake = Math.max(shake, 0.12);
-  if (open) critFx(s.x, (s.base || 0) + CHAR_H * 0.6);
-  if (s.hp <= 0){ s.st = 'dood'; s.dood = 0; s.flash = 0.15; vijandDood(false, s); return true; }
+  if (dubbel) critFx(s.x, (s.base || 0) + CHAR_H * 0.6);
+  if (s.hp <= 0){ s.st = 'dood'; s.dood = 0; s.flash = 0.15; reiZeg('dood'); reiBloed(s, true); vijandDood(false, s); return true; }
+  reiZeg('pijn');
   if (s.st === 'rem'){ reiStart(s, 'snel'); return true; }   // geraakt in zijn tell: hij kapt meteen
-  if ((s.st === 'klaar' || s.st === 'ren' || s.st === 'rust') && s.wankelKoel <= 0){ s.st = 'wankel'; s.t = 0; s.wankelKoel = REI.wankelKoel; return true; }
+  if (s.st === 'klaar' || s.st === 'ren' || s.st === 'rust'){
+    if (s.wankelKoel <= 0){ s.st = 'wankel'; s.t = 0; s.wankelKoel = REI.wankelKoel; }
+    else { s.face = playerX() > s.x ? 1 : -1; reiStart(s, 'snel'); }   // nog een klap kort na de vorige: hij slaat meteen terug
+    return true;
+  }
   if (s.st === 'aanval'){                                   // in zijn tell of de schijnkap: meteen door naar de klap
     const c = s.seq[s.si];
     if ((c[0] === 'uit' && c[1] <= 10) || c[0] === 'feint' || (c[0] === 'draai' && c[1] <= 19)){
@@ -63180,6 +63268,8 @@ function loop(now){
         ctx.save(); ctx.globalAlpha = 0.26 * alpha; ctx.fillStyle = '#1d140f'; ctx.beginPath();
         ctx.ellipse(lx, voeten, REI.lijfHalf * P * 1.6, REI.lijfHalf * P * 0.25, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
         reiTeken(s, bodyX, voeten, g, alpha);
+        reiFxTeken(s, cx, groundY, alpha);
+        bruStofTeken(s, voeten, g, cx);
         if (s.st === 'dood' || s.st === 'weg') continue;
         const lhalf = REI.lijfHalf * P;
         const nbox = { l: lx - lhalf, r: lx + lhalf, t: voeten - (REI_DATA ? REI_DATA.fig : 389) * g, b: voeten };
