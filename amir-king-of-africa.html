@@ -7521,9 +7521,9 @@ const TUT_2 = {
       { zeg: ['Snakes stay low. A stab can go over them.', 'So get low too. Crouch and swing. [DOWN] [F]'],
         eis: 'zwaai', nog: 'Hold [DOWN], then press [F].', ok: 'Good. Again.' },
       { zeg: 'Once more. Low and wide. [DOWN] [F]', eis: 'zwaai', nog: 'Hold [DOWN], then press [F].', ok: 'Yes. You feel it?' },
-      { zeg: ['Now they come two at a time, from behind.', 'Wait until both are close. One swing, two snakes.'],
-        golven: [ {n: 2, tussen: 55, speed: 0.5}, {n: 2, tussen: 80, speed: 0.7}, {n: 2, tussen: 140, speed: 0.85} ],
-        golfZeg: ['Good. More coming.', 'Again. Watch the space between them.'],
+      { zeg: ['Now two at a time. One from each side.', 'The low swing cuts both ways. Wait until both are close.'],
+        golven: [ {n: 2, beide: true, speed: 0.5}, {n: 2, beide: true, speed: 0.7, later: 150}, {n: 2, beide: true, speed: 0.85, later: 320} ],
+        golfZeg: ['Good. More coming.', 'Again. This time one is slower. Wait for it.'],
         dubbel: ['Two in one swing!', 'Both! Beautiful.', 'Ha! One swing, two snakes.'],
         eis: 'golven', seg: 2, ok: 'The snakes will tell stories about you.', okDuur: 2, kijk: false },
       { zeg: 'Enough snakes for one morning. Next, we throw. The torches are yours.' }
@@ -27055,7 +27055,7 @@ function mentorNog(m, st){
 function mentorSlang(x, speed){
   const s = makeSnake('groen');
   s.x = x; s.side = x > world ? 1 : -1; s.speed = speed || 1; s.base = terrainH(x);
-  s.tutSlang = true;
+  s.tutSlang = true; s.tutOver = s.side < 0;       // van links: langs de rots van de gids (uitzondering op regel 7, op verzoek)
   snakes.push(s);
   return s;
 }
@@ -27073,7 +27073,11 @@ function mentorGolven(m, st, dt, uitgepraat){
     if (G.wacht > 0) return;
     const w = st.golven[G.n], rand = W / 2 / viewZoom() + 160;
     G.slangen = []; G.doden = [];
-    for (let k = 0; k < (w.n || 1); k++) G.slangen.push(mentorSlang(world + rand + k * (w.tussen || 80), w.speed));
+    // beide: om en om rechts en links (de lage zwaai raakt naar twee kanten); `later` schuift de slang van links verder weg
+    for (let k = 0; k < (w.n || 1); k++){
+      const links = w.beide && k % 2 === 1;
+      G.slangen.push(mentorSlang(links ? world - rand - (w.later || 0) : world + rand + Math.floor(k / (w.beide ? 2 : 1)) * (w.tussen || 80), w.speed));
+    }
     return;
   }
   for (const s of G.slangen) if (mentorSlangDood(s) && !G.doden.some(d => d.s === s)) G.doden.push({ s, t: m.klok });
@@ -47061,6 +47065,7 @@ function slangSchuif(s, dt, plats, cliff, tempo){
   if (cliff && s.x > cliff.wall - 60) s.x = Math.min(s.x, cliff.wall - 60);
   if (s.x < endWall() + 60) s.x = endWall() + 60;
   for (const p of plats){                      // a rock stops it (een terras niet, als hij kan klimmen)
+    if (s.tutOver && !p.terrace && level && (level.rocks || []).some(r => r.x === p.x)) continue;           // uitzondering op regel 7 (op verzoek, tutorial 2): de slang van links glipt langs de rots van de gids
     if (!blocksMonster(p, s.base || 0, s.klim, true)) continue;
     const half = 60 * (p.wPx / 400);
     if (s.x + half > p.left && s.x - half < p.right){
