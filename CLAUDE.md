@@ -172,6 +172,12 @@ Voorbeelden: `critZak` (True Flight), `mpcKnikker` (de tonnen van Co-op), `ardhi
 per level. Oudere kansen die nog met `Math.random()` gaan (Gris-gris, Gold King) laat je staan tot de opdrachtgever
 erom vraagt; een nieuwe kans gaat altijd met een zak.
 
+**17. De telefoon ligt stil.** Op verzoek van de opdrachtgever (28-11-2026) doen we voorlopig niets met de telefoon: bouw
+er niets voor, stel er niets voor voor, test er niet op en zet het niet als open punt in een notitie. Wat er al is
+(knoppen, de camera voor de telefoon, schermformaten) blijft staan en hoef je niet bij te werken; breekt een nieuwe
+wijziging iets op de telefoon, dan is dat geen reden om het te laten. Pas als de opdrachtgever er zelf weer over begint,
+komt de telefoon terug.
+
 ## Waar wat staat
 
 De HTML is opgedeeld met commentaarkoppen (`// ---- ... ----`). Zoek daarop, niet op
