@@ -30388,17 +30388,18 @@ function doorvalTik(){
   return doorvalStart(true);
 }
 function doorvalAan(){ return sandbox ? DOORVAL.sb : !!(level && level.doorval); }
-function doorvalbaar(p){ return !!(p && p.thin && DOORVAL.soorten[p.stad]); }
+function doorvalbaar(p){ return !!(p && p.thin && (DOORVAL.soorten[p.stad] || p.springdoek)); }
 function doorvalNegeer(p){ return doorvalT > 0 && doorvalbaar(p) && Math.abs(p.topH - doorvalH) < 3; }
-function doorvalStart(tik){
-  if (!doorvalAan() || !(tik || downKey()) || !onGround || jump || dead || amirVast() || hurt > 0) return false;
+// doek: de doeken (strakke luifel en rechte springdoek), in elk level: omlaag en je valt erdoorheen (stadDoekDoorval)
+function doorvalStart(tik, doek){
+  if (!(doek || doorvalAan()) || !(tik || downKey()) || !onGround || jump || dead || amirVast() || hurt > 0) return false;
   const sc = nowScale(), sw = steunVan(PLAYER_HALF_W * CHAR_H * sc);
   const g = grondVloer(world, ph);
   if (g != null && Math.abs(g - ph) <= 2) return false;            // hij staat op de grond zelf
   let dun = false;
   for (const p of platsNear(sc)){
     if (world + sw <= p.left || world - sw >= p.right || Math.abs(p.topH - ph) > 2) continue;
-    if (!doorvalbaar(p)) return false;                             // iets massiefs op dezelfde hoogte: dat draagt
+    if (!doorvalbaar(p) || (doek && !p.springdoek)) return false;  // iets massiefs op dezelfde hoogte: dat draagt
     dun = true;
   }
   if (!dun) return false;
@@ -34672,7 +34673,7 @@ const STAD = {
                            [596, 175], [656, 164], [716, 151], [776, 138], [836, 123], [900, 110]],
                    // buik: de onderkant van de doek zakt zoveel keer verder dan de bovenkant (hij rekt uit onder het gewicht);
                    // buk: gebukt staan zijn voeten verder uit elkaar, dan is de kuil zoveel breder
-                   kuil: { diep: 0.12, breed: 0.36, amir: 0.6, voor: 0.3, rand: 0.05, uit: 0.15, buik: 1.8, buk: 1.45, voet: 0.12 },   // voet: halve voetafstand in Amir
+                   kuil: { diep: 0.12, breed: 0.36, amir: 0.6, voor: 0.3, rand: 0.05, uit: 0.15, buik: 1.8, buk: 1.45, voet: 0.12, over: 0.05 },   // voet: halve voetafstand in Amir
                    // vast: de doek zit vast aan de stam (bron-x tot vast[0]) en aan de paal (vanaf vast[2]); daar zakt hij niet, en over
                    // vast[1] en vast[3] bron-px loopt de kuil daarnaartoe uit, zodat er geen gat valt tussen doek en hout.
                    // omhoog: doorveren boven de rustplek mag maar zoveel keer zo ver als omlaag zakken (anders gat onder de doek)
@@ -36078,6 +36079,7 @@ function stadLuifelWorp(p){
 }
 function stadLuifelStap(dt){
   stadKuilStap();                                // de strakke luifel: staat Amir erop (hier, niet bij het tekenen: daar is world de camera)
+  if (onGround && downKey() && stadAan()) doorvalStart(false, true);   // omlaag op een doek: erdoorheen vallen (in plaats van bukken)
   if (!stadLuifelVx) return;
   if (onGround || dead || fell){ stadLuifelVx = 0; return; }
   world += stadLuifelVx * dt;
@@ -42345,22 +42347,23 @@ function stadLuifelDip(D, kx, sg){
   const d = D < 0 ? D * STAD.plein.luifelStrak.omhoog : D;   // omhoog staat naast vast, niet in kuil: kuil.omhoog gaf NaN en een doek die wegviel
   return x => d * Math.exp(-Math.pow((x - kx) / sg, 2));
 }
-// de plaat in kolommen, elk zoveel lager als de kuil daar is (dip in scherm-px op scherm-x); voor: alleen de voorrand
+// de plaat in kolommen, elk zoveel lager als de kuil daar is (dip in scherm-px op scherm-x); voor: alleen de voorrand,
+// een getal: zoveel keer de kuil zakt de voorrand (stadVoorZak)
 function stadLuifelStrakKolommen(p, lm, groundY, scale, cx, dip, voor){
   const L = lm.L, im = stadLuifelStrakBeeld(p.kleur), q = stadQ(im, 1), th = terrainH(lm.wand), A = CHAR_H * scale;
   const top = groundY - (th + lm.top) * scale, wx0 = cx + (lm.wand - world), fs = lm.fs;
   const kx = cx + (stadKuil(p).x - world), reik = 2.5 * stadKuilBreed(L) * A;
   ctx.save(); ctx.translate(wx0, 0); ctx.scale(-lm.dir, 1);    // lokaal: x = (bron-x - wand) * fs
-  const stap = voor ? 3 : 6;
+  const vr = voor !== false, stap = vr ? 3 : 6;
   for (let x = 0; x < L.w; x += stap){
     const sxm = wx0 + lm.dir * (L.wand - (x + stap / 2)) * fs, d = dip(sxm) * stadLuifelVast(L, x + stap / 2);
     const ob = Math.min(L.h, Math.ceil(stadStalY(L, x + stap / 2, L.onder)) + 2);   // de onderrand van de doek in deze kolom
-    if (voor){
+    if (vr){
       if (Math.abs(sxm - kx) > reik || x + stap < L.stal[0][0] || x > L.stal[L.stal.length - 1][0]) continue;   // alleen de doek zelf, niet de paal of de franje
       const sy = Math.max(0, stadStalY(L, x + stap / 2) - L.kuil.rand * CHAR_H / lm.fsH);
       // tot op de uitgezakte onderkant van de achterste laag, zodat er niets van Amir onderuit steekt
       // veert de doek omhoog (d < 0), dan blijft de onderrand op het hout en rekt alleen de bovenkant mee, anders knippert er een spleet
-      const ov = top + sy * fs + d * L.kuil.voor, oh = d < 0 ? (ob - sy) * fs - d * L.kuil.voor : (ob - sy) * fs + d * (L.kuil.buik - L.kuil.voor);
+      const ov = top + sy * fs + d * voor, oh = d < 0 ? (ob - sy) * fs - d * voor : (ob - sy) * fs + d * (L.kuil.buik - voor);
       if (ob > sy) ctx.drawImage(im, x * q, sy * q, (stap + 1) * q, (ob - sy) * q, (x - L.wand) * fs, ov, (stap + 1) * fs, oh);
     } else {
       ctx.drawImage(im, x * q, ob * q, (stap + 1) * q, (L.h - ob) * q, (x - L.wand) * fs, top + ob * fs, (stap + 1) * fs, (L.h - ob) * fs);   // het hout eronder
@@ -42422,6 +42425,13 @@ function stadLuifelStrakTeken(p, groundY, scale, cx, zicht){
     ctx.beginPath(); ctx.arc(kx, y, rx, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   }
 }
+// hoe ver de voorrand van de strakke luifel in de kuil zakt, als deel van de kuil. Amir staat kuil.amir diep; de voorrand
+// valt minstens kuil.over Amir over zijn voeten. Op een kleine luifel (Ishmul, maat 0,45) is de kuil ondiep en was dat maar
+// een paar pixels: dan stonden zijn voeten bovenop de doek. Daar zakt de voorrand dus minder (of komt hij iets omhoog).
+function stadVoorZak(p){
+  const K = STAD.plein.luifelStrak.kuil;
+  return Math.min(K.voor, K.amir - K.over / stadKuilDiep(p));
+}
 // na Amir: de voorrand van de kuil over zijn voeten (in de render-lus, na de personages)
 function stadLuifelVoor(groundY, scale, cx){
   if (!stadAan()) return;
@@ -42429,7 +42439,7 @@ function stadLuifelVoor(groundY, scale, cx){
     if (p.stijl !== 'strak' || p.gevel == null || !stadKlaar('luifelStrak')) continue;
     const K = stadKuil(p); if (K.rust < 0.05) continue;
     const L = STAD.plein.luifelStrak, A = CHAR_H * scale, D = stadKuilDiep(p) * A * K.amp, sg = stadKuilBreed(L) * A, kx = cx + (K.x - world);
-    stadLuifelStrakKolommen(p, stadLuifelMaat(p, scale), groundY, scale, cx, stadLuifelDip(D, kx, sg), true);
+    stadLuifelStrakKolommen(p, stadLuifelMaat(p, scale), groundY, scale, cx, stadLuifelDip(D, kx, sg), stadVoorZak(p));
   }
   // de rechte springdoek: de doek opnieuw, minder diep ingezakt, in een vak rond Amir vanaf net boven zijn voeten
   if (!stadKlaar('luifel')) return;

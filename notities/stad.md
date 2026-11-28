@@ -1152,6 +1152,14 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
 - **Twee lagen**: de doek met de kuil voor Amir, en na Amir alleen de voorrand rond zijn voeten (`stadLuifelVoor`, in de
   render-lus voor `critFxTeken`), minder diep ingezakt (`kuil.voor`), vanaf `kuil.rand` boven de stallijn. Zo vallen zijn
   zolen en tenen achter de voorrand en loopt de doek achter hem omhoog.
+- **Een vaste maat over de voeten** (`kuil.over`, `stadVoorZak`): de voorrand valt minstens `kuil.over` (0,05) Amir over zijn
+  voeten. Op een kleine luifel (Ishmul, maat 0,45) schaalt de kuil mee en was het verschil tussen zijn voeten (`kuil.amir`
+  van de kuil) en de voorrand (`kuil.voor` van de kuil) maar een paar pixels: zijn zolen stonden dan bovenop de doek, ook
+  in Co-op. Nu zakt de voorrand daar minder ver (of komt hij een fractie omhoog), zodat de zolen er altijd achter vallen.
+- **Omlaag: erdoorheen** (`doorvalStart(false, true)`, in `stadLuifelStap`): pijl omlaag op een doek (strakke luifel of rechte
+  springdoek) laat je er in elk level doorheen vallen, in plaats van te bukken (gebukt stonden je voeten breder dan de kuil
+  en staken ze erbuiten). Het loopt via het doorzakken (`DOORVAL`, `doorvalbaar` kent de doeken), ook zonder `doorval` in
+  het level; voor een galerij of kraam blijft dat de levelvlag.
 - **Schaduw**: geen harde schaduw van Amir op de luifel (`amirSchaduw` slaat over), wel een zachte vlek in de kuil.
 - **Let op**: tijdens het tekenen is `world` het midden van de camera, niet Amir (`pWorld`). Daarom legt `stadKuilStap`
   (in `stadLuifelStap`, de spelstap) vast of en waar hij erop staat (`kuilOp`, `kuilX`, `stadAmirX`), en leest het tekenen
